@@ -11,8 +11,8 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="SIAMS – Boutique en ligne">
 <meta property="og:description" content="Créez, gérez et développez votre boutique en ligne en toute simplicité.">
-<meta property="og:image" content="https://www.lesboutiqueagreesiams.app/og-image.png">
-<meta property="og:url" content="https://www.lesboutiqueagreesiams.app">
+<meta property="og:image" content="https://lesservicessiams.vercel.app/og-image.png">
+<meta property="og:url" content="https://lesservicessiams.vercel.app">
 <meta name="twitter:card" content="summary_large_image">
 
 <!-- Favicon -->
@@ -300,8 +300,8 @@
   .otp-back{background:none;border:none;cursor:pointer;color:var(--text);padding:4px;display:flex;}
   .otp-help{background:none;border:none;cursor:pointer;color:var(--indigo);font-size:14.5px;font-weight:700;font-family:var(--font-body);display:flex;align-items:center;gap:6px;}
   .otp-title{font-size:25px;font-weight:800;margin:34px 0 0;padding:0 20px;line-height:1.25;}
-  .otp-boxes{display:flex;gap:16px;justify-content:center;margin:52px 0 26px;}
-  .otp-box{width:44px;height:52px;text-align:center;font-size:26px;font-weight:700;border:none;border-bottom:2.5px solid var(--line);background:transparent;outline:none;color:var(--text);font-family:var(--font-body);}
+  .otp-boxes{display:flex;gap:8px;justify-content:center;margin:52px 0 26px;flex-wrap:nowrap;}
+  .otp-box{width:36px;height:48px;text-align:center;font-size:22px;font-weight:700;border:none;border-bottom:2.5px solid var(--line);background:transparent;outline:none;color:var(--text);font-family:var(--font-body);}
   .otp-box:focus{border-bottom-color:var(--indigo);}
   .otp-box.filled{border-bottom-color:var(--indigo);}
   .otp-resend-label{text-align:center;font-size:14.5px;color:var(--text-mid);margin-bottom:20px;}
@@ -846,8 +846,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 /* =========================================================
    BELOU STORE — architecture: Store / Notify / Router / Views
@@ -860,6 +858,34 @@ const LOGO_DATA_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAY
 const SUPABASE_URL = 'https://xkcvjfxzcjkjthiwgqzi.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_1giDs1LqDhCshoKkerkZuA_KXTwF_OV';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------------- Chargement paresseux des librairies lourdes ----------------
+   jsPDF (~350 Ko) et QRCode ne servent que pour des actions ponctuelles
+   (export PDF, QR de livraison). Les charger au démarrage ralentissait
+   chaque connexion, même pour les sessions qui n'y touchent jamais. On les
+   injecte donc à la demande, une seule fois, juste avant leur premier usage. */
+const _scriptCache = {};
+function loadScriptOnce(key, src){
+  if(_scriptCache[key]) return _scriptCache[key];
+  _scriptCache[key] = new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = ()=>{ delete _scriptCache[key]; reject(new Error('load failed: '+src)); };
+    document.head.appendChild(s);
+  });
+  return _scriptCache[key];
+}
+async function ensureJsPDF(){
+  if(window.jspdf) return true;
+  try{ await loadScriptOnce('jspdf', 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'); return true; }
+  catch(e){ console.error(e); return false; }
+}
+async function ensureQRCode(){
+  if(typeof QRCode!=='undefined') return true;
+  try{ await loadScriptOnce('qrcode', 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js'); return true; }
+  catch(e){ console.error(e); return false; }
+}
 
 /* ---------------- Utils ---------------- */
 const Utils = {
@@ -928,21 +954,30 @@ const Utils = {
     return Math.floor(s/86400)+' j';
   },
   dayLabel(d){ return ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]; },
+  /* ---- Libellé lisible d'une combinaison de variante (taille/couleur/attributs
+     personnalisés) pour un item de panier ou de commande. ---- */
+  variantLabel(item){
+    const bits = [item.size, item.color].filter(Boolean);
+    if(item.extra){ Object.keys(item.extra).forEach(k=>{ if(item.extra[k]) bits.push(item.extra[k]); }); }
+    return bits.join(' · ');
+  },
   /* ---- Encodage discret de métadonnées (tailles / couleurs) dans la description ----
      Permet de conserver ces infos via la colonne "description" existante, sans
      modification du schéma de la base de données. ---- */
   encodeMeta(desc, meta){
     const clean = (desc||'').replace(/\n?<!--SIGO_META:.*?-->\s*$/s, '');
-    const hasMeta = (meta.sizes && meta.sizes.length) || (meta.colors && meta.colors.length);
-    return hasMeta ? `${clean}\n<!--SIGO_META:${JSON.stringify(meta)}-->` : clean;
+    const extra = (meta.extra||[]).filter(g=>g.label && g.values && g.values.length);
+    const hasMeta = (meta.sizes && meta.sizes.length) || (meta.colors && meta.colors.length) || extra.length;
+    const payload = {sizes:meta.sizes||[], colors:meta.colors||[], extra};
+    return hasMeta ? `${clean}\n<!--SIGO_META:${JSON.stringify(payload)}-->` : clean;
   },
   decodeMeta(desc){
     const raw = desc || '';
     const m = raw.match(/<!--SIGO_META:(.*?)-->\s*$/s);
-    let meta = {sizes:[], colors:[]};
+    let meta = {sizes:[], colors:[], extra:[]};
     if(m){ try{ meta = {...meta, ...JSON.parse(m[1])}; }catch(e){} }
     const clean = raw.replace(/\n?<!--SIGO_META:.*?-->\s*$/s, '').trim();
-    return { desc: clean, sizes: meta.sizes||[], colors: meta.colors||[] };
+    return { desc: clean, sizes: meta.sizes||[], colors: meta.colors||[], extra: (meta.extra||[]).filter(g=>g&&g.label&&Array.isArray(g.values)) };
   },
   /* ---- Petit stockage local additionnel (retraits, email de contact) ---- */
   localKey(name){ const slug = (Store.store && Store.store.slug) ? Store.store.slug : 'default'; return `sigo_${name}_${slug}`; },
@@ -967,6 +1002,10 @@ const Cloud = {
       const loginId = Utils.genLoginId();
       const ins = await sb.from('stores').insert({ owner_id:userId, name:'Ma boutique', slug, phone: phone || '', login_id: loginId }).select().single();
       store = ins.data;
+      /* ---- Boutique tout juste créée : on sème les catégories/moyens de paiement
+         par défaut ici, une seule fois, plutôt qu'à chaque connexion (voir
+         ensureDefaults, conservé seulement pour les vieux comptes non semés). ---- */
+      if(store) await this.ensureDefaults(store.id);
     } else if(!store.login_id){
       /* Compte créé avant l'ajout de cette fonctionnalité : on génère l'identifiant à la volée. */
       const loginId = Utils.genLoginId();
@@ -986,30 +1025,37 @@ const Cloud = {
     return store;
   },
 
-  async ensureDefaults(){
+  /* ---- Sème les catégories/moyens de paiement par défaut si absents. Appelée une
+     fois à la création d'une boutique (ensureStore) ; conservée aussi en filet de
+     sécurité pour les comptes créés avant l'ajout de cette fonctionnalité, mais
+     alors lancée en arrière-plan (voir loadStoreData) pour ne jamais ralentir
+     l'écran de connexion des boutiques déjà à jour. ---- */
+  async ensureDefaults(storeId){
+    const sid = storeId || this.storeId;
     const [catRes, payRes] = await Promise.all([
-      sb.from('categories').select('*').eq('store_id', this.storeId),
-      sb.from('payment_methods').select('*').eq('store_id', this.storeId)
+      sb.from('categories').select('id').eq('store_id', sid).limit(1),
+      sb.from('payment_methods').select('id').eq('store_id', sid).limit(1)
     ]);
-    if(catRes.data && catRes.data.length){ this.categories = catRes.data; }
-    else {
+    const jobs = [];
+    if(!catRes.data || !catRes.data.length){
       const defaults = ['Vêtements','Chaussures','Sacs','Montres','Bijoux & Accessoires','Autres'];
-      const ins = await sb.from('categories').insert(defaults.map(name=>({store_id:this.storeId, name}))).select();
-      this.categories = ins.data || [];
+      jobs.push(sb.from('categories').insert(defaults.map(name=>({store_id:sid, name}))));
     }
     if(!payRes.data || !payRes.data.length){
-      await sb.from('payment_methods').insert([
-        {store_id:this.storeId, method_key:'wave', enabled:false, number:''},
-        {store_id:this.storeId, method_key:'om', enabled:false, number:''},
-        {store_id:this.storeId, method_key:'mtn', enabled:false, number:''},
-        {store_id:this.storeId, method_key:'cash', enabled:true, number:null}
-      ]);
+      jobs.push(sb.from('payment_methods').insert([
+        {store_id:sid, method_key:'wave', enabled:false, number:''},
+        {store_id:sid, method_key:'om', enabled:false, number:''},
+        {store_id:sid, method_key:'mtn', enabled:false, number:''},
+        {store_id:sid, method_key:'moov', enabled:false, number:''},
+        {store_id:sid, method_key:'cash', enabled:true, number:null}
+      ]));
     }
+    if(jobs.length) await Promise.all(jobs);
   },
 
   async loadAll(){
     const sid = this.storeId;
-    const [storeRes, prodRes, ordRes, teamRes, payRes, zoneRes, promoRes, revRes, notifRes] = await Promise.all([
+    const [storeRes, prodRes, ordRes, teamRes, payRes, zoneRes, promoRes, revRes, notifRes, catRes] = await Promise.all([
       sb.from('stores').select('*').eq('id', sid).single(),
       sb.from('products').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
       sb.from('orders').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
@@ -1018,8 +1064,10 @@ const Cloud = {
       sb.from('delivery_zones').select('*').eq('store_id', sid),
       sb.from('promos').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
       sb.from('reviews').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
-      sb.from('notifications').select('*').eq('store_id', sid).order('created_at', {ascending:false})
+      sb.from('notifications').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
+      sb.from('categories').select('*').eq('store_id', sid)
     ]);
+    this.categories = catRes.data || [];
     const products = prodRes.data || [];
     const orders = ordRes.data || [];
     const productIds = products.map(p=>p.id);
@@ -1041,6 +1089,7 @@ const Cloud = {
     });
     _cache.orders = orders.map(o=>({
       id:o.id, number:o.number, customer:{name:o.customer_name, phone:o.customer_phone, address:o.customer_address},
+      customerLat:o.customer_latitude!=null?Number(o.customer_latitude):null, customerLng:o.customer_longitude!=null?Number(o.customer_longitude):null,
       items: items.filter(it=>it.order_id===o.id).map(it=>({productId:it.product_id, name:it.name, price:it.price, qty:it.qty})),
       amount:o.amount, discount:o.discount, deliveryZone:o.delivery_zone, deliveryFee:o.delivery_fee,
       promoCode:o.promo_code, paymentMethod:o.payment_method, status:o.status, createdAt:new Date(o.created_at).getTime(),
@@ -1051,8 +1100,8 @@ const Cloud = {
     }));
     _cache.team = (teamRes.data||[]).map(t=>({id:t.id, name:t.name, phone:t.phone, role:t.role, status:t.status}));
     const payArr = payRes.data || [];
-    const findPay = k => { const r = payArr.find(x=>x.method_key===k); return r ? {enabled:r.enabled, number:r.number||''} : {enabled:k==='cash', number:''}; };
-    _cache.payment = { wave:findPay('wave'), om:findPay('om'), mtn:findPay('mtn'), cash:{enabled:findPay('cash').enabled} };
+    const findPay = k => { const r = payArr.find(x=>x.method_key===k); return r ? {enabled:r.enabled, number:r.number||'', link:r.link||'', validated:!!r.validated, validatedAt:r.validated_at?new Date(r.validated_at).getTime():0} : {enabled:k==='cash', number:'', link:'', validated:false, validatedAt:0}; };
+    _cache.payment = { wave:findPay('wave'), om:findPay('om'), mtn:findPay('mtn'), moov:findPay('moov'), cash:{enabled:findPay('cash').enabled} };
     _cache.deliveryZones = (zoneRes.data||[]).map(z=>({name:z.name, fee:z.fee}));
     _cache.promos = (promoRes.data||[]).map(p=>({id:p.id, code:p.code, type:p.type, value:p.value, active:p.active, createdAt:new Date(p.created_at).getTime()}));
     _cache.reviews = (revRes.data||[]).map(r=>({id:r.id, productId:r.product_id, name:r.name, rating:r.rating, comment:r.comment, reply:r.reply, createdAt:new Date(r.created_at).getTime()}));
@@ -1138,6 +1187,7 @@ const Cloud = {
       const isNew = !prev.find(x=>x.id===o.id);
       await sb.from('orders').upsert({
         id:o.id, store_id:this.storeId, number:o.number, customer_name:o.customer.name, customer_phone:o.customer.phone, customer_address:o.customer.address,
+        customer_latitude:o.customerLat!=null?o.customerLat:null, customer_longitude:o.customerLng!=null?o.customerLng:null,
         subtotal: o.amount + (o.discount||0) - (o.deliveryFee||0), discount:o.discount||0, promo_code:o.promoCode||null,
         delivery_zone:o.deliveryZone||null, delivery_fee:o.deliveryFee||0, amount:o.amount, payment_method:o.paymentMethod||'cash', status:o.status||'pending',
         payment_proof_url:o.paymentProof||null, confirmed_at:o.confirmedAt?new Date(o.confirmedAt).toISOString():null,
@@ -1193,7 +1243,7 @@ const Cloud = {
   },
 
   async pushPayment(prev, next){
-    const rows = ['wave','om','mtn','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null}));
+    const rows = ['wave','om','mtn','moov','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null, link:next[k].link||null}));
     await sb.from('payment_methods').upsert(rows, {onConflict:'store_id,method_key'});
   },
 
@@ -1285,7 +1335,7 @@ const Cloud = {
 /* ---------------- In-memory cache (remplace localStorage) ---------------- */
 let _cache = {
   products:[], orders:[], team:[], couriers:[], courierAssignments:[],
-  payment:{wave:{enabled:false,number:''},om:{enabled:false,number:''},mtn:{enabled:false,number:''},cash:{enabled:true}},
+  payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}},
   categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[],
   store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''}
 };
@@ -1361,15 +1411,19 @@ const Store = {
   get withdrawals(){ return Utils.getLocal('withdrawals', []); },
   set withdrawals(v){ Utils.setLocal('withdrawals', v); },
   totalWithdrawn(){ return this.withdrawals.reduce((s,w)=>s+w.amount,0); },
-  availableBalance(){ const courierDue=(this.courierPayouts||[]).filter(p=>p.status!=='cancelled').reduce((s,p)=>s+Number(p.amount||0),0); return Math.max(0, this.revenueDelivered() - this.totalWithdrawn() - courierDue); },
+  /* ---- Espèces collectées par vos livreurs pour des commandes payées à la livraison ----
+     SIAMS ne reçoit et ne conserve jamais l'argent du marchand : les paiements Wave/OM/MTN
+     tombent directement sur le compte mobile money du marchand, et le cash est encaissé soit
+     par le marchand lui-même, soit par un livreur. Seul ce dernier cas (cash encaissé par un
+     livreur pour une commande livrée) laisse de l'argent du marchand entre des mains tierces
+     en attendant d'être reversé — c'est le seul solde que cet écran doit suivre. */
+  cashPendingFromCouriers(){
+    return this.orders.filter(o=>o.status==='delivered' && o.paymentMethod==='cash' && o.courierId)
+      .reduce((s,o)=>s+Math.max(0, Number(o.amount||0) - Number(o.courierPayout||0)), 0);
+  },
+  availableBalance(){ return Math.max(0, this.cashPendingFromCouriers() - this.totalWithdrawn()); },
   get contactEmail(){ return Utils.getLocal('contact_email', ''); },
   set contactEmail(v){ Utils.setLocal('contact_email', v); },
-
-  /* ---- Sécurité des paiements : compte marchand vérifié auprès de la banque SIAMS ----
-     Tant que ce statut est false, les fonds restent visibles (sécurisés en banque)
-     mais ne peuvent pas être retirés : ceci protège contre les faux comptes/annulations. */
-  get merchantVerified(){ return Utils.getLocal('merchant_verified', false); },
-  set merchantVerified(v){ Utils.setLocal('merchant_verified', !!v); },
 
   /* ---- Centre financier : formule d'abonnement ---- */
   get subscription(){ return Utils.getLocal('subscription', { plan:null, status:'none', renewsAt:0, pendingSince:0, pendingConfirmAt:0, pendingMethod:'' }); },
@@ -1655,7 +1709,7 @@ const ThemeUnlock = { init(){}, unlock(){}, setActive(){}, applyTier(){}, unlock
 
 /* ---------------- Export du rapport de ventes (PDF) ---------------- */
 async function exportSalesReportPDF(){
-  if(!window.jspdf){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
   const W = doc.internal.pageSize.getWidth();
@@ -1828,7 +1882,7 @@ const Charts = {
 const DeliveryQR = {
   buildUrl(order){
     const slug = (Store.store && Store.store.slug) ? Store.store.slug : '';
-    const base = `https://les-boutique-agreee-siams.vercel.app/${slug}`;
+    const base = `https://lesservicessiams.vercel.app/${slug}`;
     return `${base}?confirm_delivery=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.deliveryToken||'')}`;
   },
   async copyLink(orderId){
@@ -1905,9 +1959,14 @@ const Router = {
 const Bootstrap = {
   async loadStoreData(user){
     await Cloud.ensureStore(user.id, user.user_metadata?.phone || '');
-    await Cloud.ensureDefaults();
-    await Cloud.loadAll();
-    await Cloud.loadCourierData();
+    /* ---- loadAll et loadCourierData ne dépendent que du storeId : on les lance
+       en parallèle plutôt qu'à la suite, ça évite d'additionner leurs latences
+       réseau et accélère nettement l'écran de connexion. ensureDefaults ne sert
+       plus qu'aux vieux comptes non semés (les nouveaux le sont déjà via
+       ensureStore) : on la laisse tourner en arrière-plan, sans bloquer
+       l'affichage du tableau de bord. ---- */
+    Cloud.ensureDefaults().catch(e=>console.error('ensureDefaults', e));
+    await Promise.all([ Cloud.loadAll(), Cloud.loadCourierData() ]);
   }
 };
 const Auth = {
@@ -1945,7 +2004,7 @@ const Auth = {
     await sb.auth.signOut();
     Auth.loggedIn = false;
     OtpGate.reset();
-    _cache = { products:[], orders:[], team:[], payment:{wave:{enabled:false,number:''},om:{enabled:false,number:''},mtn:{enabled:false,number:''},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''} };
+    _cache = { products:[], orders:[], team:[], payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''} };
     Cloud.storeId = null; Cloud.loginId = null;
     Router.go('login');
   }
@@ -2137,9 +2196,9 @@ const Onboarding = {
    côté serveur pour l'envoi/la vérification : Supabase s'en charge.
    ⚠️ Pré-requis côté Supabase : dans Authentication > Email Templates,
    le template "Magic Link" (utilisé par signInWithOtp) doit contenir
-   {{ .Token }} afin d'envoyer un code à 6 chiffres (et non un simple
+   {{ .Token }} afin d'envoyer un code à 8 chiffres (et non un simple
    lien de connexion). */
-const OTP_RESEND_SECONDS = 26;
+const OTP_RESEND_SECONDS = 60;
 const OtpGate = {
   pending:false,
   mode:'login',
@@ -2205,7 +2264,7 @@ const OtpGate = {
     const boxes = [...document.querySelectorAll('.otp-box')];
     const entered = boxes.map(b=>b.value).join('');
     const err = document.getElementById('otp-error');
-    if(entered.length<6){ err.textContent = 'Merci de saisir les 6 chiffres du code'; return; }
+    if(entered.length<8){ err.textContent = 'Merci de saisir les 8 chiffres du code'; return; }
     try{
       const {error} = await sb.auth.verifyOtp({ email: OtpGate.email, token: entered, type:'email' });
       if(error){
@@ -2244,14 +2303,14 @@ function otpBoxKeydown(e, idx){
   if(e.key==='Backspace' && !e.target.value && idx>0){ boxes[idx-1].focus(); boxes[idx-1].value=''; boxes[idx-1].classList.remove('filled'); }
 }
 function otpBoxPaste(e){
-  const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,6);
+  const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,8);
   if(!text) return;
   e.preventDefault();
   const boxes = [...document.querySelectorAll('.otp-box')];
   text.split('').forEach((ch,i)=>{ if(boxes[i]){ boxes[i].value = ch; boxes[i].classList.add('filled'); } });
   const next = boxes[text.length] || boxes[boxes.length-1];
   next.focus();
-  if(text.length===6) OtpGate.verify();
+  if(text.length===8) OtpGate.verify();
 }
 
 /* ---------------- Shared partials ---------------- */
@@ -2340,7 +2399,7 @@ Views.login = function(){
         <button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass', this)">${EYE_SVG}</button>
       </div>
       ${authMode==='register' ? '<div style="font-size:12px;color:var(--text-mid);margin-top:5px;">Au moins 6 caractères</div>' : ''}
-      ${authMode==='login' ? `<div style="text-align:right;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go('recover-id')">Identifiant oublié ?</button></div>` : ''}
+      ${authMode==='login' ? `<div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go('recover-id')">Identifiant oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPassword()">Mot de passe oublié ?</button></div>` : ''}
     </div>
     ${authMode==='register' ? `<div class="field"><label>Confirmer le mot de passe</label>
       <div class="pass-field-wrap">
@@ -2378,6 +2437,8 @@ Views['verify-otp'] = function(){
       <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,3)" onkeydown="otpBoxKeydown(event,3)" onpaste="otpBoxPaste(event)">
       <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,4)" onkeydown="otpBoxKeydown(event,4)" onpaste="otpBoxPaste(event)">
       <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,5)" onkeydown="otpBoxKeydown(event,5)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,6)" onkeydown="otpBoxKeydown(event,6)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,7)" onkeydown="otpBoxKeydown(event,7)" onpaste="otpBoxPaste(event)">
     </div>
 
     <div class="otp-resend-label" id="otp-timer-label">Renvoyer le code dans <b>00:${String(OTP_RESEND_SECONDS).padStart(2,'0')}</b></div>
@@ -2455,6 +2516,11 @@ function togglePasswordVisibility(inputId, btn){
   input.type = willShow ? 'text' : 'password';
   btn.innerHTML = willShow ? EYE_OFF_SVG : EYE_SVG;
   btn.setAttribute('aria-label', willShow ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+}
+function contactSupportForgotPassword(){
+  const identifier = (document.getElementById('auth-email')?.value || '').trim();
+  const msg = "Bonjour, j'ai oublié mon mot de passe SIAMS." + (identifier ? " Mon e-mail ou identifiant est : "+identifier+"." : "") + " Pouvez-vous m'aider à le réinitialiser ?";
+  window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg), '_blank');
 }
 async function doLogin(){
   const identifier = document.getElementById('auth-email').value.trim();
@@ -2576,7 +2642,7 @@ const ConfirmEmail = {
 async function downloadAccountIdCardPDF(){
   const id = AccountId.current;
   if(!id){ Toast.show('Identifiant indisponible'); return; }
-  if(!window.jspdf){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const { jsPDF } = window.jspdf;
   const store = Store.store;
   const navy = [5,42,77], blueDeep = [0,96,217], cyan = [0,214,238], white = [255,255,255];
@@ -2910,7 +2976,7 @@ Views['account-contract-notice'] = function(){
 
 /* ---------- Génération du PDF officiel du contrat d'utilisation SIAMS ---------- */
 async function downloadAccountContractPDF(){
-  if(!window.jspdf){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   if(!ContractGate.ref){ ContractGate.ref = Utils.genAccountContractRef(); ContractGate.createdAt = Date.now(); }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
@@ -3160,6 +3226,7 @@ const SIAMS_RECEIPT_IDENTITY = {
 };
 const PAYMENT_INFO = {
   djamoNumber: '0748964690',
+  waveNumber: '0748964690',
   waveUrl: 'https://pay.wave.com/m/REMPLACER_PAR_VOTRE_LIEN/c/ci/',
   bankName: 'SIAMS BANQUE',
   cardNumber: '5273 7568 7418 6188',
@@ -3748,7 +3815,7 @@ const SubscriptionSheet = {
           <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">💰 Commission période d'essai à régler</div>
           <div style="font-size:17px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
           <p style="font-size:11.5px;color:var(--text-mid);margin:6px 0 10px;">5% sur vos articles vendus à ${Utils.fmtFCFA(COMMISSION_THRESHOLD)} et plus pendant les 30 jours d'essai (Article 5 du contrat). Ajoutez ce montant à votre virement Djamo, en plus de l'abonnement.</p>
-          <button type="button" class="btn btn-outline btn-sm" onclick="SubscriptionSheet.markCommissionSettled()">J'ai réglé la commission</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="SubscriptionSheet.markCommissionSettled()">J'ai réglé la commission, envoyer le reçu</button>
         </div>`;
         })()}
         ${(paid>0||pendingAmt>0) ? `
@@ -3757,34 +3824,107 @@ const SubscriptionSheet = {
           <div style="font-size:11.5px;color:var(--text-mid);margin-top:5px;">${Utils.fmtFCFA(paid)} confirmé sur ${Utils.fmtFCFA(plan.price)}${pendingAmt?` · ${Utils.fmtFCFA(pendingAmt)} en attente de validation`:''}</div>
         </div>` : ''}
         <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;">
-          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez avec Djamo</div>
-          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);">
-            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Djamo (paiement de l'abonnement)</div>
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez avec Djamo ou Wave</div>
+          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Djamo</div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
               <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.djamoNumber}</span>
               <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.djamoNumber}');Toast.show('Numéro Djamo copié ✓')">Copier</button>
             </div>
           </div>
+          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);">
+            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Wave</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.waveNumber}</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.waveNumber}');Toast.show('Numéro Wave copié ✓')">Copier</button>
+            </div>
+          </div>
           ${mode==='daily' ? `
           <div class="field" style="margin-top:12px;margin-bottom:0;"><label>Montant payé aujourd'hui</label><input id="sub-daily-amount" type="number" min="1" value="${suggested}" placeholder="Ex : ${plan.dailyRate}"></div>
           <p style="font-size:11px;color:var(--text-mid);margin:8px 0 0;">Suggestion : ${Utils.fmtFCFA(plan.dailyRate)}/jour. Vous pouvez ajuster le montant, tant que le total atteint ${Utils.fmtFCFA(plan.price)} avant l'échéance.</p>` : `
-          <p style="font-size:11.5px;color:var(--text-mid);margin:10px 0 0;">Envoyez le montant exact (${Utils.fmtFCFA(remaining||plan.price)}) via Djamo vers ce numéro.</p>`}
+          <p style="font-size:11.5px;color:var(--text-mid);margin:10px 0 0;">Envoyez le montant exact (${Utils.fmtFCFA(remaining||plan.price)}) via Djamo ou Wave vers l'un de ces numéros.</p>`}
         </div>
         <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;">
           <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">2. Envoyez votre preuve à SIAMS</div>
-          <p style="font-size:12px;color:var(--text-mid);margin:0;">Une fois le paiement effectué, envoyez la capture d'écran via le bouton WhatsApp ci-dessous. Après validation par SIAMS, la barre de progression avance jusqu'au socle.</p>
+          <p style="font-size:12px;color:var(--text-mid);margin:0;">${Store.store.name?`${Utils.escapeHtml(Store.store.name)}, une`:'Une'} fois votre paiement effectué, appuyez sur le bouton ci-dessous : nous ouvrons directement votre galerie pour choisir la capture, puis votre conversation WhatsApp avec l'assistant SIAMS pour l'envoyer. Dès validation par SIAMS, la barre de progression avance jusqu'au socle.</p>
         </div>
-        <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.submitInstallment('${plan.key}','${mode}')">
+        <input type="file" id="sub-proof-input" accept="image/*,application/pdf" class="hidden" onchange="SubscriptionSheet.handleProofFile(event)">
+        <div id="sub-proof-status" style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;min-height:14px;"></div>
+        <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.startProofUpload('${plan.key}','${mode}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-right:6px;vertical-align:-3px;"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
-          J'ai payé, envoyer ma preuve
+          J'ai payé, envoyer le reçu de paiement
         </button>
       </div>`;
   },
+  /* ---- Reçu de preuve : sélection immédiate de la photo/document dans la galerie,
+     puis redirection automatique vers l'assistant client SIAMS sur WhatsApp avec un
+     message prêt à envoyer. La pièce jointe doit être ajoutée manuellement dans
+     WhatsApp (aucune API web ne permet de joindre un fichier à un lien wa.me). ---- */
+  _pendingProof: null,
+  startProofUpload(key, mode){
+    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
+    if(!plan) return;
+    let sub = Store.subscription;
+    if(!(sub.status==='building' && sub.plan===key)){
+      Installments.start(key, mode);
+      sub = Store.subscription;
+    }
+    const paid = sub.paidAmount||0;
+    const pendingAmt = sub.pendingAmount||0;
+    const remaining = Math.max(0, plan.price - paid - pendingAmt);
+    let amount = remaining;
+    if(mode==='daily'){
+      const input = document.getElementById('sub-daily-amount');
+      const raw = input ? String(input.value).replace(',', '.') : '0';
+      amount = Math.round(Number(raw)||0);
+      if(amount<=0){ Toast.show('Indiquez le montant payé aujourd’hui'); return; }
+      amount = Math.min(amount, remaining);
+    }
+    if(amount<=0){ Toast.show('Ce montant a déjà été réglé.'); return; }
+    this._pendingProof = { type:'installment', key, mode, amount };
+    const input = document.getElementById('sub-proof-input');
+    if(input){ input.value=''; input.click(); }
+  },
+  startCommissionProof(){
+    const due = Store.commissionDue();
+    if(due<=0){ Toast.show('Aucune commission à régler pour le moment'); return; }
+    this._pendingProof = { type:'commission', amount:due };
+    const input = document.getElementById('sub-proof-input');
+    if(input){ input.value=''; input.click(); }
+  },
+  handleProofFile(evt){
+    const file = evt.target.files && evt.target.files[0];
+    const pending = this._pendingProof;
+    if(!file || !pending){ return; }
+    const statusEl = document.getElementById('sub-proof-status');
+    const store = Store.store;
+    let msg, waLink;
+    if(pending.type==='commission'){
+      Store.commissionSettled = true;
+      msg = `Bonjour SIAMS, je viens de régler ma commission période d'essai de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
+      waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
+      Toast.show(`📎 « ${file.name} » sélectionné — ouverture de WhatsApp pour l'envoi`);
+      if(statusEl) statusEl.textContent = `Requête en cours : je viens de régler ma commission — joignez « ${file.name} » dans WhatsApp puis envoyez.`;
+      this.render();
+    } else {
+      const plan = SUBSCRIPTION_PLANS.find(p=>p.key===pending.key);
+      if(!plan) return;
+      Installments.declare(pending.amount);
+      msg = `Bonjour SIAMS, je viens d'effectuer mon paiement d'abonnement ${plan.label} (${pending.mode==='daily'?'versement journalier':'paiement mensuel'} de ${Utils.fmtFCFA(pending.amount)}). Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
+      waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
+      if(statusEl) statusEl.textContent = `Requête en cours : je viens d'effectuer mon abonnement — joignez « ${file.name} » dans WhatsApp puis envoyez.`;
+      Toast.show(`📎 « ${file.name} » sélectionné — ouverture de WhatsApp pour l'envoi`);
+    }
+    window.open(waLink, '_blank');
+    this._pendingProof = null;
+    subPaymentStep = null;
+    subDemoSeen = false;
+    subPaymentMode = null;
+    setTimeout(()=>{ this.close(); if(Router.current) Router.go(Router.current); }, 1200);
+  },
   /* ---- Le vendeur confirme avoir viré la commission (en plus de l'abonnement) ---- */
   markCommissionSettled(){
-    Store.commissionSettled = true;
-    Toast.show('✅ Commission marquée comme réglée');
-    this.render();
+    this.startCommissionProof();
   },
   submitInstallment(key, mode){
     const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
@@ -3834,27 +3974,10 @@ const Withdraw = {
 
   open(){
     const balance = Store.availableBalance();
-    if(balance <= 0){ Toast.show('Aucun solde disponible pour le moment'); return; }
-    if(!Store.merchantVerified){
-      this.step = 'verify';
-      this.mount();
-      return;
-    }
+    if(balance <= 0){ Toast.show('Aucune espèce en attente de reversement pour le moment'); return; }
     this.step = 'analyzing';
     this.mount();
     setTimeout(()=>{ this.buildReport(); this.step = 'report'; this.render(); }, 1900);
-  },
-
-  startVerification(){
-    this.step = 'verifying';
-    this.render();
-    setTimeout(()=>{
-      Store.merchantVerified = true;
-      Notify.add('order', 'Compte marchand vérifié ✓ Vous pouvez désormais retirer vos fonds');
-      this.step = 'analyzing';
-      this.render();
-      setTimeout(()=>{ this.buildReport(); this.step = 'report'; this.render(); }, 1900);
-    }, 1800);
   },
 
   buildReport(){
@@ -3864,7 +3987,7 @@ const Withdraw = {
     this.amount = this.recommended;
     this.restockSuggestions = this.computeRestockSuggestions();
     const pay = Store.payment;
-    const methods = ['wave','om','mtn'].filter(k=>pay[k].enabled && pay[k].number);
+    const methods = ['wave','om','mtn','moov'].filter(k=>pay[k].enabled && pay[k].number);
     this.method = methods[0] || '';
   },
 
@@ -3922,40 +4045,13 @@ const Withdraw = {
     if(this.step==='report') this.recalc();
   },
 
-  _render_verify(){
-    return `
-      <div style="text-align:center;padding:6px 2px 2px;">
-        <div style="width:56px;height:56px;border-radius:16px;background:var(--indigo-tint);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z" stroke="var(--indigo)" stroke-width="1.8" stroke-linejoin="round"/></svg>
-        </div>
-        <h3 style="margin:0 0 6px;">Vérification du compte marchand requise</h3>
-        <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0 0 18px;">
-          Vos paiements sont déjà sécurisés dans le compte bancaire SIAMS. Pour retirer des fonds vers Wave, Orange Money ou MTN, votre compte marchand doit d'abord être vérifié. Cette étape protège votre argent contre les tentatives d'usurpation ou d'annulation frauduleuse.
-        </p>
-      </div>
-      <button class="btn btn-mango btn-block" onclick="Withdraw.startVerification()">Vérifier mon compte marchand</button>
-      <button class="btn btn-block" style="margin-top:10px;background:transparent;color:var(--text-mid);" onclick="Withdraw.close()">Plus tard</button>
-    `;
-  },
-
-  _render_verifying(){
-    return `
-      <div style="padding:30px 4px 10px;text-align:center;">
-        <div class="wd-spinner"></div>
-        <h3 style="margin:18px 0 6px;">Vérification en cours</h3>
-        <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0;">
-          Contrôle de votre identité marchand auprès de la banque SIAMS...<br>Merci de patienter.
-        </p>
-      </div>`;
-  },
-
   _render_analyzing(){
     return `
       <div style="padding:30px 4px 10px;text-align:center;">
         <div class="wd-spinner"></div>
-        <h3 style="margin:18px 0 6px;">Analyse de votre activité</h3>
+        <h3 style="margin:18px 0 6px;">Analyse en cours</h3>
         <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0;">
-          Notre algorithme examine vos ventes, vos commandes livrées, la densité de la demande<br>et les avis clients pour préparer un rapport de retrait fiable et précis.
+          Nous calculons les espèces encaissées par vos livreurs sur vos commandes payées à<br>la livraison, pour préparer un rapport de reversement fiable et précis.
         </p>
       </div>`;
   },
@@ -3967,13 +4063,14 @@ const Withdraw = {
       pay.wave.enabled && pay.wave.number ? {key:'wave', label:'Wave', number:pay.wave.number} : null,
       pay.om.enabled && pay.om.number ? {key:'om', label:'Orange Money', number:pay.om.number} : null,
       pay.mtn.enabled && pay.mtn.number ? {key:'mtn', label:'MTN Money', number:pay.mtn.number} : null,
+      pay.moov.enabled && pay.moov.number ? {key:'moov', label:'Moov Money', number:pay.moov.number} : null,
     ].filter(Boolean);
     return `
-      <h3 style="margin:2px 0 4px;">Rapport de retrait</h3>
-      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Analyse professionnelle générée automatiquement</p>
+      <h3 style="margin:2px 0 4px;">Rapport de reversement</h3>
+      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Espèces encaissées par vos livreurs à la livraison, en attente de vous être reversées</p>
 
       <div style="background:var(--indigo-tint);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:14px;">
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>Solde disponible</span><span class="mono" style="font-weight:700;">${Utils.fmtFCFA(balance)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>Espèces en attente de reversement</span><span class="mono" style="font-weight:700;">${Utils.fmtFCFA(balance)}</span></div>
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--text-mid);"><span>Réserve conseillée (réapprovisionnement)</span><span class="mono">${Utils.fmtFCFA(this.reserve)}</span></div>
         <div style="display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--indigo);"><span>Montant recommandé</span><span class="mono">${Utils.fmtFCFA(this.recommended)}</span></div>
       </div>
@@ -3988,13 +4085,13 @@ const Withdraw = {
           </div>`).join('')}
       </div>` : ''}
 
-      <div class="sub-label">Montant à retirer</div>
+      <div class="sub-label">Montant à faire reverser</div>
       <div class="field" style="margin-bottom:2px;">
         <div class="price-field"><input id="wd-amount" type="number" inputmode="numeric" value="${this.amount}" oninput="Withdraw.onAmountInput(this.value)"><div class="price-suffix">FCFA</div></div>
       </div>
       <div id="wd-amount-msg" style="font-size:12px;color:var(--text-mid);margin-bottom:14px;">Maximum disponible : ${Utils.fmtFCFA(balance)}</div>
 
-      <div class="sub-label">Modalité de paiement du retrait</div>
+      <div class="sub-label">Comment le livreur vous reverse cet argent</div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;">
         ${methods.length===0 ? `<div style="font-size:13px;color:var(--text-mid);">Aucun moyen de paiement mobile configuré. <a href="javascript:void(0)" onclick="Withdraw.close();Router.go('payment');" style="color:var(--indigo);font-weight:700;">Ajouter un moyen de paiement</a></div>` :
           methods.map(m=>`
@@ -4003,8 +4100,9 @@ const Withdraw = {
             <span class="mono" style="font-size:12px;color:var(--text-mid);">${Utils.escapeHtml(m.number)}</span>
           </label>`).join('')}
       </div>
+      <div style="font-size:11.5px;color:var(--text-soft);margin-bottom:8px;">Le livreur vous transfère lui-même ce montant sur le numéro choisi, ou vous le remet en cash. SIAMS ne fait que garder la trace de ce reversement.</div>
 
-      <button class="btn btn-mango btn-block" style="margin-top:14px;" onclick="Withdraw.confirm()" ${methods.length===0?'disabled':''}>Confirmer le retrait</button>
+      <button class="btn btn-mango btn-block" style="margin-top:14px;" onclick="Withdraw.confirm()" ${methods.length===0?'disabled':''}>Confirmer le reversement</button>
     `;
   },
 
@@ -4035,7 +4133,7 @@ const Withdraw = {
     const pay = Store.payment;
     const number = pay[this.method] ? pay[this.method].number : '';
     const record = {
-      id: 'RET-' + Date.now().toString(36).toUpperCase(),
+      id: 'REV-' + Date.now().toString(36).toUpperCase(),
       amount: this.amount,
       method: this.method,
       methodLabel: {wave:'Wave', om:'Orange Money', mtn:'MTN Money'}[this.method] || this.method,
@@ -4045,7 +4143,7 @@ const Withdraw = {
     const list = Store.withdrawals;
     list.unshift(record);
     Store.withdrawals = list;
-    Notify.add('order', `Retrait de ${Utils.fmtFCFA(record.amount)} effectué ✓`);
+    Notify.add('order', `Reversement de ${Utils.fmtFCFA(record.amount)} enregistré ✓`);
     this.lastRecord = record;
     this.step = 'success';
     this.render();
@@ -4055,8 +4153,8 @@ const Withdraw = {
     return `
       <div style="padding:30px 4px 10px;text-align:center;">
         <div class="wd-spinner"></div>
-        <h3 style="margin:18px 0 6px;">Transaction en cours</h3>
-        <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0;">Synchronisation avec votre modalité de paiement...<br>Merci de patienter, ne fermez pas cette fenêtre.</p>
+        <h3 style="margin:18px 0 6px;">Enregistrement en cours</h3>
+        <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0;">Enregistrement du reversement...<br>Merci de patienter, ne fermez pas cette fenêtre.</p>
       </div>`;
   },
 
@@ -4069,22 +4167,22 @@ const Withdraw = {
         <div style="width:64px;height:64px;border-radius:18px;background:var(--green-tint);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <h3 style="margin:0 0 4px;">Retrait effectué ✓</h3>
-        <p style="color:var(--text-mid);font-size:13px;margin:0 0 16px;">Votre transaction a été traitée avec succès.</p>
+        <h3 style="margin:0 0 4px;">Reversement enregistré ✓</h3>
+        <p style="color:var(--text-mid);font-size:13px;margin:0 0 16px;">Ce reversement a bien été enregistré dans votre suivi.</p>
       </div>
 
       <div id="wd-receipt" style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px 18px;margin-bottom:14px;">
         <div style="text-align:center;margin-bottom:10px;">
           <div style="font-family:var(--font-display);font-weight:700;font-size:13px;letter-spacing:.5px;color:var(--indigo);">SIAMS PROTOTYPE</div>
-          <div style="font-size:11px;color:var(--text-mid);">Reçu de transaction — ${Utils.escapeHtml(store.name)}</div>
+          <div style="font-size:11px;color:var(--text-mid);">Reçu de reversement — ${Utils.escapeHtml(store.name)}</div>
         </div>
         <div style="border-top:1px dashed var(--line);margin:10px 0;"></div>
-        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">N° transaction</span><span class="mono">${r.id}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">N° reversement</span><span class="mono">${r.id}</span></div>
         <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Date</span><span class="mono">${new Date(r.date).toLocaleString('fr-FR')}</span></div>
         <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Modalité</span><span>${r.methodLabel}${r.number?' · '+Utils.escapeHtml(r.number):''}</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Statut</span><span style="color:var(--green);font-weight:700;">Effectué</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Statut</span><span style="color:var(--green);font-weight:700;">Enregistré</span></div>
         <div style="border-top:1px dashed var(--line);margin:10px 0;"></div>
-        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;"><span>Montant retiré</span><span class="mono">${Utils.fmtFCFA(r.amount)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;"><span>Montant reversé</span><span class="mono">${Utils.fmtFCFA(r.amount)}</span></div>
       </div>
 
       ${email ? `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:14px;">Un reçu a été envoyé à <strong>${Utils.escapeHtml(email)}</strong>${store.phone?` et sur WhatsApp <strong>${Utils.escapeHtml(store.phone)}</strong>`:''}.</div>` : `
@@ -4232,7 +4330,8 @@ let formPhotos = [];
 let editingProductId = null;
 function productForm(existing){
   const cats = Store.categories;
-  const meta = existing ? Utils.decodeMeta(existing.desc) : {desc:'', sizes:[], colors:[]};
+  const meta = existing ? Utils.decodeMeta(existing.desc) : {desc:'', sizes:[], colors:[], extra:[]};
+  formExtraGroups = (meta.extra||[]).map(g=>({label:g.label, values:(g.values||[]).join(', ')}));
   return `
   <div class="form-wrap">
     <div class="field"><label>Nom du produit</label><input id="f-name" type="text" placeholder="Ex : Robe wax imprimée" value="${existing?Utils.escapeHtml(existing.name):''}"></div>
@@ -4270,8 +4369,49 @@ function productForm(existing){
       <input id="f-colors" type="text" placeholder="Ex : Rouge, Bleu, Noir" value="${Utils.escapeHtml(meta.colors.join(', '))}">
       <div class="hint" style="margin-top:6px;color:var(--text-mid);font-size:12px;">Séparez chaque couleur par une virgule.</div>
     </div>
+    <div class="field">
+      <label>Autres options (séries, numéros, pointures, matières…)</label>
+      <div class="hint" style="margin-bottom:8px;color:var(--text-mid);font-size:12px;">Ajoutez d'autres choix que le client sélectionnera avant d'ajouter au panier, en plus de la taille et de la couleur.</div>
+      <div id="extra-groups-wrap">${renderExtraGroups()}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Série')">+ Série</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Numéro')">+ Numéro</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Pointure')">+ Pointure</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Matière')">+ Matière</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('')">+ Attribut personnalisé</button>
+      </div>
+    </div>
     <button class="btn btn-primary btn-block" style="margin-bottom:24px;" onclick="saveProduct('${existing?existing.id:''}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>${existing?'Enregistrer les modifications':'Ajouter le produit'}</button>
   </div>`;
+}
+/* ---- Attributs de variante personnalisés (séries, numéros, pointures, etc.) ----
+   Complète les champs fixes Taille/Couleur par une liste extensible de groupes
+   {label, values} que le vendeur construit via les boutons "+ ...". Persisté
+   dans meta.extra (voir Utils.encodeMeta/decodeMeta) sans changer le schéma DB. */
+let formExtraGroups = [];
+function renderExtraGroups(){
+  if(!formExtraGroups.length) return '';
+  return formExtraGroups.map((g,i)=>`
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
+      <input type="text" placeholder="Nom (ex : Série)" value="${Utils.escapeHtml(g.label)}" oninput="updateExtraGroup(${i},'label',this.value)" style="flex:0 0 34%;padding:11px;border:1.5px solid var(--line);border-radius:10px;">
+      <input type="text" placeholder="Valeurs séparées par une virgule" value="${Utils.escapeHtml(g.values)}" oninput="updateExtraGroup(${i},'values',this.value)" style="flex:1;padding:11px;border:1.5px solid var(--line);border-radius:10px;">
+      <button type="button" class="btn btn-ghost btn-sm" style="padding:11px 12px;" onclick="removeExtraGroup(${i})">✕</button>
+    </div>`).join('');
+}
+function refreshExtraGroupsUI(){
+  const el = document.getElementById('extra-groups-wrap');
+  if(el) el.innerHTML = renderExtraGroups();
+}
+function addExtraGroup(defaultLabel){
+  formExtraGroups.push({label:defaultLabel||'', values:''});
+  refreshExtraGroupsUI();
+}
+function updateExtraGroup(i, field, val){
+  if(formExtraGroups[i]) formExtraGroups[i][field] = val;
+}
+function removeExtraGroup(i){
+  formExtraGroups.splice(i,1);
+  refreshExtraGroupsUI();
 }
 Views['product-add'] = function(){ return `${TopBar('Nouveau produit')}${productForm(null)}`; };
 Views['product-edit'] = function(opts){
@@ -4321,7 +4461,8 @@ async function saveProduct(id){
   const descRaw = document.getElementById('f-desc').value.trim();
   const sizes = document.getElementById('f-sizes').value.split(',').map(s=>s.trim()).filter(Boolean);
   const colors = document.getElementById('f-colors').value.split(',').map(s=>s.trim()).filter(Boolean);
-  const desc = Utils.encodeMeta(descRaw, {sizes, colors});
+  const extra = formExtraGroups.map(g=>({label:(g.label||'').trim(), values:(g.values||'').split(',').map(v=>v.trim()).filter(Boolean)})).filter(g=>g.label && g.values.length);
+  const desc = Utils.encodeMeta(descRaw, {sizes, colors, extra});
   const category = document.getElementById('f-category').value;
   const photos = formPhotos.slice();
   const products = Store.products;
@@ -4404,7 +4545,7 @@ function renderOrderList(){
 }
 
 /* ---------- Détail commande ---------- */
-const PAY_LABELS = {wave:'Wave', om:'Orange Money', mtn:'MTN Money', cash:'Paiement à la livraison'};
+const PAY_LABELS = {wave:'Wave', om:'Orange Money', mtn:'MTN Money', moov:'Moov Money', cash:'Paiement à la livraison'};
 Views['order-detail'] = function(opts){
   const order = Store.orders.find(o=>o.id===opts.id);
   if(!order) return `${TopBar('Commande introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Commande introuvable','Cette commande a peut-être été supprimée.')}</div>`;
@@ -4421,7 +4562,11 @@ Views['order-detail'] = function(opts){
       <div style="font-size:14px;font-weight:600;margin-bottom:2px;">${Utils.escapeHtml(order.customer.name)}</div>
       <div class="mono" style="font-size:13px;color:var(--text-mid);margin-bottom:2px;">${Utils.escapeHtml(order.customer.phone)}</div>
       <div style="font-size:13px;color:var(--text-mid);">${Utils.escapeHtml(order.customer.address)}</div>
-      <button class="btn btn-soft-green btn-sm" style="margin-top:12px;" onclick="window.open('https://wa.me/225${(order.customer.phone||'').replace(/\\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="var(--green)" stroke-width="1.6" stroke-linejoin="round"/></svg>Contacter sur WhatsApp</button>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button class="btn btn-soft-green btn-sm" onclick="window.open('https://wa.me/225${(order.customer.phone||'').replace(/\\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="var(--green)" stroke-width="1.6" stroke-linejoin="round"/></svg>Contacter sur WhatsApp</button>
+        ${order.customerLat && order.customerLng ? `<button class="btn btn-soft-indigo btn-sm" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+${Number(order.customerLat)}+','+${Number(order.customerLng)},'_blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" stroke="var(--indigo)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.4" stroke="var(--indigo)" stroke-width="1.6"/></svg>Itinéraire vers le client</button>` : `<button class="btn btn-outline btn-sm" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent('${Utils.escapeHtml(order.customer.address||'')}'),'_blank')">Itinéraire (adresse)</button>`}
+      </div>
+      ${order.customerLat && order.customerLng ? `<div style="font-size:11.5px;color:var(--text-soft);margin-top:8px;">📍 Position réelle transmise par le client à la commande${order.customerLocationAccuracy?` (précision ~${Math.round(order.customerLocationAccuracy)} m)`:''}.</div>` : `<div style="font-size:11.5px;color:var(--text-soft);margin-top:8px;">Le client n'a pas activé sa localisation lors de la commande.</div>`}
     </div>
     <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px;background:#fff;margin-bottom:14px;">
       <h4 style="margin:0 0 10px;font-size:14.5px;">Articles</h4>
@@ -4441,7 +4586,11 @@ Views['order-detail'] = function(opts){
     </div>
     <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px;background:#fff;margin-bottom:14px;">
       <h4 style="margin:0 0 10px;font-size:14.5px;">Livreur</h4>
-      ${order.courierId ? `<div style="font-size:13px;color:var(--text-mid);">Livreur affecté. Le suivi GPS sera partagé avec le client dès le départ.</div>` : `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:10px;">Affectez un livreur après confirmation de la commande.</div>`}
+      ${order.courierId ? `<div style="font-size:13px;color:var(--text-mid);">Livreur affecté. Le suivi GPS est partagé en temps réel avec vous et le client.</div>
+      <div id="store-courier-live-${order.id}" style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);">
+        <div id="store-courier-coords-${order.id}" style="font-size:12px;color:var(--text-mid);">Position du livreur : chargement…</div>
+        <button class="btn btn-soft-indigo btn-sm" id="store-courier-itin-${order.id}" style="margin-top:8px;display:none;" onclick="openStoreCourierItinerary('${order.id}')">Itinéraire livreur → client</button>
+      </div>` : `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:10px;">Affectez un livreur après confirmation de la commande.</div>`}
 ${order.courierId ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);"><div style="font-size:12.5px;color:var(--text-mid);margin-bottom:7px;">Rémunération du livreur (déduite de votre encaissement)</div><div style="display:flex;gap:8px;"><input id="courier-payout-${order.id}" type="number" min="0" step="1" value="${Number(order.courierPayout||0)}" placeholder="Montant FCFA" style="flex:1;padding:11px;border:1.5px solid var(--line);border-radius:10px;"><button class="btn btn-soft-green btn-sm" onclick="saveCourierPayout('${order.id}','${order.courierId}')">Valider</button></div><div style="font-size:11.5px;color:var(--text-soft);margin-top:6px;">Le client paie la livraison à la boutique. SIAMS conserve la trace du montant destiné au livreur.</div></div>` : ''}
       ${!order.courierId && Store.couriers.filter(c=>c.status==='active').length ? `<select id="assign-courier-select" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;"><option value="">Choisir un livreur</option>${Store.couriers.filter(c=>c.status==='active').map(c=>`<option value="${c.id}">${Utils.escapeHtml(c.name)} · ${Utils.escapeHtml(c.phone||'')}</option>`).join('')}</select><button class="btn btn-soft-green btn-block" style="margin-top:9px;" onclick="assignOrderToCourier('${order.id}')">Affecter et proposer la livraison</button>` : !order.courierId ? `<button class="btn btn-outline btn-block" onclick="Router.go('team')">Inviter / activer un livreur</button>` : ''}
     </div>
@@ -4501,6 +4650,51 @@ async function saveCourierPayout(orderId,courierId){
   try{ await Cloud.setCourierPayout(orderId,courierId,amount); const o=Store.orders.find(x=>x.id===orderId); if(o)o.courierPayout=amount; Toast.show('Rémunération du livreur enregistrée ✓'); Router.go('order-detail',{id:orderId}); }catch(e){console.error(e);Toast.show('⚠️ Impossible d’enregistrer la rémunération');}
 }
 
+/* ---------- Suivi GPS du livreur côté boutique (itinéraire temps réel) ----------
+   La boutique est propriétaire de la commande : lecture directe des colonnes
+   courier_latitude / courier_longitude de la table orders, protégée par RLS. */
+let storeCourierPoll=null;
+async function startStoreCourierRealtime(orderId){
+  const wrap=document.getElementById('store-courier-live-'+orderId);
+  if(!wrap) return;
+  if(storeCourierPoll) clearInterval(storeCourierPoll);
+  const refresh=async()=>{
+    if(Router.current!=='order-detail'){ clearInterval(storeCourierPoll); storeCourierPoll=null; return; }
+    const coordsEl=document.getElementById('store-courier-coords-'+orderId);
+    const itinBtn=document.getElementById('store-courier-itin-'+orderId);
+    if(!coordsEl){ clearInterval(storeCourierPoll); storeCourierPoll=null; return; }
+    try{
+      const { data, error } = await sb.from('orders').select('courier_latitude,courier_longitude,courier_location_at,delivery_status_message').eq('id', orderId).single();
+      if(error || !data || data.courier_latitude==null || data.courier_longitude==null){
+        coordsEl.textContent = 'Position du livreur : en attente de la prochaine mise à jour…';
+        if(itinBtn) itinBtn.style.display = 'none';
+        return;
+      }
+      const o = Store.orders.find(x=>x.id===orderId);
+      if(o){ o.courierLat=Number(data.courier_latitude); o.courierLng=Number(data.courier_longitude); }
+      const when = data.courier_location_at ? new Date(data.courier_location_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+      coordsEl.textContent = `📍 Dernière position du livreur : ${when}${data.delivery_status_message?' — '+data.delivery_status_message:''}`;
+      if(itinBtn) itinBtn.style.display = 'inline-flex';
+    }catch(e){ console.error('store courier location', e); }
+  };
+  await refresh();
+  storeCourierPoll = setInterval(refresh, 5000);
+}
+function openStoreCourierItinerary(orderId){
+  const o = Store.orders.find(x=>x.id===orderId);
+  if(!o || o.courierLat==null || o.courierLng==null){ Toast.show('Position du livreur pas encore disponible'); return; }
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${o.courierLat},${o.courierLng}`;
+  if(o.customerLat!=null && o.customerLng!=null) url += `&destination=${o.customerLat},${o.customerLng}`;
+  else url += `&destination=${encodeURIComponent(o.customer.address||'')}`;
+  window.open(url, '_blank');
+}
+Views._after_order_detail = function(opts){
+  if(!opts || !opts.id) return;
+  const order = Store.orders.find(o=>o.id===opts.id);
+  if(order && order.courierId) setTimeout(()=>startStoreCourierRealtime(opts.id), 0);
+  else if(storeCourierPoll){ clearInterval(storeCourierPoll); storeCourierPoll=null; }
+};
+
 /* ---------- QR code de livraison (à afficher par le livreur/marchand) ---------- */
 Views['delivery-qr'] = function(opts){
   const order = Store.orders.find(o=>o.id===opts.id);
@@ -4528,9 +4722,10 @@ Views['delivery-qr'] = function(opts){
   </div>
   `;
 };
-Views._after_delivery_qr = function(opts){
+Views._after_delivery_qr = async function(opts){
   const order = Store.orders.find(o=>o.id===opts.id);
   if(!order || order.status==='delivered') return;
+  if(!await ensureQRCode()) return;
   const canvas = document.getElementById('delivery-qr-canvas');
   if(!canvas || typeof QRCode==='undefined') return;
   const url = DeliveryQR.buildUrl(order);
@@ -4542,7 +4737,7 @@ let statsPeriod = 7;
 
 function statsMoney(v){ return Utils.fmtFCFA(Math.round(Number(v)||0)); }
 function statsPct(n,d){ return d ? Math.round((n/d)*100) : 0; }
-function statsPaymentLabel(k){ return ({wave:'Wave',om:'Orange Money',mtn:'MTN Mobile Money',cash:'Paiement à la livraison'})[k] || k; }
+function statsPaymentLabel(k){ return ({wave:'Wave',om:'Orange Money',mtn:'MTN Mobile Money',moov:'Moov Money',cash:'Paiement à la livraison'})[k] || k; }
 function statsOrderStatusLabel(k){ return ({new:'Nouvelles',preparing:'En préparation',shipped:'Expédiées',delivered:'Terminées',cancelled:'Annulées'})[k] || k; }
 
 Views.stats = function(){
@@ -4627,6 +4822,7 @@ Views.stats = function(){
     ${kpiCard('Commandes du mois', String(ordCur), ordD)}
     ${kpiCard('Panier moyen', statsMoney(basketCur), basketD)}
     ${kpiCard('Clients', String(clientsCount), null)}
+    ${kpiCard('Reçus de livraison signés', String(delivered.filter(o=>o.deliveryPhoto).length), null)}
   </div>
 
   <div class="stats-card">
@@ -4842,39 +5038,31 @@ async function courierDelivered(id){ const sess=courierSession(); try{await Clou
 /* ---------- Paiement ---------- */
 Views.payment = function(){
   const p = Store.payment;
+  const statusBadge = (m)=>{
+    if(!m.enabled || !m.number) return '';
+    if(m.validated) return `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--green-tint);color:var(--green);">Vérifié ✓</span>`;
+    return `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--mango-tint);color:var(--mango-dark);">En attente de vérification</span>`;
+  };
   const row = (key,label,color,icon)=>`
     <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px;margin-bottom:12px;background:#fff;">
       <div class="toggle-row" style="border:none;padding:0;">
-        <span style="display:flex;align-items:center;gap:10px;font-weight:700;">${icon}${label}</span>
+        <span style="display:flex;align-items:center;gap:10px;font-weight:700;">${icon}${label}${statusBadge(p[key])}</span>
         <label class="switch"><input type="checkbox" id="pm-${key}" ${p[key].enabled?'checked':''} onchange="togglePaymentMethod('${key}')"><span class="slider"></span></label>
       </div>
       <div id="pm-${key}-num" class="${p[key].enabled?'':'hidden'}" style="margin-top:12px;">
-        <input type="text" id="pm-${key}-input" placeholder="Numéro marchand ${label}" value="${p[key].number||''}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14.5px;font-family:var(--font-body);" onchange="savePaymentNumber('${key}')">
+        <input type="text" id="pm-${key}-input" placeholder="Numéro marchand ${label}" value="${p[key].number||''}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14.5px;font-family:var(--font-body);margin-bottom:10px;">
+        <input type="url" id="pm-${key}-link" placeholder="Lien de paiement marchand ${label} (optionnel)" value="${p[key].link||''}" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14.5px;font-family:var(--font-body);margin-bottom:10px;">
+        <button type="button" class="btn btn-soft-indigo btn-block" onclick="savePaymentNumber('${key}')">Valider</button>
+        ${p[key].number && !p[key].validated ? `<div style="font-size:11.5px;color:var(--text-mid);margin-top:8px;line-height:1.5;">SIAMS vérifie ce numéro sous peu de temps pour protéger vos clients contre les erreurs de saisie.</div>` : ''}
       </div>
     </div>`;
-  const verified = Store.merchantVerified;
   return `
   ${TopBar('Paiement', 'Configurez vos moyens de paiement')}
-  <div style="padding:16px 20px 0;">
-    <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;background:var(--indigo-tint);margin-bottom:14px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z" stroke="var(--indigo)" stroke-width="1.8" stroke-linejoin="round"/></svg>
-        <span style="font-weight:700;font-size:13.5px;color:var(--indigo);">Vos paiements sont sécurisés</span>
-      </div>
-      <p style="font-size:12.5px;color:var(--text-mid);line-height:1.5;margin:0;">Wave et Orange Money/MTN ne servent qu'à encaisser le paiement du client. Les fonds sont automatiquement déposés dans le compte bancaire SIAMS, puis crédités à votre solde. Vous choisissez ensuite le canal de retrait de votre choix dans l'onglet Retirer.</p>
-    </div>
-    <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;background:#fff;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-      <div>
-        <div style="font-weight:700;font-size:13.5px;">Compte marchand</div>
-        <div style="font-size:12px;color:var(--text-mid);margin-top:2px;">${verified ? 'Vérifié — vous pouvez retirer vos fonds' : 'Non vérifié — requis avant tout retrait'}</div>
-      </div>
-      <span style="font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:999px;${verified ? 'background:var(--green-tint);color:var(--green);' : 'background:var(--mango-tint);color:var(--mango-dark);'}">${verified ? 'Vérifié ✓' : 'À vérifier'}</span>
-    </div>
-  </div>
   <div style="padding:0 20px 4px;">
     ${row('wave','Wave','#1DC8DD','')}
     ${row('om','Orange Money','#FF6600','')}
     ${row('mtn','MTN Money','#FFCC00','')}
+    ${row('moov','Moov Money','#2563EB','')}
     <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px;background:#fff;">
       <div class="toggle-row" style="border:none;padding:0;">
         <span style="font-weight:700;">Paiement à la livraison (cash)</span>
@@ -4882,7 +5070,16 @@ Views.payment = function(){
       </div>
     </div>
   </div>
-  <div style="padding:20px 20px 4px;font-size:12.5px;color:var(--text-mid);line-height:1.5;">Les moyens activés seront proposés à vos clients lors du paiement dans la boutique.</div>
+  <div style="margin:16px 20px 4px;border:1.5px solid var(--green);border-radius:var(--radius-md);padding:14px 16px;background:var(--green-tint);">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;margin-bottom:6px;color:var(--green);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      Vos paiements sont sécurisés
+    </div>
+    <p style="font-size:12px;color:var(--text-mid);margin:0;line-height:1.55;">
+      Wave, Orange Money et MTN Money servent à encaisser le paiement du client directement sur votre propre numéro marchand renseigné ci-dessus. C'est vous qui recevez ces dépôts, immédiatement, sur votre compte Wave / Orange Money / MTN personnel — SIAMS ne reçoit et ne conserve jamais votre argent. Le paiement à la livraison (cash) suit le même principe : c'est vous (ou votre livreur) qui encaissez directement l'argent auprès du client.
+    </p>
+  </div>
+  <div style="padding:12px 20px 4px;font-size:12.5px;color:var(--text-mid);line-height:1.5;">Les moyens activés seront proposés à vos clients lors du paiement dans la boutique.</div>
   `;
 };
 function togglePaymentMethod(key){
@@ -4894,9 +5091,15 @@ function togglePaymentMethod(key){
 }
 function savePaymentNumber(key){
   const p = Store.payment;
+  const prevNumber = p[key].number || '';
+  const prevLink = p[key].link || '';
   p[key].number = document.getElementById('pm-'+key+'-input').value.trim();
+  const linkInput = document.getElementById('pm-'+key+'-link');
+  p[key].link = linkInput ? linkInput.value.trim() : '';
+  if(p[key].number !== prevNumber || p[key].link !== prevLink){ p[key].validated = false; p[key].validatedAt = 0; }
   Store.payment = p;
-  Toast.show('Numéro enregistré ✓');
+  Toast.show('Moyen de paiement enregistré ✓');
+  Router.go('payment');
 }
 
 /* ---------- Catégories ---------- */
@@ -5325,8 +5528,8 @@ function saveStoreProfile(){
   Router.go('boutique');
 }
 function openWhatsapp(){ const s = Store.store; window.open('https://wa.me/225'+s.phone.replace(/\\D/g,''), '_blank'); }
-function copyLink(){ const s = Store.store; const link = 'https://les-boutique-agreee-siams.vercel.app/'+s.slug; navigator.clipboard?.writeText(link).then(()=>Toast.show('Lien copié ✓')).catch(()=>Toast.show(link)); }
-function shareLink(){ const s = Store.store; const link = 'https://les-boutique-agreee-siams.vercel.app/'+s.slug; if(navigator.share){ navigator.share({title:s.name, url:link}).catch(()=>{}); } else { Toast.show('Partage indisponible sur ce navigateur'); } }
+function copyLink(){ const s = Store.store; const link = 'https://lesservicessiams.vercel.app/'+s.slug; navigator.clipboard?.writeText(link).then(()=>Toast.show('Lien copié ✓')).catch(()=>Toast.show(link)); }
+function shareLink(){ const s = Store.store; const link = 'https://lesservicessiams.vercel.app/'+s.slug; if(navigator.share){ navigator.share({title:s.name, url:link}).catch(()=>{}); } else { Toast.show('Partage indisponible sur ce navigateur'); } }
 
 /* ---------- Palette des tuiles de catégories ---------- */
 function catTileHtml(name, index, opts){
@@ -5604,38 +5807,72 @@ Views['shop-about'] = function(){
   `;
 };
 
-/* ---------- Aide & questions fréquentes (client) ---------- */
-const FAQ_DATA = [
-  {group:'Livraison', items:[
-    {q:'Quels sont les délais de livraison ?', a:"Les commandes passées avant 14h sont généralement livrées sous 24 à 72h selon votre zone. Un lien de suivi vous est envoyé dès l'expédition."},
-    {q:'Livrez-vous en dehors d’Abidjan ?', a:"Oui, la livraison est disponible dans plusieurs zones. Les frais et délais varient selon votre localisation et sont indiqués au moment de la commande."},
-    {q:'Puis-je suivre ma commande ?', a:"Oui, rendez-vous dans « Mon compte » puis « Suivre ma commande » et renseignez votre numéro de commande pour voir son statut en temps réel."}
-  ]},
-  {group:'Paiement', items:[
-    {q:'Quels moyens de paiement acceptez-vous ?', a:"Le paiement à la livraison est disponible, ainsi que Wave, Orange Money et MTN Money selon les options activées par la boutique."},
-    {q:'Le paiement en ligne est-il sécurisé ?', a:"Oui, toutes les transactions passent par des canaux sécurisés et aucune donnée bancaire n'est stockée dans l'application."}
-  ]},
-  {group:'Commandes & retours', items:[
-    {q:'Comment passer une commande ?', a:"Ajoutez vos articles au panier, renseignez vos informations de livraison puis validez. Vous recevrez une confirmation immédiate."},
-    {q:'Puis-je modifier ou annuler ma commande ?', a:"Contactez le vendeur rapidement via WhatsApp après votre commande : toute modification est possible tant que la commande n'a pas été expédiée."},
-    {q:'Que faire si un article est défectueux ?', a:"Contactez le vendeur sous 48h après réception avec une photo de l'article. Un échange ou un remboursement sera proposé selon la situation."}
-  ]}
-];
+/* ---------- Aide & questions fréquentes (client) ----------
+   Les questions/réponses sont générées dynamiquement à partir des données
+   réelles de la boutique (zones de livraison, moyens de paiement activés,
+   horaires, adresse) et, quand elle est disponible, de la géolocalisation
+   du client (pour indiquer si sa position est dans une zone couverte). */
+let faqClientCoords = null; /* {lat,lng,accuracy} une fois obtenue */
+function buildFaqData(){
+  const store = Store.store || {};
+  const zones = Store.deliveryZones || [];
+  const pay = Store.payment || {};
+
+  const deliveryAnswer = zones.length
+    ? `Nous livrons dans les zones suivantes : ${zones.map(z=>`${z.name} (${Utils.fmtFCFA(z.fee)})`).join(', ')}. La zone et les frais correspondants sont sélectionnés au moment de la commande.`
+    : "Les frais et délais de livraison dépendent de votre localisation et vous sont indiqués au moment de la commande.";
+
+  let locationAnswer;
+  if(faqClientCoords){
+    const quality = faqClientCoords.accuracy<=50 ? 'précise' : 'approximative';
+    locationAnswer = `Votre position ${quality} a été détectée (précision ~${Math.round(faqClientCoords.accuracy)} m). ${zones.length?'Choisissez la zone correspondante lors de votre commande pour connaître les frais exacts, ou contactez le vendeur pour confirmer la couverture à votre adresse précise.':'Contactez le vendeur pour confirmer que votre adresse est couverte.'}`;
+  } else {
+    locationAnswer = "Activez la localisation depuis cette page pour que nous puissions vous indiquer si votre position est couverte. Vous pouvez aussi simplement renseigner votre zone lors de la commande.";
+  }
+
+  const payMethods = [];
+  if(pay.wave && pay.wave.enabled) payMethods.push('Wave');
+  if(pay.om && pay.om.enabled) payMethods.push('Orange Money');
+  if(pay.mtn && pay.mtn.enabled) payMethods.push('MTN Money');
+  if(pay.moov && pay.moov.enabled) payMethods.push('Moov Money');
+  if(!pay.cash || pay.cash.enabled!==false) payMethods.push('Paiement à la livraison (espèces)');
+  const paymentAnswer = payMethods.length
+    ? `Cette boutique accepte : ${payMethods.join(', ')}.`
+    : "Le paiement à la livraison est disponible ; d'autres moyens peuvent être proposés selon la boutique.";
+
+  const groups = [
+    {group:'Livraison', items:[
+      {q:'Quels sont les délais de livraison ?', a:"Les commandes passées avant 14h sont généralement livrées sous 24 à 72h selon votre zone. Un lien de suivi vous est envoyé dès l'expédition."},
+      {q:'Quelles sont vos zones de livraison et leurs frais ?', a: deliveryAnswer},
+      {q:'Livrez-vous chez moi ?', a: locationAnswer, geo:true},
+      {q:'Puis-je suivre ma commande ?', a:"Oui, rendez-vous dans « Mon compte » puis « Suivre ma commande » : vous y verrez le statut en temps réel, ainsi que la position du livreur une fois la commande expédiée."}
+    ]},
+    {group:'Paiement', items:[
+      {q:'Quels moyens de paiement acceptez-vous ?', a: paymentAnswer},
+      {q:'Le paiement en ligne est-il sécurisé ?', a:"Oui, toutes les transactions passent par des canaux sécurisés et aucune donnée bancaire n'est stockée dans l'application."}
+    ]},
+    {group:'Commandes & retours', items:[
+      {q:'Comment passer une commande ?', a:"Ajoutez vos articles au panier, renseignez vos informations de livraison (en activant si possible votre localisation pour une livraison plus précise) puis validez."},
+      {q:'Puis-je modifier ou annuler ma commande ?', a:"Contactez le vendeur rapidement via WhatsApp après votre commande : toute modification est possible tant que la commande n'a pas été expédiée."},
+      {q:'Que faire si un article est défectueux ?', a:"Contactez le vendeur sous 48h après réception avec une photo de l'article. Un échange ou un remboursement sera proposé selon la situation."}
+    ]}
+  ];
+  if(store.hours || store.address){
+    groups.push({group:'Boutique', items:[
+      ...(store.address ? [{q:'Où êtes-vous situés ?', a:`La boutique ${Utils.escapeHtml(store.name||'')} est basée : ${store.address}.`}] : []),
+      ...(store.hours ? [{q:'Quels sont vos horaires ?', a: store.hours}] : [])
+    ]});
+  }
+  return groups;
+}
 Views['shop-help'] = function(){
+  const data = buildFaqData();
   return `
   <div class="topbar" style="padding-top:18px;">
     <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Aide & FAQ</h1></div>
   </div>
-  <div class="page-sub" style="padding:0 20px;margin-top:2px;">Livraison, paiement, commandes et retours</div>
-  ${FAQ_DATA.map((g,gi)=>`
-    <div class="faq-group-label">${Utils.escapeHtml(g.group)}</div>
-    <div class="faq-card">
-      ${g.items.map((it,ii)=>`
-        <div class="faq-item" id="faq-${gi}-${ii}">
-          <div class="faq-q" onclick="toggleFaq(${gi},${ii})">${Utils.escapeHtml(it.q)}<span class="faq-q-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-          <div class="faq-a"><p>${Utils.escapeHtml(it.a)}</p></div>
-        </div>`).join('')}
-    </div>`).join('')}
+  <div class="page-sub" style="padding:0 20px;margin-top:2px;">Livraison, paiement, commandes et retours — adapté à cette boutique${faqClientCoords?' et à votre position':''}</div>
+  <div id="faq-groups-wrap">${renderFaqGroups(data)}</div>
   <div class="help-contact-card">
     <h4>Vous ne trouvez pas de réponse ?</h4>
     <p>Notre équipe vous répond directement sur WhatsApp.</p>
@@ -5644,10 +5881,36 @@ Views['shop-help'] = function(){
   <div style="height:12px;"></div>
   `;
 };
+function renderFaqGroups(data){
+  return data.map((g,gi)=>`
+    <div class="faq-group-label">${Utils.escapeHtml(g.group)}</div>
+    <div class="faq-card">
+      ${g.items.map((it,ii)=>`
+        <div class="faq-item" id="faq-${gi}-${ii}">
+          <div class="faq-q" onclick="toggleFaq(${gi},${ii})">${Utils.escapeHtml(it.q)}<span class="faq-q-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          <div class="faq-a"><p>${Utils.escapeHtml(it.a)}</p>${it.geo && !faqClientCoords ? `<button class="btn btn-outline btn-sm" style="margin-top:2px;" onclick="event.stopPropagation();requestFaqLocation();">📍 Activer ma localisation</button>` : ''}</div>
+        </div>`).join('')}
+    </div>`).join('');
+}
 function toggleFaq(gi, ii){
   const el = document.getElementById('faq-'+gi+'-'+ii);
   if(el) el.classList.toggle('open');
 }
+function requestFaqLocation(){
+  if(!navigator.geolocation){ Toast.show('Localisation non prise en charge par cet appareil'); return; }
+  Toast.show('Recherche de votre position…');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      faqClientCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy||0};
+      const wrap = document.getElementById('faq-groups-wrap');
+      if(wrap) wrap.innerHTML = renderFaqGroups(buildFaqData());
+      Toast.show('Position détectée ✓');
+    },
+    ()=>{ Toast.show('Localisation refusée ou indisponible'); },
+    {enableHighAccuracy:true, timeout:12000, maximumAge:30000}
+  );
+}
+Views._after_shop_help = function(){ /* la géoloc n'est demandée qu'à la demande du client via le bouton dédié */ };
 
 function openAccountProfileEditor(){
   ClientLocal.load();
@@ -5786,6 +6049,7 @@ function productCardHtml(p){
   const variantBits = [];
   if(meta.sizes.length) variantBits.push(meta.sizes.length+' taille'+(meta.sizes.length>1?'s':''));
   if(meta.colors.length) variantBits.push(meta.colors.length+' couleur'+(meta.colors.length>1?'s':''));
+  (meta.extra||[]).forEach(g=>{ if(g.values.length) variantBits.push(g.values.length+' '+g.label.toLowerCase()); });
   return `
   <div class="pcard">
     <div class="pcard-media" onclick="Router.go('shop-product',{id:'${p.id}'})" style="cursor:pointer;">
@@ -5814,7 +6078,7 @@ function shareProduct(productId){
   const p = Store.products.find(x=>x.id===productId);
   const store = Store.store;
   if(!p) return;
-  const link = `https://les-boutique-agreee-siams.vercel.app/${store.slug}?produit=${productId}`;
+  const link = `https://lesservicessiams.vercel.app/${store.slug}?produit=${productId}`;
   const text = `${p.name} — ${Utils.fmtFCFA(p.price)} sur ${store.name}`;
   if(navigator.share){
     navigator.share({title:p.name, text, url:link}).catch(()=>{});
@@ -6211,24 +6475,28 @@ function addToCart(productId){
   const p = Store.products.find(x=>x.id===productId);
   if(!p) return;
   const meta = Utils.decodeMeta(p.desc);
-  if(meta.sizes.length || meta.colors.length){ openVariantPicker(productId, meta); return; }
-  addToCartWithVariant(productId, '', '');
+  if(meta.sizes.length || meta.colors.length || (meta.extra&&meta.extra.length)){ openVariantPicker(productId, meta); return; }
+  addToCartWithVariant(productId, '', '', {});
 }
-function addToCartWithVariant(productId, size, color){
-  const key = productId + '::' + (size||'') + '::' + (color||'');
+function addToCartWithVariant(productId, size, color, extra){
+  extra = extra || {};
+  const extraKey = Object.keys(extra).sort().map(k=>k+'='+extra[k]).join('|');
+  const key = productId + '::' + (size||'') + '::' + (color||'') + '::' + extraKey;
   const cart = Store.cart;
   const existing = cart.find(c=>c.key===key);
-  if(existing) existing.qty += 1; else cart.push({productId, key, size:size||'', color:color||'', qty:1});
+  if(existing) existing.qty += 1; else cart.push({productId, key, size:size||'', color:color||'', extra, qty:1});
   Store.cart = cart;
   Toast.show('Ajouté au panier ✓');
   updateCartBar();
 }
-/* ---- Sélecteur de taille / couleur avant ajout au panier ---- */
-let variantChoice = {size:'', color:''};
+/* ---- Sélecteur de taille / couleur / autres attributs avant ajout au panier ---- */
+let variantChoice = {size:'', color:'', extra:{}};
 function openVariantPicker(productId, meta){
   const p = Store.products.find(x=>x.id===productId);
   if(!p) return;
-  variantChoice = {size: meta.sizes[0]||'', color: meta.colors[0]||''};
+  const extraGroups = meta.extra || [];
+  variantChoice = {size: meta.sizes[0]||'', color: meta.colors[0]||'', extra:{}};
+  extraGroups.forEach(g=>{ variantChoice.extra[g.label] = g.values[0]||''; });
   const existing = document.getElementById('variant-sheet-wrap');
   if(existing) existing.remove();
   const wrap = document.createElement('div');
@@ -6242,6 +6510,8 @@ function openVariantPicker(productId, meta){
       <div class="variant-chip-row">${meta.sizes.map((s,i)=>`<button class="variant-chip ${i===0?'active':''}" data-vsize="${Utils.escapeHtml(s)}" onclick="setVariantChoice('size','${Utils.escapeHtml(s)}')">${Utils.escapeHtml(s)}</button>`).join('')}</div>` : ''}
       ${meta.colors.length ? `<div class="sub-label">Couleur</div>
       <div class="variant-chip-row">${meta.colors.map((c,i)=>`<button class="variant-chip ${i===0?'active':''}" data-vcolor="${Utils.escapeHtml(c)}" onclick="setVariantChoice('color','${Utils.escapeHtml(c)}')">${Utils.escapeHtml(c)}</button>`).join('')}</div>` : ''}
+      ${extraGroups.map(g=>`<div class="sub-label">${Utils.escapeHtml(g.label)}</div>
+      <div class="variant-chip-row">${g.values.map((v,i)=>`<button class="variant-chip ${i===0?'active':''}" data-vextra="${Utils.escapeHtml(g.label)}" data-vval="${Utils.escapeHtml(v)}" onclick="setExtraVariantChoice('${g.label.replace(/'/g,"\\'")}','${v.replace(/'/g,"\\'")}')">${Utils.escapeHtml(v)}</button>`).join('')}</div>`).join('')}
       <div class="shop-sheet-actions">
         <button class="btn btn-primary btn-block" onclick="confirmVariantAdd('${productId}')">Ajouter au panier</button>
       </div>
@@ -6258,6 +6528,12 @@ function setVariantChoice(kind, val){
     el.classList.toggle('active', (kind==='size'?el.dataset.vsize:el.dataset.vcolor)===val);
   });
 }
+function setExtraVariantChoice(label, val){
+  variantChoice.extra[label] = val;
+  document.querySelectorAll('[data-vextra]').forEach(el=>{
+    if(el.dataset.vextra===label) el.classList.toggle('active', el.dataset.vval===val);
+  });
+}
 function closeVariantPicker(){
   const overlay = document.getElementById('variant-sheet-overlay');
   const sheet = document.getElementById('variant-sheet');
@@ -6266,7 +6542,7 @@ function closeVariantPicker(){
   setTimeout(()=>{ const w = document.getElementById('variant-sheet-wrap'); if(w) w.remove(); }, 220);
 }
 function confirmVariantAdd(productId){
-  addToCartWithVariant(productId, variantChoice.size, variantChoice.color);
+  addToCartWithVariant(productId, variantChoice.size, variantChoice.color, variantChoice.extra);
   closeVariantPicker();
 }
 function updateCartBar(){
@@ -6297,7 +6573,7 @@ Views.cart = function(){
     `<button class="btn btn-primary" onclick="Router.go('shop')">Voir la boutique</button>`) : `
   <div style="padding:8px 20px 0;">
     ${items.map(i=>{
-      const variantLabel = [i.size, i.color].filter(Boolean).join(' · ');
+      const variantLabel = Utils.variantLabel(i);
       const key = i.key || i.productId;
       return `
       <div class="product-row" style="padding:14px 0;">
@@ -6336,6 +6612,7 @@ Views.checkout = function(){
     pay.wave.enabled ? {key:'wave',label:'Wave'} : null,
     pay.om.enabled ? {key:'om',label:'Orange Money'} : null,
     pay.mtn.enabled ? {key:'mtn',label:'MTN Money'} : null,
+    pay.moov.enabled ? {key:'moov',label:'Moov Money'} : null,
     pay.cash.enabled ? {key:'cash',label:'Paiement à la livraison'} : null,
   ].filter(Boolean);
   return `
@@ -6392,14 +6669,18 @@ function onCheckoutPayChange(){
   if(method==='cash'){ wrap.innerHTML = ''; return; }
   const pay = Store.payment;
   const number = pay[method] ? pay[method].number : '';
+  const link = pay[method] ? pay[method].link : '';
+  const validated = pay[method] ? pay[method].validated : false;
   const label = PAY_LABELS[method] || method;
   wrap.innerHTML = `
     <div style="margin-top:10px;border:1.5px dashed var(--line);border-radius:var(--radius-sm);padding:14px;">
       <p style="margin:0 0 8px;font-size:12.5px;color:var(--text-mid);">Envoyez le montant total au numéro ${label} ci-dessous, puis joignez une capture d'écran ou le reçu de la transaction.</p>
       <div style="display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;">
         <span class="mono" style="font-weight:700;font-size:15px;flex:1;">${number ? Utils.escapeHtml(number) : 'Numéro non renseigné par le vendeur'}</span>
+        ${validated ? `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--green-tint);color:var(--green);white-space:nowrap;">Vérifié ✓</span>` : ''}
         ${number ? `<button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${number.replace(/'/g,"")}');Toast.show('Numéro copié ✓')">Copier</button>` : ''}
       </div>
+      ${link ? `<a href="${Utils.escapeHtml(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--indigo);">Payer directement via le lien ${label} ↗</a>` : ''}
       <input type="file" accept="image/*" id="co-payment-proof-input" class="hidden" onchange="handleCheckoutProof(event)">
       <div id="co-payment-proof-preview"></div>
       <button type="button" class="btn btn-mango btn-sm" style="width:100%;" onclick="document.getElementById('co-payment-proof-input').click()">📎 Joindre la capture / le reçu de paiement</button>
@@ -6544,7 +6825,7 @@ function confirmOrder(){
   if(payMethod!=='cash' && !checkoutPaymentProof){ Toast.show('Veuillez joindre la capture ou le reçu de votre paiement'); return; }
   const cart = Store.cart;
   let products = Store.products;
-  const items = cart.map(c=>{ const p = products.find(x=>x.id===c.productId); if(!p) return null; const variantLabel = [c.size, c.color].filter(Boolean).join(' · '); return {productId:c.productId, name: variantLabel ? `${p.name} (${variantLabel})` : p.name, price:p.price, qty:c.qty}; }).filter(Boolean);
+  const items = cart.map(c=>{ const p = products.find(x=>x.id===c.productId); if(!p) return null; const variantLabel = Utils.variantLabel(c); return {productId:c.productId, name: variantLabel ? `${p.name} (${variantLabel})` : p.name, price:p.price, qty:c.qty}; }).filter(Boolean);
   if(items.length===0){ Toast.show('Panier vide'); return; }
   const subtotal = items.reduce((s,i)=>s+i.price*i.qty,0);
   let discount = 0;
@@ -6557,7 +6838,8 @@ function confirmOrder(){
   const isFirstOrderEver = orders.length===0;
   let number = Utils.genOrderCode(Store.store.name);
   while(orders.some(o=>o.number===number)) number = Utils.genOrderCode(Store.store.name);
-  const order = { id:Utils.uid(), number, customer:{name,phone,address}, items, amount, discount, deliveryZone, deliveryFee, promoCode: appliedPromo?appliedPromo.code:null, paymentMethod: payMethod, paymentProof: checkoutPaymentProof||null, status:'pending', createdAt:Date.now(), deliveryToken:Utils.uid() };
+  const order = { id:Utils.uid(), number, customer:{name,phone,address}, items, amount, discount, deliveryZone, deliveryFee, promoCode: appliedPromo?appliedPromo.code:null, paymentMethod: payMethod, paymentProof: checkoutPaymentProof||null, status:'pending', createdAt:Date.now(), deliveryToken:Utils.uid(),
+    customerLat: checkoutLocation?checkoutLocation.lat:null, customerLng: checkoutLocation?checkoutLocation.lng:null, customerLocationAccuracy: checkoutLocation?checkoutLocation.accuracy:null };
   orders.unshift(order);
   Store.orders = orders;
 
@@ -6577,6 +6859,7 @@ function confirmOrder(){
   Store.cart = [];
   appliedPromo = null;
   checkoutPaymentProof = null;
+  checkoutLocation = null;
   Notify.add('order', `Nouvelle commande #${number} de ${name} — ${Utils.fmtFCFA(amount)}`);
   ClientLocal.save({name, phone, address});
   ClientNotify.add(number, `Commande #${number} reçue — en attente de confirmation du vendeur.`);
@@ -6957,6 +7240,27 @@ async function renderSIAMSReceiptPDF(doc, data){
   doc.text(Utils.fmtFCFA(data.total||0), totX+totW, y, {align:'right'});
   y += 34;
 
+  /* ---------- Chronologie de la commande (optionnelle) ----------
+     Utilisée pour le reçu détaillé de livraison : retrace les étapes
+     de la commande, de sa création jusqu'à la confirmation de réception. */
+  if(data.timeline && data.timeline.length){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(BLUE_DEEP[0],BLUE_DEEP[1],BLUE_DEEP[2]);
+    doc.text('CHRONOLOGIE DE LA COMMANDE', margin, y);
+    y += 14;
+    doc.setDrawColor(LINE[0],LINE[1],LINE[2]);
+    data.timeline.forEach((step,idx)=>{
+      doc.setFillColor(GREEN[0],GREEN[1],GREEN[2]);
+      doc.circle(margin+4, y-3, 3, 'F');
+      if(idx<data.timeline.length-1) doc.line(margin+4, y, margin+4, y+15);
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]);
+      doc.text(step.label, margin+16, y);
+      doc.setFont('courier','normal'); doc.setFontSize(8.5); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+      doc.text(step.time || '—', W-margin, y, {align:'right'});
+      y += 17;
+    });
+    y += 8;
+  }
+
   /* ---------- Mention légale ---------- */
   doc.setDrawColor(LINE[0],LINE[1],LINE[2]);
   const legal = data.footerNote || "Le présent reçu constitue la preuve officielle du règlement effectué par le client auprès de SIAMS, pour le montant et à la date indiqués ci-dessus. Il fait foi entre les parties et peut être produit à toute fin utile, notamment auprès des autorités compétentes, conformément à la réglementation en vigueur en République de Côte d'Ivoire.";
@@ -6989,7 +7293,7 @@ async function renderSIAMSReceiptPDF(doc, data){
 }
 
 async function downloadReceiptPDF(orderId){
-  if(!window.jspdf){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const order = Store.orders.find(o=>o.id===orderId);
   if(!order){ Toast.show('Commande introuvable'); return; }
   const store = Store.store;
@@ -7006,10 +7310,22 @@ async function downloadReceiptPDF(orderId){
   if(pay.mtn && pay.mtn.enabled && pay.mtn.number) bankLines.push(`MTN Money : ${pay.mtn.number}`);
   if(!bankLines.length) bankLines.push('Paiement à la livraison');
 
+  const fmtT = ts => ts ? new Date(ts).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : null;
+  let timeline = null;
+  if(order.status==='delivered'){
+    timeline = [
+      { label:'Commande passée par le client', time: fmtT(order.createdAt) },
+      { label:'Confirmée par la boutique', time: fmtT(order.confirmedAt) || '—' },
+      { label:'Expédiée / prise en charge par le livreur', time: fmtT(order.shippedAt) || '—' },
+      { label:'Réception confirmée par le client (photo à l’appui)', time: fmtT(order.deliveryConfirmedAt) || '—' }
+    ];
+  }
+
   await renderSIAMSReceiptPDF(doc, {
     receiptNumber: order.receiptNumber,
-    docSubtitle: `Reçu de commande — ${store.name || 'Boutique'}`,
+    docSubtitle: order.status==='delivered' ? `Reçu détaillé de livraison — ${store.name || 'Boutique'}` : `Reçu de commande — ${store.name || 'Boutique'}`,
     receiptDate: Date.now(),
+    timeline,
     paidDate: order.createdAt,
     clientNumber: order.customer.phone,
     agent: store.name || 'Ma boutique',
@@ -7043,7 +7359,7 @@ async function downloadReceiptPDF(orderId){
 
 /* ---------- Reçu PDF officiel d'abonnement (réutilise le moteur de référence SIAMS) ---------- */
 async function downloadSubscriptionReceiptPDF(){
-  if(!window.jspdf){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const access = Store.access();
   if(access.status!=='active' || !access.contractRef){ Toast.show('Aucun abonnement actif à ce jour'); return; }
   const store = Store.store;
@@ -7172,12 +7488,41 @@ Views['order-track'] = function(opts){
   ${order.courierId && shipped && !delivered ? `<div id="client-courier-live-${order.id}" style="margin:0 20px 16px;border:1.5px solid var(--green);background:var(--green-tint);border-radius:var(--radius-md);padding:14px 16px;"><div style="font-weight:800;margin-bottom:5px;">🚚 Livraison prise en charge</div><div style="font-size:12.5px;color:var(--text-mid);">${Utils.escapeHtml(order.deliveryStatusMessage||'Votre livreur a pris en charge la commande. Sa position sera mise à jour pendant le trajet.')}</div><div id="client-courier-coords-${order.id}" style="font-size:12px;color:var(--text-soft);margin-top:8px;">Position du livreur : attente de la prochaine mise à jour…</div></div>` : ''}
   ${delivered && order.deliveryPhoto ? `
   <div class="home-section-row" style="padding-top:0;"><h3 style="font-size:14.5px;">Photo de réception</h3></div>
-  <div style="margin:0 20px 20px;border-radius:var(--radius-md);overflow:hidden;border:1.5px solid var(--line);"><img src="${order.deliveryPhoto}" style="width:100%;display:block;"></div>` : ''}
+  <div style="margin:0 20px 20px;border-radius:var(--radius-md);overflow:hidden;border:1.5px solid var(--line);"><img src="${order.deliveryPhoto}" style="width:100%;display:block;"></div>
+  ${buildDetailedReceiptHtml(order)}` : ''}
   <div style="padding:0 20px 28px;">
     <button class="btn btn-ghost btn-block" onclick="Router.go('shop-account')">Retour à mon compte</button>
   </div>
   `;
 };
+/* ---------- Reçu détaillé (du début de la commande jusqu'à la livraison) ----------
+   Affiché juste sous la photo de confirmation de réception, avec bouton de
+   téléchargement PDF (renderSIAMSReceiptPDF, chronologie incluse). Le fait
+   que la commande soit livrée + reçu disponible remonte automatiquement
+   dans les statistiques boutique (carte « Reçus de livraison signés »). */
+function buildDetailedReceiptHtml(order){
+  const fmtT = ts => ts ? new Date(ts).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '—';
+  const steps = [
+    { label:'Commande passée', time: fmtT(order.createdAt), done:true },
+    { label:'Confirmée par la boutique', time: fmtT(order.confirmedAt), done:!!order.confirmedAt },
+    { label:'Expédiée', time: fmtT(order.shippedAt), done:!!order.shippedAt },
+    { label:'Réception confirmée (photo à l’appui)', time: fmtT(order.deliveryConfirmedAt), done:!!order.deliveryConfirmedAt }
+  ];
+  return `
+  <div class="home-section-row" style="padding-top:0;"><h3 style="font-size:14.5px;">Reçu détaillé de la commande</h3></div>
+  <div style="margin:0 20px 14px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;background:#fff;">
+    ${steps.map(s=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12.5px;border-bottom:1px solid var(--line);">
+        <span style="color:${s.done?'var(--text)':'var(--text-soft)'};font-weight:${s.done?'700':'400'};">${s.done?'✓ ':'• '}${s.label}</span>
+        <span class="mono" style="color:var(--text-mid);">${s.time}</span>
+      </div>`).join('')}
+    <div style="display:flex;justify-content:space-between;padding-top:10px;font-weight:700;font-size:14px;"><span>Total payé</span><span class="mono">${Utils.fmtFCFA(order.amount)}</span></div>
+  </div>
+  <div style="padding:0 20px 20px;">
+    <button class="btn btn-primary btn-block" onclick="downloadReceiptPDF('${order.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Télécharger le reçu détaillé (PDF)</button>
+    <div style="font-size:11px;color:var(--text-soft);margin-top:8px;text-align:center;">Ce reçu professionnel retrace toutes les étapes de votre commande, du passage de commande jusqu'à la livraison confirmée.</div>
+  </div>`;
+}
 function handleDeliveryPhoto(evt, orderId){
   const file = evt.target.files && evt.target.files[0];
   if(!file) return;
