@@ -1,4 +1,11 @@
 {
+  "rewrites": [
+    {
+      "source": "/:slug",
+      "has": [{ "type": "query", "key": "produit" }],
+      "destination": "/api/product?slug=:slug"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
