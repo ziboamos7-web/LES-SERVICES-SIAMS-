@@ -2198,7 +2198,7 @@ const Onboarding = {
    le template "Magic Link" (utilisé par signInWithOtp) doit contenir
    {{ .Token }} afin d'envoyer un code à 8 chiffres (et non un simple
    lien de connexion). */
-const OTP_RESEND_SECONDS = 60;
+const OTP_RESEND_SECONDS = 26;
 const OtpGate = {
   pending:false,
   mode:'login',
@@ -4940,13 +4940,64 @@ function openAddMember(){
   Router.go('team');
 }
 function inviteCourierFromMerchant(){
-  const name=prompt('Nom complet du livreur'); if(!name||!name.trim()) return;
-  const phone=prompt('Numéro WhatsApp du livreur'); if(!phone||!phone.trim()) return;
-  Cloud.inviteCourier(name.trim(),phone.trim()).then(r=>{
+  const wrap=document.createElement('div');
+  wrap.id='courier-invite-overlay';
+  wrap.className='overlay show';
+  wrap.style.zIndex='95';
+  wrap.onclick=function(e){ if(e.target===wrap) closeCourierInviteSheet(); };
+  const sheet=document.createElement('div');
+  sheet.id='courier-invite-sheet';
+  sheet.className='sheet show';
+  sheet.style.zIndex='96';
+  sheet.innerHTML=`
+    <div id="courier-invite-step-form">
+      <h3 style="margin:0 0 4px;font-size:17px;">Inviter un livreur</h3>
+      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;">Renseignez ses informations pour générer son lien d'invitation.</p>
+      <div class="field" style="margin-bottom:10px;"><label>Nom complet</label><input id="courier-invite-name" placeholder="Ex. Jean Kouassi" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;"></div>
+      <div class="field" style="margin-bottom:16px;"><label>Numéro WhatsApp</label><input id="courier-invite-phone" inputmode="tel" placeholder="Ex. 07 00 00 00 00" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;"></div>
+      <button class="btn btn-primary btn-block" id="courier-invite-submit-btn" onclick="submitCourierInvite()">Générer le code</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="closeCourierInviteSheet()">Annuler</button>
+    </div>
+    <div id="courier-invite-step-result" style="display:none;">
+      <h3 style="margin:0 0 4px;font-size:17px;">Invitation générée ✓</h3>
+      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Envoyez ce lien au livreur, ou copiez-le pour le partager vous-même.</p>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Lien d'invitation</label>
+        <div style="display:flex;gap:8px;">
+          <input id="courier-invite-link" readonly style="flex:1;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg,#f7f7f9);font-size:12.5px;">
+          <button class="btn btn-outline btn-sm" onclick="copyCourierInviteLink()">Copier</button>
+        </div>
+      </div>
+      <button class="btn btn-soft-green btn-block" style="margin-top:6px;" onclick="openCourierInviteWhatsApp()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.7-1.2A9 9 0 1 0 12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Envoyer via WhatsApp</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="closeCourierInviteSheet()">Fermer</button>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+  document.body.appendChild(sheet);
+  setTimeout(()=>document.getElementById('courier-invite-name').focus(),50);
+}
+function closeCourierInviteSheet(){
+  const wrap=document.getElementById('courier-invite-overlay');
+  const sheet=document.getElementById('courier-invite-sheet');
+  if(wrap) wrap.remove();
+  if(sheet) sheet.remove();
+}
+let _courierInviteWaUrl='';
+function submitCourierInvite(){
+  const name=document.getElementById('courier-invite-name').value.trim();
+  const phone=document.getElementById('courier-invite-phone').value.trim();
+  if(!name){ Toast.show('⚠️ Indiquez le nom du livreur'); return; }
+  if(!phone){ Toast.show('⚠️ Indiquez le numéro WhatsApp'); return; }
+  const btn=document.getElementById('courier-invite-submit-btn');
+  btn.disabled=true; btn.textContent='Génération…';
+  Cloud.inviteCourier(name,phone).then(r=>{
     const x=Array.isArray(r)?r[0]:r;
     const link=location.origin+location.pathname.replace(/\/?$/,'')+'?courier_invite='+encodeURIComponent(x.invite_token);
-    const msg=`Bonjour ${name.trim()}, vous êtes invité à rejoindre ${Store.store.name} comme livreur SIAMS.\n\nAcceptez votre invitation ici : ${link}\n\nAprès acceptation, un code d'accès personnel vous sera généré pour votre espace livreur.`;
-    window.open('https://wa.me/225'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+    const msg=`Bonjour ${name}, vous êtes invité à rejoindre ${Store.store.name} comme livreur SIAMS.\n\nAcceptez votre invitation ici : ${link}\n\nAprès acceptation, un code d'accès personnel vous sera généré pour votre espace livreur.`;
+    _courierInviteWaUrl='https://wa.me/225'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg);
+    document.getElementById('courier-invite-link').value=link;
+    document.getElementById('courier-invite-step-form').style.display='none';
+    document.getElementById('courier-invite-step-result').style.display='block';
     Toast.show('Invitation créée ✓');
     Router.go('team');
   }).catch(e=>{
@@ -4954,7 +5005,20 @@ function inviteCourierFromMerchant(){
     const detail = (e && (e.message || e.error_description || e.details || e.hint)) ? `${e.message||''}\n${e.details||''}\n${e.hint||''}\n(code: ${e.code||'?'})` : JSON.stringify(e);
     alert('Erreur lors de la création de l’invitation :\n\n'+detail);
     Toast.show('⚠️ Impossible de créer l’invitation');
+    btn.disabled=false; btn.textContent='Générer le code';
   });
+}
+function copyCourierInviteLink(){
+  const input=document.getElementById('courier-invite-link');
+  const done=()=>Toast.show('Lien copié ✓');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(input.value).then(done).catch(()=>{ input.select(); document.execCommand('copy'); done(); });
+  } else {
+    input.select(); document.execCommand('copy'); done();
+  }
+}
+function openCourierInviteWhatsApp(){
+  if(_courierInviteWaUrl) window.open(_courierInviteWaUrl,'_blank');
 }
 function shareCourierSpaceLink(){
   const s=Store.store;
