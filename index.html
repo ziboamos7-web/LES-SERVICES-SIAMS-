@@ -823,7 +823,7 @@
     </div>
     <div class="menu-item" onclick="Sheet.close(); AccountId.open();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M7 9h10M7 13h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Mon identifiant SIAMS</span><span class="menu-item-desc">Consultez ou copiez votre identifiant de connexion</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Mon ID marchand SIAMS</span><span class="menu-item-desc">Consultez ou copiez votre identifiant de connexion</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item danger" onclick="Sheet.close(); if(confirm('Se déconnecter ?')) Auth.logout();">
@@ -919,7 +919,7 @@ const Utils = {
       return v.toString(16);
     });
   },
-  /* ---- Identifiant de connexion utilisateur : SIAMS-XXXXXX ----
+  /* ---- ID marchand SIAMS utilisateur : SIAMS-XXXXXX ----
      Remplace l'e-mail pour se reconnecter. Sans caractères ambigus (0/O, 1/I). ---- */
   genLoginId(){
     const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -1909,7 +1909,7 @@ const DeliveryQR = {
   }
 };
 
-const PUBLIC_VIEWS = ['welcome','courier-login','courier-invite','courier-dashboard','shop','shop-product','cart','checkout','confirmation','login','verify-otp','partnership','confirm-email','recover-id','shop-categories','shop-favorites','shop-account','order-track','shop-orders-history','shop-about','shop-help','onboarding-client'];
+const PUBLIC_VIEWS = ['welcome','onboarding-public','about-partnership','activation-code','courier-login','courier-invite','courier-dashboard','shop','shop-product','cart','checkout','confirmation','login','verify-otp','partnership','confirm-email','recover-id','shop-categories','shop-favorites','shop-account','order-track','shop-orders-history','shop-about','shop-help','onboarding-client'];
 const CLIENT_TAB_VIEWS = ['shop','shop-categories','cart','shop-favorites','shop-account'];
 const Router = {
   current:'dashboard',
@@ -1939,7 +1939,7 @@ const Router = {
     Router.current = name;
     document.getElementById('page-root').innerHTML = Views[name] ? Views[name](opts||{}) : '';
     const isCustomer = PUBLIC_VIEWS.includes(name) && name!=='login' && name!=='welcome';
-    document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='partnership' || name==='confirm-email' || name==='onboarding-admin' || name==='business-type' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice');
+    document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='partnership' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='onboarding-admin' || name==='business-type' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice');
     document.getElementById('client-nav').classList.toggle('hidden', !CLIENT_TAB_VIEWS.includes(name));
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     const navMap = {dashboard:'dashboard', products:'products', 'product-add':'products', 'product-edit':'products', orders:'orders', 'order-detail':'orders',
@@ -2133,6 +2133,7 @@ const Onboarding = {
   init(type){
     this.index = 0;
     if(type==='admin'){ this.slides = onboardAdminSlides(); this.key = ONBOARD_ADMIN_KEY; this.finishRoute = 'dashboard'; }
+    else if(type==='public'){ this.slides = onboardAdminSlides(); this.key = 'siams_public_onboarding_v1'; this.finishRoute = 'about-partnership'; }
     else { this.slides = onboardClientSlides(); this.key = ONBOARD_CLIENT_KEY; this.finishRoute = 'shop'; }
   },
   render(){
@@ -2283,7 +2284,29 @@ const OtpGate = {
     OtpGate.pending = false;
     clearInterval(OtpGate.timerId);
     Toast.show('E-mail vérifié ✓');
-    if(wasRegister){ ContractGate.show(); } else { Router.go('dashboard'); }
+    const pendingActivationEmail = (()=>{ try{return sessionStorage.getItem('siams_activation_email')||'';}catch(e){return '';} })();
+    const shouldRedeem = !!ActivationGate.getStored() && pendingActivationEmail && pendingActivationEmail === String(OtpGate.email||'').toLowerCase();
+    if(wasRegister || shouldRedeem){
+      try{
+        const code = ActivationGate.getStored();
+        if(!code) throw new Error('missing_activation_code');
+        const {data,error}=await sb.rpc('redeem_activation_key',{p_code:code});
+        if(error) throw error;
+        if(!data || !data.success){
+          const messages={invalid_code:'Code d’activation invalide.',code_already_used:'Ce code a déjà été utilisé.',store_not_found:'Boutique introuvable pour activer le code.'};
+          throw new Error(messages[data&&data.error] || 'Activation impossible');
+        }
+        ActivationGate.clear();
+        try{sessionStorage.removeItem('siams_activation_email');}catch(e){}
+        const currentUser=(await sb.auth.getUser()).data.user;
+        if(currentUser) await Bootstrap.loadStoreData(currentUser);
+        Toast.show('Partenariat SIAMS activé ✓');
+        ContractGate.show();
+      }catch(e){
+        console.error(e);
+        err.textContent = e.message && e.message!=='missing_activation_code' ? e.message : 'Impossible d’activer votre partenariat. Contactez le service client SIAMS.';
+      }
+    } else { Router.go('dashboard'); }
   },
   changeAccount(){
     OtpGate.reset();
@@ -2374,16 +2397,101 @@ Views.welcome = function(){
     <div style="width:88px;height:88px;border-radius:26px;margin-bottom:26px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(4,104,227,.5);position:relative;z-index:1;overflow:hidden;">
       <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
     </div>
-    <h1 style="font-size:25px;line-height:1.3;margin:0 0 10px;letter-spacing:-.5px;position:relative;z-index:1;">Bienvenue 👋<br>Merci d'avoir rejoint les services SIAMS</h1>
-    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.55;margin:0 0 40px;max-width:320px;position:relative;z-index:1;">Créez, gérez et développez votre boutique en ligne en toute simplicité.</p>
-    <button class="btn btn-primary btn-block" style="max-width:320px;position:relative;z-index:1;" onclick="authMode='login';Router.go('login')">Commencer</button>
+    <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;position:relative;z-index:1;">SIAMS</div>
+    <h1 style="font-size:25px;line-height:1.3;margin:0 0 10px;letter-spacing:-.5px;position:relative;z-index:1;">Votre boutique mérite mieux.</h1>
+    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.55;margin:0 0 26px;max-width:320px;position:relative;z-index:1;">Découvrez l'application SIAMS et comment nous accompagnons les commerçants dans leur activité en ligne.</p>
+    <button class="btn btn-primary btn-block" style="max-width:320px;position:relative;z-index:1;" onclick="Router.go('onboarding-public')">Découvrir SIAMS</button>
+    <button class="btn btn-outline btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:10px;" onclick="authMode='login';Router.go('login')">Déjà partenaire ? Se connecter</button>
+  </div>`;
+};
+
+Views['onboarding-public'] = function(){ Onboarding.init('public'); return Onboarding.render(); };
+Views._after_onboarding_public = function(){ Onboarding.attach(); };
+
+Views['about-partnership'] = function(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
+    <button onclick="Router.go('onboarding-public')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:22px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
+    <h1 style="font-size:24px;margin:0 0 8px;">À propos de SIAMS</h1>
+    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.6;margin:0 0 22px;">SIAMS vous accompagne pour créer, gérer et développer votre boutique en ligne sans complexité technique.</p>
+    <div style="display:grid;gap:10px;margin-bottom:24px;">
+      ${['Boutique en ligne simple à gérer','Catalogue et commandes centralisés','Suivi des clients et des livraisons','Accompagnement et support SIAMS'].map((x,i)=>`<div style="display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--line);border-radius:14px;padding:14px;background:#fff;"><div style="width:28px;height:28px;border-radius:9px;background:var(--green-tint);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;">✓</div><div style="font-size:13.5px;line-height:1.45;padding-top:4px;">${x}</div></div>`).join('')}
+    </div>
+    <div style="margin-top:auto;">
+      <button class="btn btn-primary btn-block" onclick="ActivationGate.openWhatsApp()">Être partenaire</button>
+      <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Quitter</button>
+    </div>
+  </div>`;
+};
+
+const ActivationGate = {
+  code:'',
+  busy:false,
+  normalize(v){ return String(v||'').trim().toUpperCase().replace(/\s+/g,''); },
+  openWhatsApp(){
+    const msg='Bonjour SIAMS, je souhaite devenir partenaire et obtenir mon code d’activation.';
+    window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg),'_blank');
+    Router.go('activation-code');
+  },
+  back(){ Router.go('about-partnership'); },
+  async validate(){
+    const input=document.getElementById('activation-code-input');
+    const err=document.getElementById('activation-code-error');
+    const btn=document.getElementById('activation-code-btn');
+    const code=this.normalize(input&&input.value);
+    if(!code){ err.textContent='Entrez votre code d’activation'; return; }
+    if(this.busy) return;
+    this.busy=true; err.textContent=''; btn.disabled=true; btn.textContent='Vérification...';
+    try{
+      const {data,error}=await sb.rpc('check_activation_key',{p_code:code});
+      if(error) throw error;
+      if(!data || !data.success){
+        const messages={invalid_code:'Code invalide.',code_already_used:'Ce code a déjà été utilisé.',code_expired:'Ce code a expiré.'};
+        err.textContent=messages[data&&data.error] || 'Code d’activation invalide.';
+        return;
+      }
+      this.code=code;
+      try{ sessionStorage.setItem('siams_activation_code',code); }catch(e){}
+      Toast.show('Code d’activation validé ✓');
+      authMode='register';
+      Router.go('login');
+    }catch(e){
+      console.error(e);
+      err.textContent='Impossible de vérifier le code pour le moment.';
+    }finally{
+      this.busy=false; btn.disabled=false; btn.textContent='Valider le code';
+    }
+  },
+  getStored(){
+    if(this.code) return this.code;
+    try{ return sessionStorage.getItem('siams_activation_code')||''; }catch(e){ return ''; }
+  },
+  clear(){ this.code=''; try{sessionStorage.removeItem('siams_activation_code');}catch(e){} }
+};
+
+Views['activation-code'] = function(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
+    <button onclick="ActivationGate.back()" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:24px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
+    <h1 style="font-size:24px;margin:0 0 8px;">Votre code partenaire</h1>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 24px;">Le service client SIAMS vous transmet un code personnel pour commencer votre inscription.</p>
+    <div class="field"><label>Code d’activation</label><input id="activation-code-input" type="text" autocomplete="off" autocapitalize="characters" placeholder="SIAMS-XXXXXX" value="${Utils.escapeHtml(ActivationGate.getStored())}" oninput="document.getElementById('activation-code-error').textContent=''"></div>
+    <div id="activation-code-error" style="color:var(--red);font-size:12.5px;min-height:20px;margin:-6px 0 14px;"></div>
+    <button id="activation-code-btn" class="btn btn-primary btn-block" onclick="ActivationGate.validate()">Valider le code</button>
+    <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ActivationGate.openWhatsApp()">Je n’ai pas encore de code</button>
   </div>`;
 };
 
 Views.login = function(){
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">
-    <button onclick="Router.go('welcome')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
+    <button onclick="authMode==='register' && ActivationGate.getStored() ? Router.go('activation-code') : Router.go('welcome')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;">
@@ -2391,7 +2499,7 @@ Views.login = function(){
     </div>
     <h1 style="font-size:24px;margin:0 0 6px;">${authMode==='login' ? 'Connexion' : 'Créer votre compte'}</h1>
     <p style="color:var(--text-mid);font-size:14px;margin:0 0 26px;">${authMode==='login' ? 'Connectez-vous pour gérer votre boutique.' : 'Créez votre compte pour commencer à vendre.'}</p>
-    <div class="field"><label>${authMode==='login' ? 'E-mail ou identifiant SIAMS' : 'Adresse e-mail'}</label><input id="auth-email" type="${authMode==='login'?'text':'email'}" placeholder="${authMode==='login' ? 'vous@exemple.com ou SIAMS-XXXXXX' : 'vous@exemple.com'}" autocomplete="${authMode==='login'?'username':'email'}"></div>
+    <div class="field"><label>${authMode==='login' ? 'E-mail ou ID marchand SIAMS' : 'Adresse e-mail'}</label><input id="auth-email" type="${authMode==='login'?'text':'email'}" placeholder="${authMode==='login' ? 'vous@exemple.com ou SIAMS-XXXXXX' : 'vous@exemple.com'}" autocomplete="${authMode==='login'?'username':'email'}"></div>
     ${authMode==='register' ? `<div class="field"><label>Numéro de téléphone</label><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"><div style="font-size:12px;color:var(--text-mid);margin-top:5px;">Utilisé pour vérifier votre compte par SMS</div></div>` : ''}
     <div class="field"><label>Mot de passe</label>
       <div class="pass-field-wrap">
@@ -2399,7 +2507,7 @@ Views.login = function(){
         <button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass', this)">${EYE_SVG}</button>
       </div>
       ${authMode==='register' ? '<div style="font-size:12px;color:var(--text-mid);margin-top:5px;">Au moins 6 caractères</div>' : ''}
-      ${authMode==='login' ? `<div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go('recover-id')">Identifiant oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPassword()">Mot de passe oublié ?</button></div>` : ''}
+      ${authMode==='login' ? `<div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go('recover-id')">ID marchand oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPassword()">Mot de passe oublié ?</button></div>` : ''}
     </div>
     ${authMode==='register' ? `<div class="field"><label>Confirmer le mot de passe</label>
       <div class="pass-field-wrap">
@@ -2519,7 +2627,29 @@ function togglePasswordVisibility(inputId, btn){
 }
 function contactSupportForgotPassword(){
   const identifier = (document.getElementById('auth-email')?.value || '').trim();
-  const msg = "Bonjour, j'ai oublié mon mot de passe SIAMS." + (identifier ? " Mon e-mail ou identifiant est : "+identifier+"." : "") + " Pouvez-vous m'aider à le réinitialiser ?";
+  const cleanIdentifier = identifier || 'Non renseigné';
+  const isMerchantId = /^SIAMS-[A-Z0-9_-]+$/i.test(cleanIdentifier);
+  const merchantIdLine = isMerchantId
+    ? `ID marchand SIAMS : ${cleanIdentifier.toUpperCase()}`
+    : `ID marchand SIAMS : Non renseigné (à confirmer par SIAMS)`;
+  const emailLine = !isMerchantId && cleanIdentifier.includes('@')
+    ? `E-mail du compte : ${cleanIdentifier}`
+    : `E-mail du compte : À confirmer`;
+  const msg = [
+    'Bonjour Service Client SIAMS,',
+    '',
+    "Je suis un marchand SIAMS et j'ai oublié mon mot de passe.",
+    'Je souhaite récupérer l’accès à mon compte.',
+    '',
+    merchantIdLine,
+    emailLine,
+    `Boutique : À confirmer par SIAMS`,
+    `Téléphone marchand : À confirmer par SIAMS`,
+    '',
+    'Merci de vérifier mon compte et de m’aider à réinitialiser mon mot de passe.',
+    '',
+    'Message envoyé depuis l’espace de connexion SIAMS.'
+  ].join('\n');
   window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg), '_blank');
 }
 async function doLogin(){
@@ -2533,7 +2663,7 @@ async function doLogin(){
   const resolved = await Auth.resolveEmail(identifier);
   if(!resolved.ok){
     btn.disabled = false; btn.textContent = 'Se connecter';
-    err.textContent = 'E-mail ou identifiant SIAMS introuvable';
+    err.textContent = 'E-mail ou ID marchand SIAMS introuvable';
     return;
   }
   const res = await Auth.login(resolved.email, pass);
@@ -2559,7 +2689,17 @@ async function doRegister(){
     err.textContent = res.message || 'Création impossible';
     return;
   }
-  Partnership.show({ needsConfirm: !!res.needsConfirm, email, phone: res.phone || phone });
+  try{ sessionStorage.setItem('siams_activation_email', email.toLowerCase()); }catch(e){}
+  if(!ActivationGate.getStored()){
+    err.textContent = 'Votre code partenaire n’est plus disponible. Veuillez le saisir à nouveau.';
+    btn.disabled = false; btn.textContent = 'Créer mon compte';
+    return;
+  }
+  if(res.needsConfirm){
+    ConfirmEmail.show(res.email);
+  } else {
+    OtpGate.start('register', res.email);
+  }
 }
 
 /* ---------- Partenariat SIAMS (affiché juste après la création du compte) ---------- */
@@ -2635,13 +2775,13 @@ const ConfirmEmail = {
   }
 };
 
-/* ---------- Identifiant SIAMS (affiché juste après la validation du contrat / vérification OTP) ----------
+/* ---------- ID marchand SIAMS (affiché juste après la validation du contrat / vérification OTP) ----------
    NOTE PROTOTYPE : nécessite côté Supabase une colonne stores.login_id ainsi que les
    fonctions RPC find_email_by_login_id / find_login_id_by_email (SECURITY DEFINER). ---- */
 /* ---------- Carte d'identifiants SIAMS (PDF format carte, style badge) ---------- */
 async function downloadAccountIdCardPDF(){
   const id = AccountId.current;
-  if(!id){ Toast.show('Identifiant indisponible'); return; }
+  if(!id){ Toast.show('ID marchand indisponible'); return; }
   if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const { jsPDF } = window.jspdf;
   const store = Store.store;
@@ -2675,7 +2815,7 @@ async function downloadAccountIdCardPDF(){
   // Identifiant, en évidence
   doc.setFont('helvetica','normal'); doc.setFontSize(8);
   doc.setTextColor(200,215,235);
-  doc.text('IDENTIFIANT DE CONNEXION', ox+16, oy+118);
+  doc.text('ID MARCHAND SIAMS', ox+16, oy+118);
   doc.setFont('courier','bold'); doc.setFontSize(20);
   doc.setTextColor(...white);
   doc.text(id, ox+16, oy+142, {charSpace:1.2});
@@ -2717,10 +2857,10 @@ Views['account-id'] = function(){
     <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;">
       <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
     </div>
-    <h1 style="font-size:23px;margin:0 0 8px;">Votre identifiant SIAMS</h1>
+    <h1 style="font-size:23px;margin:0 0 8px;">Votre ID marchand SIAMS</h1>
     <p style="color:var(--text-mid);font-size:14.5px;line-height:1.6;margin:0 0 22px;">Utilisez-le pour vous reconnecter à votre compte, sans ressaisir votre e-mail à chaque fois. Conservez-le en lieu sûr.</p>
     <div style="border:1.5px solid var(--indigo);border-radius:var(--radius-md);padding:20px 16px;background:var(--indigo-tint);text-align:center;margin-bottom:16px;">
-      <div style="font-size:11px;color:var(--indigo);font-weight:700;letter-spacing:.4px;margin-bottom:8px;">IDENTIFIANT DE CONNEXION</div>
+      <div style="font-size:11px;color:var(--indigo);font-weight:700;letter-spacing:.4px;margin-bottom:8px;">ID MARCHAND SIAMS</div>
       <div class="mono" style="font-size:22px;font-weight:800;letter-spacing:1px;color:var(--text);">${Utils.escapeHtml(id)}</div>
     </div>
     <div style="display:flex;gap:10px;margin-bottom:22px;">
@@ -2733,7 +2873,7 @@ Views['account-id'] = function(){
         Enregistrer
       </button>
     </div>
-    <p style="font-size:12px;color:var(--text-soft);margin:0 0 26px;">En cas d'oubli, l'option « Identifiant oublié ? » sur l'écran de connexion vous permet de le récupérer via votre e-mail ou WhatsApp.</p>
+    <p style="font-size:12px;color:var(--text-soft);margin:0 0 26px;">En cas d'oubli, l'option « ID marchand oublié ? » sur l'écran de connexion vous permet de le récupérer via votre e-mail ou WhatsApp.</p>
     <div style="margin-top:auto;">
       <button class="btn btn-primary btn-block" onclick="AccountId.continueToApp()">Continuer vers mon tableau de bord</button>
     </div>
@@ -3114,7 +3254,7 @@ async function downloadAccountContractPDF(){
   Toast.show('Contrat PDF téléchargé ✓');
 }
 
-/* ---------- Identifiant oublié ---------- */
+/* ---------- ID marchand oublié ---------- */
 const RecoverId = {
   method:'email',
   setMethod(m){
@@ -3133,14 +3273,14 @@ const RecoverId = {
       return `
       <div class="field"><label>Votre adresse e-mail</label><input id="recover-value" type="email" placeholder="vous@exemple.com" autocomplete="email"></div>
       <div id="recover-error" style="font-size:13px;color:var(--red);margin-bottom:10px;"></div>
-      <button class="btn btn-primary btn-block" id="recover-submit-btn" onclick="RecoverId.submitEmail()">Recevoir mon identifiant</button>`;
+      <button class="btn btn-primary btn-block" id="recover-submit-btn" onclick="RecoverId.submitEmail()">Préparer ma demande par e-mail</button>`;
     }
     return `
       <div class="field"><label>Votre numéro WhatsApp</label><input id="recover-value" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"></div>
       <div id="recover-error" style="font-size:13px;color:var(--red);margin-bottom:10px;"></div>
       <button class="btn btn-soft-green btn-block" onclick="RecoverId.submitWhatsapp()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:6px;"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="var(--green)" stroke-width="1.6" stroke-linejoin="round"/></svg>
-        Envoyer au service client via WhatsApp
+        Préparer ma demande WhatsApp
       </button>`;
   },
   async submitEmail(){
@@ -3148,22 +3288,24 @@ const RecoverId = {
     const err = document.getElementById('recover-error');
     const btn = document.getElementById('recover-submit-btn');
     if(!email){ err.textContent = 'Merci de renseigner votre e-mail'; return; }
-    err.textContent = ''; btn.disabled = true; btn.textContent = 'Recherche...';
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Préparation...';
     try{
       const { data, error } = await sb.rpc('find_login_id_by_email', { p_email: email });
       if(error || !data){
-        btn.disabled = false; btn.textContent = 'Recevoir mon identifiant';
+        btn.disabled = false; btn.textContent = 'Préparer ma demande par e-mail';
         err.textContent = 'Aucun compte trouvé pour cet e-mail';
         return;
       }
-      /* NOTE PROTOTYPE : aucun fournisseur d'e-mail n'est branché sur ce prototype (aucun SMTP/Edge
-         Function configuré). On simule ici l'envoi ; en production, remplacer par une Supabase Edge
-         Function qui reçoit l'identifiant retrouvé et l'envoie par e-mail via un fournisseur SMTP. */
-      Toast.show('Identifiant envoyé par e-mail (simulation) : '+data);
-      authMode = 'login';
-      Router.go('login');
+      const merchantId = typeof data === 'string' ? data : (data.login_id || data.id || data.loginId || 'À confirmer par SIAMS');
+      const subject = 'Demande de récupération de mon ID marchand SIAMS';
+      const body = `Bonjour Service Client SIAMS,\n\nJe suis un marchand SIAMS et je souhaite récupérer mon ID marchand SIAMS.\n\nID marchand SIAMS : ${merchantId}\nE-mail du compte : ${email}\nTéléphone marchand : À confirmer par SIAMS\nBoutique : À confirmer par SIAMS\n\nMerci de vérifier mon compte et de m’indiquer mon ID marchand SIAMS.\n\nCordialement.`;
+      const mailTo = PAYMENT_INFO.supportClientEmail ? `mailto:${PAYMENT_INFO.supportClientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : '';
+      if(mailTo) window.location.href = mailTo;
+      else Toast.show('Votre demande est prête. Contactez le service client SIAMS.');
+      btn.disabled = false; btn.textContent = 'Préparer ma demande par e-mail';
     }catch(e){
-      btn.disabled = false; btn.textContent = 'Recevoir mon identifiant';
+      console.error(e);
+      btn.disabled = false; btn.textContent = 'Préparer ma demande par e-mail';
       err.textContent = 'Erreur, merci de réessayer';
     }
   },
@@ -3172,9 +3314,10 @@ const RecoverId = {
     const err = document.getElementById('recover-error');
     if(!phone){ err.textContent = 'Merci de renseigner votre numéro WhatsApp'; return; }
     err.textContent = '';
-    const msg = "Bonjour, j'ai oublié mon identifiant SIAMS. Mon numéro WhatsApp est "+phone+". Pouvez-vous me le renvoyer ?";
+    const msg = `Bonjour Service Client SIAMS,\n\nJe suis un marchand SIAMS et je souhaite récupérer mon ID marchand SIAMS.\n\nNuméro WhatsApp marchand : ${phone}\nID marchand SIAMS : À retrouver par SIAMS\nE-mail du compte : À confirmer par SIAMS\nBoutique : À confirmer par SIAMS\n\nMerci de vérifier mon compte à partir de ces informations et de me communiquer mon ID marchand SIAMS.\n\nCordialement.`;
     window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg), '_blank');
   }
+};
 };
 Views['recover-id'] = function(){
   return `
@@ -3182,8 +3325,8 @@ Views['recover-id'] = function(){
     <button onclick="Router.go('login')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <h1 style="font-size:22px;margin:0 0 6px;">Identifiant oublié</h1>
-    <p style="color:var(--text-mid);font-size:14px;margin:0 0 20px;">Choisissez comment vous souhaitez retrouver votre identifiant SIAMS.</p>
+    <h1 style="font-size:22px;margin:0 0 6px;">ID marchand oublié</h1>
+    <p style="color:var(--text-mid);font-size:14px;margin:0 0 20px;">Choisissez comment vous souhaitez retrouver votre ID marchand SIAMS.</p>
     <div style="display:flex;gap:8px;margin-bottom:18px;">
       <button class="recover-method" data-rm="email" onclick="RecoverId.setMethod('email')" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--indigo);background:var(--indigo-tint);color:var(--indigo);font-size:13px;font-weight:600;cursor:pointer;">E-mail</button>
       <button class="recover-method" data-rm="whatsapp" onclick="RecoverId.setMethod('whatsapp')" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">WhatsApp</button>
@@ -4590,9 +4733,9 @@ Views['order-detail'] = function(opts){
       <div id="store-courier-live-${order.id}" style="margin-top:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--radius-sm);background:var(--paper);">
         <div id="store-courier-coords-${order.id}" style="font-size:12px;color:var(--text-mid);">Position du livreur : chargement…</div>
         <button class="btn btn-soft-indigo btn-sm" id="store-courier-itin-${order.id}" style="margin-top:8px;display:none;" onclick="openStoreCourierItinerary('${order.id}')">Itinéraire livreur → client</button>
-      </div>` : `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:10px;">Affectez un livreur après confirmation de la commande.</div>`}
+      </div>` : (order.status==='confirmed' && !shipped ? `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:10px;">Vous pouvez affecter un livreur, ou livrer cette commande vous-même.</div><button class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="adminMarkShipped('${order.id}')">Je livre moi-même cette commande</button>` : (shipped ? `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:10px;">Vous livrez cette commande vous-même — aucun livreur affecté.</div>` : `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:10px;">Affectez un livreur après confirmation de la commande.</div>`))}
 ${order.courierId ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);"><div style="font-size:12.5px;color:var(--text-mid);margin-bottom:7px;">Rémunération du livreur (déduite de votre encaissement)</div><div style="display:flex;gap:8px;"><input id="courier-payout-${order.id}" type="number" min="0" step="1" value="${Number(order.courierPayout||0)}" placeholder="Montant FCFA" style="flex:1;padding:11px;border:1.5px solid var(--line);border-radius:10px;"><button class="btn btn-soft-green btn-sm" onclick="saveCourierPayout('${order.id}','${order.courierId}')">Valider</button></div><div style="font-size:11.5px;color:var(--text-soft);margin-top:6px;">Le client paie la livraison à la boutique. SIAMS conserve la trace du montant destiné au livreur.</div></div>` : ''}
-      ${!order.courierId && Store.couriers.filter(c=>c.status==='active').length ? `<select id="assign-courier-select" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;"><option value="">Choisir un livreur</option>${Store.couriers.filter(c=>c.status==='active').map(c=>`<option value="${c.id}">${Utils.escapeHtml(c.name)} · ${Utils.escapeHtml(c.phone||'')}</option>`).join('')}</select><button class="btn btn-soft-green btn-block" style="margin-top:9px;" onclick="assignOrderToCourier('${order.id}')">Affecter et proposer la livraison</button>` : !order.courierId ? `<button class="btn btn-outline btn-block" onclick="Router.go('team')">Inviter / activer un livreur</button>` : ''}
+      ${!order.courierId && !shipped && Store.couriers.filter(c=>c.status==='active').length ? `<select id="assign-courier-select" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;"><option value="">Choisir un livreur</option>${Store.couriers.filter(c=>c.status==='active').map(c=>`<option value="${c.id}">${Utils.escapeHtml(c.name)} · ${Utils.escapeHtml(c.phone||'')}</option>`).join('')}</select><button class="btn btn-soft-green btn-block" style="margin-top:9px;" onclick="assignOrderToCourier('${order.id}')">Affecter et proposer la livraison</button>` : (!order.courierId && !shipped ? `<button class="btn btn-outline btn-block" onclick="Router.go('team')">Inviter / activer un livreur</button>` : '')}
     </div>
     <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px;background:#fff;margin-bottom:24px;">
       <h4 style="margin:0 0 12px;font-size:14.5px;">Suivi de livraison</h4>
@@ -5037,7 +5180,7 @@ Views.settings = function(){
   return `${TopBar('Paramètres','Préférences et sécurité SIAMS')}
   <div style="padding:16px 20px 24px;">
     <div class="stats-card" style="margin-bottom:12px;"><div class="stats-card-head"><h4>Compte</h4></div>
-      <div style="font-size:13px;color:var(--text-mid);line-height:1.6;">Boutique : <b style="color:var(--text);">${Utils.escapeHtml(s.name)}</b><br>Identifiant SIAMS : <b class="mono">${Utils.escapeHtml(s.loginId||'—')}</b></div>
+      <div style="font-size:13px;color:var(--text-mid);line-height:1.6;">Boutique : <b style="color:var(--text);">${Utils.escapeHtml(s.name)}</b><br>ID marchand SIAMS : <b class="mono">${Utils.escapeHtml(s.loginId||'—')}</b></div>
     </div>
     <div class="stats-card" style="margin-bottom:12px;"><div class="stats-card-head"><h4>Livraison</h4></div>
       <button class="btn btn-soft-green btn-block" onclick="Router.go('delivery')">Zones, tarifs et délais</button>
