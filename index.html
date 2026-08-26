@@ -5072,7 +5072,12 @@ Views['courier-dashboard']=function(){
   <div style="padding:16px 20px 24px;"><div id="courier-assignment-list"><div class="wd-spinner"></div></div></div>`;
 };
 async function acceptCourierInvite(token){
-  try{ const r=await Cloud.courierInviteAccept(token); const x=Array.isArray(r)?r[0]:r; alert(`Invitation acceptée.\n\nVotre code d’accès livreur : ${x.access_code}\n\nConservez-le précieusement.`); document.getElementById('courier-code').value=x.access_code; }catch(e){console.error(e);Toast.show('⚠️ Invitation invalide ou expirée');}
+  try{ const r=await Cloud.courierInviteAccept(token); const x=Array.isArray(r)?r[0]:r; alert(`Invitation acceptée.\n\nVotre code d’accès livreur : ${x.access_code}\n\nConservez-le précieusement.`); document.getElementById('courier-code').value=x.access_code; }catch(e){
+    console.error(e);
+    const detail = (e && (e.message || e.error_description || e.details || e.hint)) ? `${e.message||''}${e.details?'\n'+e.details:''}${e.hint?'\n'+e.hint:''}\n(code: ${e.code||'?'})` : JSON.stringify(e);
+    alert('Erreur lors de l’acceptation de l’invitation :\n\n'+detail);
+    Toast.show('⚠️ Invitation invalide ou expirée');
+  }
 }
 async function loginCourier(){
   const code=(document.getElementById('courier-code')?.value||'').trim(); const err=document.getElementById('courier-login-error');
