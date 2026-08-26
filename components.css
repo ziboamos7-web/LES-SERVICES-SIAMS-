@@ -1,0 +1,9 @@
+body{font-family:-apple-system,Inter,Arial,sans-serif;padding:28px;color:#15131F;}
+        .h{text-align:center;margin-bottom:18px;}
+        .h .co{font-weight:800;font-size:15px;letter-spacing:.5px;color:#332B8C;}
+        .h .sub{font-size:12px;color:#6C6875;margin-top:2px;}
+        .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;}
+        .lbl{color:#6C6875;}
+        hr{border:none;border-top:1px dashed #E7E3DA;margin:14px 0;}
+        .total{display:flex;justify-content:space-between;font-size:17px;font-weight:800;margin-top:6px;}
+        .status{color:#1E9E6B;font-weight:700;}
