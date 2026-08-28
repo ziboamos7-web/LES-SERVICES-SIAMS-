@@ -1476,7 +1476,7 @@ const Cloud = {
     }));
     _cache.team = (teamRes.data||[]).map(t=>({id:t.id, name:t.name, phone:t.phone, role:t.role, status:t.status}));
     const payArr = payRes.data || [];
-    const findPay = k => { const r = payArr.find(x=>x.method_key===k); return r ? {enabled:r.enabled, number:r.number||'', link:r.link||'', validated:!!r.validated, validatedAt:r.validated_at?new Date(r.validated_at).getTime():0} : {enabled:k==='cash', number:'', link:'', validated:false, validatedAt:0}; };
+    const findPay = k => { const r = payArr.find(x=>x.method_key===k); return r ? {enabled:r.enabled, number:r.number||'', link:r.link||'', validated:(!!r.validated || !!r.number), validatedAt:r.validated_at?new Date(r.validated_at).getTime():0} : {enabled:k==='cash', number:'', link:'', validated:false, validatedAt:0}; };
     _cache.payment = { wave:findPay('wave'), om:findPay('om'), mtn:findPay('mtn'), moov:findPay('moov'), cash:{enabled:findPay('cash').enabled} };
     _cache.deliveryZones = (zoneRes.data||[]).map(z=>({name:z.name, fee:z.fee}));
     _cache.promos = (promoRes.data||[]).map(p=>({id:p.id, code:p.code, type:p.type, value:p.value, active:p.active, maxUses:Number(p.max_uses||0), usedCount:Number(p.used_count||0), createdAt:new Date(p.created_at).getTime()}));
@@ -1621,7 +1621,7 @@ const Cloud = {
   },
 
   async pushPayment(prev, next){
-    const rows = ['wave','om','mtn','moov','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null, link:next[k].link||null}));
+    const rows = ['wave','om','mtn','moov','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null, link:next[k].link||null, validated:!!next[k].validated, validated_at:next[k].validatedAt?new Date(next[k].validatedAt).toISOString():null}));
     await sb.from('payment_methods').upsert(rows, {onConflict:'store_id,method_key'});
   },
 
@@ -2351,8 +2351,74 @@ const Router = {
     Notify.renderBell();
     ClientNotify.renderBadges();
     if(Views['_after_'+name.replace(/-/g,'_')]) Views['_after_'+name.replace(/-/g,'_')](opts||{});
-    if(name==='courier-dashboard') setTimeout(loadCourierDashboard,0);
+    if(name==='courier-dashboard'){ setTimeout(loadCourierDashboard,0); AutoSync.start(); }
   }
+};
+
+/* ---------------- Synchronisation automatique multi-interface ----------------
+   Les données ne doivent plus dépendre d'un clic sur un onglet pour être rafraîchies.
+   On actualise immédiatement au retour sur l'application et périodiquement lorsque
+   l'écran reste ouvert. Le rendu est limité aux vues sûres pour ne pas interrompre
+   une saisie (checkout, formulaires, panier, etc.). */
+const AutoSync = {
+  timer:null, busy:false, lastRun:0, started:false, intervalMs:8000,
+  safeViews:new Set(['dashboard','orders','products','order-detail','boutique','store-edit','stats','team','payment','categories','promos','reviews','customers','customer-detail','delivery','app-theme','settings','courier-dashboard']),
+  async refresh(force=false){
+    const isCourier = !!courierSession();
+    if(isCourier && Router.current==='courier-dashboard'){
+      try{ await loadCourierDashboard(); }catch(e){ console.error('AutoSync courier',e); }
+      return;
+    }
+    if(this.busy || !Cloud.storeId) return;
+    const now=Date.now();
+    if(!force && now-this.lastRun<1500) return;
+    this.busy=true; this.lastRun=now;
+    try{
+      const before = JSON.stringify({
+        store:Store.store, products:Store.products, orders:Store.orders, team:Store.team,
+        payment:Store.payment, categories:Store.categories, promos:Store.promos,
+        reviews:Store.reviews, deliveryZones:Store.deliveryZones, notifications:Store.notifications
+      });
+      await Cloud.loadAll();
+      const after = JSON.stringify({
+        store:Store.store, products:Store.products, orders:Store.orders, team:Store.team,
+        payment:Store.payment, categories:Store.categories, promos:Store.promos,
+        reviews:Store.reviews, deliveryZones:Store.deliveryZones, notifications:Store.notifications
+      });
+      if(before!==after) this.renderCurrent();
+      if(Router.current==='courier-dashboard') loadCourierDashboard();
+      Notify.renderBell();
+      ClientNotify.renderBadges();
+    }catch(e){ console.error('AutoSync',e); }
+    finally{ this.busy=false; }
+  },
+  renderCurrent(){
+    const name=Router.current;
+    if(!this.safeViews.has(name)) return;
+    /* Ne pas remplacer une page pendant qu'un champ est en cours d'édition. */
+    const active=document.activeElement;
+    if(active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) return;
+    const root=document.getElementById('page-root');
+    if(!root || !Views[name]) return;
+    try{
+      root.innerHTML=Views[name]({autoRefresh:true});
+      const after=Views['_after_'+name.replace(/-/g,'_')];
+      if(after) after({autoRefresh:true});
+      Notify.renderBell(); ClientNotify.renderBadges();
+      if(name==='courier-dashboard') setTimeout(loadCourierDashboard,0);
+    }catch(e){ console.error('AutoSync render',e); }
+  },
+  start(){
+    if(this.started) return;
+    this.started=true;
+    clearInterval(this.timer);
+    this.timer=setInterval(()=>{ if(document.visibilityState==='visible') this.refresh(false); },this.intervalMs);
+    window.addEventListener('focus',()=>this.refresh(true));
+    document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') this.refresh(true); });
+    window.addEventListener('pageshow',()=>this.refresh(true));
+    setTimeout(()=>this.refresh(true),1200);
+  },
+  stop(){ clearInterval(this.timer); this.timer=null; this.started=false; }
 };
 
 /* ---------------- Auth ---------------- */
@@ -5708,7 +5774,7 @@ async function acceptCourierInvite(token){
 async function loginCourier(){
   const code=(document.getElementById('courier-code')?.value||'').trim(); const err=document.getElementById('courier-login-error');
   if(!/^\d{6}$/.test(code)){err.textContent='Entrez le code à 6 chiffres remis par la boutique.';return;}
-  try{ const r=await Cloud.courierLogin(code); const x=Array.isArray(r)?r[0]:r; setCourierSession(x); Router.go('courier-dashboard'); }catch(e){console.error(e);err.textContent='Code invalide ou accès suspendu.';}
+  try{ const r=await Cloud.courierLogin(code); const x=Array.isArray(r)?r[0]:r; setCourierSession(x); Router.go('courier-dashboard'); AutoSync.start(); }catch(e){console.error(e);err.textContent='Code invalide ou accès suspendu.';}
 }
 async function loadCourierDashboard(){
   const sess=courierSession(); const el=document.getElementById('courier-assignment-list'); if(!sess||!el)return;
@@ -5773,6 +5839,10 @@ Views.payment = function(){
 function togglePaymentMethod(key){
   const p = Store.payment;
   p[key].enabled = document.getElementById('pm-'+key).checked;
+  if(p[key].enabled && p[key].number){
+    p[key].validated = true;
+    p[key].validatedAt = p[key].validatedAt || Date.now();
+  }
   Store.payment = p;
   const numWrap = document.getElementById('pm-'+key+'-num');
   if(numWrap) numWrap.classList.toggle('hidden', !p[key].enabled);
@@ -5784,9 +5854,17 @@ function savePaymentNumber(key){
   p[key].number = document.getElementById('pm-'+key+'-input').value.trim();
   const linkInput = document.getElementById('pm-'+key+'-link');
   p[key].link = linkInput ? linkInput.value.trim() : '';
-  if(p[key].number !== prevNumber || p[key].link !== prevLink){ p[key].validated = false; p[key].validatedAt = 0; }
+  if(p[key].number !== prevNumber || p[key].link !== prevLink){
+    p[key].validated = !!p[key].number;
+    p[key].validatedAt = p[key].number ? Date.now() : 0;
+  } else if(p[key].number){
+    // Un numéro déjà renseigné reste immédiatement disponible.
+    p[key].validated = true;
+    p[key].validatedAt = p[key].validatedAt || Date.now();
+  }
+  p[key].enabled = true;
   Store.payment = p;
-  Toast.show('Moyen de paiement enregistré ✓');
+  Toast.show(p[key].number ? 'Moyen de paiement activé ✓' : 'Numéro enregistré');
   Router.go('payment');
 }
 
@@ -6275,12 +6353,36 @@ function saveStoreProfile(){
   Router.go('boutique');
 }
 function openWhatsapp(){ const s = Store.store; window.open('https://wa.me/225'+s.phone.replace(/\\D/g,''), '_blank'); }
-function getPublicStoreUrl(store){
+function getPublicStoreUrl(store, productId){
   const s = store || Store.store || {};
   const slug = String(s.slug || '').trim();
   if(!slug) return location.origin + '/';
-  /* URL publique sans dépendre d'une réécriture SPA côté Vercel. */
-  return location.origin + '/?boutique=' + encodeURIComponent(slug);
+  /* Lien de partage dédié : Vercel /api/share génère les métadonnées sociales
+     (nom + logo de la boutique) avant de rediriger vers la vitrine SIAMS. */
+  const u = new URL('/api/share', location.origin);
+  u.searchParams.set('boutique', slug);
+  if(productId) u.searchParams.set('produit', String(productId));
+  return u.toString();
+}
+
+function setPublicStoreMeta(store){
+  const s = store || {};
+  const name = String(s.name || 'Boutique en ligne').trim();
+  const description = String(s.description || 'Découvrez cette boutique en ligne sur SIAMS.').trim();
+  document.title = name + ' — Boutique en ligne';
+  const setMeta=(selector,attr,value)=>{
+    let el=document.head.querySelector(selector);
+    if(!el){ el=document.createElement('meta'); el.setAttribute(attr,''); document.head.appendChild(el); }
+    el.setAttribute(attr,value);
+  };
+  setMeta('meta[name="description"]','name',description);
+  setMeta('meta[property="og:title"]','property',name + ' — Boutique en ligne');
+  setMeta('meta[property="og:description"]','property',description);
+  setMeta('meta[property="og:url"]','property',location.href);
+  if(s.photo){ setMeta('meta[property="og:image"]','property',s.photo); }
+  setMeta('meta[name="twitter:title"]','name',name + ' — Boutique en ligne');
+  setMeta('meta[name="twitter:description"]','name',description);
+  if(s.photo){ setMeta('meta[name="twitter:image"]','name',s.photo); }
 }
 function copyLink(){
   const link = getPublicStoreUrl(Store.store);
@@ -6862,9 +6964,7 @@ function shareProduct(productId){
   const p = Store.products.find(x=>x.id===productId);
   const store = Store.store;
   if(!p) return;
-  const base = getPublicStoreUrl(store);
-  const separator = base.includes('?') ? '&' : '?';
-  const link = `${base}${separator}produit=${encodeURIComponent(productId)}`;
+  const link = getPublicStoreUrl(store, productId);
   const text = `${p.name} — ${Utils.fmtFCFA(p.price)} sur ${store.name}`;
   if(navigator.share){
     navigator.share({title:p.name, text, url:link}).catch(()=>{});
@@ -7436,11 +7536,14 @@ Views.checkout = function(){
     <div class="field"><label>Mode de paiement</label>
       <div style="display:flex;flex-direction:column;gap:10px;">
         ${methods.length===0 ? `<div style="font-size:13px;color:var(--text-mid);">Aucun mode de paiement configuré par le vendeur.</div>` :
-          methods.map((m,i)=>`
-          <label style="display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;">
+          methods.map((m,i)=>{
+            const pm = pay[m.key] || {};
+            const info = m.key==='cash' ? 'Paiement à la livraison' : (pm.number ? pm.number : 'Numéro non renseigné');
+            return `<label style="display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;">
             <input type="radio" name="co-pay" value="${m.key}" ${i===0?'checked':''} onchange="onCheckoutPayChange()" style="width:18px;height:18px;accent-color:var(--indigo);">
-            <span style="font-size:14.5px;font-weight:600;">${m.label}</span>
-          </label>`).join('')}
+            <span style="display:flex;flex-direction:column;gap:3px;"><span style="font-size:14.5px;font-weight:700;">${m.label}</span><span style="font-size:11.5px;color:var(--text-mid);">${Utils.escapeHtml(info)}</span></span>
+          </label>`;
+          }).join('')}
       </div>
       <div id="co-pay-details"></div>
     </div>
@@ -8216,6 +8319,7 @@ Views.confirmation = function(opts){
     <h1 style="font-size:21px;margin:0 0 8px;">Commande envoyée ✓</h1>
     <p style="color:var(--text-mid);font-size:14px;line-height:1.5;margin:0 0 4px;">Votre commande <strong class="mono">#${opts.orderNumber}</strong> a bien été transmise au vendeur.</p>
     <p style="color:var(--text-mid);font-size:14px;line-height:1.5;margin:0;">Vous serez contacté sur WhatsApp pour la suite.</p>
+    ${order ? `<div style="margin:16px auto 0;max-width:360px;padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);text-align:left;font-size:12.5px;"><strong>Mode de paiement :</strong> ${Utils.escapeHtml(PAY_LABELS[order.paymentMethod]||order.paymentMethod||'Paiement à la livraison')}${order.paymentMethod!=='cash' && Store.payment[order.paymentMethod]?.number ? `<br><span style="color:var(--text-mid);">Numéro : ${Utils.escapeHtml(Store.payment[order.paymentMethod].number)}</span>` : ''}</div>` : ''}
   </div>
   ${order ? `
   <div class="receipt-wrap"><img id="receipt-img" alt="Reçu de commande #${opts.orderNumber}"></div>
@@ -8456,7 +8560,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
           return;
         }
         await Cloud.loadAll();
+        setPublicStoreMeta(Store.store);
         Auth.loggedIn = false;
+        AutoSync.start();
         const qs = new URLSearchParams(location.search);
         const productId = qs.get('produit');
         const scannedOrderId = qs.get('confirm_delivery');
@@ -8502,6 +8608,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       Store.trialStartedAt; // amorce le pass gratuit de 30 jours dès la première ouverture
       ThemeUnlock.init();
       Router.go('dashboard');
+      AutoSync.start();
     } else {
       if(ActivationGate.getStored()){
         Router.go('register');
