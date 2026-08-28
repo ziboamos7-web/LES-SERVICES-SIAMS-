@@ -4924,53 +4924,16 @@ const Withdraw = {
       <div class="row"><span class="lbl">Statut</span><span class="status">Effectué</span></div>
       <hr>
       <div class="total"><span>Montant retiré</span><span>\${Utils.fmtFCFA(r.amount)}</span></div>
-
-
-
-
-<style id="siams-v35-panorama-mobile-audit">
-/* V35 — audit panorama 360–412 px : structure, respiration, AMS et écran final */
-.onboard-merchant-pro{min-height:100svh;height:100svh;overflow:hidden;}
-.onboard-merchant-slides{height:calc(100svh - 174px);max-height:none;min-height:0;}
-.merchant-slide{box-sizing:border-box;overflow:hidden;padding:2px 14px 6px;}
-.ams-scene{width:min(330px,86vw);height:min(390px,45svh);min-height:285px;border-radius:28px;margin:0 auto 3px;}
-.ams-avatar{width:min(205px,57vw);height:min(280px,34svh);transform:translateY(8px);}
-.ams-phone-mini{right:20px;bottom:28px;width:64px;height:122px;border-width:3px;border-radius:16px;}
-.ams-card-back{width:155px;height:88px;right:18px;top:38px;border-radius:18px;}
-.ams-badge{left:5px;top:24px;font-size:9px;padding:6px 8px;}
-.merchant-phone-stage{width:min(300px,82vw);height:min(390px,45svh);min-height:285px;margin:0 auto 3px;}
-.merchant-main-phone{width:min(174px,48vw);height:min(350px,40svh);}
-.merchant-slide-copy{max-width:calc(100vw - 42px);padding:0 2px;}
-.merchant-slide-copy h1{font-size:clamp(18px,5.4vw,21px);line-height:1.08;margin-bottom:5px;}
-.merchant-slide-copy p{font-size:clamp(11px,3.25vw,12.5px);line-height:1.35;max-width:330px;}
-.merchant-step-label{font-size:8px;margin-bottom:4px;}
-.merchant-footer{padding:5px 14px calc(12px + env(safe-area-inset-bottom));}
-.merchant-footer .onboard-dots{margin-bottom:8px;}
-.merchant-footer .btn{min-height:42px;}
-.ams-final-brand{gap:6px;margin:8px auto 0;padding:7px 9px;border-radius:13px;max-width:calc(100vw - 38px);white-space:nowrap;}
-.ams-final-brand strong,.ams-final-brand b{font-size:9px;}
-.ams-final-brand img{width:22px;height:22px;}
-.ams-final-divider{height:18px;}
-.onboard-public-panorama .onboard-kicker{color:var(--indigo);}
-@media(max-width:380px){
-  .onboard-merchant-top{padding-left:13px;padding-right:13px;gap:8px;}
-  .onboard-merchant-head{padding-left:14px;padding-right:14px;}
-  .onboard-brand{font-size:8px;}
-  .onboard-kicker{font-size:8px;letter-spacing:1px;}
-  .ams-scene{height:36svh;min-height:250px;}
-  .merchant-phone-stage{height:36svh;min-height:250px;}
-  .merchant-main-phone{height:31svh;min-height:235px;}
-  .onboard-side-phone{display:none;}
-  .ams-final-brand{max-width:calc(100vw - 28px);gap:5px;padding-left:7px;padding-right:7px;}
-  .ams-final-brand strong,.ams-final-brand b{font-size:8px;}
-}
-@media(min-width:381px) and (max-width:412px){
-  .onboard-side-phone{transform:scale(.78);}
-}
-</style>
+</body>
+</html>`);
+    w.document.close();
+    setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 350);
+  }
+};
 
 
 <!-- ================= SIAMS V51 — son notifications livreur renforcé ================= -->
+</script>
 <script id="siams-v51-courier-sound">
 (function(){
   let courierNotifTimer=null;
@@ -5064,14 +5027,7 @@ const Withdraw = {
   setTimeout(function(){if(courierSession() && Router.current==='courier-dashboard')startCourierNotificationPolling();},900);
 })();
 </script>
-</body>
-</html>
-</html>`);
-    w.document.close();
-    setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 350);
-  }
-};
-
+<script>
 /* ---------- Produits ---------- */
 Views.products = function(){
   const products = Store.products;
