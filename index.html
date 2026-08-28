@@ -2321,7 +2321,23 @@ const Router = {
     Notify.closePanel();
     Sheet.close();
     Router.current = name;
-    document.getElementById('page-root').innerHTML = Views[name] ? Views[name](opts||{}) : '';
+    /* ---- Un rendu de vue qui plante (exception JS) ne doit jamais laisser le clic
+       « sans rien faire » à l'écran : on affiche l'erreur pour pouvoir la diagnostiquer
+       facilement (capture d'écran), au lieu d'un échec silencieux visible seulement
+       dans la console. ---- */
+    try{
+      document.getElementById('page-root').innerHTML = Views[name] ? Views[name](opts||{}) : '';
+    }catch(renderErr){
+      console.error('Erreur de rendu pour la vue "'+name+'"', renderErr);
+      document.getElementById('page-root').innerHTML = `
+        <div style="padding:60px 24px;text-align:center;">
+          <h2 style="color:var(--text);">Un problème est survenu</h2>
+          <p style="color:var(--text-soft,#888);">L'affichage de cet écran a échoué. Vous pouvez réessayer.</p>
+          <button class="btn btn-primary" style="margin-top:20px;" onclick="Router.go('dashboard')">Retour au tableau de bord</button>
+          <p style="margin-top:24px;font-size:11px;color:#b91c1c;word-break:break-all;">${Utils.escapeHtml(String((renderErr&&(renderErr.message||renderErr.toString&&renderErr.toString()))||renderErr))}</p>
+        </div>`;
+      return;
+    }
     const isCustomer = PUBLIC_VIEWS.includes(name) && name!=='login' && name!=='welcome';
     document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='business-type' || name==='onboarding-admin' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice');
     document.getElementById('client-nav').classList.toggle('hidden', !CLIENT_TAB_VIEWS.includes(name));
@@ -8422,38 +8438,54 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     const isPublicStoreUrl = !!slug;
 
     if(slug){
-      const store = await Cloud.ensurePublicStore(slug);
-      if(!store){
+      /* ---- Ce bloc a son propre try/catch : un lien de boutique cassé (réseau,
+         Supabase, etc.) ne doit JAMAIS renvoyer un client sur l'écran marchand
+         « Découvrir SIAMS / créer ma boutique » (catch générique plus bas) — il
+         doit voir un message d'erreur adapté à un client, avec le détail affiché
+         à l'écran pour pouvoir nous le transmettre facilement en capture. ---- */
+      try{
+        const store = await Cloud.ensurePublicStore(slug);
+        if(!store){
+          document.getElementById('page-root').innerHTML = `
+            <div style="padding:60px 24px;text-align:center;">
+              <h2 style="color:var(--text);">Boutique introuvable</h2>
+              <p style="color:var(--text-soft,#888);">Ce lien n'est plus valide ou la boutique a été retirée.</p>
+              <button class="btn btn-primary" style="margin-top:20px;" onclick="location.href=location.origin">Connexion</button>
+            </div>`;
+          return;
+        }
+        await Cloud.loadAll();
+        Auth.loggedIn = false;
+        const qs = new URLSearchParams(location.search);
+        const productId = qs.get('produit');
+        const scannedOrderId = qs.get('confirm_delivery');
+        const scannedToken = qs.get('token');
+        if(scannedOrderId){
+          /* Lien issu du QR code de livraison scanné par le client : on l'amène
+             directement sur le suivi de sa commande pour qu'il puisse confirmer
+             la réception. Le jeton reste vérifié côté serveur par la RPC
+             confirm_order_delivery, jamais fait confiance côté client seul. */
+          const scannedOrder = Store.orders.find(o=>o.id===scannedOrderId);
+          if(scannedOrder && scannedToken && scannedOrder.deliveryToken===scannedToken){
+            Router.go('order-track', {id: scannedOrderId});
+          } else {
+            Toast.show('⚠️ Lien de livraison invalide ou expiré');
+            Router.go('shop', {skipOnboarding:true, source:'public-link'});
+          }
+        }
+        else if(productId){ Router.go('shop-product', {id: productId}); }
+        else { Router.go('shop', {skipOnboarding:true, source:'public-link'}); }
+        Notify.renderBell();
+      }catch(publicErr){
+        console.error('Erreur boutique publique', publicErr);
         document.getElementById('page-root').innerHTML = `
           <div style="padding:60px 24px;text-align:center;">
-            <h2 style="color:var(--text);">Boutique introuvable</h2>
-            <p style="color:var(--text-soft,#888);">Ce lien n'est plus valide ou la boutique a été retirée.</p>
-            <button class="btn btn-primary" style="margin-top:20px;" onclick="location.href=location.origin">Connexion</button>
+            <h2 style="color:var(--text);">Boutique temporairement indisponible</h2>
+            <p style="color:var(--text-soft,#888);">Une erreur technique empêche l'affichage de cette boutique pour le moment. Vous pouvez réessayer, ou transmettre le détail ci-dessous au support.</p>
+            <button class="btn btn-primary" style="margin-top:20px;" onclick="location.reload()">Réessayer</button>
+            <p style="margin-top:24px;font-size:11px;color:#b91c1c;word-break:break-all;">${Utils.escapeHtml(String((publicErr&&(publicErr.message||publicErr.toString&&publicErr.toString()))||publicErr))}</p>
           </div>`;
-        return;
       }
-      await Cloud.loadAll();
-      Auth.loggedIn = false;
-      const qs = new URLSearchParams(location.search);
-      const productId = qs.get('produit');
-      const scannedOrderId = qs.get('confirm_delivery');
-      const scannedToken = qs.get('token');
-      if(scannedOrderId){
-        /* Lien issu du QR code de livraison scanné par le client : on l'amène
-           directement sur le suivi de sa commande pour qu'il puisse confirmer
-           la réception. Le jeton reste vérifié côté serveur par la RPC
-           confirm_order_delivery, jamais fait confiance côté client seul. */
-        const scannedOrder = Store.orders.find(o=>o.id===scannedOrderId);
-        if(scannedOrder && scannedToken && scannedOrder.deliveryToken===scannedToken){
-          Router.go('order-track', {id: scannedOrderId});
-        } else {
-          Toast.show('⚠️ Lien de livraison invalide ou expiré');
-          Router.go('shop', {skipOnboarding:true, source:'public-link'});
-        }
-      }
-      else if(productId){ Router.go('shop-product', {id: productId}); }
-      else { Router.go('shop', {skipOnboarding:true, source:'public-link'}); }
-      Notify.renderBell();
       return;
     }
 
