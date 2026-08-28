@@ -2260,8 +2260,8 @@ const Charts = {
 const DeliveryQR = {
   buildUrl(order){
     const slug = (Store.store && Store.store.slug) ? Store.store.slug : '';
-    const base = `https://lesservicessiams.vercel.app/${slug}`;
-    return `${base}?confirm_delivery=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.deliveryToken||'')}`;
+    const base = getPublicStoreUrl({slug});
+    return `${base}&confirm_delivery=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.deliveryToken||'')}`;
   },
   async copyLink(orderId){
     const order = Store.orders.find(o=>o.id===orderId);
@@ -6310,11 +6310,42 @@ function saveStoreProfile(){
   Router.go('boutique');
 }
 function openWhatsapp(){ const s = Store.store; window.open('https://wa.me/225'+s.phone.replace(/\\D/g,''), '_blank'); }
-function copyLink(){ const s = Store.store; const link = 'https://lesservicessiams.vercel.app/'+s.slug; navigator.clipboard?.writeText(link).then(()=>Toast.show('Lien copié ✓')).catch(()=>Toast.show(link)); }
-function shareLink(){ const s = Store.store; const link = 'https://lesservicessiams.vercel.app/'+s.slug; if(navigator.share){ navigator.share({title:s.name, url:link}).catch(()=>{}); } else { Toast.show('Partage indisponible sur ce navigateur'); } }
+function getPublicStoreUrl(store){
+  const s = store || Store.store || {};
+  const slug = String(s.slug || '').trim();
+  if(!slug) return location.origin + '/';
+  /* URL publique sans dépendre d'une réécriture SPA côté Vercel. */
+  return location.origin + '/?boutique=' + encodeURIComponent(slug);
+}
+function copyLink(){
+  const link = getPublicStoreUrl(Store.store);
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(link).then(()=>Toast.show('Lien de la boutique copié ✓')).catch(()=>Toast.show(link));
+  } else {
+    Toast.show(link);
+  }
+}
+function shareLink(){
+  const s = Store.store || {};
+  const link = getPublicStoreUrl(s);
+  if(navigator.share){
+    navigator.share({title:s.name || 'Ma boutique', text:'Découvrez ma boutique SIAMS', url:link}).catch(()=>{});
+  } else if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(link).then(()=>Toast.show('Lien de la boutique copié ✓')).catch(()=>Toast.show(link));
+  } else {
+    Toast.show(link);
+  }
+}
 function openStorePreview(){
-  /* L'aperçu marchand ne doit jamais être interrompu par le tutoriel client. */
-  Router.go('shop', {skipOnboarding:true, source:'merchant-preview'});
+  try{
+    /* L'aperçu est interne : aucune authentification et aucun onboarding client. */
+    Router.go('shop', {skipOnboarding:true, source:'merchant-preview'});
+  }catch(e){
+    console.error('openStorePreview',e);
+    const url = getPublicStoreUrl(Store.store);
+    const w = window.open(url,'_blank','noopener,noreferrer');
+    if(!w) location.href = url;
+  }
 }
 
 /* ---------- Palette des tuiles de catégories ---------- */
@@ -6866,7 +6897,7 @@ function shareProduct(productId){
   const p = Store.products.find(x=>x.id===productId);
   const store = Store.store;
   if(!p) return;
-  const link = `https://lesservicessiams.vercel.app/${store.slug}?produit=${productId}`;
+  const link = `${getPublicStoreUrl(store)}&produit=${encodeURIComponent(productId)}`;
   const text = `${p.name} — ${Utils.fmtFCFA(p.price)} sur ${store.name}`;
   if(navigator.share){
     navigator.share({title:p.name, text, url:link}).catch(()=>{});
@@ -8434,7 +8465,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     const courierInviteToken = qsEarly.get('courier_invite');
     if(path.toLowerCase()==='livreur'){ Router.go(courierSession()?'courier-dashboard':'courier-login'); return; }
     if(courierInviteToken){ Router.go('courier-login'); return; }
-    const slug = path && path.toLowerCase() !== 'index.html' ? path.split('/')[0] : null;
+    /* URL publique : /?boutique=slug (robuste sur Vercel) ou ancien /slug. */
+    const querySlug = qsEarly.get('boutique') || qsEarly.get('store') || qsEarly.get('shop');
+    const pathSlug = path && path.toLowerCase() !== 'index.html' ? path.split('/')[0] : null;
+    const slug = querySlug || pathSlug;
     const isPublicStoreUrl = !!slug;
 
     if(slug){
