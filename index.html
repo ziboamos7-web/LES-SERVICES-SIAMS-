@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SIAMS – Boutique en ligne</title>
+<title>SIAMS V54 — Livraison par photo — SIAMS – Boutique en ligne</title>
 <meta name="description" content="Les services SIAMS de boutique en ligne. Créez, gérez et développez votre boutique en ligne en toute simplicité : commandes, livraison en temps réel, paiements et notifications.">
 <meta name="theme-color" content="#0468E3">
 
@@ -1236,10 +1236,8 @@ const SUPABASE_KEY = 'sb_publishable_1giDs1LqDhCshoKkerkZuA_KXTwF_OV';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ---------------- Chargement paresseux des librairies lourdes ----------------
-   jsPDF (~350 Ko) et QRCode ne servent que pour des actions ponctuelles
-   (export PDF, QR de livraison). Les charger au démarrage ralentissait
-   chaque connexion, même pour les sessions qui n'y touchent jamais. On les
-   injecte donc à la demande, une seule fois, juste avant leur premier usage. */
+   jsPDF (~350 Ko) ne sert que pour l'export PDF. Il est injecté uniquement
+   au premier export afin de garder le démarrage rapide sur mobile. */
 const _scriptCache = {};
 function loadScriptOnce(key, src){
   if(_scriptCache[key]) return _scriptCache[key];
@@ -1257,24 +1255,6 @@ async function ensureJsPDF(){
   try{ await loadScriptOnce('jspdf', 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'); return true; }
   catch(e){ console.error(e); return false; }
 }
-async function ensureQRCode(){
-  if(typeof QRCode!=='undefined') return true;
-  /* Plusieurs réseaux mobiles bloquent parfois jsDelivr. On tente un second CDN
-     avant de passer au rendu image distant de secours. */
-  const sources=[
-    'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js',
-    'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js'
-  ];
-  for(const src of sources){
-    try{
-      delete _scriptCache.qrcode;
-      await loadScriptOnce('qrcode',src);
-      if(typeof QRCode!=='undefined') return true;
-    }catch(e){ console.warn('QR library indisponible:',src,e); }
-  }
-  return false;
-}
-
 /* ---------------- Utils ---------------- */
 const Utils = {
   fmtFCFA(n){ return Number(n||0).toLocaleString('fr-FR').replace(/,/g,' ') + ' FCFA'; },
@@ -2319,40 +2299,6 @@ const Charts = {
 };
 
 /* ---------------- Router ---------------- */
-/* ---- QR code de livraison : le livreur affiche ce QR, le client le scanne pour
-   confirmer la réception. Le lien réutilise le même couple id + jeton de commande
-   que la confirmation par photo (order-track), donc aucune donnée sensible n'est
-   exposée et la confirmation reste sécurisée côté serveur (RPC confirm_order_delivery). ---- */
-const DeliveryQR = {
-  buildUrl(order){
-    const slug = (Store.store && Store.store.slug) ? Store.store.slug : '';
-    const base = getPublicStoreUrl({slug});
-    return `${base}&confirm_delivery=${encodeURIComponent(order.id)}&token=${encodeURIComponent(order.deliveryToken||'')}`;
-  },
-  async copyLink(orderId){
-    const order = Store.orders.find(o=>o.id===orderId);
-    if(!order) return;
-    const url = this.buildUrl(order);
-    try{
-      await navigator.clipboard.writeText(url);
-      Toast.show('Lien de confirmation copié ✓');
-    }catch(e){
-      Toast.show('Impossible de copier le lien');
-    }
-  },
-  async share(orderId){
-    const order = Store.orders.find(o=>o.id===orderId);
-    if(!order) return;
-    const url = this.buildUrl(order);
-    if(navigator.share){
-      try{ await navigator.share({ title:`Livraison — commande #${order.number}`, text:'Scannez ce lien pour confirmer la réception de votre commande.', url }); }
-      catch(e){ /* partage annulé */ }
-    } else {
-      this.copyLink(orderId);
-    }
-  }
-};
-
 const PUBLIC_VIEWS = ['welcome','onboarding-public','about-partnership','activation-code','courier-login','courier-invite','courier-dashboard','shop','shop-product','cart','checkout','confirmation','login','register','verify-otp','confirm-email','recover-id','shop-categories','shop-favorites','shop-account','order-track','shop-orders-history','shop-about','shop-help','onboarding-client'];
 const CLIENT_TAB_VIEWS = ['shop','shop-categories','cart','shop-favorites','shop-account'];
 const Router = {
@@ -5413,7 +5359,7 @@ Views['order-detail'] = function(opts){
   <div class="order-section"><div class="order-section-title"><span class="ico">✓</span>Suivi de la commande</div><div class="order-timeline">${steps.map(x=>`<div class="timeline-step ${x[2]?'done':''} ${x[0]==='delivered'&&x[2]?'delivered':''}"><span class="point"></span><b>${x[1]}</b><span>${x[2]?'Étape validée':'À venir'}</span></div>`).join('')}</div></div>
   <div class="order-section"><div class="order-section-title"><span class="ico">$</span>Paiement</div><div style="font-size:13px;font-weight:700;">${PAY_LABELS[order.paymentMethod]||order.paymentMethod}</div>${order.paymentProof?`<div style="font-size:11.5px;color:var(--text-mid);margin-top:6px;">Preuve de paiement reçue</div>`:(order.paymentMethod!=='cash'?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;">Aucune preuve fournie.</div>`:'')}</div>
   <div class="order-section"><div class="order-section-title"><span class="ico">♧</span>Livraison</div><div style="font-size:12px;color:var(--text-mid);">${order.courierId?'Livreur affecté · suivi GPS disponible.':shipped?'Commande en cours de livraison ou livrée.':'Affectation disponible après confirmation.'}</div>${!order.courierId&&!shipped&&order.status==='confirmed'&&Store.couriers.filter(c=>c.status==='active').length?`<select id="assign-courier-select" style="width:100%;margin-top:10px;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;"><option value="">Choisir un livreur</option>${Store.couriers.filter(c=>c.status==='active').map(c=>`<option value="${c.id}">${Utils.escapeHtml(c.name)} · ${Utils.escapeHtml(c.phone||'')}</option>`).join('')}</select><button class="btn btn-soft-green btn-block" style="margin-top:9px;" onclick="assignOrderToCourier('${order.id}')">Affecter le livreur</button>`:''}</div>
-  <div class="order-main-action">${order.status==='pending'?`<button class="btn btn-primary btn-block" onclick="adminConfirmOrder('${order.id}')">Confirmer la commande</button>`:''}${order.status==='confirmed'&&!shipped?`<button class="btn btn-primary btn-block" onclick="adminMarkShipped('${order.id}')">Marquer « en livraison »</button>`:''}${order.status==='confirmed'&&shipped?`<button class="btn btn-mango btn-block" onclick="Router.go('delivery-qr',{id:'${order.id}'})">Afficher le QR code de livraison</button>`:''}${order.status==='delivered'?`<div style="text-align:center;color:var(--green);font-size:13px;font-weight:800;">✓ Livraison confirmée</div>`:''}</div>`;
+  <div class="order-main-action">${order.status==='pending'?`<button class="btn btn-primary btn-block" onclick="adminConfirmOrder('${order.id}')">Confirmer la commande</button>`:''}${order.status==='confirmed'&&!shipped?`<button class="btn btn-primary btn-block" onclick="adminMarkShipped('${order.id}')">Marquer « en livraison »</button>`:''}${order.status==='confirmed'&&shipped?`<div style="padding:12px 14px;border-radius:12px;background:var(--mango-tint,#fff7df);color:var(--text-mid);font-size:12.5px;line-height:1.45;text-align:center;">📷 Le client confirme la réception en prenant simplement une photo de l'article reçu. La commande sera automatiquement marquée <strong>Livrée</strong>.</div>`:''}${order.status==='delivered'?`<div style="text-align:center;color:var(--green);font-size:13px;font-weight:800;">✓ Livraison confirmée</div>`:''}</div>`;
 };
 /* ---------- Suivi GPS du livreur côté boutique (itinéraire temps réel) ----------
    La boutique est propriétaire de la commande : lecture directe des colonnes
@@ -5505,8 +5451,12 @@ async function assignOrderToCourier(id){
   }
 }
 
-/* ---------- QR code de livraison (à afficher par le livreur/marchand) ---------- */
-async function ensureDeliveryOrderToken(order){
+/* ---------- Confirmation de livraison par photo ----------
+   Aucun QR code n'est nécessaire : le client prend une photo de l'article reçu.
+   Le jeton de livraison reste interne et sert uniquement à sécuriser la confirmation
+   côté serveur via confirm_order_delivery. Il n'est jamais affiché au client.
+*/
+async function ensureDeliverySecurityToken(order){
   if(!order) return null;
   if(order.deliveryToken) return order.deliveryToken;
   const token = (typeof crypto!=='undefined' && crypto.randomUUID) ? crypto.randomUUID() : Utils.uid();
@@ -5519,92 +5469,13 @@ async function ensureDeliveryOrderToken(order){
       if(error) throw error;
     }
   }catch(e){
-    console.error('delivery token',e);
+    console.error('delivery security token',e);
     order.deliveryToken = null;
     return null;
   }
   ClientOrderCache.save(order);
   return token;
 }
-
-Views['delivery-qr'] = function(opts){
-  const order = Store.orders.find(o=>String(o.id)===String(opts.id));
-  if(!order) return `${TopBar('QR code introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Commande introuvable',"Cette commande n'existe pas ou a été supprimée.")}</div>`;
-  const alreadyDelivered = order.status==='delivered';
-  return `
-  <div class="topbar" style="padding-top:18px;">
-    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('order-detail',{id:'${order.id}'})"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">QR code de livraison</h1></div>
-  </div>
-  <div style="padding:6px 20px 28px;text-align:center;">
-    <p style="font-size:13px;color:var(--text-mid);margin:0 0 18px;">Commande <strong>#${Utils.escapeHtml(order.number)}</strong> — ${Utils.escapeHtml(order.customer.name)}<br>Présentez ce code au client : il lui suffit de le scanner avec l'appareil photo de son téléphone pour signer la réception de sa commande.</p>
-    ${alreadyDelivered ? `
-      <div style="padding:22px;border-radius:var(--radius-md);border:1.5px solid var(--line);background:var(--panel);">
-        <div style="font-size:14px;font-weight:700;color:var(--green);">✓ Réception déjà confirmée par le client</div>
-      </div>` : `
-      <div id="delivery-qr-box" style="display:inline-flex;align-items:center;justify-content:center;min-width:256px;min-height:256px;padding:16px;background:#fff;border-radius:var(--radius-md);border:1.5px solid var(--line);box-shadow:var(--shadow-sm);">
-        <canvas id="delivery-qr-canvas" width="224" height="224" aria-label="QR code de confirmation de livraison"></canvas>
-        <div id="delivery-qr-error" style="display:none;color:var(--red);font-size:12px;max-width:210px;line-height:1.45;">Le QR code n'a pas pu être généré. Vérifiez votre connexion puis réessayez.</div>
-      </div>`}
-    <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;max-width:320px;margin-left:auto;margin-right:auto;">
-      ${!alreadyDelivered ? `
-      <button class="btn btn-primary btn-block" onclick="DeliveryQR.share('${order.id}')">Partager le lien de confirmation</button>
-      <button class="btn btn-ghost btn-block" onclick="DeliveryQR.copyLink('${order.id}')">Copier le lien</button>` : ''}
-      <button class="btn btn-ghost btn-block" onclick="Router.go('order-detail',{id:'${order.id}'})">Retour à la commande</button>
-    </div>
-  </div>
-  `;
-};
-Views._after_delivery_qr = async function(opts){
-  const order = Store.orders.find(o=>String(o.id)===String(opts.id));
-  if(!order || order.status==='delivered') return;
-  const token = await ensureDeliveryOrderToken(order);
-  if(!token){ Toast.show('⚠️ Impossible de sécuriser le lien de livraison'); return; }
-
-  const canvas=document.getElementById('delivery-qr-canvas');
-  const box=document.getElementById('delivery-qr-box');
-  const errBox=document.getElementById('delivery-qr-error');
-  const url=DeliveryQR.buildUrl(order);
-  if(!canvas || !box) return;
-
-  /* 1) Rendu local si la librairie QR est disponible. */
-  if(await ensureQRCode() && typeof QRCode!=='undefined'){
-    try{
-      await new Promise((resolve,reject)=>{
-        QRCode.toCanvas(canvas,url,{
-          width:224, margin:2, errorCorrectionLevel:'M',
-          color:{dark:'#1c1c1c',light:'#ffffff'}
-        },err=>err?reject(err):resolve());
-      });
-      canvas.style.display='block';
-      if(errBox) errBox.style.display='none';
-      return;
-    }catch(err){ console.warn('QR canvas indisponible',err); }
-  }
-
-  /* 2) Secours robuste : image QR générée par un service public.
-     Cela évite qu'un blocage de CDN transforme le QR en grand carré vide. */
-  try{
-    const img=document.createElement('img');
-    img.alt='QR code de confirmation de livraison';
-    img.width=224; img.height=224;
-    img.style.width='224px'; img.style.height='224px'; img.style.display='block';
-    img.decoding='async';
-    img.onload=()=>{
-      canvas.style.display='none';
-      if(errBox) errBox.style.display='none';
-      box.insertBefore(img, box.firstChild);
-    };
-    img.onerror=()=>{
-      img.remove(); canvas.style.display='none';
-      if(errBox){ errBox.textContent='Le QR code est momentanément indisponible. Utilisez « Partager le lien de confirmation » ou « Copier le lien ». '; errBox.style.display='block'; }
-    };
-    img.src='https://api.qrserver.com/v1/create-qr-code/?size=224x224&margin=8&data='+encodeURIComponent(url);
-  }catch(err){
-    console.error('QR delivery fallback',err);
-    canvas.style.display='none';
-    if(errBox) errBox.style.display='block';
-  }
-};
 
 /* ---------- Statistiques ---------- */
 let statsPeriod = 7;
@@ -8639,42 +8510,47 @@ function buildDetailedReceiptHtml(order){
     <div style="font-size:11px;color:var(--text-soft);margin-top:8px;text-align:center;">Ce reçu professionnel retrace toutes les étapes de votre commande, du passage de commande jusqu'à la livraison confirmée.</div>
   </div>`;
 }
-function handleDeliveryPhoto(evt, orderId){
+async function handleDeliveryPhoto(evt, orderId){
   const file = evt.target.files && evt.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const dataUrl = reader.result;
-    const order = Store.orders.find(o=>o.id===orderId);
-    if(!order){ return; }
-    if(!order.deliveryToken){ Toast.show('⚠️ Lien de suivi invalide, impossible de confirmer'); return; }
-    const isFirstDeliveryEver = !Store.orders.some(o=>o.status==='delivered');
-    /* Confirmation sécurisée : passe uniquement par la fonction confirm_order_delivery
-       (jeton secret de la commande) — on ne touche jamais la commande via un upsert
-       direct côté client pour cette action. */
-    try{
-      const { error } = await sb.rpc('confirm_order_delivery', { p_order_id: orderId, p_token: order.deliveryToken, p_photo_url: dataUrl });
-      if(error) throw error;
-    } catch(e){
-      console.error(e);
-      Toast.show('⚠️ Impossible de confirmer la réception, réessayez');
-      return;
-    }
-    _cache.orders = _cache.orders.map(o=>o.id===orderId?{...o,status:'delivered',deliveryPhoto:dataUrl,deliveryConfirmedAt:Date.now()}:o);
-    /* ---- La commande vient d'être payée (livraison confirmée) : on recalcule la
-       commission période d'essai en temps réel et on consolide le total dans Supabase. ---- */
-    Cloud.pushCommission(Store.commissionDue(), Store.commissionSettled).catch(e=>console.error('Sync error [commission]', e));
-    Notify.add('order', `Le client a confirmé la réception de la commande #${order.number} avec photo à l'appui ✓`);
-    ClientNotify.add(order.number, `Merci ! Réception de la commande #${order.number} confirmée avec succès.`);
-    if(isFirstDeliveryEver){
-      Achievements.celebrate({ icon:'box', color:'#1E9E6B', title:'Première livraison validée ! 📦', subtitle:'Votre premier client a bien reçu sa commande.' });
-    } else {
-      showDeliveredBadge();
-    }
-    checkRevenueMilestones();
-    Router.go('order-track', {id:orderId});
-  };
-  reader.readAsDataURL(file);
+  const order = Store.orders.find(o=>String(o.id)===String(orderId));
+  if(!order) return;
+  if(order.status==='delivered'){ Toast.show('Cette commande est déjà livrée.'); return; }
+  if(order.status!=='confirmed' || !order.shipped){
+    Toast.show('La commande doit être confirmée et en cours de livraison.');
+    return;
+  }
+  const input=evt.target;
+  const button=document.querySelector(`[onclick=\"document.getElementById('delivery-photo-input').click()\"]`);
+  if(button){button.disabled=true;button.textContent='⏳ Confirmation de la livraison…';}
+  try{
+    const token=await ensureDeliverySecurityToken(order);
+    if(!token) throw new Error('security_token_unavailable');
+    const dataUrl=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=()=>reject(reader.error||new Error('photo_read_failed'));
+      reader.readAsDataURL(file);
+    });
+    const {error}=await sb.rpc('confirm_order_delivery',{p_order_id:orderId,p_token:token,p_photo_url:dataUrl});
+    if(error) throw error;
+    const now=Date.now();
+    const updated={...order,status:'delivered',shipped:true,deliveryPhoto:dataUrl,deliveryConfirmedAt:now};
+    _cache.orders=(_cache.orders||[]).map(o=>String(o.id)===String(orderId)?updated:o);
+    ClientOrderCache.save(updated);
+    Cloud.pushCommission(Store.commissionDue(),Store.commissionSettled).catch(e=>console.error('Sync error [commission]',e));
+    try{if(typeof AutoSync!=='undefined')AutoSync.refresh(true);}catch(e){}
+    Notify.add('order',`Le client a confirmé la réception de la commande #${order.number} avec photo à l'appui ✓`);
+    ClientNotify.add(order.number,`Merci ! Réception de la commande #${order.number} confirmée avec succès.`);
+    showDeliveredBadge();
+    Toast.show('✓ Commande terminée — livraison confirmée');
+    Router.go('order-track',{id:orderId});
+  }catch(e){
+    console.error('Confirmation livraison par photo',e);
+    Toast.show('⚠️ Impossible de confirmer la livraison. Vérifiez la connexion puis réessayez.');
+    if(button){button.disabled=false;button.textContent='📷 Ajouter une photo & confirmer la réception';}
+    if(input)input.value='';
+  }
 }
 function showDeliveredBadge(){
   const el = document.createElement('div');
@@ -8779,22 +8655,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         AutoSync.start();
         const qs = new URLSearchParams(location.search);
         const productId = qs.get('produit');
-        const scannedOrderId = qs.get('confirm_delivery');
-        const scannedToken = qs.get('token');
-        if(scannedOrderId){
-          /* Lien issu du QR code de livraison scanné par le client : on l'amène
-             directement sur le suivi de sa commande pour qu'il puisse confirmer
-             la réception. Le jeton reste vérifié côté serveur par la RPC
-             confirm_order_delivery, jamais fait confiance côté client seul. */
-          const scannedOrder = Store.orders.find(o=>o.id===scannedOrderId);
-          if(scannedOrder && scannedToken && scannedOrder.deliveryToken===scannedToken){
-            Router.go('order-track', {id: scannedOrderId});
-          } else {
-            Toast.show('⚠️ Lien de livraison invalide ou expiré');
-            Router.go('shop', {skipOnboarding:true, source:'public-link'});
-          }
-        }
-        else if(productId){
+        /* Les anciens paramètres de confirmation sont ignorés. La livraison est
+           désormais validée directement par la photo prise dans le suivi de commande. */
+        if(productId){
           const sharedProduct = Store.products.find(p=>String(p.id)===String(productId));
           if(sharedProduct){ Router.go('shop-product', {id: sharedProduct.id}); }
           else { Toast.show('Article introuvable ou retiré'); Router.go('shop', {skipOnboarding:true, source:'public-link'}); }
@@ -10653,29 +10516,138 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 .siams-showcase-content p{margin:4px 0 0;font-size:11px;line-height:1.35;opacity:.9;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .siams-showcase-play{position:absolute;right:14px;top:14px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.22);backdrop-filter:blur(7px);color:#fff;z-index:3}
 .siams-showcase-empty{border:1px dashed var(--line);border-radius:16px;padding:15px;text-align:center;color:var(--text-soft);font-size:11px}
-@media(max-width:380px){.siams-showcase{margin-left:14px;margin-right:14px}.siams-showcase-card{flex-basis:91%}}
+.v54-list-card{margin:0 20px 10px;border:1px solid var(--line);border-radius:17px;background:var(--panel);overflow:hidden}
+.v54-list-media{width:100%;height:150px;object-fit:cover;background:#eef3f9;display:block}
+.v54-list-body{padding:12px 13px}.v54-list-body h4{margin:0;font-size:13px}.v54-list-body p{margin:5px 0 0;font-size:11px;color:var(--text-mid);line-height:1.4}.v54-list-actions{display:flex;gap:7px;margin-top:10px}.v54-list-actions button{flex:1}
+.v54-form{margin:0 20px 14px;padding:14px;border:1px solid var(--line);border-radius:17px;background:#fff;box-shadow:0 6px 18px rgba(20,40,80,.045)}
+.v54-form .field{margin-bottom:10px}.v54-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.v54-type{border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:9px 5px;font:inherit;font-size:10.5px;font-weight:800;cursor:pointer;color:var(--text)}.v54-type.active{border-color:var(--indigo);background:var(--indigo-tint);color:var(--indigo)}
+.v54-upload{border:1.5px dashed var(--indigo);border-radius:13px;padding:17px;text-align:center;background:var(--indigo-tint);cursor:pointer}.v54-upload strong{display:block;font-size:12px}.v54-upload small{display:block;color:var(--text-mid);font-size:10px;margin-top:3px}.v54-preview{margin-top:9px;border-radius:12px;overflow:hidden;display:none}.v54-preview img,.v54-preview video{display:block;width:100%;max-height:190px;object-fit:cover}
+.v54-admin-head{padding:16px 20px 8px}.v54-admin-head h2{margin:0;font-size:23px}.v54-admin-head p{margin:5px 0 0;font-size:11.5px;color:var(--text-mid);line-height:1.45}.v54-count{margin:0 20px 13px;padding:11px 13px;border-radius:13px;background:var(--indigo-tint);color:var(--indigo);font-size:11px;font-weight:800}
+@media(max-width:380px){.siams-showcase,.v54-list-card,.v54-form{margin-left:14px;margin-right:14px}.siams-showcase-card{flex-basis:91%}.v54-admin-head{padding-left:14px;padding-right:14px}.v54-count{margin-left:14px;margin-right:14px}}
 </style>
-<script id="siams-v55-global-cournsel-client">
+<script id="siams-v54-showcase-script">
 (function(){
   'use strict';
-  const TABLE='siams_cournsel_items';
+  const TABLE='store_showcase_items';
+  const BUCKET='siams-showcase';
   const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
-  const typeLabel=t=>t==='video'?'Vidéo':t==='photo'?'Photo':t==='partnership'?'Partenariat':'Annonce';
-  const C={items:[],async load(){try{const {data,error}=await sb.from(TABLE).select('*').eq('active',true).order('position',{ascending:true}).order('created_at',{ascending:false}).limit(20);if(error)throw error;this.items=data||[];}catch(e){console.warn('Cournsel global indisponible',e);this.items=[];}return this.items;}};
-  function mediaHtml(item){
-    if(!item.media_url)return '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:42px;background:var(--indigo-tint);color:var(--indigo)">'+(item.type==='partnership'?'🤝':'📢')+'</div>';
-    const video=item.type==='video'||/\.(mp4|webm|mov|m4v)(\?|$)/i.test(item.media_url);
-    return video?'<video class="siams-showcase-media" src="'+esc(item.media_url)+'" muted playsinline preload="metadata"></video>':'<img class="siams-showcase-media" src="'+esc(item.media_url)+'" loading="lazy" alt="'+esc(item.title||'Publication SIAMS')+'">';
+  const uid=()=>Utils.uid();
+  const getSid=()=>Cloud.storeId || (Store.store&&Store.store.id) || null;
+  const localKey=()=> 'siams_showcase_'+((Store.store&&Store.store.slug)||'default');
+  const localLoad=()=>{try{return JSON.parse(localStorage.getItem(localKey())||'[]')}catch(e){return[]}};
+  const localSave=a=>{try{localStorage.setItem(localKey(),JSON.stringify(a.slice(0,30)))}catch(e){}};
+  const typeLabel=t=>t==='video'?'Vidéo':t==='partnership'?'Partenariat':'Annonce';
+  const Showcase={
+    items:[], loading:false,
+    async load(){
+      const sid=getSid(); if(!sid){this.items=localLoad();return this.items;}
+      this.loading=true; let remote=[];
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).eq('active',true).order('position',{ascending:true}).order('created_at',{ascending:false}).limit(20);if(!error)remote=data||[];}catch(e){console.warn('Showcase load',e)}
+      const local=localLoad(); const map=new Map([...remote,...local].map(x=>[x.id,x]));
+      this.items=[...map.values()].filter(x=>x.active!==false).sort((a,b)=>(Number(a.position||0)-Number(b.position||0)) || (new Date(b.created_at||0)-new Date(a.created_at||0)));
+      return this.items;
+    },
+    async all(){
+      const sid=getSid(); if(!sid)return localLoad();
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).order('position',{ascending:true}).order('created_at',{ascending:false}).limit(50);if(!error){this.items=data||[];return this.items;}}catch(e){}
+      return localLoad();
+    },
+    async upload(file){
+      if(!file)throw new Error('Fichier manquant');
+      const isVideo=file.type.startsWith('video/');
+      const max=isVideo?25*1024*1024:5*1024*1024;
+      if(file.size>max)throw new Error(isVideo?'Vidéo trop volumineuse (25 Mo maximum).':'Photo trop volumineuse (5 Mo maximum).');
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'');
+      const path=sid+'/'+Date.now()+'-'+uid().replace(/-/g,'')+'.'+ext;
+      const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'31536000'});
+      if(error)throw error;
+      const {data}=sb.storage.from(BUCKET).getPublicUrl(path);
+      if(!data?.publicUrl)throw new Error('URL publique indisponible');
+      return data.publicUrl;
+    },
+    async create(item){
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const row={id:item.id||uid(),store_id:sid,type:item.type||'announcement',title:item.title||'',description:item.description||'',media_url:item.media_url||null,link_url:item.link_url||null,active:item.active!==false,position:Number(item.position||0)};
+      try{const {data,error}=await sb.from(TABLE).insert(row).select().single();if(error)throw error;this.items.unshift(data||row);localSave(this.items);return data||row;}catch(e){
+        localSave([row,...this.items]);
+        throw e;
+      }
+    },
+    async update(id,patch){
+      const idx=this.items.findIndex(x=>x.id===id); if(idx>=0)this.items[idx]={...this.items[idx],...patch};
+      try{const {error}=await sb.from(TABLE).update(patch).eq('id',id);if(error)throw error;}catch(e){localSave(this.items);throw e}
+      localSave(this.items);return true;
+    },
+    async remove(id){
+      try{const {error}=await sb.from(TABLE).delete().eq('id',id);if(error)throw error;}catch(e){localSave(this.items.filter(x=>x.id!==id));throw e}
+      this.items=this.items.filter(x=>x.id!==id);localSave(this.items);return true;
+    }
+  };
+  window.SIAMSShowcase=Showcase;
+
+  function mediaHtml(item,admin){
+    const isVideo=item.type==='video'||String(item.media_url||'').match(/\.(mp4|webm|mov|m4v)(\?|$)/i);
+    if(!item.media_url)return `<div style="height:150px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo);font-size:34px;">${item.type==='partnership'?'🤝':'📢'}</div>`;
+    return isVideo?`<video class="${admin?'v54-list-media':'siams-showcase-media'}" src="${esc(item.media_url)}" ${admin?'controls':''} muted playsinline preload="metadata"></video>`:`<img class="${admin?'v54-list-media':'siams-showcase-media'}" src="${esc(item.media_url)}" loading="lazy" alt="${esc(item.title||'Annonce')}">`;
   }
-  function markup(items){
+  function clientMarkup(items){
     if(!items.length)return '';
-    return '<section class="siams-showcase" aria-label="Cournsel SIAMS"><div class="siams-showcase-head"><h3>À la une</h3><span>Actualités · Partenariats</span></div><div class="siams-showcase-row">'+items.map(x=>'<article class="siams-showcase-card" onclick="SIAMSGlobalCournsel.open(\''+esc(x.id)+'\')">'+mediaHtml(x)+'<div class="siams-showcase-shade"></div>'+(x.type==='video'?'<div class="siams-showcase-play">▶</div>':'')+'<div class="siams-showcase-content"><span class="siams-showcase-tag">'+typeLabel(x.type)+'</span><h4>'+esc(x.title||'Nouvelle publication')+'</h4>'+(x.description?'<p>'+esc(x.description)+'</p>':'')+'</div></article>').join('')+'</div></section>';
+    return `<section class="siams-showcase" aria-label="Actualités et partenariats"><div class="siams-showcase-head"><h3>À la une</h3><span>Actualités · Partenariats</span></div><div class="siams-showcase-row">${items.map(x=>`<article class="siams-showcase-card" onclick="SIAMSShowcase.openItem('${esc(x.id)}')">${mediaHtml(x,false)}<div class="siams-showcase-shade"></div>${x.type==='video'?'<div class="siams-showcase-play">▶</div>':''}<div class="siams-showcase-content"><span class="siams-showcase-tag">${typeLabel(x.type)}</span><h4>${esc(x.title||'Nouvelle annonce')}</h4>${x.description?`<p>${esc(x.description)}</p>`:''}</div></article>`).join('')}</div></section>`;
   }
-  async function render(){const root=document.getElementById('siams-cournsel-client');if(!root)return;await C.load();root.innerHTML=markup(C.items);}
+  Showcase.renderClient=async function(){const root=document.getElementById('siams-cournsel-client');if(!root)return;await Showcase.load();root.innerHTML=clientMarkup(Showcase.items);};
+  Showcase.openItem=async function(id){
+    const x=Showcase.items.find(i=>String(i.id)===String(id));if(!x)return;
+    const old=document.getElementById('v54-showcase-detail');if(old)old.remove();
+    const isVideo=x.type==='video';
+    const html=`<div id="v54-showcase-detail" class="shop-sheet-overlay show" onclick="this.remove()"><div class="shop-sheet show" style="max-height:88vh" onclick="event.stopPropagation()"><div class="sheet-handle"></div>${isVideo?`<video src="${esc(x.media_url||'')}" controls autoplay playsinline style="width:100%;max-height:48vh;border-radius:14px;background:#000;object-fit:contain"></video>`:x.media_url?`<img src="${esc(x.media_url)}" style="width:100%;max-height:48vh;object-fit:cover;border-radius:14px;">`:''}<div style="font-size:10px;color:var(--indigo);font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-top:12px">${typeLabel(x.type)}</div><h3 style="margin:5px 0 0">${esc(x.title||'Annonce')}</h3>${x.description?`<p style="font-size:12.5px;color:var(--text-mid);line-height:1.5">${esc(x.description)}</p>`:''}${x.link_url?`<button class="btn btn-primary btn-block" onclick="window.open('${esc(x.link_url)}','_blank','noopener,noreferrer')">En savoir plus</button>`:''}<button class="btn btn-ghost btn-block" onclick="this.closest('#v54-showcase-detail').remove()">Fermer</button></div></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+  };
+
+  /* Ajoute le Cournsel à l'accueil client sans déplacer la bannière existante. */
   const oldShop=Views.shop;
   Views.shop=function(){let h=oldShop();const marker='<div class="search-wrap"';if(!h.includes(marker))return h;return h.replace(marker,'<div id="siams-cournsel-client"></div>'+marker);};
-  const oldAfter=Views._after_shop;
-  Views._after_shop=function(opts){if(oldAfter)oldAfter(opts);render();};
-  window.SIAMSGlobalCournsel={items:C.items,open:async function(id){const x=C.items.find(i=>String(i.id)===String(id));if(!x)return;const old=document.getElementById('siams-global-cournsel-detail');if(old)old.remove();const video=x.type==='video'||/\.(mp4|webm|mov|m4v)(\?|$)/i.test(x.media_url||'');const media=x.media_url?(video?'<video src="'+esc(x.media_url)+'" controls autoplay playsinline style="width:100%;max-height:48vh;border-radius:14px;background:#000;object-fit:contain"></video>':'<img src="'+esc(x.media_url)+'" style="width:100%;max-height:48vh;object-fit:cover;border-radius:14px;">'):'';const link=x.link_url?'<button class="btn btn-primary btn-block" onclick="window.open(\''+esc(x.link_url)+'\',\'_blank\',\'noopener,noreferrer\')">En savoir plus</button>':'';document.body.insertAdjacentHTML('beforeend','<div id="siams-global-cournsel-detail" class="shop-sheet-overlay show" onclick="this.remove()"><div class="shop-sheet show" style="max-height:88vh" onclick="event.stopPropagation()"><div class="sheet-handle"></div>'+media+'<div style="font-size:10px;color:var(--indigo);font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-top:12px">'+typeLabel(x.type)+'</div><h3 style="margin:5px 0 0">'+esc(x.title||'Publication SIAMS')+'</h3>'+(x.description?'<p style="font-size:12.5px;color:var(--text-mid);line-height:1.5">'+esc(x.description)+'</p>':'')+link+'<button class="btn btn-ghost btn-block" onclick="this.closest(\'#siams-global-cournsel-detail\').remove()">Fermer</button></div></div>');}};
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=async function(opts){if(oldAfterShop)await oldAfterShop(opts);try{await Showcase.renderClient();}catch(e){console.warn('Cournsel client',e)}};
+
+  /* Gestionnaire marchand */
+  let formState={type:'announcement',file:null,url:'',title:'',description:'',link:''};
+  function formHtml(){
+    return `<div class="v54-form"><div style="font-size:13px;font-weight:850;margin-bottom:10px">Ajouter au Cournsel client</div><div class="v54-type-grid"><button class="v54-type ${formState.type==='announcement'?'active':''}" onclick="setShowcaseType('announcement')">📢 Annonce</button><button class="v54-type ${formState.type==='partnership'?'active':''}" onclick="setShowcaseType('partnership')">🤝 Partenariat</button><button class="v54-type ${formState.type==='video'?'active':''}" onclick="setShowcaseType('video')">▶ Vidéo</button></div><div class="field" style="margin-top:11px"><label>Titre</label><input id="v54-title" maxlength="80" placeholder="Ex. Nouveau partenariat SIAMS" value="${esc(formState.title)}"></div><div class="field"><label>Description courte</label><textarea id="v54-desc" rows="3" maxlength="220" placeholder="Quelques mots pour informer vos clients...">${esc(formState.description)}</textarea></div><div class="v54-upload" onclick="document.getElementById('v54-file').click()"><input id="v54-file" class="hidden" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime" onchange="previewShowcaseFile(event)"><strong>＋ Ajouter une photo ou une vidéo</strong><small>Photo : 5 Mo max · Vidéo : 25 Mo max</small><div id="v54-file-name" style="font-size:10px;color:var(--indigo);margin-top:6px"></div></div><div id="v54-preview" class="v54-preview"></div><div class="field" style="margin-top:10px"><label>Lien (facultatif)</label><input id="v54-link" type="url" placeholder="https://..." value="${esc(formState.link)}"><small style="font-size:10px;color:var(--text-soft)">Le client pourra appuyer sur « En savoir plus ».</small></div><button class="btn btn-primary btn-block" style="margin-top:8px" onclick="publishShowcaseItem()">Publier sur la vitrine client</button></div>`;
+  }
+  function renderManager(){
+    const root=document.getElementById('v54-showcase-manager');if(!root)return;
+    const cards=Showcase.items.length ? Showcase.items.map(function(x){
+      return `<article class="v54-list-card"><div style="position:relative">${mediaHtml(x,true)}<span style="position:absolute;left:10px;top:10px;background:rgba(5,25,48,.75);color:#fff;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:850">${typeLabel(x.type)}</span></div><div class="v54-list-body"><h4>${esc(x.title||'Sans titre')}</h4>${x.description?`<p>${esc(x.description)}</p>`:''}<div class="v54-list-actions"><button class="btn btn-outline btn-sm" onclick="toggleShowcaseItem('${esc(x.id)}')">${x.active===false?'Afficher':'Masquer'}</button><button class="btn btn-ghost btn-sm" onclick="deleteShowcaseItem('${esc(x.id)}')">Supprimer</button></div></div></article>`;
+    }).join('') : `<div style="margin:0 20px 100px">${EmptyState(ICONS.box,'Aucun contenu','Ajoutez une annonce, une photo ou une vidéo : elle apparaîtra automatiquement dans le Cournsel client.')}</div>`;
+    root.innerHTML=formHtml()+`<div class="v54-count">${Showcase.items.filter(x=>x.active!==false).length} contenu(s) visible(s) actuellement sur la vitrine client.</div>${cards}`;
+  }
+  async function openManager(){
+    const root=document.getElementById('v54-showcase-manager');if(!root)return;root.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-mid)">Chargement…</div>';await Showcase.all();renderManager();
+  }
+  window.setShowcaseType=t=>{formState.type=t;renderManager();};
+  window.previewShowcaseFile=e=>{const f=e.target.files?.[0];if(!f)return;formState.file=f;const p=document.getElementById('v54-preview'),n=document.getElementById('v54-file-name');if(n)n.textContent=f.name;const u=URL.createObjectURL(f);if(p){p.style.display='block';p.innerHTML=f.type.startsWith('video/')?`<video src="${u}" controls muted playsinline></video>`:`<img src="${u}" alt="Aperçu">`;}};
+  window.publishShowcaseItem=async()=>{
+    const title=document.getElementById('v54-title')?.value.trim()||'';const description=document.getElementById('v54-desc')?.value.trim()||'';const link=document.getElementById('v54-link')?.value.trim()||'';
+    if(!title)return Toast.show('Ajoutez un titre');
+    if(!formState.file)return Toast.show('Ajoutez une photo ou une vidéo');
+    const btn=document.querySelector('#v54-showcase-manager .btn-primary');if(btn){btn.disabled=true;btn.textContent='Publication…';}
+    try{const media=await Showcase.upload(formState.file);await Showcase.create({type:formState.type,title,description,media_url:media,link_url:link,active:true,position:0});Toast.show('Contenu publié sur la vitrine client ✓');formState={type:'announcement',file:null,url:'',title:'',description:'',link:''};await Showcase.all();renderManager();}
+    catch(e){console.error(e);Toast.show('Impossible de publier. Vérifiez la configuration du stockage SIAMS.');if(btn){btn.disabled=false;btn.textContent='Publier sur la vitrine client';}}
+  };
+  window.toggleShowcaseItem=async id=>{const x=Showcase.items.find(i=>String(i.id)===String(id));if(!x)return;try{await Showcase.update(id,{active:x.active===false});Toast.show(x.active===false?'Contenu affiché ✓':'Contenu masqué ✓');renderManager();}catch(e){Toast.show('Impossible de modifier ce contenu');}};
+  window.deleteShowcaseItem=async id=>{if(!confirm('Supprimer définitivement ce contenu de la vitrine client ?'))return;try{await Showcase.remove(id);Toast.show('Contenu supprimé ✓');renderManager();}catch(e){Toast.show('Impossible de supprimer ce contenu');}};
+
+  Views['showcase']=function(){return `${TopBar('Cournsel client','Annonces & partenariats')}<div class="v54-admin-head"><h2>Contenus de la vitrine</h2><p>Ajoutez une annonce, une photo ou une vidéo de partenariat. Le contenu publié apparaît automatiquement dans l’accueil du client.</p></div><div id="v54-showcase-manager"><div style="padding:35px;text-align:center;color:var(--text-mid)">Chargement…</div></div>`;};
+  const oldDash=Views.dashboard;
+  Views.dashboard=function(){let h=oldDash();const marker='<div class="dashboard-v2-section"><h3>Services SIAMS</h3>';const block='<section style="margin:14px 20px 8px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel);display:flex;align-items:center;gap:12px;cursor:pointer" onclick="Router.go(\'showcase\')"><div style="width:42px;height:42px;border-radius:13px;background:var(--indigo-tint);color:var(--indigo);display:grid;place-items:center;font-size:20px">📢</div><div style="flex:1"><b style="font-size:13px">Cournsel client</b><div style="font-size:10.5px;color:var(--text-mid);margin-top:3px">Annonces · partenariats · photos · vidéos</div></div><strong style="font-size:20px;color:var(--text-soft)">›</strong></section>';return h.includes(marker)?h.replace(marker,block+marker):h+block;};
+  const oldAfter=Views._after_showcase;Views._after_showcase=async function(){if(oldAfter)await oldAfter();await openManager();};
+  const navKeyAdd=(()=>{try{const orig=Router.go;return orig}catch(e){return null}})();
+  /* La route reste volontairement hors navigation principale : accès depuis Dashboard. */
+  AutoSync.safeViews.add('showcase');
+  
+  /* Si le dashboard est reconstruit par un module ultérieur, réinjecte le raccourci au rendu. */
+  const originalDashboardQuick=window.dashboardQuickGo;
+  if(originalDashboardQuick){ /* aucun remplacement : le raccourci dédié utilise Router.go directement */ }
 })();
 </script>
