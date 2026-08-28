@@ -1259,8 +1259,20 @@ async function ensureJsPDF(){
 }
 async function ensureQRCode(){
   if(typeof QRCode!=='undefined') return true;
-  try{ await loadScriptOnce('qrcode', 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js'); return true; }
-  catch(e){ console.error(e); return false; }
+  /* Plusieurs réseaux mobiles bloquent parfois jsDelivr. On tente un second CDN
+     avant de passer au rendu image distant de secours. */
+  const sources=[
+    'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js',
+    'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js'
+  ];
+  for(const src of sources){
+    try{
+      delete _scriptCache.qrcode;
+      await loadScriptOnce('qrcode',src);
+      if(typeof QRCode!=='undefined') return true;
+    }catch(e){ console.warn('QR library indisponible:',src,e); }
+  }
+  return false;
 }
 
 /* ---------------- Utils ---------------- */
@@ -5548,26 +5560,49 @@ Views._after_delivery_qr = async function(opts){
   const token = await ensureDeliveryOrderToken(order);
   if(!token){ Toast.show('⚠️ Impossible de sécuriser le lien de livraison'); return; }
 
-  if(!await ensureQRCode()){
-    const e=document.getElementById('delivery-qr-error'), c=document.getElementById('delivery-qr-canvas');
-    if(c) c.style.display='none';
-    if(e) e.style.display='block';
-    return;
-  }
   const canvas=document.getElementById('delivery-qr-canvas');
-  if(!canvas || typeof QRCode==='undefined') return;
+  const box=document.getElementById('delivery-qr-box');
+  const errBox=document.getElementById('delivery-qr-error');
+  const url=DeliveryQR.buildUrl(order);
+  if(!canvas || !box) return;
+
+  /* 1) Rendu local si la librairie QR est disponible. */
+  if(await ensureQRCode() && typeof QRCode!=='undefined'){
+    try{
+      await new Promise((resolve,reject)=>{
+        QRCode.toCanvas(canvas,url,{
+          width:224, margin:2, errorCorrectionLevel:'M',
+          color:{dark:'#1c1c1c',light:'#ffffff'}
+        },err=>err?reject(err):resolve());
+      });
+      canvas.style.display='block';
+      if(errBox) errBox.style.display='none';
+      return;
+    }catch(err){ console.warn('QR canvas indisponible',err); }
+  }
+
+  /* 2) Secours robuste : image QR générée par un service public.
+     Cela évite qu'un blocage de CDN transforme le QR en grand carré vide. */
   try{
-    await new Promise((resolve,reject)=>{
-      QRCode.toCanvas(canvas,DeliveryQR.buildUrl(order),{
-        width:224, margin:2, errorCorrectionLevel:'M',
-        color:{dark:'#1c1c1c',light:'#ffffff'}
-      },err=>err?reject(err):resolve());
-    });
+    const img=document.createElement('img');
+    img.alt='QR code de confirmation de livraison';
+    img.width=224; img.height=224;
+    img.style.width='224px'; img.style.height='224px'; img.style.display='block';
+    img.decoding='async';
+    img.onload=()=>{
+      canvas.style.display='none';
+      if(errBox) errBox.style.display='none';
+      box.insertBefore(img, box.firstChild);
+    };
+    img.onerror=()=>{
+      img.remove(); canvas.style.display='none';
+      if(errBox){ errBox.textContent='Le QR code est momentanément indisponible. Utilisez « Partager le lien de confirmation » ou « Copier le lien ». '; errBox.style.display='block'; }
+    };
+    img.src='https://api.qrserver.com/v1/create-qr-code/?size=224x224&margin=8&data='+encodeURIComponent(url);
   }catch(err){
-    console.error('QR delivery',err);
+    console.error('QR delivery fallback',err);
     canvas.style.display='none';
-    const e=document.getElementById('delivery-qr-error');
-    if(e) e.style.display='block';
+    if(errBox) errBox.style.display='block';
   }
 };
 
@@ -7996,7 +8031,7 @@ function buildReceiptDataURL(order){
 
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
   ctx.font = '800 26px Arial'; ctx.fillText('Reçu', padX, 54);
-  ctx.font = '700 12px monospace'; ctx.fillText(`N° ${order.number}`, padX, 72);
+  ctx.font = '700 12px Arial'; ctx.fillText(`N° ${order.number}`, padX, 72);
   ctx.globalAlpha = .85; ctx.font = '500 12px Arial';
   ctx.fillText(`Reçu de commande — ${store.name || 'Boutique'} (propulsé par SIAMS)`, padX, 92);
   ctx.globalAlpha = 1;
@@ -8054,7 +8089,7 @@ function buildReceiptDataURL(order){
     ctx.fillText(label, padX+10, y+18);
     ctx.textAlign = 'center'; ctx.font = '600 12px Arial';
     ctx.fillText(String(it.qty), padX+tableW*0.62, y+18);
-    ctx.textAlign = 'right'; ctx.font = '700 12px monospace';
+    ctx.textAlign = 'right'; ctx.font = '700 12px Arial';
     ctx.fillText(Utils.fmtFCFA(it.price*it.qty), W-padX-10, y+18);
     ctx.strokeStyle = C.line; ctx.beginPath(); ctx.moveTo(padX,y+rowH); ctx.lineTo(W-padX,y+rowH); ctx.stroke();
     y += rowH;
@@ -10433,8 +10468,8 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     x.fillStyle='#fff';x.strokeStyle='#e1e6ee';roundRect(x,pad,y,W-pad*2,185,16);x.fill();x.stroke();let iy=y+35;info.forEach(r=>{x.fillStyle='#111827';x.font='700 15px Arial';x.fillText(r[0],pad+18,iy);x.fillStyle='#697386';x.font='700 14px Arial';x.textAlign='right';x.fillText(String(r[1]),W-pad-18,iy);x.textAlign='left';iy+=40;});y+=215;
     x.fillStyle='#657083';x.font='700 12px Arial';x.fillText('DÉTAILS',pad,y);y+=22;x.fillStyle='#fff';roundRect(x,pad,y,W-pad*2,150,16);x.fill();x.stroke();
     const details=[['Statut',order.status==='delivered'?'✓ Livrée':order.status==='confirmed'?'✓ Confirmée':'En attente'],['Mode de paiement',PAY_LABELS[order.paymentMethod]||order.paymentMethod||'—'],['Date et heure',new Date(order.createdAt).toLocaleString('fr-FR')],['ID de commande','#'+order.number]];iy=y+34;details.forEach(r=>{x.fillStyle='#111827';x.font='700 14px Arial';x.fillText(r[0],pad+18,iy);x.fillStyle='#697386';x.font='700 13px Arial';x.textAlign='right';x.fillText(String(r[1]),W-pad-18,iy);x.textAlign='left';iy+=30;});y+=180;
-    x.fillStyle='#0a62c9';x.font='800 14px Arial';x.fillText('ARTICLES',pad,y);y+=18;order.items.forEach(it=>{x.fillStyle='#fff';roundRect(x,pad,y,W-pad*2,lineH,9);x.fill();x.fillStyle='#111827';x.font='600 12px Arial';x.fillText(`${it.name} ×${it.qty}`,pad+12,y+22);x.textAlign='right';x.font='700 12px monospace';x.fillText(Utils.fmtFCFA(it.price*it.qty),W-pad-12,y+22);x.textAlign='left';y+=lineH+4;});
-    y+=14;x.strokeStyle='#dfe5ed';x.beginPath();x.moveTo(pad,y);x.lineTo(W-pad,y);x.stroke();y+=32;x.fillStyle='#111827';x.font='800 18px Arial';x.fillText('TOTAL',pad,y);x.textAlign='right';x.fillStyle='#0a62c9';x.font='800 21px monospace';x.fillText(Utils.fmtFCFA(order.amount),W-pad,y);x.textAlign='left';y+=55;
+    x.fillStyle='#0a62c9';x.font='800 14px Arial';x.fillText('ARTICLES',pad,y);y+=18;order.items.forEach(it=>{x.fillStyle='#fff';roundRect(x,pad,y,W-pad*2,lineH,9);x.fill();x.fillStyle='#111827';x.font='600 12px Arial';x.fillText(`${it.name} ×${it.qty}`,pad+12,y+22);x.textAlign='right';x.font='700 12px Arial';x.fillText(Utils.fmtFCFA(it.price*it.qty),W-pad-12,y+22);x.textAlign='left';y+=lineH+4;});
+    y+=14;x.strokeStyle='#dfe5ed';x.beginPath();x.moveTo(pad,y);x.lineTo(W-pad,y);x.stroke();y+=32;x.fillStyle='#111827';x.font='800 18px Arial';x.fillText('TOTAL',pad,y);x.textAlign='right';x.fillStyle='#0a62c9';x.font='800 21px Arial';x.fillText(Utils.fmtFCFA(order.amount),W-pad,y);x.textAlign='left';y+=55;
     x.fillStyle='#eef6ff';roundRect(x,pad,y,W-pad*2,90,14);x.fill();x.fillStyle='#45627e';x.font='500 11px Arial';x.textAlign='center';x.fillText('Ce reçu est émis par SIAMS pour la commande indiquée.',W/2,y+32);x.fillText('Conservez-le comme preuve de votre transaction.',W/2,y+52);x.fillStyle='#0a62c9';x.font='800 12px Arial';x.fillText('SIAMS · '+(SUPPORT_EMAIL),W/2,y+72);return c.toDataURL('image/png');
   };
   function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):(ctx.rect(x,y,w,h));ctx.closePath();}
@@ -10601,3 +10636,46 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 })();
 </script>
 
+<!-- SIAMS Cournsel client V54 : annonces / partenariats / photos / vidéos -->
+<style id="siams-v54-showcase-style">
+.siams-showcase{margin:14px 20px 8px}
+.siams-showcase-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.siams-showcase-head h3{margin:0;font-size:15px;font-weight:850;color:var(--text)}
+.siams-showcase-head span{font-size:10.5px;color:var(--text-soft)}
+.siams-showcase-row{display:flex;gap:11px;overflow-x:auto;scroll-snap-type:x mandatory;padding:1px 2px 7px;scrollbar-width:none}
+.siams-showcase-row::-webkit-scrollbar{display:none}
+.siams-showcase-card{position:relative;flex:0 0 88%;max-width:390px;min-height:154px;border-radius:18px;overflow:hidden;scroll-snap-align:start;background:#102b4b;box-shadow:0 9px 24px rgba(18,54,90,.12);cursor:pointer}
+.siams-showcase-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.siams-showcase-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,25,48,.04) 20%,rgba(5,25,48,.84) 100%)}
+.siams-showcase-content{position:absolute;left:15px;right:15px;bottom:13px;color:#fff;z-index:2}
+.siams-showcase-tag{display:inline-flex;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);font-size:9px;font-weight:850;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.siams-showcase-content h4{margin:0;font-size:15px;line-height:1.2}
+.siams-showcase-content p{margin:4px 0 0;font-size:11px;line-height:1.35;opacity:.9;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.siams-showcase-play{position:absolute;right:14px;top:14px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.22);backdrop-filter:blur(7px);color:#fff;z-index:3}
+.siams-showcase-empty{border:1px dashed var(--line);border-radius:16px;padding:15px;text-align:center;color:var(--text-soft);font-size:11px}
+@media(max-width:380px){.siams-showcase{margin-left:14px;margin-right:14px}.siams-showcase-card{flex-basis:91%}}
+</style>
+<script id="siams-v55-global-cournsel-client">
+(function(){
+  'use strict';
+  const TABLE='siams_cournsel_items';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const typeLabel=t=>t==='video'?'Vidéo':t==='photo'?'Photo':t==='partnership'?'Partenariat':'Annonce';
+  const C={items:[],async load(){try{const {data,error}=await sb.from(TABLE).select('*').eq('active',true).order('position',{ascending:true}).order('created_at',{ascending:false}).limit(20);if(error)throw error;this.items=data||[];}catch(e){console.warn('Cournsel global indisponible',e);this.items=[];}return this.items;}};
+  function mediaHtml(item){
+    if(!item.media_url)return '<div style="position:absolute;inset:0;display:grid;place-items:center;font-size:42px;background:var(--indigo-tint);color:var(--indigo)">'+(item.type==='partnership'?'🤝':'📢')+'</div>';
+    const video=item.type==='video'||/\.(mp4|webm|mov|m4v)(\?|$)/i.test(item.media_url);
+    return video?'<video class="siams-showcase-media" src="'+esc(item.media_url)+'" muted playsinline preload="metadata"></video>':'<img class="siams-showcase-media" src="'+esc(item.media_url)+'" loading="lazy" alt="'+esc(item.title||'Publication SIAMS')+'">';
+  }
+  function markup(items){
+    if(!items.length)return '';
+    return '<section class="siams-showcase" aria-label="Cournsel SIAMS"><div class="siams-showcase-head"><h3>À la une</h3><span>Actualités · Partenariats</span></div><div class="siams-showcase-row">'+items.map(x=>'<article class="siams-showcase-card" onclick="SIAMSGlobalCournsel.open(\''+esc(x.id)+'\')">'+mediaHtml(x)+'<div class="siams-showcase-shade"></div>'+(x.type==='video'?'<div class="siams-showcase-play">▶</div>':'')+'<div class="siams-showcase-content"><span class="siams-showcase-tag">'+typeLabel(x.type)+'</span><h4>'+esc(x.title||'Nouvelle publication')+'</h4>'+(x.description?'<p>'+esc(x.description)+'</p>':'')+'</div></article>').join('')+'</div></section>';
+  }
+  async function render(){const root=document.getElementById('siams-cournsel-client');if(!root)return;await C.load();root.innerHTML=markup(C.items);}
+  const oldShop=Views.shop;
+  Views.shop=function(){let h=oldShop();const marker='<div class="search-wrap"';if(!h.includes(marker))return h;return h.replace(marker,'<div id="siams-cournsel-client"></div>'+marker);};
+  const oldAfter=Views._after_shop;
+  Views._after_shop=function(opts){if(oldAfter)oldAfter(opts);render();};
+  window.SIAMSGlobalCournsel={items:C.items,open:async function(id){const x=C.items.find(i=>String(i.id)===String(id));if(!x)return;const old=document.getElementById('siams-global-cournsel-detail');if(old)old.remove();const video=x.type==='video'||/\.(mp4|webm|mov|m4v)(\?|$)/i.test(x.media_url||'');const media=x.media_url?(video?'<video src="'+esc(x.media_url)+'" controls autoplay playsinline style="width:100%;max-height:48vh;border-radius:14px;background:#000;object-fit:contain"></video>':'<img src="'+esc(x.media_url)+'" style="width:100%;max-height:48vh;object-fit:cover;border-radius:14px;">'):'';const link=x.link_url?'<button class="btn btn-primary btn-block" onclick="window.open(\''+esc(x.link_url)+'\',\'_blank\',\'noopener,noreferrer\')">En savoir plus</button>':'';document.body.insertAdjacentHTML('beforeend','<div id="siams-global-cournsel-detail" class="shop-sheet-overlay show" onclick="this.remove()"><div class="shop-sheet show" style="max-height:88vh" onclick="event.stopPropagation()"><div class="sheet-handle"></div>'+media+'<div style="font-size:10px;color:var(--indigo);font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-top:12px">'+typeLabel(x.type)+'</div><h3 style="margin:5px 0 0">'+esc(x.title||'Publication SIAMS')+'</h3>'+(x.description?'<p style="font-size:12.5px;color:var(--text-mid);line-height:1.5">'+esc(x.description)+'</p>':'')+link+'<button class="btn btn-ghost btn-block" onclick="this.closest(\'#siams-global-cournsel-detail\').remove()">Fermer</button></div></div>');}};
+})();
+</script>
