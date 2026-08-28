@@ -7814,7 +7814,7 @@ async function confirmOrder(){
   const deliveryZone = zoneEl && zoneEl.value ? zoneEl.value : null;
   const deliveryFee = zoneEl && zoneEl.value ? Number(zoneEl.selectedOptions[0].dataset.fee||0) : 0;
   const amount = subtotal - discount + deliveryFee;
-  const orders = Store.orders;
+  const orders = Store.orders.slice();
   const isFirstOrderEver = orders.length===0;
   let number = Utils.genOrderCode(Store.store.name);
   while(orders.some(o=>o.number===number)) number = Utils.genOrderCode(Store.store.name);
