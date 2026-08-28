@@ -5004,7 +5004,7 @@ function productForm(existing){
       <div class="upload-box" id="upload-box" onclick="document.getElementById('f-photo').click()">
         <input type="file" id="f-photo" accept="image/png,image/jpeg,image/webp" multiple class="hidden" onchange="handlePhoto(event)">
         <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
-        <strong>Ajouter des photos du produit</strong><div class="sub">Appuyez pour choisir un ou plusieurs fichiers</div><div class="hint">PNG, JPG, WEBP — max 5 Mo chacune</div>
+        <strong>Ajouter des photos du produit</strong><div class="sub">Appuyez pour choisir un ou plusieurs fichiers</div><div class="hint">PNG, JPG, WEBP — max 1 Mo chacune</div>
       </div>
     </div>
     <div class="field"><label>Quantité en stock</label>
@@ -5094,7 +5094,7 @@ function toggleStockQty(){
 function handlePhoto(e){
   const files = Array.from(e.target.files || []);
   files.forEach(file=>{
-    if(file.size > 5*1024*1024){ Toast.show('Fichier trop volumineux (max 5 Mo)'); return; }
+    if(file.size > 1*1024*1024){ Toast.show('Photo trop volumineuse (1 Mo maximum)'); return; }
     const reader = new FileReader();
     reader.onload = ()=>{ formPhotos.push(reader.result); renderPhotoGallery(); };
     reader.readAsDataURL(file);
@@ -6167,7 +6167,7 @@ Views['store-edit'] = function(){
         <input type="file" id="f-store-banner" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleStoreBanner(event)">
         <div id="banner-upload-empty" class="${store.banner?'hidden':''}" style="padding:32px 20px;">
           <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
-          <strong>Ajouter une bannière</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — format large recommandé — max 5 Mo</div>
+          <strong>Ajouter une bannière</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — format large recommandé — max 1 Mo</div>
         </div>
         <img id="banner-upload-preview" class="${store.banner?'':'hidden'}" src="${store.banner||''}" style="width:100%;aspect-ratio:16/7;object-fit:cover;display:block;">
       </div>
@@ -6178,7 +6178,7 @@ Views['store-edit'] = function(){
         <input type="file" id="f-store-photo" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleStorePhoto(event)">
         <div id="store-upload-empty" class="${store.photo?'hidden':''}">
           <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
-          <strong>Ajouter une photo</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 5 Mo</div>
+          <strong>Ajouter une photo</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 1 Mo</div>
         </div>
         <img id="store-upload-preview" class="upload-preview ${store.photo?'':'hidden'}" src="${store.photo||''}">
       </div>
@@ -6211,7 +6211,7 @@ Views._after_store_edit = function(){ storeEditPhoto = Store.store.photo || null
 function handleStorePhoto(e){
   const file = e.target.files[0];
   if(!file) return;
-  if(file.size > 5*1024*1024){ Toast.show('Fichier trop volumineux (max 5 Mo)'); return; }
+  if(file.size > 1*1024*1024){ Toast.show('Photo trop volumineuse (1 Mo maximum)'); return; }
   const reader = new FileReader();
   reader.onload = ()=>{
     storeEditPhoto = reader.result;
@@ -6225,7 +6225,7 @@ let storeEditBanner = null;
 function handleStoreBanner(e){
   const file = e.target.files[0];
   if(!file) return;
-  if(file.size > 5*1024*1024){ Toast.show('Fichier trop volumineux (max 5 Mo)'); return; }
+  if(file.size > 1*1024*1024){ Toast.show('Photo trop volumineuse (1 Mo maximum)'); return; }
   const reader = new FileReader();
   reader.onload = ()=>{
     storeEditBanner = reader.result;
