@@ -1578,7 +1578,7 @@ const Cloud = {
         payment_proof_url:o.paymentProof||null, confirmed_at:o.confirmedAt?new Date(o.confirmedAt).toISOString():null,
         shipped:!!o.shipped, shipped_at:o.shippedAt?new Date(o.shippedAt).toISOString():null,
         delivery_confirmed_at:o.deliveryConfirmedAt?new Date(o.deliveryConfirmedAt).toISOString():null, delivery_photo_url:o.deliveryPhoto||null,
-        delivery_token:o.deliveryToken||undefined
+        delivery_token:o.deliveryToken||undefined, courier_id:o.courierId||null
       };
 
       let lastError = null;
@@ -1683,8 +1683,32 @@ const Cloud = {
     return data;
   },
   async assignCourier(orderId,courierId){
-    const {data,error}=await sb.from('delivery_assignments').insert({store_id:this.storeId,order_id:orderId,courier_id:courierId,status:'offered'}).select().single();
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    if(!orderId || !courierId) throw new Error('Commande ou livreur manquant');
+
+    const {data:existing,error:findError}=await sb.from('delivery_assignments')
+      .select('*').eq('store_id',this.storeId).eq('order_id',orderId)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(findError) throw findError;
+    if(existing && existing.status==='accepted') throw new Error('Cette livraison est déjà acceptée par un livreur');
+
+    let data,error;
+    if(existing){
+      ({data,error}=await sb.from('delivery_assignments')
+        .update({courier_id:courierId,status:'offered'})
+        .eq('id',existing.id).eq('store_id',this.storeId).select().single());
+    }else{
+      ({data,error}=await sb.from('delivery_assignments')
+        .insert({store_id:this.storeId,order_id:orderId,courier_id:courierId,status:'offered'})
+        .select().single());
+    }
     if(error) throw error;
+
+    const {error:orderError}=await sb.from('orders')
+      .update({courier_id:courierId})
+      .eq('id',orderId).eq('store_id',this.storeId);
+    if(orderError) throw orderError;
+
     await this.loadCourierData();
     return data;
   },
@@ -5443,22 +5467,56 @@ async function adminMarkShipped(id){
 }
 async function assignOrderToCourier(id){
   const sel = document.getElementById('assign-courier-select');
-  const courierId = sel ? sel.value : '';
+  const courierId = sel ? String(sel.value||'').trim() : '';
   if(!courierId){ Toast.show('Choisissez un livreur dans la liste.'); return; }
+
+  const order = Store.orders.find(o=>String(o.id)===String(id));
+  if(!order || order.status!=='confirmed' || order.shipped){
+    Toast.show('Affectation disponible uniquement après confirmation et avant la mise en livraison.');
+    return;
+  }
+
+  const btn = document.querySelector(`[onclick="assignOrderToCourier('${id}')"]`);
+  if(btn){ btn.disabled=true; btn.textContent='Affectation…'; }
+
   try{
     await Store.assignCourier(id, courierId);
-    Store.orders = Store.orders.map(o=>o.id===id?{...o,courierId}:o);
+    _cache.orders = (_cache.orders||[]).map(o=>String(o.id)===String(id)?{...o,courierId}:o);
     Toast.show('Livreur affecté ✓');
     Router.go('order-detail',{id});
   }catch(e){
-    console.error(e);
-    Toast.show('⚠️ Impossible d’affecter le livreur, réessayez');
+    console.error('Affectation livreur',e);
+    Toast.show(e && e.message==='Cette livraison est déjà acceptée par un livreur'
+      ? '⚠️ Cette livraison est déjà prise en charge.'
+      : '⚠️ Impossible d’affecter le livreur, réessayez');
+    if(btn){ btn.disabled=false; btn.textContent='Affecter le livreur'; }
   }
 }
 
 /* ---------- QR code de livraison (à afficher par le livreur/marchand) ---------- */
+async function ensureDeliveryOrderToken(order){
+  if(!order) return null;
+  if(order.deliveryToken) return order.deliveryToken;
+  const token = (typeof crypto!=='undefined' && crypto.randomUUID) ? crypto.randomUUID() : Utils.uid();
+  order.deliveryToken = token;
+  _cache.orders = (_cache.orders||[]).map(o=>String(o.id)===String(order.id)?{...o,deliveryToken:token}:o);
+  try{
+    if(Cloud.storeId){
+      const {error}=await sb.from('orders').update({delivery_token:token})
+        .eq('id',order.id).eq('store_id',Cloud.storeId);
+      if(error) throw error;
+    }
+  }catch(e){
+    console.error('delivery token',e);
+    order.deliveryToken = null;
+    return null;
+  }
+  ClientOrderCache.save(order);
+  return token;
+}
+
 Views['delivery-qr'] = function(opts){
-  const order = Store.orders.find(o=>o.id===opts.id);
+  const order = Store.orders.find(o=>String(o.id)===String(opts.id));
   if(!order) return `${TopBar('QR code introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Commande introuvable',"Cette commande n'existe pas ou a été supprimée.")}</div>`;
   const alreadyDelivered = order.status==='delivered';
   return `
@@ -5466,13 +5524,14 @@ Views['delivery-qr'] = function(opts){
     <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('order-detail',{id:'${order.id}'})"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">QR code de livraison</h1></div>
   </div>
   <div style="padding:6px 20px 28px;text-align:center;">
-    <p style="font-size:13px;color:var(--text-mid);margin:0 0 18px;">Commande <strong>#${order.number}</strong> — ${Utils.escapeHtml(order.customer.name)}<br>Présentez ce code au client : il lui suffit de le scanner avec l'appareil photo de son téléphone pour signer la réception de sa commande.</p>
+    <p style="font-size:13px;color:var(--text-mid);margin:0 0 18px;">Commande <strong>#${Utils.escapeHtml(order.number)}</strong> — ${Utils.escapeHtml(order.customer.name)}<br>Présentez ce code au client : il lui suffit de le scanner avec l'appareil photo de son téléphone pour signer la réception de sa commande.</p>
     ${alreadyDelivered ? `
       <div style="padding:22px;border-radius:var(--radius-md);border:1.5px solid var(--line);background:var(--panel);">
         <div style="font-size:14px;font-weight:700;color:var(--green);">✓ Réception déjà confirmée par le client</div>
       </div>` : `
-      <div style="display:inline-block;padding:18px;background:#fff;border-radius:var(--radius-md);border:1.5px solid var(--line);">
-        <canvas id="delivery-qr-canvas"></canvas>
+      <div id="delivery-qr-box" style="display:inline-flex;align-items:center;justify-content:center;min-width:256px;min-height:256px;padding:16px;background:#fff;border-radius:var(--radius-md);border:1.5px solid var(--line);box-shadow:var(--shadow-sm);">
+        <canvas id="delivery-qr-canvas" width="224" height="224" aria-label="QR code de confirmation de livraison"></canvas>
+        <div id="delivery-qr-error" style="display:none;color:var(--red);font-size:12px;max-width:210px;line-height:1.45;">Le QR code n'a pas pu être généré. Vérifiez votre connexion puis réessayez.</div>
       </div>`}
     <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;max-width:320px;margin-left:auto;margin-right:auto;">
       ${!alreadyDelivered ? `
@@ -5484,13 +5543,32 @@ Views['delivery-qr'] = function(opts){
   `;
 };
 Views._after_delivery_qr = async function(opts){
-  const order = Store.orders.find(o=>o.id===opts.id);
+  const order = Store.orders.find(o=>String(o.id)===String(opts.id));
   if(!order || order.status==='delivered') return;
-  if(!await ensureQRCode()) return;
-  const canvas = document.getElementById('delivery-qr-canvas');
+  const token = await ensureDeliveryOrderToken(order);
+  if(!token){ Toast.show('⚠️ Impossible de sécuriser le lien de livraison'); return; }
+
+  if(!await ensureQRCode()){
+    const e=document.getElementById('delivery-qr-error'), c=document.getElementById('delivery-qr-canvas');
+    if(c) c.style.display='none';
+    if(e) e.style.display='block';
+    return;
+  }
+  const canvas=document.getElementById('delivery-qr-canvas');
   if(!canvas || typeof QRCode==='undefined') return;
-  const url = DeliveryQR.buildUrl(order);
-  QRCode.toCanvas(canvas, url, { width:220, margin:1, color:{ dark:'#1c1c1c', light:'#ffffff' } }, function(err){ if(err) console.error(err); });
+  try{
+    await new Promise((resolve,reject)=>{
+      QRCode.toCanvas(canvas,DeliveryQR.buildUrl(order),{
+        width:224, margin:2, errorCorrectionLevel:'M',
+        color:{dark:'#1c1c1c',light:'#ffffff'}
+      },err=>err?reject(err):resolve());
+    });
+  }catch(err){
+    console.error('QR delivery',err);
+    canvas.style.display='none';
+    const e=document.getElementById('delivery-qr-error');
+    if(e) e.style.display='block';
+  }
 };
 
 /* ---------- Statistiques ---------- */
@@ -7895,7 +7973,7 @@ function buildReceiptDataURL(order){
   const tableHeadH = 28, gapTable = 12;
   const extraTotalLines = (order.discount?1:0) + (order.deliveryFee?1:0);
   const totalsH = 22 + extraTotalLines*22 + 14 + 34;
-  const gapTotals = 18, statusH = 24, gapStatus = 16, legalH = 54, gapLegal = 20, footerH = 52;
+  const gapTotals = 18, statusH = 24, gapStatus = 16, legalH = 68, gapLegal = 20, footerH = 58;
 
   const H = headerH + rubanH + gapHeader + infoBoxH + gapInfo + tableHeadH + order.items.length*rowH
     + gapTable + totalsH + gapTotals + statusH + gapStatus + legalH + gapLegal + footerH;
@@ -7988,20 +8066,20 @@ function buildReceiptDataURL(order){
   const totX = padX, totW = tableW;
   ctx.textAlign = 'left'; ctx.fillStyle = C.mid; ctx.font = '500 13px Arial';
   ctx.fillText('Sous-total', totX, y);
-  ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '600 13px monospace';
+  ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '600 12px Arial';
   ctx.fillText(Utils.fmtFCFA(order.amount - (order.deliveryFee||0) + (order.discount||0)), totX+totW, y);
   y += 22;
   if (order.discount){
     ctx.textAlign = 'left'; ctx.fillStyle = C.green; ctx.font = '500 13px Arial';
     ctx.fillText(`Réduction${order.promoCode?' ('+order.promoCode+')':''}`, totX, y);
-    ctx.textAlign = 'right'; ctx.font = '600 13px monospace';
+    ctx.textAlign = 'right'; ctx.font = '600 12px Arial';
     ctx.fillText('−'+Utils.fmtFCFA(order.discount), totX+totW, y);
     y += 22;
   }
   if (order.deliveryFee){
     ctx.textAlign = 'left'; ctx.fillStyle = C.mid; ctx.font = '500 13px Arial';
     ctx.fillText(`Livraison${order.deliveryZone?' ('+order.deliveryZone+')':''}`, totX, y);
-    ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '600 13px monospace';
+    ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '600 12px Arial';
     ctx.fillText(Utils.fmtFCFA(order.deliveryFee), totX+totW, y);
     y += 22;
   }
@@ -8010,22 +8088,27 @@ function buildReceiptDataURL(order){
   y += 24;
   ctx.textAlign = 'left'; ctx.fillStyle = C.ink; ctx.font = '800 16px Arial';
   ctx.fillText('Total payé', totX, y);
-  ctx.textAlign = 'right'; ctx.fillStyle = C.blueDeep; ctx.font = '800 18px monospace';
+  ctx.textAlign = 'right'; ctx.fillStyle = C.blueDeep; ctx.font = '800 16px Arial';
   ctx.fillText(Utils.fmtFCFA(order.amount), totX+totW, y);
 
   y += gapTotals + statusH;
 
   /* ---- Statut de paiement ---- */
-  ctx.textAlign = 'center'; ctx.fillStyle = C.mango; ctx.font = '700 12px Arial';
-  ctx.fillText('Statut : en attente de confirmation du vendeur', W/2, y);
+  ctx.textAlign = 'center'; ctx.font = '700 12px Arial';
+  const statusText = order.status==='delivered' ? 'Statut : livraison confirmée ✓'
+    : order.status==='confirmed' ? 'Statut : commande confirmée'
+    : order.shipped ? 'Statut : en livraison'
+    : 'Statut : en attente de confirmation du vendeur';
+  ctx.fillStyle = order.status==='delivered' ? C.green : C.mango;
+  ctx.fillText(statusText, W/2, y);
 
   y += gapStatus;
 
   /* ---- Mention légale ---- */
   ctx.fillStyle = C.legal;
   ctxRoundRect(ctx, padX, y, W-padX*2, legalH, 8); ctx.fill();
-  ctx.fillStyle = C.mid; ctx.textAlign = 'center'; ctx.font = 'italic 400 10.5px Arial';
-  ctx.fillText("Ce reçu fait office de preuve d'achat électronique, généré via l'application", W/2, y+22);
+  ctx.fillStyle = C.mid; ctx.textAlign = 'center'; ctx.font = 'italic 400 10px Arial';
+  ctx.fillText("Ce reçu fait office de preuve d'achat électronique, généré via l'application.", W/2, y+20);
   ctx.fillText(`${store.name || 'Boutique'}, propulsée par SIAMS. Conservez-le ou téléchargez le reçu PDF officiel.`, W/2, y+38);
 
   y += legalH + gapLegal;
@@ -8198,7 +8281,8 @@ async function renderSIAMSReceiptPDF(doc, data){
     const rowH = 22;
     if(idx%2===1){ doc.setFillColor(248,250,252); doc.rect(margin, y, tableW, rowH, 'F'); }
     cx0 = margin;
-    const rowVals = [it.description, String(it.qty), it.unit||'u', Utils.fmtFCFA(it.unitPrice), Utils.fmtFCFA(it.total)];
+    const money = v => `${Number(v||0).toLocaleString('fr-FR').replace(/\u202f|\s/g,' ')} FCFA`;
+    const rowVals = [it.description, String(it.qty), it.unit||'u', money(it.unitPrice), money(it.total)];
     cols.forEach((c,i)=>{
       const cw = tableW*c.w;
       const tx = c.align==='left' ? cx0+10 : c.align==='right' ? cx0+cw-10 : cx0+cw/2;
@@ -8213,22 +8297,23 @@ async function renderSIAMSReceiptPDF(doc, data){
   y += 20;
 
   /* ---------- Totaux ---------- */
-  const totW = 220, totX = W-margin-totW;
+  const totW = 250, totX = W-margin-totW;
+  const money = v => `${Number(v||0).toLocaleString('fr-FR').replace(/\u202f|\s/g,' ')} FCFA`;
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
-  doc.text('Sous-total', totX, y); doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont('courier','normal'); doc.text(Utils.fmtFCFA(data.subtotal||0), totX+totW, y, {align:'right'}); y+=16;
+  doc.text('Sous-total', totX, y); doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont('helvetica','normal'); doc.text(money(data.subtotal||0), totX+totW, y, {align:'right'}); y+=16;
   if(data.discount){
     doc.setFont('helvetica','normal'); doc.setTextColor(GREEN[0],GREEN[1],GREEN[2]); doc.text('Remise', totX, y);
-    doc.setFont('courier','normal'); doc.text('−'+Utils.fmtFCFA(data.discount), totX+totW, y, {align:'right'}); y+=16;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.text('−'+money(data.discount), totX+totW, y, {align:'right'}); y+=16;
   }
   if(data.deliveryFee){
     doc.setFont('helvetica','normal'); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]); doc.text('Livraison', totX, y);
-    doc.setFont('courier','normal'); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(Utils.fmtFCFA(data.deliveryFee), totX+totW, y, {align:'right'}); y+=16;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(money(data.deliveryFee), totX+totW, y, {align:'right'}); y+=16;
   }
   doc.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); doc.setLineWidth(1.3); doc.line(totX, y+2, totX+totW, y+2); doc.setLineWidth(1); y += 20;
   doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(INK[0],INK[1],INK[2]);
   doc.text('Total payé', totX, y);
-  doc.setFont('courier','bold'); doc.setFontSize(14); doc.setTextColor(BLUE_DEEP[0],BLUE_DEEP[1],BLUE_DEEP[2]);
-  doc.text(Utils.fmtFCFA(data.total||0), totX+totW, y, {align:'right'});
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(BLUE_DEEP[0],BLUE_DEEP[1],BLUE_DEEP[2]);
+  doc.text(money(data.total||0), totX+totW, y, {align:'right'});
   y += 34;
 
   /* ---------- Chronologie de la commande (optionnelle) ----------
@@ -8255,18 +8340,22 @@ async function renderSIAMSReceiptPDF(doc, data){
   /* ---------- Mention légale ---------- */
   doc.setDrawColor(LINE[0],LINE[1],LINE[2]);
   const legal = data.footerNote || "Le présent reçu constitue la preuve officielle du règlement effectué par le client auprès de SIAMS, pour le montant et à la date indiqués ci-dessus. Il fait foi entre les parties et peut être produit à toute fin utile, notamment auprès des autorités compétentes, conformément à la réglementation en vigueur en République de Côte d'Ivoire.";
-  const legalLines = doc.splitTextToSize(legal, W-margin*2-24);
-  const legalH = legalLines.length*11 + 18;
+  const legalLines = doc.splitTextToSize(legal, W-margin*2-28);
+  const legalH = Math.max(42, legalLines.length*10 + 18);
   doc.setFillColor(240,246,251); doc.roundedRect(margin, y, W-margin*2, legalH, 8, 8, 'F');
   doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
-  doc.text(legalLines, margin+12, y+16);
-  y += legalH + 18;
+  doc.text(legalLines, margin+14, y+15);
+  y += legalH + 14;
 
   /* ---------- Pied de page navy (3 colonnes) ---------- */
   const pageH = doc.internal.pageSize.getHeight();
-  const footH = 92;
-  const footY = pageH-footH;
-  doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0, footY, W, footH, 'F');
+  const footH = 86;
+  const footY = Math.max(y, pageH-footH);
+  if(footY + footH > pageH + 0.5){
+    doc.addPage();
+  }
+  const safeFootY = doc.internal.pageSize.getHeight()-footH;
+  doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0, safeFootY, W, footH, 'F');
   const fcolW = (W-margin*2)/3;
   const footCols = [
     { title:issuer.footerTitle || 'SIÈGE SOCIAL', lines:issuer.footerAddressLines || [issuer.name, 'Yopougon, Abidjan', "Côte d'Ivoire"] },
@@ -8275,7 +8364,7 @@ async function renderSIAMSReceiptPDF(doc, data){
   ];
   footCols.forEach((c,i)=>{
     const fx = margin + fcolW*i;
-    let fy = footY+22;
+    let fy = safeFootY+22;
     doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(CYAN[0],CYAN[1],CYAN[2]);
     doc.text(c.title, fx, fy); fy += 13;
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(203,216,230);
@@ -10445,7 +10534,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
         confirmed_at:order.confirmedAt?new Date(order.confirmedAt).toISOString():null,
         shipped:!!order.shipped, shipped_at:order.shippedAt?new Date(order.shippedAt).toISOString():null,
         delivery_confirmed_at:order.deliveryConfirmedAt?new Date(order.deliveryConfirmedAt).toISOString():null,
-        delivery_photo_url:order.deliveryPhoto||null, delivery_token:order.deliveryToken||undefined
+        delivery_photo_url:order.deliveryPhoto||null, delivery_token:order.deliveryToken||undefined, courier_id:order.courierId||null
       });
       if(!error){
         if(order.items?.length){
