@@ -1365,6 +1365,8 @@ const Utils = {
 const Cloud = {
   storeId: null,
   loginId: null,
+  publicMode: false,
+  _orderWritePromises: Object.create(null),
   categories: [], // [{id,name}]
 
   catId(name){ const c = this.categories.find(x=>x.name===name); return c ? c.id : null; },
@@ -1390,6 +1392,7 @@ const Cloud = {
     }
     this.storeId = store.id;
     this.loginId = store.login_id || '';
+    this.publicMode = false;
     return store;
   },
 
@@ -1398,6 +1401,7 @@ const Cloud = {
     if(error || !store) return null;
     this.storeId = store.id;
     this.loginId = null;
+    this.publicMode = true;
     return store;
   },
 
@@ -1559,10 +1563,14 @@ const Cloud = {
   async pushOrders(prev, next){
     const prevIds = prev.map(o=>o.id), nextIds = next.map(o=>o.id);
     const removed = prevIds.filter(id=>!nextIds.includes(id));
-    if(removed.length) await sb.from('orders').delete().in('id', removed);
-    for(const o of next){
+    if(removed.length){
+      const del = await sb.from('orders').delete().in('id', removed);
+      if(del.error) throw del.error;
+    }
+
+    const writeOne = async (o)=>{
       const isNew = !prev.find(x=>x.id===o.id);
-      await sb.from('orders').upsert({
+      const payload = {
         id:o.id, store_id:this.storeId, number:o.number, customer_name:o.customer.name, customer_phone:o.customer.phone, customer_address:o.customer.address,
         customer_latitude:o.customerLat!=null?o.customerLat:null, customer_longitude:o.customerLng!=null?o.customerLng:null,
         subtotal: o.amount + (o.discount||0) - (o.deliveryFee||0), discount:o.discount||0, promo_code:o.promoCode||null,
@@ -1571,9 +1579,39 @@ const Cloud = {
         shipped:!!o.shipped, shipped_at:o.shippedAt?new Date(o.shippedAt).toISOString():null,
         delivery_confirmed_at:o.deliveryConfirmedAt?new Date(o.deliveryConfirmedAt).toISOString():null, delivery_photo_url:o.deliveryPhoto||null,
         delivery_token:o.deliveryToken||undefined
-      });
-      if(isNew && o.items && o.items.length) await sb.from('order_items').insert(o.items.map(it=>({order_id:o.id, product_id:it.productId||null, name:it.name, price:it.price, qty:it.qty})));
-    }
+      };
+
+      let lastError = null;
+      for(let attempt=1; attempt<=3; attempt++){
+        const {error} = await sb.from('orders').upsert(payload);
+        if(!error){ lastError=null; break; }
+        lastError=error;
+        if(attempt<3) await new Promise(r=>setTimeout(r, 500*attempt));
+      }
+      if(lastError) throw lastError;
+
+      if(isNew && o.items && o.items.length){
+        const {error:itemError} = await sb.from('order_items').insert(
+          o.items.map(it=>({order_id:o.id, product_id:it.productId||null, name:it.name, price:it.price, qty:it.qty}))
+        );
+        if(itemError) throw itemError;
+      }
+      return o;
+    };
+
+    const jobs = next.map(o=>{
+      const promise = writeOne(o);
+      this._orderWritePromises[o.id] = promise;
+      promise.finally(()=>{ if(this._orderWritePromises[o.id]===promise) delete this._orderWritePromises[o.id]; }).catch(()=>{});
+      return promise;
+    });
+    await Promise.all(jobs);
+  },
+
+  async waitForOrderPersisted(orderId){
+    const p = this._orderWritePromises[orderId];
+    if(p) await p;
+    return true;
   },
 
   async pushTeam(prev, next){
@@ -2090,66 +2128,58 @@ async function exportSalesReportPDF(){
   if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
-  const W = doc.internal.pageSize.getWidth();
-  const margin = 40;
-  const indigo = [51,43,140], mid = [108,104,117], ink = [21,19,31];
-  const store = Store.store;
-
-  doc.setFillColor(indigo[0],indigo[1],indigo[2]);
-  doc.rect(0,0,W,84,'F');
-  try{ doc.addImage(LOGO_DATA_URI, 'PNG', margin, 15, 52, 52); }catch(e){}
-  const storeLogo = await loadImageAsDataURL(store.photo);
-  if(storeLogo){ try{ doc.addImage(storeLogo, 'PNG', W-margin-52, 15, 52, 52); }catch(e){} }
-  doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.text(store.name || 'Ma boutique', W/2, 38, {align:'center'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(10);
-  doc.text('Rapport de ventes & statistiques', W/2, 56, {align:'center'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, W/2, 72, {align:'center'});
-
-  let y = 116;
-  doc.setTextColor(ink[0],ink[1],ink[2]);
-
-  const orders = Store.orders;
-  const revenue = Store.revenueDelivered();
-  const totalSales = Store.totalSales();
-  const pending = Store.pendingRevenue();
-  const avgBasket = orders.length ? Math.round(orders.reduce((s,o)=>s+o.amount,0)/orders.length) : 0;
-  const counts = Store.orderStatusCounts();
-  const clientsCount = Store.customers().length;
-  const top = Store.topProducts(5);
-
-  const kpi = (label, val) => { doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text(label, margin, y); doc.setFont('helvetica','normal'); doc.text(String(val), W-margin, y, {align:'right'}); y += 18; };
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Vue d\'ensemble', margin, y); y += 18;
-  kpi('Ventes livrées', Utils.fmtFCFA(revenue));
-  kpi('Total des ventes (toutes commandes)', Utils.fmtFCFA(totalSales));
-  kpi('En attente de livraison', Utils.fmtFCFA(pending));
-  kpi('Panier moyen', Utils.fmtFCFA(avgBasket));
-  kpi('Nombre de clients', clientsCount);
-  y += 8;
-  doc.setDrawColor(230,225,215); doc.line(margin, y, W-margin, y); y += 22;
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Commandes par statut', margin, y); y += 18;
-  kpi('Nouvelles', counts.new);
-  kpi('En préparation', counts.preparing);
-  kpi('Expédiées', counts.shipped);
-  kpi('Terminées (livrées)', counts.done);
-  kpi('Annulées', counts.cancelled);
-  y += 8;
-  doc.setDrawColor(230,225,215); doc.line(margin, y, W-margin, y); y += 22;
-
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Produits les plus vendus', margin, y); y += 18;
-  doc.setFont('helvetica','normal'); doc.setFontSize(10);
-  if(top.length===0){ doc.text('Aucune vente pour le moment.', margin, y); y += 16; }
-  else top.forEach(([name, qty])=>{ doc.text(name, margin, y); doc.text(`${qty} vendu(s)`, W-margin, y, {align:'right'}); y += 16; });
-
-  const pageH = doc.internal.pageSize.getHeight();
-  doc.setDrawColor(230,225,215); doc.line(margin, pageH-40, W-margin, pageH-40);
-  doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(mid[0],mid[1],mid[2]);
-  doc.text('Rapport généré automatiquement par SIAMS à partir des données de votre boutique.', W/2, pageH-24, {align:'center'});
-
+  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  const M=40, store=Store.store||{};
+  const C={navy:[5,42,77],blue:[0,96,217],ink:[22,35,47],muted:[92,107,122],line:[220,228,236],soft:[244,247,250],green:[30,158,107],white:[255,255,255]};
+  const money=v=>Utils.fmtFCFA(Number(v||0));
+  let page=0;
+  function header(){
+    page++;
+    doc.setFillColor(...C.navy); doc.rect(0,0,W,74,'F');
+    try{doc.addImage(LOGO_DATA_URI,'PNG',M,12,50,50);}catch(e){}
+    doc.setTextColor(...C.white); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text(store.name||'Ma boutique',M+64,30);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.text('Rapport de ventes & activité commerciale',M+64,47);
+    doc.setFontSize(8.5); doc.text(`Page ${page} · ${new Date().toLocaleString('fr-FR')}`,W-M,47,{align:'right'});
+    return 98;
+  }
+  function footer(){
+    doc.setDrawColor(...C.line); doc.line(M,H-36,W-M,H-36);
+    doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...C.muted);
+    doc.text('Rapport généré automatiquement par SIAMS à partir des données de la boutique.',W/2,H-21,{align:'center'});
+  }
+  function ensure(need=30,y){ if(y+need>H-52){footer(); return header();} return y; }
+  let y=header();
+  const orders=(Store.orders||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const revenue=Store.revenueDelivered(), totalSales=Store.totalSales(), pending=Store.pendingRevenue();
+  const avg=orders.length?Math.round(orders.reduce((s,o)=>s+Number(o.amount||0),0)/orders.length):0;
+  const counts=Store.orderStatusCounts(), clients=Store.customers().length, top=Store.topProducts(5);
+  doc.setTextColor(...C.ink); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text('Synthèse',M,y); y+=18;
+  const kpis=[['Ventes livrées',money(revenue)],['Total commandes',money(totalSales)],['En attente',money(pending)],['Panier moyen',money(avg)],['Clients',String(clients)]];
+  kpis.forEach(([l,v])=>{ y=ensure(18,y); doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...C.muted);doc.text(l,M,y);doc.setFont('courier','bold');doc.setTextColor(...C.ink);doc.text(v,W-M,y,{align:'right'});y+=17; });
+  y+=7; doc.setDrawColor(...C.line);doc.line(M,y,W-M,y);y+=22;
+  y=ensure(50,y);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...C.ink);doc.text('Commandes par statut',M,y);y+=18;
+  [['Nouvelles',counts.new],['En préparation',counts.preparing],['Expédiées',counts.shipped],['Terminées / livrées',counts.done],['Annulées',counts.cancelled]].forEach(([l,v])=>{y=ensure(18,y);doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...C.muted);doc.text(l,M,y);doc.setFont('courier','bold');doc.setTextColor(...C.ink);doc.text(String(v||0),W-M,y,{align:'right'});y+=17;});
+  y+=7;doc.setDrawColor(...C.line);doc.line(M,y,W-M,y);y+=22;
+  y=ensure(50,y);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Produits les plus vendus',M,y);y+=18;
+  if(!top.length){doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text('Aucune vente pour le moment.',M,y);y+=18;}
+  top.forEach(([name,qty])=>{y=ensure(18,y);doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(doc.splitTextToSize(String(name||'Produit'),W-M*2-90)[0],M,y);doc.text(`${qty} vendu(s)`,W-M,y,{align:'right'});y+=17;});
+  y+=8;doc.setDrawColor(...C.line);doc.line(M,y,W-M,y);y+=22;
+  y=ensure(70,y);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Journal des commandes',M,y);y+=18;
+  const xNum=M,xClient=M+72,xStatus=M+235,xDate=M+315,xAmt=W-M;
+  doc.setFillColor(...C.navy);doc.rect(M,y-13,W-M*2,22,'F');doc.setTextColor(...C.white);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  doc.text('COMMANDE',xNum,y);doc.text('CLIENT',xClient,y);doc.text('STATUT',xStatus,y);doc.text('DATE',xDate,y);doc.text('TOTAL',xAmt,y,{align:'right'});y+=17;
+  const status={pending:'En attente',confirmed:'Confirmée',delivered:'Livrée'};
+  if(!orders.length){doc.setTextColor(...C.muted);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text('Aucune commande enregistrée.',M,y);}
+  for(const o of orders){
+    if(y>H-70){footer();y=header();doc.setFillColor(...C.navy);doc.rect(M,y-13,W-M*2,22,'F');doc.setTextColor(...C.white);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('COMMANDE',xNum,y);doc.text('CLIENT',xClient,y);doc.text('STATUT',xStatus,y);doc.text('DATE',xDate,y);doc.text('TOTAL',xAmt,y,{align:'right'});y+=17;}
+    if(orders.indexOf(o)%2===0){doc.setFillColor(...C.soft);doc.rect(M,y-11,W-M*2,19,'F');}
+    doc.setTextColor(...C.ink);doc.setFont('courier','bold');doc.setFontSize(8);doc.text(`#${String(o.number||'—')}`,xNum,y);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(doc.splitTextToSize(String(o.customer?.name||'Client'),150)[0],xClient,y);
+    doc.text(status[o.status]||String(o.status||'—'),xStatus,y);
+    doc.text(o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'—',xDate,y);
+    doc.setFont('courier','bold');doc.text(money(o.amount),xAmt,y,{align:'right'});y+=19;
+  }
+  footer();
   doc.save(`rapport-${(store.slug||'boutique')}-${new Date().toISOString().slice(0,10)}.pdf`);
   Toast.show('Rapport PDF téléchargé ✓');
 }
@@ -2471,7 +2501,7 @@ const Auth = {
     Auth.loggedIn = false;
     OtpGate.reset();
     _cache = { products:[], orders:[], team:[], payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''} };
-    Cloud.storeId = null; Cloud.loginId = null;
+    Cloud.storeId = null; Cloud.loginId = null; Cloud.publicMode = false; Cloud._orderWritePromises = Object.create(null);
     Router.go('login');
   }
 };
@@ -4940,6 +4970,100 @@ const Withdraw = {
 </style>
 
 
+<!-- ================= SIAMS V51 — son notifications livreur renforcé ================= -->
+<script id="siams-v51-courier-sound">
+(function(){
+  let courierNotifTimer=null;
+  let courierNotifBusy=false;
+  let courierSeenAssignments=new Set();
+
+  function courierSignature(a){
+    return [a.id,a.status,a.order_number||'',a.updated_at||''].join('|');
+  }
+
+  async function pollCourierNotifications(){
+    if(courierNotifBusy || Router.current!=='courier-dashboard') return;
+    const sess=typeof courierSession==='function'?courierSession():null;
+    if(!sess) return;
+    courierNotifBusy=true;
+    try{
+      const rows=await Cloud.courierAssignments(sess.session_token);
+      CourierNotify.load();
+      const existing=CourierNotify._list||[];
+      const existingIds=new Set(existing.map(n=>n.assignmentId).filter(Boolean));
+      rows.filter(a=>a.status==='offered').forEach(a=>{
+        const sig=courierSignature(a);
+        const isNew=!courierSeenAssignments.has(sig) && !existingIds.has(a.id);
+        if(isNew){
+          CourierNotify._list.unshift({
+            id:Utils.uid(), assignmentId:a.id, type:'order',
+            message:`Nouvelle livraison proposée pour la commande #${a.order_number||''}.`,
+            read:false, createdAt:Date.now()
+          });
+          courierSeenAssignments.add(sig);
+          CourierNotify.save();
+          CourierNotify.badge();
+          /* Son SIAMS + notification système : même comportement que client. */
+          if(typeof nativePush==='function') nativePush('Nouvelle livraison',`Commande #${a.order_number||''} proposée.`);
+          else if(typeof SiamsV44TestNotificationSound==='function') SiamsV44TestNotificationSound();
+          if(typeof Toast!=='undefined' && Toast.show) Toast.show(`🔔 Nouvelle livraison · #${a.order_number||''}`);
+        } else if(!courierSeenAssignments.has(sig)) {
+          courierSeenAssignments.add(sig);
+        }
+      });
+    }catch(e){console.error('V51 courier notifications',e)}
+    finally{courierNotifBusy=false;}
+  }
+
+  function startCourierNotificationPolling(){
+    if(courierNotifTimer) clearInterval(courierNotifTimer);
+    courierSeenAssignments=new Set();
+    /* Premier passage immédiat, puis contrôle régulier sans attendre un clic. */
+    setTimeout(pollCourierNotifications,500);
+    courierNotifTimer=setInterval(pollCourierNotifications,8000);
+  }
+  function stopCourierNotificationPolling(){
+    if(courierNotifTimer){clearInterval(courierNotifTimer);courierNotifTimer=null;}
+    courierSeenAssignments=new Set();
+  }
+
+  const oldLogin=window.loginCourier;
+  if(typeof oldLogin==='function'){
+    window.loginCourier=async function(){
+      const r=await oldLogin.apply(this,arguments);
+      if(courierSession()) startCourierNotificationPolling();
+      return r;
+    };
+  }
+
+  const oldLogout=window.setCourierSession;
+  if(typeof oldLogout==='function'){
+    window.setCourierSession=function(v){
+      const r=oldLogout.apply(this,arguments);
+      if(!v) stopCourierNotificationPolling();
+      return r;
+    };
+  }
+
+  const oldGo=Router.go;
+  if(typeof oldGo==='function'){
+    Router.go=function(name,opts){
+      const r=oldGo.apply(this,arguments);
+      if(name==='courier-dashboard' && courierSession()) startCourierNotificationPolling();
+      else if(name!=='courier-dashboard') stopCourierNotificationPolling();
+      return r;
+    };
+  }
+
+  /* Le bouton de test du son est aussi disponible depuis l'espace livreur. */
+  window.SiamsV51TestCourierSound=function(){
+    if(typeof unlockNotifAudio==='function') unlockNotifAudio();
+    setTimeout(function(){ if(typeof playNotifSound==='function') playNotifSound(); },80);
+  };
+
+  setTimeout(function(){if(courierSession() && Router.current==='courier-dashboard')startCourierNotificationPolling();},900);
+})();
+</script>
 </body>
 </html>
 </html>`);
@@ -7715,7 +7839,7 @@ async function requestDeliveryLocation(forceRetry=false){
   );
 }
 
-function confirmOrder(){
+async function confirmOrder(){
   const name = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
   const address = document.getElementById('co-address').value.trim();
@@ -7743,6 +7867,16 @@ function confirmOrder(){
   orders.unshift(order);
   if(appliedPromo){ const promos=Store.promos.slice(); const pp=promos.find(x=>x.id===appliedPromo.id); if(pp){ pp.usedCount=Number(pp.usedCount||0)+1; Store.promos=promos; PromoLocal.update(pp.id,{usedCount:pp.usedCount}); } }
   Store.orders = orders;
+  /* Conserve immédiatement la commande sur l'appareil du client et attend
+     l'écriture serveur avant d'annoncer qu'elle est reçue par la boutique. */
+  try{
+    ClientOrderCache.save(order);
+    await Cloud.waitForOrderPersisted(order.id);
+  }catch(syncErr){
+    console.error('Commande non synchronisée', syncErr);
+    Toast.show('⚠️ La commande n’a pas pu être transmise au serveur. Réessayez.');
+    return;
+  }
 
   /* Décrément du stock */
   products = products.map(p=>{
@@ -8195,7 +8329,7 @@ async function renderSIAMSReceiptPDF(doc, data){
 
 async function downloadReceiptPDF(orderId){
   if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
-  const order = Store.orders.find(o=>o.id===orderId);
+  const order = Store.orders.find(o=>o.id===orderId) || ClientOrderCache.get(orderId);
   if(!order){ Toast.show('Commande introuvable'); return; }
   const store = Store.store;
   const { jsPDF } = window.jspdf;
@@ -9175,6 +9309,65 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   .onboard-side-phone{transform:scale(.78);}
 }
 </style>
+
+<script id="siams-v50-client-notification-sound">
+/* SIAMS V50 — notifications client en temps réel + son SIAMS.
+   Le client doit recevoir une notification lorsque le marchand confirme ou met
+   sa commande en livraison. Le son personnalisé est joué dans l'onglet client
+   dès qu'une interaction utilisateur a déverrouillé l'audio du navigateur. */
+(function(){
+  const WATCH_KEY=()=> 'siams_client_order_status_watch_' + ((Store.store&&Store.store.slug)||'default');
+  let seeded=false;
+  function loadWatch(){try{return JSON.parse(localStorage.getItem(WATCH_KEY())||'{}')}catch(e){return{}}}
+  function saveWatch(x){try{localStorage.setItem(WATCH_KEY(),JSON.stringify(x))}catch(e){}}
+  function statusOf(o){return o?.status||'pending'}
+  function messageFor(o,prev){
+    const n=o.number||'';
+    if(statusOf(o)==='confirmed' && statusOf(prev)!=='confirmed') return `Bonne nouvelle : votre commande #${n} a été confirmée par la boutique.`;
+    if((o.shipped||statusOf(o)==='delivered') && !(prev&&prev.shipped) && statusOf(o)!=='delivered') return `Votre commande #${n} est maintenant en livraison.`;
+    if(statusOf(o)==='delivered' && statusOf(prev)!=='delivered') return `Votre commande #${n} a été livrée. Merci pour votre confiance !`;
+    return null;
+  }
+  function syncClientOrderNotifications(){
+    if(!Cloud.publicMode || !window.ClientOrderCache || !window.ClientNotify) return;
+    const cached=ClientOrderCache.load();
+    if(!cached.length) return;
+    const watch=loadWatch();
+    let changed=false;
+    cached.forEach(local=>{
+      const server=(Store.orders||[]).find(o=>String(o.id)===String(local.id));
+      if(!server) return;
+      const previous=watch[local.id] || {status:statusOf(local),shipped:!!local.shipped};
+      const msg=messageFor(server,previous);
+      /* Première observation : on initialise sans alerter. */
+      if(!seeded && !(local.id in watch)) { watch[local.id]={status:statusOf(server),shipped:!!server.shipped}; changed=true; return; }
+      if(msg){
+        ClientNotify.add(server.number,msg,statusOf(server)==='delivered'?'delivery':server.shipped?'delivery':'order');
+      }
+      if(previous.status!==statusOf(server) || previous.shipped!==!!server.shipped){
+        watch[local.id]={status:statusOf(server),shipped:!!server.shipped};
+        ClientOrderCache.save(Object.assign({},local,server,{items:(server.items&&server.items.length)?server.items:local.items}));
+        changed=true;
+      }
+    });
+    seeded=true;
+    if(changed) saveWatch(watch);
+  }
+
+  /* Chaque rafraîchissement public recharge les commandes puis déclenche la
+     détection des changements. Le système reste compatible avec l'AutoSync V48. */
+  const oldRefresh=AutoSync.refresh.bind(AutoSync);
+  AutoSync.refresh=async function(force){
+    const r=await oldRefresh(force);
+    try{ syncClientOrderNotifications(); }catch(e){ console.warn('V50 client notifications',e); }
+    return r;
+  };
+
+  /* Si l'utilisateur ouvre la boutique et interagit immédiatement, on initialise
+     aussi le son sans attendre le prochain cycle de synchronisation. */
+  setTimeout(()=>{try{syncClientOrderNotifications();}catch(e){}},1400);
+})();
+</script>
 </body>
 
 <!-- ================= SIAMS V38 — sécurité partenaire + panorama sans AMS ================= -->
@@ -9777,8 +9970,13 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
   window.SiamsV44ToggleSound=()=>{
     const p=getPrefs();p.sound=!p.sound;savePrefs(p);return p.sound;
   };
-  document.addEventListener('pointerdown',unlockNotifAudio,{once:true,passive:true});
-  document.addEventListener('touchstart',unlockNotifAudio,{once:true,passive:true});
+  /* Sur mobile, le navigateur autorise le son après une interaction utilisateur.
+     On garde plusieurs points d'entrée tant que le son n'est pas débloqué : cela
+     permet aussi au client qui arrive depuis un lien de boutique d'être prêt pour
+     les changements de statut de sa commande. */
+  document.addEventListener('pointerdown',unlockNotifAudio,{passive:true});
+  document.addEventListener('touchstart',unlockNotifAudio,{passive:true});
+  document.addEventListener('keydown',unlockNotifAudio,{passive:true});
   function nativePush(titleText,message){
     playNotifSound();
     const p=getPrefs();
@@ -10205,3 +10403,156 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 <style id="siams-v47-css">
 .v47-message-backdrop{position:fixed;inset:0;background:rgba(9,22,42,.42);z-index:130}.v47-message-pop{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,390px);background:#fff;border-radius:24px;padding:22px;z-index:131;box-shadow:0 24px 70px rgba(9,22,42,.28);text-align:center}.v47-message-icon{width:58px;height:58px;border-radius:18px;background:var(--indigo-tint);display:grid;place-items:center;font-size:27px;margin:0 auto 12px}.v47-message-pop h3{margin:6px 0;font-size:20px}.v47-message-pop p{color:var(--text-mid);font-size:13px;line-height:1.55;margin:0 0 16px}.v47-trash{min-width:130px}.notif-v42-actions{flex-wrap:wrap}.notif-v42-actions .v47-trash{flex:1 1 100%}@media(min-width:480px){.notif-v42-actions .v47-trash{flex:1}}
 </style>
+
+
+<script id="siams-v48-orders-fix">
+/* SIAMS V48 — fiabilisation des commandes client ↔ marchand et des reçus.
+   Objectif : une commande validée ne doit jamais disparaître du client si une
+   lecture publique Supabase renvoie une liste vide, et le marchand ne doit pas
+   recevoir une confirmation locale avant la fin de l'écriture serveur. */
+(function(){
+  const CLIENT_ORDER_KEY = ()=> 'siams_client_orders_' + ((Store.store&&Store.store.slug)||'default');
+
+  window.ClientOrderCache = window.ClientOrderCache || {
+    load(){
+      try{ return JSON.parse(localStorage.getItem(CLIENT_ORDER_KEY())||'[]'); }
+      catch(e){ return []; }
+    },
+    save(order){
+      try{
+        const list=this.load().filter(o=>o&&o.id!==order.id);
+        list.unshift(JSON.parse(JSON.stringify(order)));
+        localStorage.setItem(CLIENT_ORDER_KEY(),JSON.stringify(list.slice(0,30)));
+      }catch(e){ console.warn('ClientOrderCache.save',e); }
+    },
+    get(id){
+      return this.load().find(o=>String(o.id)===String(id))||null;
+    },
+    remove(id){
+      try{
+        const list=this.load().filter(o=>String(o.id)!==String(id));
+        localStorage.setItem(CLIENT_ORDER_KEY(),JSON.stringify(list));
+      }catch(e){}
+    }
+  };
+
+  /* La lecture cloud publique peut légalement retourner zéro ligne lorsque les
+     policies RLS ne permettent pas de lire orders côté client. On fusionne alors
+     le cache local sans écraser une commande déjà mise à jour côté serveur. */
+  const originalLoadAll=Cloud.loadAll.bind(Cloud);
+  Cloud.loadAll=async function(){
+    const localBefore=this.publicMode ? ClientOrderCache.load() : [];
+    await originalLoadAll();
+    if(this.publicMode && localBefore.length){
+      const byId=new Map((Store.orders||[]).map(o=>[String(o.id),o]));
+      localBefore.forEach(local=>{
+        const server=byId.get(String(local.id));
+        if(!server){
+          byId.set(String(local.id),local);
+        }else{
+          byId.set(String(local.id),Object.assign({},local,server,{
+            items:(server.items&&server.items.length)?server.items:local.items
+          }));
+        }
+      });
+      _cache.orders=Array.from(byId.values()).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    }
+  };
+
+  /* Si le setter a déjà lancé une écriture cloud, waitForOrderPersisted attend
+     cette écriture. Pour une utilisation publique plus sûre, on réessaie aussi
+     explicitement si aucun job n'est encore enregistré. */
+  const originalWait=Cloud.waitForOrderPersisted.bind(Cloud);
+  Cloud.waitForOrderPersisted=async function(orderId){
+    if(this._orderWritePromises[orderId]) return originalWait(orderId);
+    const local=ClientOrderCache.get(orderId);
+    if(!local) return false;
+    await this.persistSingleOrder(local);
+    return true;
+  };
+
+  Cloud.persistSingleOrder=async function(order){
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    let lastError=null;
+    for(let attempt=1;attempt<=3;attempt++){
+      const {error}=await sb.from('orders').upsert({
+        id:order.id, store_id:this.storeId, number:order.number,
+        customer_name:order.customer?.name||'', customer_phone:order.customer?.phone||'',
+        customer_address:order.customer?.address||'',
+        customer_latitude:order.customerLat!=null?order.customerLat:null,
+        customer_longitude:order.customerLng!=null?order.customerLng:null,
+        subtotal:order.amount+(order.discount||0)-(order.deliveryFee||0),
+        discount:order.discount||0, promo_code:order.promoCode||null,
+        delivery_zone:order.deliveryZone||null, delivery_fee:order.deliveryFee||0,
+        amount:order.amount, payment_method:order.paymentMethod||'cash',
+        status:order.status||'pending', payment_proof_url:order.paymentProof||null,
+        confirmed_at:order.confirmedAt?new Date(order.confirmedAt).toISOString():null,
+        shipped:!!order.shipped, shipped_at:order.shippedAt?new Date(order.shippedAt).toISOString():null,
+        delivery_confirmed_at:order.deliveryConfirmedAt?new Date(order.deliveryConfirmedAt).toISOString():null,
+        delivery_photo_url:order.deliveryPhoto||null, delivery_token:order.deliveryToken||undefined
+      });
+      if(!error){
+        if(order.items?.length){
+          const {error:itemError}=await sb.from('order_items').upsert(
+            order.items.map(it=>({order_id:order.id,product_id:it.productId||null,name:it.name,price:it.price,qty:it.qty}))
+          );
+          if(itemError) lastError=itemError; else return true;
+        }else return true;
+      }else lastError=error;
+      if(attempt<3) await new Promise(r=>setTimeout(r,600*attempt));
+    }
+    throw lastError||new Error('Échec de synchronisation');
+  };
+
+  /* Le bouton de reçu peut être utilisé après une actualisation : récupération
+     d'abord du cache local, puis du cloud, sans jamais afficher à tort "introuvable". */
+  const originalDownload=window.downloadReceiptPDF;
+  window.downloadReceiptPDF=async function(orderId){
+    let order=Store.orders.find(o=>String(o.id)===String(orderId))||ClientOrderCache.get(orderId);
+    if(!order && Cloud.storeId){
+      try{
+        const {data,error}=await sb.from('orders').select('*').eq('id',orderId).eq('store_id',Cloud.storeId).maybeSingle();
+        if(!error&&data){
+          order={
+            id:data.id,number:data.number,
+            customer:{name:data.customer_name,phone:data.customer_phone,address:data.customer_address},
+            amount:data.amount,discount:data.discount,deliveryZone:data.delivery_zone,deliveryFee:data.delivery_fee,
+            promoCode:data.promo_code,paymentMethod:data.payment_method,status:data.status,
+            createdAt:new Date(data.created_at).getTime(),paymentProof:data.payment_proof_url||null,
+            confirmedAt:data.confirmed_at?new Date(data.confirmed_at).getTime():0,
+            shipped:!!data.shipped,shippedAt:data.shipped_at?new Date(data.shipped_at).getTime():0,
+            deliveryConfirmedAt:data.delivery_confirmed_at?new Date(data.delivery_confirmed_at).getTime():0,
+            deliveryPhoto:data.delivery_photo_url||null,deliveryToken:data.delivery_token||null,items:[]
+          };
+          const {data:items}=await sb.from('order_items').select('*').eq('order_id',orderId);
+          order.items=(items||[]).map(it=>({productId:it.product_id,name:it.name,price:it.price,qty:it.qty}));
+        }
+      }catch(e){}
+    }
+    if(!order){ Toast.show('Commande introuvable'); return; }
+    ClientOrderCache.save(order);
+    /* Le moteur PDF existant reste inchangé : on lui donne temporairement
+       la commande résolue pour éviter toute régression visuelle. */
+    const previous=Store.orders;
+    if(!previous.some(o=>String(o.id)===String(order.id))) _cache.orders=[order].concat(previous||[]);
+    try{ return await originalDownload(order.id); }
+    finally{ _cache.orders=previous; }
+  };
+
+  /* Sur mobile, un retour d'application peut survenir avant le prochain cycle
+     AutoSync. On conserve toujours la dernière commande dans le cache client. */
+  const originalAfterConfirmation=Views._after_confirmation;
+  Views._after_confirmation=function(opts){
+    const order=Store.orders.find(o=>o.number===opts?.orderNumber);
+    if(order) ClientOrderCache.save(order);
+    if(originalAfterConfirmation) originalAfterConfirmation(opts);
+  };
+
+  /* Évite qu'une synchro publique vide ne fasse disparaître immédiatement la
+     commande du client. Les vues client restent locales pour leur historique. */
+  AutoSync.safeViews.add('shop-account');
+  AutoSync.safeViews.add('shop-orders-history');
+  AutoSync.safeViews.add('order-track');
+})();
+</script>
+
