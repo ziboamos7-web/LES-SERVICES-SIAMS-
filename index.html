@@ -193,6 +193,7 @@
   .plan-card.tier-doyen{border:1.5px solid var(--indigo);background:linear-gradient(135deg,#fff 0%,var(--indigo-tint) 130%);box-shadow:var(--shadow-sm);}
   .plan-card.tier-doya{border:1.5px solid var(--gold);background:linear-gradient(135deg,#241D5C 0%,var(--indigo) 55%,var(--gold-dark) 160%);color:#fff;box-shadow:0 12px 26px -12px rgba(184,134,46,.5);}
   .plan-card.tier-all{border:1.5px solid var(--gold);background:linear-gradient(135deg,#1F0A14 0%,var(--ruby-dark) 55%,var(--gold-dark) 160%);color:#fff;box-shadow:0 14px 30px -12px rgba(142,21,55,.55);}
+  .plan-card.tier-golden{border:1.5px solid #F0C24B;background:linear-gradient(135deg,#0B0B0C 0%,#1C1305 55%,#7A5A12 160%);color:#fff;box-shadow:0 16px 34px -12px rgba(0,0,0,.65),0 0 0 1px rgba(240,194,75,.28);}
   .plan-card.selected{outline:2px solid var(--indigo);outline-offset:1px;}
   .plan-card .plan-name{font-weight:800;font-size:15.5px;letter-spacing:-.1px;}
   .plan-card .plan-price{font-family:var(--font-mono);font-weight:800;font-size:15.5px;}
@@ -547,6 +548,8 @@
   .store-logo{width:52px;height:52px;border-radius:14px;background:var(--indigo-tint);display:flex;align-items:center;justify-content:center;color:var(--indigo);flex:none;}
   .store-logo.tier-doya-logo{border:2px solid var(--gold);box-shadow:0 0 0 3px var(--gold-tint),0 6px 14px -6px rgba(184,134,46,.5);animation:doyaGlow 2.4s ease-in-out infinite;}
   .store-logo.tier-all-logo{border:2px solid var(--ruby);box-shadow:0 0 0 3px var(--ruby-tint),0 6px 14px -6px rgba(142,21,55,.55);animation:allGlow 2.4s ease-in-out infinite;}
+  .store-logo.tier-golden-logo{border:2px solid #F0C24B;box-shadow:0 0 0 3px rgba(240,194,75,.35),0 6px 16px -6px rgba(240,194,75,.6);animation:goldenGlow 2.2s ease-in-out infinite;}
+  @keyframes goldenGlow{0%,100%{box-shadow:0 0 0 3px rgba(240,194,75,.35),0 6px 16px -6px rgba(240,194,75,.6);}50%{box-shadow:0 0 0 6px rgba(240,194,75,.5),0 10px 22px -6px rgba(240,194,75,.85);}}
   @keyframes doyaGlow{0%,100%{box-shadow:0 0 0 3px var(--gold-tint),0 6px 14px -6px rgba(184,134,46,.5);}50%{box-shadow:0 0 0 5px var(--gold-tint),0 9px 18px -6px rgba(184,134,46,.75);}}
   @keyframes allGlow{0%,100%{box-shadow:0 0 0 3px var(--ruby-tint),0 6px 14px -6px rgba(142,21,55,.55);}50%{box-shadow:0 0 0 5px var(--ruby-tint),0 9px 18px -6px rgba(142,21,55,.8);}}
   @keyframes doyaEnter{from{opacity:0;transform:translateY(-6px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
@@ -2129,8 +2132,8 @@ function checkRevenueMilestones(){
 }
 
 /* ==================== Couleurs d'application déblocables par formule ==================== */
-const TIER_COLORS = { free:'#009688', doyen:'#6D28D9', doya:'#A67C00', all:'#8E1537' };
-const TIER_THEME_LABELS = { free:'BON MOOD', doyen:'DOYEN', doya:'DOYA', all:'TOUTE BOUTIQUE' };
+const TIER_COLORS = { free:'#009688', doyen:'#6D28D9', doya:'#A67C00', all:'#8E1537', golden:'#B8860B' };
+const TIER_THEME_LABELS = { free:'BON MOOD', doyen:'DOYEN', doya:'DOYA', all:'TOUTE BOUTIQUE', golden:'GOLDEN' };
 function hexToRgb(hex){ const h=hex.replace('#',''); return { r:parseInt(h.substring(0,2),16), g:parseInt(h.substring(2,4),16), b:parseInt(h.substring(4,6),16) }; }
 function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
 function mixColor(hex, target, amount){ const a=hexToRgb(hex), b=hexToRgb(target); return rgbToHex(a.r+(b.r-a.r)*amount, a.g+(b.g-a.g)*amount, a.b+(b.b-a.b)*amount); }
@@ -3006,14 +3009,17 @@ function TopBarPlanBadge(){
   const access = Store.access();
   const badge = (access.status==='active' && access.badge) ? access.badge : null;
   if(!badge) return '';
+  const isGolden = badge==='GOLDEN';
   const isAll = badge==='TOUTE BOUTIQUE';
   const isDoya = badge==='DOYA';
-  const style = isAll
+  const style = isGolden
+    ? 'background:linear-gradient(135deg,#7A5A12,#F0C24B);color:#1a1300;box-shadow:0 2px 8px -1px rgba(240,194,75,.6);'
+    : isAll
     ? 'background:linear-gradient(135deg,var(--ruby),var(--ruby-dark));color:#fff;box-shadow:0 2px 6px -1px rgba(142,21,55,.55);'
     : isDoya
     ? 'background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#fff;box-shadow:0 2px 6px -1px rgba(184,134,46,.5);'
     : 'background:var(--indigo-tint);color:var(--indigo);';
-  return `<span class="${isAll?'tier-badge-all':isDoya?'tier-badge-doya':''}" style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;letter-spacing:.3px;padding:3px 8px;border-radius:7px;margin-left:8px;vertical-align:middle;${style}">${(isAll||isDoya)?'★ ':''}${badge}</span>`;
+  return `<span class="${isGolden?'tier-badge-golden':isAll?'tier-badge-all':isDoya?'tier-badge-doya':''}" style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;letter-spacing:.3px;padding:3px 8px;border-radius:7px;margin-left:8px;vertical-align:middle;${style}">${(isGolden||isAll||isDoya)?'★ ':''}${badge}</span>`;
 }
 function dashboardServiceGo(route){
   try{ Sheet.close(); }catch(e){}
@@ -3463,11 +3469,11 @@ function isPaidSubscriptionActive(){
 }
 function VerifiedBadge(size, plan){
   size = size || 16;
-  /* ---- DOYEN & DOYA : badge vérifié noir (façon Meta) — TOUTE BOUTIQUE : badge vérifié bleu ---- */
-  const color = plan==='all' ? '#0091FD' : '#0B0E17';
+  /* ---- DOYEN & DOYA : badge vérifié noir (façon Meta) — TOUTE BOUTIQUE : badge vérifié bleu — GOLDEN : badge doré exclusif ---- */
+  const color = plan==='golden' ? '#F0C24B' : plan==='all' ? '#0091FD' : '#0B0E17';
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" style="flex:none;vertical-align:middle;">
     <path d="M12 1.3 14.7 3.8 18.3 3.1 19.1 6.7 22.3 8.5 20.7 12 22.3 15.5 19.1 17.3 18.3 20.9 14.7 20.2 12 22.7 9.3 20.2 5.7 20.9 4.9 17.3 1.7 15.5 3.3 12 1.7 8.5 4.9 6.7 5.7 3.1 9.3 3.8 12 1.3Z" fill="${color}"/>
-    <path d="m7.7 12.2 2.8 2.8 5.8-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="m7.7 12.2 2.8 2.8 5.8-6" stroke="${plan==='golden'?'#1a1300':'#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
 }
 const EYE_SVG = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>';
@@ -4175,17 +4181,24 @@ const PAYMENT_INFO = {
   /* ---- Lien WhatsApp « support client » SIAMS : partenariat, contrat, identifiant oublié, etc. ---- */
   supportClientWaLink: 'https://wa.me/message/G7UPF2ZGMLPLG1'
 };
-const LOCKED_FEATURES = { maxProducts:0, stats:false, promos:false, reviews:false, customers:false, team:false, delivery:false, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false };
-const TRIAL_FEATURES = { maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false };
+/* ---- GOLDEN : formule exclusive, réservée à la boutique officielle SIAMS. ---- */
+const SIAMS_GOLDEN_STORE_NAME = 'SIAMS STORE OFFICIEL';
+function isSiamsGoldenStore(){
+  return ((Store.store && Store.store.name) || '').trim().toUpperCase() === SIAMS_GOLDEN_STORE_NAME;
+}
+const LOCKED_FEATURES = { maxProducts:0, stats:false, promos:false, reviews:false, customers:false, team:false, delivery:false, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
+const TRIAL_FEATURES = { maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
 const SUBSCRIPTION_PLANS = [
   { key:'free', label:'BON MOOD', price:1000, dailyRate:33, tagline:"Boutique en ligne, commandes illimitées, jusqu'à 10 produits, livraison & suivi clients inclus", badge:null,
-    features:{ maxProducts:10, stats:false, promos:false, reviews:false, customers:true, team:false, delivery:true, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false } },
+    features:{ maxProducts:10, stats:false, promos:false, reviews:false, customers:true, team:false, delivery:true, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
   { key:'doyen', label:'DOYEN', price:2000, dailyRate:67, tagline:"Jusqu'à 50 produits + statistiques, promotions et avis clients", badge:'DOYEN',
-    features:{ maxProducts:50, stats:true, promos:true, reviews:true, customers:true, team:false, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false } },
+    features:{ maxProducts:50, stats:true, promos:true, reviews:true, customers:true, team:false, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
   { key:'doya', label:'DOYA', price:3500, dailyRate:117, tagline:'Catalogue illimité + équipe, zones de livraison & badge visibilité', badge:'DOYA',
-    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false } },
+    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
   { key:'all', label:'TOUTE BOUTIQUE', price:5000, dailyRate:167, tagline:'Tout DOYA + support prioritaire dédié & mise en avant renforcée', badge:'TOUTE BOUTIQUE',
-    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true } }
+    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
+  { key:'golden', label:'GOLDEN', price:15000, dailyRate:500, tagline:'Formule exclusive réservée à SIAMS STORE OFFICIEL : badge Doré, vitrine personnalisée, mise en avant permanente & support VIP 24/7', badge:'GOLDEN', exclusive:true,
+    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:true, vipSupport:true, homepageSpotlight:true, customStorefront:true } }
 ];
 function getPeriodStarts(){
   const now = new Date();
@@ -4507,7 +4520,11 @@ const FEATURE_LABELS = [
   { key:'team', label:"Gestion d'équipe (gérants, vendeurs)" },
   { key:'delivery', label:'Zones de livraison personnalisées' },
   { key:'prioritySupport', label:'Support prioritaire dédié' },
-  { key:'featuredBoost', label:'Mise en avant renforcée dans les résultats' }
+  { key:'featuredBoost', label:'Mise en avant renforcée dans les résultats' },
+  { key:'goldenBadge', label:'Badge Doré exclusif' },
+  { key:'vipSupport', label:'Ligne support VIP 24/7 dédiée' },
+  { key:'homepageSpotlight', label:"Mise en avant permanente à l'accueil" },
+  { key:'customStorefront', label:'Vitrine boutique entièrement personnalisable' }
 ];
 const SubscriptionSheet = {
   open(){
@@ -4563,11 +4580,13 @@ const SubscriptionSheet = {
         <div class="sheet-handle"></div>
         <h3 style="margin:2px 0 4px;">Choisir une formule</h3>
         <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;">Abonnement mensuel, sans commission sur vos ventes. Changez de formule à tout moment.</p>
-        ${SUBSCRIPTION_PLANS.map(p=>{
-          const tierClass = p.key==='all' ? 'tier-all' : p.key==='doya' ? 'tier-doya' : p.key==='doyen' ? 'tier-doyen' : 'tier-free';
+        ${SUBSCRIPTION_PLANS.filter(p=>!p.exclusive || isSiamsGoldenStore()).map(p=>{
+          const tierClass = p.key==='golden' ? 'tier-golden' : p.key==='all' ? 'tier-all' : p.key==='doya' ? 'tier-doya' : p.key==='doyen' ? 'tier-doyen' : 'tier-free';
           const isCurrent = access.status==='active' && access.plan===p.key;
-          const crownBg = p.key==='all' ? 'rgba(255,255,255,.18)' : p.key==='doya' ? 'rgba(255,255,255,.18)' : p.key==='doyen' ? 'var(--indigo-tint)' : 'var(--mango-tint)';
-          const crownIcon = p.key==='all'
+          const crownBg = p.key==='golden' ? 'rgba(240,194,75,.22)' : p.key==='all' ? 'rgba(255,255,255,.18)' : p.key==='doya' ? 'rgba(255,255,255,.18)' : p.key==='doyen' ? 'var(--indigo-tint)' : 'var(--mango-tint)';
+          const crownIcon = p.key==='golden'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 18h16l1.4-9-5.4 3.5L12 5l-4 7.5L2.6 9 4 18Z" stroke="#F0C24B" stroke-width="1.8" stroke-linejoin="round" fill="#F0C24B"/></svg>'
+            : p.key==='all'
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2 3 9l9 13 9-13-9-7Z" stroke="#F4D98A" stroke-width="1.8" stroke-linejoin="round" fill="#F4D98A"/></svg>'
             : p.key==='doya'
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 8l4 3 5-6 5 6 4-3-2 10H5L3 8Z" stroke="#F4D98A" stroke-width="1.8" stroke-linejoin="round" fill="#F4D98A"/></svg>'
@@ -4575,14 +4594,15 @@ const SubscriptionSheet = {
             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.6 6.6L21 9l-5 4.4L17.5 20 12 16.6 6.5 20 8 13.4 3 9l6.4-.4L12 2Z" fill="var(--indigo)"/></svg>'
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--mango)" stroke-width="1.8"/><path d="M8 13.5c1 1.3 2.4 2 4 2s3-.7 4-2" stroke="var(--mango)" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="9.5" r="1.1" fill="var(--mango)"/><circle cx="15" cy="9.5" r="1.1" fill="var(--mango)"/></svg>';
           const mid = `<div class="plan-crown" style="background:${crownBg};">${crownIcon}</div>`;
-          const priceColor = (p.key==='doya'||p.key==='all') ? '#fff' : 'var(--text)';
-          const taglineColor = (p.key==='doya'||p.key==='all') ? 'rgba(255,255,255,.82)' : 'var(--text-mid)';
-          const ctaColor = p.key==='all' ? '#F4D98A' : p.key==='doya' ? '#F4D98A' : 'var(--indigo)';
+          const priceColor = (p.key==='doya'||p.key==='all'||p.key==='golden') ? '#fff' : 'var(--text)';
+          const taglineColor = (p.key==='doya'||p.key==='all'||p.key==='golden') ? 'rgba(255,255,255,.82)' : 'var(--text-mid)';
+          const ctaColor = (p.key==='golden'||p.key==='all'||p.key==='doya') ? '#F4D98A' : 'var(--indigo)';
           return `
           <div class="plan-card ${tierClass} ${isCurrent?'selected':''}" onclick="SubscriptionSheet.choose('${p.key}')">
             ${p.key==='doyen' ? '<div class="plan-ribbon">POPULAIRE</div>' : ''}
             ${p.key==='doya' ? '<div class="plan-ribbon" style="background:var(--gold);">PREMIUM</div>' : ''}
             ${p.key==='all' ? '<div class="plan-ribbon" style="background:var(--ruby);">TOUT INCLUS</div>' : ''}
+            ${p.key==='golden' ? '<div class="plan-ribbon" style="background:linear-gradient(90deg,#B8860B,#F0C24B);color:#1a1300;">EXCLUSIF</div>' : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
               <span style="display:flex;align-items:center;gap:8px;color:${priceColor};" class="plan-name">${mid}${p.label}</span>
               <span style="color:${priceColor};" class="plan-price">${Utils.fmtFCFA(p.price)}<span class="plan-price-per">/mois</span></span>
@@ -4604,6 +4624,7 @@ const SubscriptionSheet = {
   choose(key){
     const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
     if(!plan) return;
+    if(plan.exclusive && !isSiamsGoldenStore()) return;
     subPaymentStep = plan;
     subDemoSeen = false;
     subPaymentMode = null;
@@ -4611,7 +4632,7 @@ const SubscriptionSheet = {
   },
   /* ---- Aperçu démo de la formule : à consulter avant de finaliser le paiement ---- */
   previewScreen(plan){
-    const tierClass = plan.key==='all' ? 'tier-all' : plan.key==='doya' ? 'tier-doya' : plan.key==='doyen' ? 'tier-doyen' : 'tier-free';
+    const tierClass = plan.key==='golden' ? 'tier-golden' : plan.key==='all' ? 'tier-all' : plan.key==='doya' ? 'tier-doya' : plan.key==='doyen' ? 'tier-doyen' : 'tier-free';
     const sortedFeatures = [...FEATURE_LABELS].sort((a,b)=> (plan.features[b.key]?1:0) - (plan.features[a.key]?1:0));
     let dividerPlaced = false;
     const rows = sortedFeatures.map(f=>{
@@ -6731,9 +6752,10 @@ Views.shop = function(){
   const products = Store.products;
   const access = Store.access();
   const storeBadge = (access.status==='active' && access.badge) ? access.badge : null;
+  const isGoldenStore = storeBadge==='GOLDEN';
   const isAllStore = storeBadge==='TOUTE BOUTIQUE';
   const isDoyaStore = storeBadge==='DOYA';
-  const isPremiumStore = isAllStore || isDoyaStore;
+  const isPremiumStore = isGoldenStore || isAllStore || isDoyaStore;
   const paidVerified = isPaidSubscriptionActive();
   // Côté client : le nom de la formule reste réservé à l'accueil marchand.
   // La vitrine client affiche uniquement le badge de visibilité.
@@ -6741,7 +6763,7 @@ Views.shop = function(){
   return `
   <div class="topbar" style="padding-top:18px;${isPremiumStore?'animation:doyaEnter .5s ease both;':''}">
     <div style="display:flex;align-items:center;gap:12px;">
-      ${store.photo ? `<div class="store-logo${isAllStore?' tier-all-logo':isDoyaStore?' tier-doya-logo':''}" style="width:40px;height:40px;border-radius:11px;"><img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:${isPremiumStore?'9px':'10px'};"></div>` : ''}
+      ${store.photo ? `<div class="store-logo${isGoldenStore?' tier-golden-logo':isAllStore?' tier-all-logo':isDoyaStore?' tier-doya-logo':''}" style="width:40px;height:40px;border-radius:11px;"><img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:${isPremiumStore?'9px':'10px'};"></div>` : ''}
       <div><h1 style="font-size:20px;display:flex;align-items:center;gap:6px;">${Utils.escapeHtml(store.name)}${badgeChip}</h1><div class="page-sub">Boutique en ligne</div></div>
     </div>
     <button class="cn-notif-btn" onclick="ClientNotify.openPanel()" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="cn-notif-dot" id="cn-notif-dot"></span></button>
