@@ -1828,7 +1828,7 @@ let _cache = {
   categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[],
   store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''}
 };
-function syncFail(label){ return (err)=>{ console.error('Sync error ['+label+']', err); Toast.show('⚠️ Erreur de synchronisation, réessayez'); }; }
+function syncFail(label){ return (err)=>{ console.error('Sync error ['+label+']', err); Toast.show('⚠️ Erreur ['+label+'] : '+(err && (err.message||err.code||JSON.stringify(err)))); }; }
 
 /* ---------------- Store ---------------- */
 const Store = {
@@ -5610,7 +5610,7 @@ async function saveProduct(id){
     Router.go('products');
   } catch(e) {
     console.error('Erreur enregistrement produit', e);
-    Toast.show('⚠️ Échec de l\'enregistrement, réessayez');
+    Toast.show('⚠️ Échec : '+(e && (e.message||e.code||JSON.stringify(e))));
     if(saveBtn){ saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
   }
 }
@@ -5849,7 +5849,7 @@ async function saveMenuItem(id){
     Router.go('menu');
   }catch(e){
     console.error('Erreur enregistrement plat', e);
-    Toast.show("⚠️ Échec de l'enregistrement, réessayez");
+    Toast.show('⚠️ Échec : '+(e && (e.message||e.code||JSON.stringify(e))));
     if(saveBtn){ saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
   }
 }
