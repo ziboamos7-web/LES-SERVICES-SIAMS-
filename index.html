@@ -2660,7 +2660,7 @@ const BUSINESS_CATEGORIES = [
     title:'Boutique de vente en ligne',
     desc:"Créez votre catalogue de produits, recevez des commandes et vendez directement sur WhatsApp — la formule que vous connaissez déjà.",
     features:['Catalogue produits illimité','Commandes & suivi client','Paiement à la livraison, Wave, Orange Money, MTN'] },
-  { id:'restauration', available:true, label:'Restauration',
+  { id:'restauration', available:false, label:'Restauration',
     icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2v6.5a2.2 2.2 0 0 0 2.2 2.2M7 2v8.7M9.2 2v6.5M11.4 2v6.5a2.2 2.2 0 0 1-2.2 2.2M9.2 10.7V22" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 2c-1.8 0-3.2 1.9-3.2 4.3 0 2.1 1.1 3.9 2.5 4.2L16 22h2l-.3-11.5c1.4-.3 2.5-2.1 2.5-4.2C20.2 3.9 18.8 2 17 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
     title:'Restauration & street food',
     desc:"Pensée pour les vendeurs de crêpes, jus, plats et snacks : menu du jour, commandes à emporter et paiement rapide.",
@@ -3635,7 +3635,21 @@ const ConfirmEmail = {
     }
   },
   openMail(){
-    window.location.href = 'mailto:';
+    const domain = (this.email.split('@')[1]||'').toLowerCase();
+    const inboxUrls = {
+      'gmail.com':'https://mail.google.com/mail/u/0/#inbox',
+      'googlemail.com':'https://mail.google.com/mail/u/0/#inbox',
+      'outlook.com':'https://outlook.live.com/mail/0/inbox',
+      'hotmail.com':'https://outlook.live.com/mail/0/inbox',
+      'live.com':'https://outlook.live.com/mail/0/inbox',
+      'yahoo.com':'https://mail.yahoo.com/',
+      'yahoo.fr':'https://mail.yahoo.com/',
+      'icloud.com':'https://www.icloud.com/mail',
+      'me.com':'https://www.icloud.com/mail'
+    };
+    const url = inboxUrls[domain];
+    if(url){ window.open(url,'_blank'); }
+    else{ window.location.href = 'mailto:'; }
   },
   goLogin(){
     authMode = 'login';
