@@ -1555,20 +1555,26 @@ const Cloud = {
       next.slug = candidate;
       Utils.setLocal('store', next);
     }
-    await sb.from('stores').update(patch).eq('id', this.storeId);
+    const { error:storeErr } = await sb.from('stores').update(patch).eq('id', this.storeId);
+    if(storeErr){ console.error('Sync error [stores update]', storeErr); throw storeErr; }
   },
 
   async pushProducts(prev, next){
     const prevIds = prev.map(p=>p.id), nextIds = next.map(p=>p.id);
     const removed = prevIds.filter(id=>!nextIds.includes(id));
-    if(removed.length) await sb.from('products').delete().in('id', removed);
+    if(removed.length){
+      const { error:delErr } = await sb.from('products').delete().in('id', removed);
+      if(delErr){ console.error('Sync error [products delete]', delErr); throw delErr; }
+    }
     for(const p of next){
       let catId = this.catId(p.category);
       if(p.category && !catId){
         const ins = await sb.from('categories').insert({store_id:this.storeId, name:p.category}).select().single();
+        if(ins.error){ console.error('Sync error [categories insert]', ins.error); throw ins.error; }
         if(ins.data){ this.categories.push(ins.data); catId = ins.data.id; }
       }
-      await sb.from('products').upsert({ id:p.id, store_id:this.storeId, category_id:catId||null, name:p.name, price:p.price, compare_at_price:p.oldPrice||null, description:p.desc||null, stock_limited:!!p.stockLimited, stock_qty:p.stockLimited?Number(p.stockQty||0):null });
+      const { error:prodErr } = await sb.from('products').upsert({ id:p.id, store_id:this.storeId, category_id:catId||null, name:p.name, price:p.price, compare_at_price:p.oldPrice||null, description:p.desc||null, stock_limited:!!p.stockLimited, stock_qty:p.stockLimited?Number(p.stockQty||0):null });
+      if(prodErr){ console.error('Sync error [products upsert]', prodErr); throw prodErr; }
       /* ---- On insère d'abord les nouvelles photos, puis on ne supprime que les
          anciennes lignes restantes : si l'insertion échoue (réseau coupé, photo
          trop lourde, etc.), les photos déjà en ligne restent intactes au lieu
@@ -1592,10 +1598,14 @@ const Cloud = {
   async pushMenuItems(prev, next){
     const prevIds = prev.map(m=>m.id), nextIds = next.map(m=>m.id);
     const removed = prevIds.filter(id=>!nextIds.includes(id));
-    if(removed.length) await sb.from('menu_items').delete().in('id', removed);
+    if(removed.length){
+      const { error:delErr } = await sb.from('menu_items').delete().in('id', removed);
+      if(delErr){ console.error('Sync error [menu_items delete]', delErr); throw delErr; }
+    }
     for(let i=0;i<next.length;i++){
       const m = next[i];
-      await sb.from('menu_items').upsert({ id:m.id, store_id:this.storeId, name:m.name, price:m.price, description:m.desc||null, category:m.category||'Plat', photo_url:m.photo||null, available_today:!!m.available, position:i });
+      const { error:menuErr } = await sb.from('menu_items').upsert({ id:m.id, store_id:this.storeId, name:m.name, price:m.price, description:m.desc||null, category:m.category||'Plat', photo_url:m.photo||null, available_today:!!m.available, position:i });
+      if(menuErr){ console.error('Sync error [menu_items upsert]', menuErr); throw menuErr; }
     }
   },
 
@@ -10739,13 +10749,25 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     if(pass.length<6){err.textContent='Le mot de passe doit contenir au moins 6 caractères';return;}
     if(pass!==pass2){err.textContent='Les mots de passe ne correspondent pas';return;}
     err.textContent='';btn.disabled=true;btn.textContent='Création...';
-    const requestPayload={name:'Nouveau marchand',shop:'À renseigner après activation',email,phone,request:'Demande de création de compte marchand SIAMS',source:'registration'};
-    const request=await saveRegistrationRequest(requestPayload);
-    await notifyRegistrationPending(requestPayload);
+    /* ---- Une seule demande d'inscription par tentative de création : si l'utilisateur
+       retente (mot de passe refusé, email déjà pris, coupure réseau...) avec le même
+       e-mail, on réutilise la demande déjà enregistrée au lieu d'en créer une nouvelle
+       et de renvoyer un e-mail "demande en attente" en double. ---- */
+    const REQ_ID_KEY='siams_registration_request_id', REQ_EMAIL_KEY='siams_registration_request_email';
+    const storedReqEmail=(localStorage.getItem(REQ_EMAIL_KEY)||'').toLowerCase();
+    const storedReqId=localStorage.getItem(REQ_ID_KEY);
+    let request;
+    if(storedReqId && storedReqEmail===email.toLowerCase()){
+      request={id:storedReqId};
+    } else {
+      const requestPayload={name:'Nouveau marchand',shop:'À renseigner après activation',email,phone,request:'Demande de création de compte marchand SIAMS',source:'registration'};
+      request=await saveRegistrationRequest(requestPayload);
+      await notifyRegistrationPending(requestPayload);
+      try{ localStorage.setItem(REQ_ID_KEY,request.id||''); localStorage.setItem(REQ_EMAIL_KEY,email.toLowerCase()); }catch(e){}
+    }
     const res=await Auth.register(email,pass,phone);
     if(!res.ok){btn.disabled=false;btn.textContent='Créer mon compte';err.textContent=res.message||'Création impossible';return;}
     try{sessionStorage.setItem('siams_activation_email',email.toLowerCase());}catch(e){}
-    try{localStorage.setItem('siams_registration_request_id',request.id||'');}catch(e){}
     if(res.needsConfirm) ConfirmEmail.show(res.email); else OtpGate.start('register',res.email);
   };
 
