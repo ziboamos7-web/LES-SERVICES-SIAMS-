@@ -202,7 +202,7 @@
   .plan-card.tier-free{border:1.5px solid var(--line);background:#fff;box-shadow:var(--shadow-sm);}
   .plan-card.tier-doyen{border:1.5px solid var(--indigo);background:linear-gradient(135deg,#fff 0%,var(--indigo-tint) 130%);box-shadow:var(--shadow-sm);}
   .plan-card.tier-doya{border:1.5px solid var(--gold);background:linear-gradient(135deg,#241D5C 0%,var(--indigo) 55%,var(--gold-dark) 160%);color:#fff;box-shadow:0 12px 26px -12px rgba(184,134,46,.5);}
-  .plan-card.tier-all{border:1.5px solid var(--gold);background:linear-gradient(135deg,#1F0A14 0%,var(--ruby-dark) 55%,var(--gold-dark) 160%);color:#fff;box-shadow:0 14px 30px -12px rgba(142,21,55,.55);}
+  .plan-card.tier-all{border:1.5px solid #F97316;background:linear-gradient(135deg,#9A3412 0%,#F97316 55%,#FDBA74 160%);color:#fff;box-shadow:0 14px 30px -12px rgba(249,115,22,.45);}
   .plan-card.tier-golden{border:1.5px solid #F0C24B;background:linear-gradient(135deg,#0B0B0C 0%,#1C1305 55%,#7A5A12 160%);color:#fff;box-shadow:0 16px 34px -12px rgba(0,0,0,.65),0 0 0 1px rgba(240,194,75,.28);}
   .plan-card.tier-platinum{border:1.5px solid #FF3B5C;background:linear-gradient(135deg,#1A0006 0%,#4A0011 55%,#C81E3A 160%);color:#fff;box-shadow:0 16px 34px -12px rgba(0,0,0,.6),0 0 0 1px rgba(255,59,92,.3);}
   .plan-card.selected{outline:2px solid var(--indigo);outline-offset:1px;}
@@ -2614,7 +2614,8 @@ const Auth = {
     return { ok:true, phone: data.user?.user_metadata?.phone || '', email: data.user?.email || email };
   },
   async register(email, password, phone){
-    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ phone } } });
+    const redirectTo = location.origin + location.pathname;
+    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ phone }, emailRedirectTo: redirectTo } });
     if(error) return { ok:false, message: error.message };
     if(!data.session) return { ok:true, needsConfirm:true };
     Auth.loggedIn = true;
@@ -3614,33 +3615,6 @@ async function doLogin(){
   btn.disabled = false; btn.textContent = 'Se connecter';
   err.textContent = res.message || 'Connexion impossible';
 }
-async function doRegister(){
-  const email = document.getElementById('auth-email').value.trim();
-  const phone = document.getElementById('auth-phone').value.trim();
-  const pass = document.getElementById('auth-pass').value;
-  const pass2 = document.getElementById('auth-pass2').value;
-  const err = document.getElementById('auth-error');
-  const btn = document.getElementById('auth-submit-btn');
-  err.style.color = 'var(--red)';
-  if(!ActivationGate.getStored()){ Router.go('activation-code'); return; }
-  if(!email || !phone || !pass){ err.textContent = 'Merci de remplir tous les champs'; return; }
-  if(pass.length < 6){ err.textContent = 'Le mot de passe doit contenir au moins 6 caractères'; return; }
-  if(pass !== pass2){ err.textContent = 'Les mots de passe ne correspondent pas'; return; }
-  err.textContent = ''; btn.disabled = true; btn.textContent = 'Création...';
-  const res = await Auth.register(email, pass, phone);
-  if(!res.ok){
-    btn.disabled = false; btn.textContent = 'Créer mon compte';
-    err.textContent = res.message || 'Création impossible';
-    return;
-  }
-  try{ sessionStorage.setItem('siams_activation_email', email.toLowerCase()); }catch(e){}
-  if(res.needsConfirm){
-    ConfirmEmail.show(res.email);
-  } else {
-    OtpGate.start('register', res.email);
-  }
-}
-
 /* ---------- Partnership post-inscription supprimé : le partenariat est désormais traité avant l'inscription. ---------- */
 
 /* ---------- Confirmation e-mail (lien de vérification Supabase) ---------- */
@@ -3653,7 +3627,8 @@ const ConfirmEmail = {
   async resend(){
     if(!this.email) return;
     try{
-      await sb.auth.resend({ type:'signup', email:this.email });
+      const { error } = await sb.auth.resend({ type:'signup', email:this.email });
+      if(error) throw error;
       Toast.show("E-mail de confirmation renvoyé ✓");
     }catch(e){
       Toast.show("Impossible de renvoyer l'e-mail pour le moment");
@@ -4527,7 +4502,7 @@ function SubscriptionCard(access){
     const revMonth = Store.revenueSince(periods.month);
     return `
     <div class="plan-card ${isAll?'tier-all':isDoya?'tier-doya':isDoyen?'tier-doyen':'tier-free'}" style="margin:8px 20px 0;cursor:default;">
-      ${isAll ? '<div class="plan-ribbon" style="background:var(--ruby);">TOUT INCLUS</div>' : isDoya ? '<div class="plan-ribbon" style="background:var(--gold);">PREMIUM</div>' : ''}
+      ${isAll ? '<div class="plan-ribbon" style="background:#EA580C;">TOUT INCLUS</div>' : isDoya ? '<div class="plan-ribbon" style="background:var(--gold);">PREMIUM</div>' : ''}
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
           <div style="font-size:12px;color:${isPremiumTier?'rgba(255,255,255,.75)':'var(--text-mid)'};margin-bottom:2px;">✓ Abonnement en cours</div>
