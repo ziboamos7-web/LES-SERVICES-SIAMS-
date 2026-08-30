@@ -1381,6 +1381,23 @@ const Cloud = {
   catId(name){ const c = this.categories.find(x=>x.name===name); return c ? c.id : null; },
   catName(id){ const c = this.categories.find(x=>x.id===id); return c ? c.name : ''; },
 
+  /* ---- Convertit une data URL base64 (photo/bannière/preuve de paiement générée
+     en local par siamsPrepareImageDataURL) en un vrai fichier hébergé sur Supabase
+     Storage, et renvoie l'URL publique à stocker en base. Ne fait rien si la valeur
+     est déjà une URL (http/https) : évite un ré-upload inutile à chaque sauvegarde. ---- */
+  MEDIA_BUCKET: 'assets',
+  async ensureStoredUrl(value, folder){
+    if(!value || typeof value !== 'string' || !value.startsWith('data:')) return value;
+    const blob = await (await fetch(value)).blob();
+    const ext = ((blob.type.split('/')[1]||'jpg').split('+')[0]||'jpg').replace(/[^a-z0-9]/gi,'') || 'jpg';
+    const path = `${folder}/${this.storeId||'shared'}/${Date.now()}-${Utils.uid().replace(/-/g,'')}.${ext}`;
+    const { error:upErr } = await sb.storage.from(this.MEDIA_BUCKET).upload(path, blob, { contentType: blob.type||undefined, upsert:false, cacheControl:'31536000' });
+    if(upErr){ console.error('Sync error [storage upload '+folder+']', upErr); throw upErr; }
+    const { data:pub } = sb.storage.from(this.MEDIA_BUCKET).getPublicUrl(path);
+    if(!pub || !pub.publicUrl) throw new Error('URL publique indisponible après upload ('+folder+')');
+    return pub.publicUrl;
+  },
+
   async ensureStore(userId, phone){
     let { data } = await sb.from('stores').select('*').eq('owner_id', userId).order('created_at', {ascending:true}).limit(1);
     let store = (data && data[0]) || null;
@@ -1540,6 +1557,8 @@ const Cloud = {
   },
 
   async pushStore(prev, next){
+    next.photo = await this.ensureStoredUrl(next.photo, 'store-photos');
+    next.banner = await this.ensureStoredUrl(next.banner, 'store-banners');
     const patch = { name:next.name, phone:next.phone, photo_url:next.photo, banner_url:next.banner };
     /* ---- Regénère un lien propre (ex: amos-boutique) quand le nom change, plutôt que de garder
        l'ancien slug aléatoire (boutique-xxxxxxxx-xxxx) généré à la création du compte. ---- */
@@ -1581,7 +1600,9 @@ const Cloud = {
          d'être effacées avant que le remplacement ait réussi. ---- */
       const photos = (p.photos && p.photos.length) ? p.photos : (p.photo?[p.photo]:[]);
       if(photos.length){
-        const { data:inserted, error:photoErr } = await sb.from('product_photos').insert(photos.map((url,i)=>({product_id:p.id, url, position:i}))).select('id');
+        const uploadedUrls = await Promise.all(photos.map(url=>this.ensureStoredUrl(url, 'product-photos')));
+        p.photos = uploadedUrls; p.photo = uploadedUrls[0]||null;
+        const { data:inserted, error:photoErr } = await sb.from('product_photos').insert(uploadedUrls.map((url,i)=>({product_id:p.id, url, position:i}))).select('id');
         if(photoErr){ console.error('Sync error [product_photos insert]', photoErr); throw photoErr; }
         const newIds = (inserted||[]).map(r=>r.id);
         if(newIds.length) await sb.from('product_photos').delete().eq('product_id', p.id).not('id','in','('+newIds.join(',')+')');
@@ -1604,6 +1625,7 @@ const Cloud = {
     }
     for(let i=0;i<next.length;i++){
       const m = next[i];
+      m.photo = await this.ensureStoredUrl(m.photo, 'menu-photos');
       const { error:menuErr } = await sb.from('menu_items').upsert({ id:m.id, store_id:this.storeId, name:m.name, price:m.price, description:m.desc||null, category:m.category||'Plat', photo_url:m.photo||null, available_today:!!m.available, position:i });
       if(menuErr){ console.error('Sync error [menu_items upsert]', menuErr); throw menuErr; }
     }
@@ -1619,6 +1641,8 @@ const Cloud = {
 
     const writeOne = async (o)=>{
       const isNew = !prev.find(x=>x.id===o.id);
+      o.paymentProof = await this.ensureStoredUrl(o.paymentProof, 'payment-proofs');
+      o.deliveryPhoto = await this.ensureStoredUrl(o.deliveryPhoto, 'delivery-photos');
       const payload = {
         id:o.id, store_id:this.storeId, number:o.number, customer_name:o.customer.name, customer_phone:o.customer.phone, customer_address:o.customer.address,
         customer_latitude:o.customerLat!=null?o.customerLat:null, customer_longitude:o.customerLng!=null?o.customerLng:null,
@@ -9155,7 +9179,8 @@ async function handleDeliveryPhoto(evt, orderId){
   try{
     const token=await ensureDeliverySecurityToken(order);
     if(!token) throw new Error('security_token_unavailable');
-    const dataUrl=await siamsPrepareImageDataURL(file);
+    const localDataUrl=await siamsPrepareImageDataURL(file);
+    const dataUrl=await Cloud.ensureStoredUrl(localDataUrl, 'delivery-photos');
     const {error}=await sb.rpc('confirm_order_delivery',{p_order_id:orderId,p_token:token,p_photo_url:dataUrl});
     if(error) throw error;
     const now=Date.now();
@@ -11061,6 +11086,8 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 
   Cloud.persistSingleOrder=async function(order){
     if(!this.storeId) throw new Error('Boutique non initialisée');
+    order.paymentProof = await this.ensureStoredUrl(order.paymentProof, 'payment-proofs');
+    order.deliveryPhoto = await this.ensureStoredUrl(order.deliveryPhoto, 'delivery-photos');
     let lastError=null;
     for(let attempt=1;attempt<=3;attempt++){
       const {error}=await sb.from('orders').upsert({
