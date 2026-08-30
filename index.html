@@ -3226,8 +3226,8 @@ function siamsRunSplashMessages(root, duration){
   }, step);
   setTimeout(()=>clearInterval(timer), duration + step);
 }
-/* ---------- Compression d'images avant envoi (limite : 2 Mo) ---------- */
-const SIAMS_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+/* ---------- Compression d'images avant envoi (limite : 5 Mo) ---------- */
+const SIAMS_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 function siamsCompressImageFile(file, maxBytes = SIAMS_IMAGE_MAX_BYTES, maxDim = 1600){
   return new Promise((resolve)=>{
     if(!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/gif'){
@@ -5493,7 +5493,7 @@ function productForm(existing){
       <div class="upload-box" id="upload-box" onclick="document.getElementById('f-photo').click()">
         <input type="file" id="f-photo" accept="image/png,image/jpeg,image/webp" multiple class="hidden" onchange="handlePhoto(event)">
         <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
-        <strong>Ajouter des photos du produit</strong><div class="sub">Appuyez pour choisir un ou plusieurs fichiers</div><div class="hint">PNG, JPG, WEBP — max 1 Mo chacune</div>
+        <strong>Ajouter des photos du produit</strong><div class="sub">Appuyez pour choisir un ou plusieurs fichiers</div><div class="hint">PNG, JPG, WEBP — max 5 Mo chacune</div>
       </div>
     </div>
     <div class="field"><label>Quantité en stock</label>
@@ -5806,7 +5806,7 @@ function menuForm(existing){
       <div class="upload-box" id="menu-upload-box" onclick="document.getElementById('mf-photo').click()">
         <input type="file" id="mf-photo" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleMenuPhoto(event)">
         <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
-        <strong>Ajouter une photo du plat</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 1 Mo</div>
+        <strong>Ajouter une photo du plat</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 5 Mo</div>
       </div>
     </div>
     <div class="field">
@@ -6920,7 +6920,7 @@ Views['store-edit'] = function(){
         <input type="file" id="f-store-banner" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleStoreBanner(event)">
         <div id="banner-upload-empty" class="${store.banner?'hidden':''}" style="padding:32px 20px;">
           <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
-          <strong>Ajouter une bannière</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — format large recommandé — max 1 Mo</div>
+          <strong>Ajouter une bannière</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — format large recommandé — max 5 Mo</div>
         </div>
         <img id="banner-upload-preview" class="${store.banner?'':'hidden'}" src="${store.banner||''}" style="width:100%;aspect-ratio:16/7;object-fit:cover;display:block;">
       </div>
@@ -6931,7 +6931,7 @@ Views['store-edit'] = function(){
         <input type="file" id="f-store-photo" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleStorePhoto(event)">
         <div id="store-upload-empty" class="${store.photo?'hidden':''}">
           <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
-          <strong>Ajouter une photo</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 1 Mo</div>
+          <strong>Ajouter une photo</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 5 Mo</div>
         </div>
         <img id="store-upload-preview" class="upload-preview ${store.photo?'':'hidden'}" src="${store.photo||''}">
       </div>
@@ -9560,9 +9560,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     return panel+base;
   };
   Views.boutique=function(){
-    const base=oldViews.boutique(); const s=Store.store||{}, p=Store.products||[], cats=[...new Set(p.map(x=>x.category).filter(Boolean))];
-    const panel=`<section class="v15-merchant-card"><div class="v15-kicker">SERVICE SIAMS · BOUTIQUE</div><h2>Centre boutique</h2><p>Gérez votre vitrine, votre catalogue et votre présence auprès des clients.</p><div class="v15-stats4">${stat(p.length,'Produits')}${stat(cats.length,'Catégories')}${stat(Store.reviews?.length||0,'Avis')}${stat(s.name?'Active':'À compléter','État')}</div><div class="v15-action-list">${card('✎','Modifier la vitrine','Logo, bannière, description et infos',"Router.go('store-edit')")}${card('🛍️','Gérer le catalogue','Produits, prix et stocks',"Router.go('products')")}${card('▦','Organiser les catégories','Structurer votre catalogue',"Router.go('categories')")}${card('👁','Aperçu client','Voir exactement votre boutique',"Router.go('shop')")}</div></section>`;
-    return panel+base;
+    // V17 — le panneau "Centre boutique" (stats + actions) ne s'affiche plus en
+    // haut de cette page : il est désormais intégré directement comme un champ
+    // dans la liste de l'onglet Plus (voir menu-item "Boutique" du Sheet).
+    return oldViews.boutique();
   };
 
   // --- Dashboard: Services SIAMS is secondary and moved to the very end ---
