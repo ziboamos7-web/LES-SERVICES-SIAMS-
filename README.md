@@ -1,6 +1,6 @@
 # SIAMS
 
-Application web SIAMS pour créer, gérer et développer une boutique en ligne.
+Application web SIAMS pour créer, gérer et développer des services en ligne.
 
 ## Fonctionnalités actuelles
 
