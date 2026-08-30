@@ -187,7 +187,7 @@
   .service-tile:active{transform:scale(.96);box-shadow:none;}
   .service-tile-icon{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;}
   .service-tile span{font-size:12px;font-weight:700;color:var(--text);line-height:1.25;text-align:center;}
-  .plan-card{position:relative;border-radius:var(--radius-md);padding:18px 17px;margin-bottom:12px;cursor:pointer;overflow:hidden;transition:transform .12s ease,box-shadow .12s ease;}
+  .plan-card{position:relative;border-radius:var(--radius-md);padding:18px 17px;margin-bottom:12px;cursor:pointer;overflow:hidden;transition:transform .12s ease,box-shadow .12s ease;touch-action:manipulation;pointer-events:auto;-webkit-tap-highlight-color:transparent;z-index:1;}
   .plan-card:active{transform:scale(.985);}
   .plan-card.tier-free{border:1.5px solid var(--line);background:#fff;box-shadow:var(--shadow-sm);}
   .plan-card.tier-doyen{border:1.5px solid var(--indigo);background:linear-gradient(135deg,#fff 0%,var(--indigo-tint) 130%);box-shadow:var(--shadow-sm);}
@@ -1434,7 +1434,7 @@ const Cloud = {
 
   async loadAll(){
     const sid = this.storeId;
-    const [storeRes, prodRes, ordRes, teamRes, payRes, zoneRes, promoRes, revRes, notifRes, catRes] = await Promise.all([
+    const [storeRes, prodRes, ordRes, teamRes, payRes, zoneRes, promoRes, revRes, notifRes, catRes, menuRes] = await Promise.all([
       sb.from('stores').select('*').eq('id', sid).single(),
       sb.from('products').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
       sb.from('orders').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
@@ -1444,7 +1444,8 @@ const Cloud = {
       sb.from('promos').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
       sb.from('reviews').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
       sb.from('notifications').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
-      sb.from('categories').select('*').eq('store_id', sid)
+      sb.from('categories').select('*').eq('store_id', sid),
+      sb.from('menu_items').select('*').eq('store_id', sid).order('position', {ascending:true})
     ]);
     this.categories = catRes.data || [];
     const products = prodRes.data || [];
@@ -1461,7 +1462,11 @@ const Cloud = {
 
     _cache.store = { name:s.name||'Ma boutique', phone:s.phone||'', slug:s.slug||'', photo:s.photo_url||null, banner:s.banner_url||null,
       description:s.description||"Boutique en ligne spécialisée dans la vente d'articles de qualité, avec livraison rapide et paiement sécurisé à la livraison.",
-      address:s.address||'Abidjan, Côte d’Ivoire', email:s.email||'', hours:s.hours||'Lundi – Samedi, 8h – 19h', loginId:s.login_id||'' };
+      address:s.address||'Abidjan, Côte d’Ivoire', email:s.email||'', hours:s.hours||'Lundi – Samedi, 8h – 19h', loginId:s.login_id||'', businessType:s.business_type||'vente-ligne' };
+    /* ---- Le type d'activité fait foi côté cloud (multi-appareils). On resynchronise
+       le cache local du marchand pour que l'écran de choix ne se réaffiche pas et que
+       la navigation (onglet Produits/Menu) reste cohérente sur cet appareil aussi. ---- */
+    if(s.business_type && !this.publicMode) setBusinessType(s.business_type);
     _cache.products = products.map(p=>{
       const pPhotos = photos.filter(ph=>ph.product_id===p.id).sort((a,b)=>a.position-b.position).map(ph=>ph.url);
       return { id:p.id, name:p.name, price:p.price, oldPrice:p.compare_at_price||null, category:this.catName(p.category_id), photos:pPhotos, photo:pPhotos[0]||null, stockLimited:p.stock_limited, stockQty:p.stock_qty, desc:p.description||'' };
@@ -1487,6 +1492,7 @@ const Cloud = {
     _cache.reviews = (revRes.data||[]).map(r=>({id:r.id, productId:r.product_id, name:r.name, rating:r.rating, comment:r.comment, reply:r.reply, createdAt:new Date(r.created_at).getTime()}));
     _cache.notifications = (notifRes.data||[]).map(n=>({id:n.id, type:n.type, message:n.message, read:n.read, createdAt:new Date(n.created_at).getTime()}));
     _cache.categories = this.categories.map(c=>c.name);
+    _cache.menuItems = (menuRes.data||[]).map(m=>({ id:m.id, name:m.name, price:m.price, desc:m.description||'', category:m.category||'Plat', photo:m.photo_url||null, available:!!m.available_today }));
 
     /* ---- Synchronisation de l'abonnement depuis le cloud (multi-appareils) ----
        Si une formule a déjà été activée/payée (sur ce téléphone ou un autre), la
@@ -1566,6 +1572,20 @@ const Cloud = {
       } else {
         await sb.from('product_photos').delete().eq('product_id', p.id);
       }
+    }
+  },
+
+  /* ---- Module Restauration : plats du menu du jour (table dédiée menu_items,
+     séparée des produits classiques). Pas de galerie multi-photos ni de stock
+     numérique ici : juste une photo optionnelle et un flag "disponible aujourd'hui"
+     que le marchand bascule en un tap. ---- */
+  async pushMenuItems(prev, next){
+    const prevIds = prev.map(m=>m.id), nextIds = next.map(m=>m.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length) await sb.from('menu_items').delete().in('id', removed);
+    for(let i=0;i<next.length;i++){
+      const m = next[i];
+      await sb.from('menu_items').upsert({ id:m.id, store_id:this.storeId, name:m.name, price:m.price, description:m.desc||null, category:m.category||'Plat', photo_url:m.photo||null, available_today:!!m.available, position:i });
     }
   },
 
@@ -1785,7 +1805,7 @@ const Cloud = {
 let _cache = {
   products:[], orders:[], team:[], couriers:[], courierAssignments:[],
   payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}},
-  categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[],
+  categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[],
   store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''}
 };
 function syncFail(label){ return (err)=>{ console.error('Sync error ['+label+']', err); Toast.show('⚠️ Erreur de synchronisation, réessayez'); }; }
@@ -1794,6 +1814,14 @@ function syncFail(label){ return (err)=>{ console.error('Sync error ['+label+']'
 const Store = {
   get products(){ return _cache.products; },
   set products(v){ const prev=_cache.products; _cache.products=v; Cloud.pushProducts(prev, v).catch(syncFail('products')); },
+
+  get menuItems(){ return _cache.menuItems; },
+  set menuItems(v){ const prev=_cache.menuItems; _cache.menuItems=v; Cloud.pushMenuItems(prev, v).catch(syncFail('menuItems')); },
+
+  /* ---- Vue unifiée produits + plats du menu du jour, utilisée uniquement par le
+     panier/checkout pour résoudre un productId sans se soucier de sa provenance
+     (le moteur de commande ne fait aucune distinction entre les deux). ---- */
+  get sellables(){ return _cache.products.concat(_cache.menuItems); },
 
   get orders(){ return _cache.orders; },
   set orders(v){ const prev=_cache.orders; _cache.orders=v; Cloud.pushOrders(prev, v).catch(syncFail('orders')); },
@@ -1878,7 +1906,7 @@ const Store = {
   get subscription(){ return Utils.getLocal('subscription', { plan:null, status:'none', renewsAt:0, pendingSince:0, pendingConfirmAt:0, pendingMethod:'' }); },
   set subscription(v){ Utils.setLocal('subscription', v); },
 
-  /* ---- Pass gratuit de découverte : 30 jours, toutes fonctionnalités, dès la première ouverture ---- */
+  /* ---- Pass gratuit de découverte : 20 jours, toutes fonctionnalités, dès la première ouverture ---- */
   get trialStartedAt(){
     let v = Utils.getLocal('trial_started_at', null);
     if(!v){ v = Date.now(); Utils.setLocal('trial_started_at', v); }
@@ -1891,7 +1919,7 @@ const Store = {
     const sub = this.subscription;
     const planActiveNow = SUBSCRIPTION_PLANS.find(p=>p.key===sub.plan);
     /* ---- Un abonnement payant actif prend toujours le dessus sur le pass d'essai
-       gratuit : sinon, tant que les 30 jours d'essai ne sont pas écoulés, un
+       gratuit : sinon, tant que les 20 jours d'essai ne sont pas écoulés, un
        abonnement déjà payé reste invisible pour l'utilisateur (pas de badge, espace
        paiement qui continue de proposer de s'abonner, etc.). ---- */
     if(sub.status==='active' && planActiveNow && now < sub.renewsAt){
@@ -1942,8 +1970,8 @@ const Store = {
   },
   hasFeature(key){ return !!this.access().features[key]; },
 
-  /* ---- Commission SIAMS période d'essai (30 jours) : 5% sur les articles vendus à
-     COMMISSION_THRESHOLD FCFA et plus. Calcul 100% en temps réel à partir des commandes
+  /* ---- Commission SIAMS période d'essai (20 jours) : 5% sur le montant total de
+     chaque commande livrée. Calcul 100% en temps réel à partir des commandes
      livrées (source de vérité déjà synchronisée avec Supabase) : pas d'état séparé à
      désynchroniser, la valeur consolidée est repoussée vers stores.commission_due à
      chaque nouveau paiement (voir handleDeliveryPhoto). ---- */
@@ -1952,7 +1980,7 @@ const Store = {
     const end = start + TRIAL_DAYS*86400000;
     return this.orders
       .filter(o=>o.status==='delivered' && o.createdAt>=start && o.createdAt<end)
-      .reduce((sum,o)=> sum + (o.items||[]).reduce((s,it)=> it.price>=COMMISSION_THRESHOLD ? s + Math.round(it.price*(it.qty||1)*COMMISSION_RATE) : s, 0), 0);
+      .reduce((sum,o)=> sum + Math.round((o.amount||0)*COMMISSION_RATE), 0);
   },
   /* ---- Marqueur manuel : le montant a été réglé par le vendeur (avec son abonnement
      ou séparément). Synchronisé sur la fiche boutique pour rester cohérent multi-appareils. ---- */
@@ -2411,6 +2439,22 @@ const Router = {
       name = 'business-type';
       opts = {};
     }
+    /* ---- Boutiques "restauration" : l'onglet Produits pointe vers l'écran dédié
+       "Menu du jour" au lieu du catalogue classique. Redirection centralisée ici
+       pour que tous les points d'entrée (nav, raccourcis dashboard, etc.) en
+       bénéficient sans avoir à changer chaque appel Router.go('products'). ---- */
+    if(name==='products' && getBusinessType()==='restauration'){
+      name = 'menu';
+    }
+    /* ---- Idem côté client : l'onglet "Catégories" est redondant pour une boutique
+       restauration (l'accueil affiche déjà tout le menu groupé par catégorie), et
+       la fiche produit détaillée n'a pas d'équivalent pour un plat. On renvoie donc
+       vers l'accueil plutôt que de dupliquer/adapter des vues déjà redéfinies
+       plusieurs fois plus bas dans le fichier (risque de régression inutile). ---- */
+    if((name==='shop-categories' || name==='shop-product') && Store.store && Store.store.businessType==='restauration'){
+      name = 'shop';
+      opts = {};
+    }
     /* Aperçu marchand et liens publics : la vitrine doit être directement accessible.
        L'onboarding client reste affiché uniquement lors d'un accès client normal. */
     const skipClientOnboarding = !!(opts && opts.skipOnboarding);
@@ -2442,11 +2486,13 @@ const Router = {
     document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='business-type' || name==='onboarding-admin' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice');
     document.getElementById('client-nav').classList.toggle('hidden', !CLIENT_TAB_VIEWS.includes(name));
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    const navMap = {dashboard:'dashboard', products:'products', 'product-add':'products', 'product-edit':'products', orders:'orders', 'order-detail':'orders',
+    const navMap = {dashboard:'dashboard', products:'products', 'product-add':'products', 'product-edit':'products', menu:'products', 'menu-add':'products', 'menu-edit':'products', orders:'orders', 'order-detail':'orders',
       boutique:'plus', 'store-edit':'plus', stats:'plus', team:'plus', payment:'plus', categories:'plus', promos:'plus', reviews:'plus', customers:'plus', 'customer-detail':'plus', delivery:'plus', 'app-theme':'plus', settings:'plus', team:'plus', 'courier-login':'plus', 'courier-dashboard':'plus',
       shop:'home', 'shop-categories':'categories', cart:'cart', 'shop-favorites':'favorites', 'shop-account':'account'};
     const navKey = navMap[name];
     if(navKey){ document.querySelectorAll('.nav-item[data-nav="'+navKey+'"]').forEach(el=>el.classList.add('active')); }
+    const prodNavLabel = document.querySelector('.nav-item[data-nav="products"] span');
+    if(prodNavLabel) prodNavLabel.textContent = getBusinessType()==='restauration' ? 'Menu' : 'Produits';
     window.scrollTo(0,0);
     Notify.renderBell();
     ClientNotify.renderBadges();
@@ -2563,14 +2609,14 @@ const Auth = {
     if(!data.session) return { ok:true, needsConfirm:true };
     Auth.loggedIn = true;
     try{ await Bootstrap.loadStoreData(data.user); } catch(e){ console.error(e); return { ok:false, message:'Erreur de chargement des données' }; }
-    Store.trialStartedAt; // démarre le pass gratuit de 30 jours pour la nouvelle boutique
+    Store.trialStartedAt; // démarre le pass gratuit de 20 jours pour la nouvelle boutique
     return { ok:true, phone: data.user?.user_metadata?.phone || phone, email: data.user?.email || email };
   },
   async logout(){
     await sb.auth.signOut();
     Auth.loggedIn = false;
     OtpGate.reset();
-    _cache = { products:[], orders:[], team:[], payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''} };
+    _cache = { products:[], orders:[], team:[], payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:''} };
     Cloud.storeId = null; Cloud.loginId = null; Cloud.publicMode = false; Cloud._orderWritePromises = Object.create(null);
     Router.go('login');
   }
@@ -2603,11 +2649,11 @@ const BUSINESS_CATEGORIES = [
     title:'Boutique de vente en ligne',
     desc:"Créez votre catalogue de produits, recevez des commandes et vendez directement sur WhatsApp — la formule que vous connaissez déjà.",
     features:['Catalogue produits illimité','Commandes & suivi client','Paiement à la livraison, Wave, Orange Money, MTN'] },
-  { id:'restauration', available:false, label:'Restauration',
+  { id:'restauration', available:true, label:'Restauration',
     icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2v6.5a2.2 2.2 0 0 0 2.2 2.2M7 2v8.7M9.2 2v6.5M11.4 2v6.5a2.2 2.2 0 0 1-2.2 2.2M9.2 10.7V22" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 2c-1.8 0-3.2 1.9-3.2 4.3 0 2.1 1.1 3.9 2.5 4.2L16 22h2l-.3-11.5c1.4-.3 2.5-2.1 2.5-4.2C20.2 3.9 18.8 2 17 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
     title:'Restauration & street food',
     desc:"Pensée pour les vendeurs de crêpes, jus, plats et snacks : menu du jour, commandes à emporter et paiement rapide.",
-    features:[] },
+    features:['Menu du jour par catégorie','Disponibilité activable en un tap','Commandes à distance, comme la boutique classique'] },
   { id:'services', available:false, label:'Services',
     icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20.2 5.8a4.2 4.2 0 0 1-5.7 5.7L6 20l-2-2 8.5-8.5a4.2 4.2 0 0 1 5.7-5.7l-3 3 1.5 1.5 3-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m14.5 9.5 4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
     title:'Services à domicile',
@@ -2653,10 +2699,19 @@ function businessPanelHtml(id){
     <p>${cat.desc}</p>
     <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="notifyBusinessType('${cat.id}')">Me prévenir de la disponibilité</button>`;
 }
-function chooseBusinessType(id){
+async function chooseBusinessType(id){
   setBusinessType(id);
-  Toast.show('Boutique de vente en ligne sélectionnée ✓');
+  const cat = BUSINESS_CATEGORIES.find(c=>c.id===id);
+  Toast.show((cat?cat.title:'Boutique')+' sélectionnée ✓');
   Router.go('dashboard');
+  /* ---- Écriture en base après la navigation pour ne pas bloquer l'écran sur un
+     aller-retour réseau : la boutique reste utilisable même si cette requête est
+     lente, et le cache local (déjà mis à jour ci-dessus) garde la vitrine cohérente
+     en attendant. ---- */
+  try{
+    if(Cloud.storeId) await sb.from('stores').update({ business_type:id }).eq('id', Cloud.storeId);
+    _cache.store = { ..._cache.store, businessType:id };
+  }catch(e){ console.error('Erreur sauvegarde type d\u2019activité', e); }
 }
 function notifyBusinessType(id){
   const cat = BUSINESS_CATEGORIES.find(c=>c.id===id);
@@ -3724,7 +3779,7 @@ function getContractArticles(){
         "« Application » désigne la plateforme logicielle de gestion de boutique en ligne éditée et exploitée par SIAMS ;",
         "« Utilisateur » ou « Client » désigne toute personne physique ou morale ayant créé un compte sur l'Application pour y exploiter une boutique ;",
         "« Pass » désigne la formule d'abonnement payante donnant accès à l'ensemble ou à une partie des fonctionnalités de l'Application ;",
-        "« Période d'essai » désigne la période de trente (30) jours durant laquelle l'accès à l'Application est offert gratuitement à l'Utilisateur ;",
+        "« Période d'essai » désigne la période de vingt (20) jours durant laquelle l'accès à l'Application est offert gratuitement à l'Utilisateur ;",
         "« Commission » désigne le pourcentage prélevé par SIAMS sur les ventes réalisées par l'Utilisateur via l'Application, dans les conditions fixées au présent contrat."
       ]}
     ]},
@@ -3735,26 +3790,25 @@ function getContractArticles(){
       { type:'p', text:"L'accès à l'Application est subordonné à la création d'un compte par l'Utilisateur, lequel doit renseigner des informations exactes, complètes et à jour (identité, coordonnées, informations relatives à la boutique)." },
       { type:'p', text:"L'Utilisateur est seul responsable de la confidentialité de ses identifiants de connexion et de toute activité réalisée depuis son compte. Il s'engage à informer SIAMS sans délai en cas de suspicion d'utilisation non autorisée de son compte." }
     ]},
-    { num:4, title:"Période d'essai gratuite de 30 jours", blocks:[
-      { type:'p', text:"SIAMS offre à l'Utilisateur un accès complet et gratuit à l'Application pendant une période d'essai de trente (30) jours calendaires à compter de la date de création du compte, incluant l'ensemble des fonctionnalités disponibles sur la plateforme." },
+    { num:4, title:"Période d'essai gratuite de 20 jours", blocks:[
+      { type:'p', text:"SIAMS offre à l'Utilisateur un accès complet et gratuit à l'Application pendant une période d'essai de vingt (20) jours calendaires à compter de la date de création du compte, incluant l'ensemble des fonctionnalités disponibles sur la plateforme." },
       { type:'p', text:"Durant cette période, l'Utilisateur gère librement sa boutique (produits, commandes, clients, promotions) et bénéficie de l'accompagnement et de l'assistance de l'équipe SIAMS pour la prise en main et le bon fonctionnement de son activité." },
       { type:'p', text:"SIAMS se réjouit de cette collaboration et s'engage à accompagner l'Utilisateur dans le développement de son activité tout au long de la relation contractuelle." }
     ]},
     { num:5, title:"Commission applicable durant la période d'essai", blocks:[
-      { type:'p', text:"Pendant toute la durée de la période d'essai, SIAMS prélève une commission sur les articles vendus par l'Utilisateur dont le prix unitaire est élevé, selon le barème suivant :" },
+      { type:'p', text:"Pendant toute la durée de la période d'essai, SIAMS prélève une commission sur chaque commande vendue par l'Utilisateur, selon le barème suivant :" },
       { type:'ul', items:[
-        `Seuil de départ : tout article vendu à partir de ${Utils.fmtFCFA(COMMISSION_THRESHOLD)} et plus ;`,
-        "Taux de commission : 5% (cinq pour cent) du prix de vente de l'article, prélevés par SIAMS sur chaque transaction concernée."
+        "Taux de commission : 5% (cinq pour cent) du montant total de chaque commande, prélevés par SIAMS sur chaque transaction."
       ]},
-      { type:'p', text:`Les articles vendus à un prix inférieur à ${Utils.fmtFCFA(COMMISSION_THRESHOLD)} ne sont soumis à aucune commission durant la période d'essai. Ce barème pourra être révisé par SIAMS dans les conditions prévues à l'Article 16, moyennant information préalable de l'Utilisateur.` }
+      { type:'p', text:"Cette commission s'applique sans seuil minimum, sur toute commande livrée durant la période d'essai. Ce barème pourra être révisé par SIAMS dans les conditions prévues à l'Article 16, moyennant information préalable de l'Utilisateur." }
     ]},
     { num:6, title:"Délai de régularisation à l'expiration de la période d'essai", blocks:[
-      { type:'p', text:"À l'expiration des 30 jours d'essai, l'Utilisateur dispose d'un délai supplémentaire de trois (3) jours maximum pour entamer le paiement de son abonnement (« Pass ») afin de conserver l'accès à l'Application." },
+      { type:'p', text:"À l'expiration des 20 jours d'essai, l'Utilisateur dispose d'un délai supplémentaire de trois (3) jours maximum pour entamer le paiement de son abonnement (« Pass ») afin de conserver l'accès à l'Application." },
       { type:'p', text:"Passé ce délai de 3 jours sans début de paiement, SIAMS se réserve le droit de suspendre ou restreindre l'accès de l'Utilisateur à l'Application, sans préjudice des sommes déjà dues au titre des commissions perçues pendant la période d'essai." }
     ]},
     { num:7, title:"Conditions tarifaires à l'issue du délai", blocks:[
-      { type:'p', text:`À l'issue de la période d'essai de 30 jours et du délai de régularisation de 3 jours, l'Utilisateur qui souhaite poursuivre l'utilisation de l'Application s'engage à régler la moitié (50%) du montant du Pass « Toute Boutique », dont le tarif plein est fixé à ${Utils.fmtFCFA(allPlan.price)}, soit un montant de ${Utils.fmtFCFA(half)}.` },
-      { type:'p', text:`SIAMS continue, pendant cette phase, de percevoir la commission de 5% sur tout article vendu à partir de ${Utils.fmtFCFA(COMMISSION_THRESHOLD)}, conformément aux modalités de l'Article 5.` }
+      { type:'p', text:`À l'issue de la période d'essai de 20 jours et du délai de régularisation de 3 jours, l'Utilisateur qui souhaite poursuivre l'utilisation de l'Application s'engage à régler la moitié (50%) du montant du Pass « Toute Boutique », dont le tarif plein est fixé à ${Utils.fmtFCFA(allPlan.price)}, soit un montant de ${Utils.fmtFCFA(half)}.` },
+      { type:'p', text:"SIAMS continue, pendant cette phase, de percevoir la commission de 5% sur chaque commande, conformément aux modalités de l'Article 5." }
     ]},
     { num:8, title:'Modalités de paiement', blocks:[
       { type:'p', text:"Le paiement du Pass et des commissions dues s'effectue selon les modalités communiquées par SIAMS (Wave, Orange Money, MTN Money ou virement bancaire). La preuve de paiement est transmise à SIAMS par e-mail ou WhatsApp, en vue de l'activation ou du renouvellement de l'accès." },
@@ -4171,10 +4225,9 @@ Views['confirm-email'] = function(){
 };
 
 /* ---------- Centre financier : configuration ---------- */
-/* Commission SIAMS pendant les 30 premiers jours (période d'essai) : 5% sur les
-   articles vendus à COMMISSION_THRESHOLD FCFA et plus (voir Article 5 du contrat). */
-const TRIAL_DAYS = 30;
-const COMMISSION_THRESHOLD = 2000; // seuil article déclenchant la commission
+/* Commission SIAMS pendant les 20 premiers jours (période d'essai) : 5% sur le
+   montant total de chaque commande livrée (voir Article 5 du contrat). */
+const TRIAL_DAYS = 20;
 const COMMISSION_RATE = 0.05; // 5%
 const PAYMENT_CONFIRM_DELAY_MS = 5*60*1000; // délai de vérification manuelle du paiement : 5 minutes
 /* ---- Identité SIAMS pour tout reçu officiel émis par l'application (voir renderSIAMSReceiptPDF) ---- */
@@ -4206,15 +4259,15 @@ function isSiamsGoldenStore(){
 const LOCKED_FEATURES = { maxProducts:0, stats:false, promos:false, reviews:false, customers:false, team:false, delivery:false, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
 const TRIAL_FEATURES = { maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
 const SUBSCRIPTION_PLANS = [
-  { key:'free', label:'BON MOOD', price:1000, dailyRate:33, tagline:"Boutique en ligne, commandes illimitées, jusqu'à 10 produits, livraison & suivi clients inclus", badge:null,
+  { key:'free', label:'BON MOOD', price:1500, dailyRate:50, tagline:"Boutique en ligne, commandes illimitées, jusqu'à 10 produits, livraison & suivi clients inclus", badge:null,
     features:{ maxProducts:10, stats:false, promos:false, reviews:false, customers:true, team:false, delivery:true, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'doyen', label:'DOYEN', price:2000, dailyRate:67, tagline:"Jusqu'à 50 produits + statistiques, promotions et avis clients", badge:'DOYEN',
+  { key:'doyen', label:'DOYEN', price:3000, dailyRate:100, tagline:"Jusqu'à 50 produits + statistiques, promotions et avis clients", badge:'DOYEN',
     features:{ maxProducts:50, stats:true, promos:true, reviews:true, customers:true, team:false, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'doya', label:'DOYA', price:3500, dailyRate:117, tagline:'Catalogue illimité + équipe, zones de livraison & badge visibilité', badge:'DOYA',
+  { key:'doya', label:'DOYA', price:4500, dailyRate:150, tagline:'Catalogue illimité + équipe, zones de livraison & badge visibilité', badge:'DOYA',
     features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'all', label:'TOUTE BOUTIQUE', price:5000, dailyRate:167, tagline:'Tout DOYA + support prioritaire dédié & mise en avant renforcée', badge:'TOUTE BOUTIQUE',
+  { key:'all', label:'TOUTE BOUTIQUE', price:6000, dailyRate:200, tagline:'Tout DOYA + support prioritaire dédié & mise en avant renforcée', badge:'TOUTE BOUTIQUE',
     features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'platinum', label:'PLATINE', price:9000, dailyRate:300, tagline:'Le tout premium, ouvert à toutes les boutiques : support VIP 24/7, mise en avant permanente à l’accueil, vitrine entièrement personnalisable et badge Platine rouge', badge:'PLATINE',
+  { key:'platinum', label:'PLATINE', price:15000, dailyRate:500, tagline:'Le tout premium, ouvert à toutes les boutiques : support VIP 24/7, mise en avant permanente à l’accueil, vitrine entièrement personnalisable et badge Platine rouge', badge:'PLATINE',
     features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:false, vipSupport:true, homepageSpotlight:true, customStorefront:true } },
   { key:'golden', label:'GOLDEN', price:15000, dailyRate:500, tagline:'Formule exclusive réservée à SIAMS STORE OFFICIEL : badge Doré, vitrine personnalisée, mise en avant permanente & support VIP 24/7', badge:'GOLDEN', exclusive:true,
     features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:true, vipSupport:true, homepageSpotlight:true, customStorefront:true } }
@@ -4365,7 +4418,7 @@ Views.dashboard = function(){
 };
 Views._after_dashboard = function(){};
 
-/* ---------- Carte « Commission » (dashboard) — période d'essai de 30 jours ---------- */
+/* ---------- Carte « Commission » (dashboard) — période d'essai de 20 jours ---------- */
 function CommissionCard(){
   const due = Store.commissionDue();
   const settled = Store.commissionSettled;
@@ -4375,11 +4428,11 @@ function CommissionCard(){
   return `
   <div class="section-title">Commission (période d'essai)</div>
   <div style="margin:8px 20px 0;border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:16px;background:var(--gold-tint);box-shadow:var(--shadow-sm);">
-    <div style="font-size:12px;color:var(--gold-dark);font-weight:700;margin-bottom:2px;">💰 COMMISSION SIAMS — 5% DÈS ${Utils.fmtFCFA(COMMISSION_THRESHOLD)}</div>
+    <div style="font-size:12px;color:var(--gold-dark);font-weight:700;margin-bottom:2px;">💰 COMMISSION SIAMS — 5% SUR CHAQUE COMMANDE</div>
     <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
     <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">${inTrial
-      ? `Calculée en temps réel sur vos articles vendus à ${Utils.fmtFCFA(COMMISSION_THRESHOLD)} et plus, pendant vos 30 jours d'essai. Elle augmente à chaque commande livrée.`
-      : `Les 30 jours d'essai sont terminés — ce montant est à régler avec votre abonnement.`}</div>
+      ? `Calculée en temps réel sur le montant total de vos commandes livrées, pendant vos 20 jours d'essai. Elle augmente à chaque commande livrée.`
+      : `Les 20 jours d'essai sont terminés — ce montant est à régler avec votre abonnement.`}</div>
   </div>`;
 }
 
@@ -4644,13 +4697,18 @@ const SubscriptionSheet = {
     });
   },
   choose(key){
-    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
-    if(!plan) return;
-    if(plan.exclusive && !isSiamsGoldenStore()) return;
-    subPaymentStep = plan;
-    subDemoSeen = false;
-    subPaymentMode = null;
-    this.render();
+    try{
+      const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
+      if(!plan){ console.warn('SubscriptionSheet.choose: formule introuvable pour', key); return; }
+      if(plan.exclusive && !isSiamsGoldenStore()){ Toast.show('Cette formule est réservée à la boutique officielle SIAMS.'); return; }
+      subPaymentStep = plan;
+      subDemoSeen = false;
+      subPaymentMode = null;
+      this.render();
+    }catch(e){
+      console.error('SubscriptionSheet.choose error:', e);
+      Toast.show('Impossible d’ouvrir l’aperçu pour le moment.');
+    }
   },
   /* ---- Aperçu démo de la formule : à consulter avant de finaliser le paiement ---- */
   previewScreen(plan){
@@ -4753,7 +4811,7 @@ const SubscriptionSheet = {
         <div style="border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;background:var(--gold-tint);">
           <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">💰 Commission période d'essai à régler</div>
           <div style="font-size:17px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
-          <p style="font-size:11.5px;color:var(--text-mid);margin:6px 0 10px;">5% sur vos articles vendus à ${Utils.fmtFCFA(COMMISSION_THRESHOLD)} et plus pendant les 30 jours d'essai (Article 5 du contrat). Ajoutez ce montant à votre virement Djamo, en plus de l'abonnement.</p>
+          <p style="font-size:11.5px;color:var(--text-mid);margin:6px 0 10px;">5% sur toutes vos commandes livrées pendant les 20 jours d'essai (Article 5 du contrat). Ajoutez ce montant à votre virement Djamo, en plus de l'abonnement.</p>
           <button type="button" class="btn btn-outline btn-sm" onclick="SubscriptionSheet.markCommissionSettled()">J'ai réglé la commission, envoyer le reçu</button>
         </div>`;
         })()}
@@ -5544,6 +5602,245 @@ async function saveProduct(id){
   } catch(e) {
     console.error('Erreur enregistrement produit', e);
     Toast.show('⚠️ Échec de l\'enregistrement, réessayez');
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+  }
+}
+
+/* ==========================================================
+   Module Restauration & street food — Menu du jour
+   Écran dédié, données dans Store.menuItems (table menu_items).
+   Le panier/commande/paiement/livraison réutilise le moteur
+   existant (addToCart, checkout, orders) sans modification.
+   ========================================================== */
+const MENU_CATEGORIES = ['Entrée','Plat','Boisson','Dessert','Snack'];
+let menuCatFilter = '';
+
+Views.menu = function(){
+  const items = Store.menuItems;
+  const availableCount = items.filter(m=>m.available).length;
+  return `
+  ${TopBar('Menu du jour')}
+  <div class="products-v3-head">
+    <div><div class="products-v3-kicker">Restauration & street food</div><h1 class="products-v3-title">Mon menu du jour</h1></div>
+    <div class="products-v3-count"><span id="menu-count">${items.length}</span> plats</div>
+  </div>
+  <div class="products-v3-toolbar">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="menu-search" type="text" placeholder="Rechercher un plat..." oninput="renderMenuList()">
+    </div>
+  </div>
+  <div class="products-v3-chips">
+    <button class="products-v3-chip active" data-cat="" onclick="setMenuCatFilter('')">Tous</button>
+    ${MENU_CATEGORIES.map(c=>`<button class="products-v3-chip" data-cat="${c}" onclick="setMenuCatFilter('${c}')">${c}</button>`).join('')}
+  </div>
+  <div class="products-v3-summary"><strong>Disponibles aujourd'hui</strong><span>${availableCount} / ${items.length} plats</span></div>
+  ${items.length ? `<div style="margin:10px 20px 0;display:flex;gap:8px;">
+    <button class="btn btn-outline btn-block" onclick="markAllMenuUnavailable()">🌙 Tout marquer indisponible</button>
+  </div>` : ''}
+  <div id="menu-empty" class="hidden product-v3-empty">${EmptyState(ICONS.box,'Aucun plat trouvé',"Ajoutez les plats de votre menu du jour pour commencer à recevoir des commandes.")}</div>
+  <div id="menu-list" class="products-v3-list"></div>
+  <div class="fab"><button class="btn btn-primary" onclick="Router.go('menu-add')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>Nouveau plat</button></div>
+  `;
+};
+Views._after_menu = function(){ menuCatFilter=''; renderMenuList(); };
+
+function setMenuCatFilter(cat){
+  menuCatFilter = cat;
+  document.querySelectorAll('.products-v3-chip').forEach(c=>c.classList.toggle('active', c.dataset.cat===cat));
+  renderMenuList();
+}
+
+function renderMenuList(){
+  const list = Store.menuItems;
+  const searchEl = document.getElementById('menu-search');
+  const q = searchEl ? searchEl.value.toLowerCase() : '';
+  let filtered = q ? list.filter(m=>m.name.toLowerCase().includes(q)) : list;
+  if(menuCatFilter) filtered = filtered.filter(m=>m.category===menuCatFilter);
+  const countEl = document.getElementById('menu-count');
+  if(countEl) countEl.textContent = list.length;
+  const empty = document.getElementById('menu-empty');
+  const container = document.getElementById('menu-list');
+  if(!container) return;
+  if(filtered.length===0){ empty.classList.remove('hidden'); container.innerHTML=''; return; }
+  empty.classList.add('hidden');
+  container.innerHTML = filtered.map(m=>`
+    <div class="product-v3-card">
+      <div class="product-v3-media">${m.photo?`<img src="${m.photo}" alt="">`:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M7 2v6.5a2.2 2.2 0 0 0 2.2 2.2M7 2v8.7M9.2 2v6.5M11.4 2v6.5a2.2 2.2 0 0 1-2.2 2.2M9.2 10.7V22" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`}</div>
+      <div class="product-v3-body">
+        <div class="product-v3-cat">${Utils.escapeHtml(m.category||'Plat')}</div>
+        <h4 class="product-v3-name">${Utils.escapeHtml(m.name)}</h4>
+        <div class="product-v3-price">${Utils.fmtFCFA(m.price)}</div>
+        <div class="product-v3-meta">
+          <label class="toggle-row" style="gap:8px;margin:0;" onclick="event.stopPropagation()">
+            <span style="font-size:12px;">${m.available?"Disponible aujourd'hui":'Indisponible'}</span>
+            <label class="switch"><input type="checkbox" ${m.available?'checked':''} onchange="toggleMenuAvailability('${m.id}', this.checked)"><span class="slider"></span></label>
+          </label>
+        </div>
+      </div>
+      <div class="product-v3-actions">
+        <button class="product-v3-action" onclick="duplicateMenuItem('${m.id}')" aria-label="Dupliquer" title="Dupliquer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="product-v3-action" onclick="Router.go('menu-edit',{id:'${m.id}'})" aria-label="Modifier" title="Modifier"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+        <button class="product-v3-action" onclick="deleteMenuItem('${m.id}')" aria-label="Supprimer" title="Supprimer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>`).join('');
+}
+
+/* ---- Bascule rapide de la disponibilité, directement depuis la liste (sans
+   passer par le formulaire) : c'est l'action la plus fréquente au quotidien
+   pour un vendeur de rue dont le menu change chaque jour. ---- */
+async function toggleMenuAvailability(id, checked){
+  const items = Store.menuItems;
+  const prev = items;
+  const next = items.map(m=>m.id===id ? {...m, available:checked} : m);
+  try{
+    await Cloud.pushMenuItems(prev, next);
+    _cache.menuItems = next;
+    Toast.show(checked ? 'Plat marqué disponible ✓' : 'Plat marqué indisponible');
+  }catch(e){
+    console.error('Erreur disponibilité plat', e);
+    Toast.show('⚠️ Échec de la mise à jour, réessayez');
+    renderMenuList();
+  }
+}
+
+/* ---- Fin de journée : bascule tous les plats en indisponible en un seul geste,
+   plutôt que de décocher chaque plat un par un. Le menu reste enregistré (rien
+   n'est supprimé) — le vendeur n'a qu'à recocher demain matin ce qu'il propose. ---- */
+async function markAllMenuUnavailable(){
+  const items = Store.menuItems;
+  const availableItems = items.filter(m=>m.available);
+  if(availableItems.length===0){ Toast.show('Aucun plat disponible à désactiver'); return; }
+  if(!confirm(`Marquer les ${availableItems.length} plat(s) disponible(s) comme indisponibles ?`)) return;
+  const next = items.map(m=>({...m, available:false}));
+  const btn = document.querySelector('.products-v3-summary + div .btn-outline');
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; }
+  try{
+    await Cloud.pushMenuItems(items, next);
+    _cache.menuItems = next;
+    Toast.show('Menu du jour clôturé ✓ Tous les plats sont indisponibles');
+    Router.go('menu');
+  }catch(e){
+    console.error('Erreur clôture menu', e);
+    Toast.show('⚠️ Échec de la mise à jour, réessayez');
+    if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+  }
+}
+
+/* ---- Duplique un plat (même nom/prix/catégorie/photo), marqué disponible par
+   défaut. Utile pour reconstituer rapidement le menu type du jour, ou pour créer
+   une variante proche (ex : "Attiéké poisson" -> dupliqué puis renommé "Attiéké
+   poulet"). Ouvre directement l'écran d'édition de la copie pour ajuster. ---- */
+async function duplicateMenuItem(id){
+  const items = Store.menuItems;
+  const source = items.find(m=>m.id===id);
+  if(!source) return;
+  const copy = { ...source, id:Utils.uid(), name: source.name + ' (copie)', available:true };
+  const next = [copy, ...items];
+  try{
+    await Cloud.pushMenuItems(items, next);
+    _cache.menuItems = next;
+    Toast.show('Plat dupliqué ✓');
+    Router.go('menu-edit', {id:copy.id});
+  }catch(e){
+    console.error('Erreur duplication plat', e);
+    Toast.show('⚠️ Échec de la duplication, réessayez');
+  }
+}
+
+function deleteMenuItem(id){
+  Store.menuItems = Store.menuItems.filter(m=>m.id!==id);
+  renderMenuList();
+  Toast.show('Plat supprimé');
+}
+
+/* ---------- Ajout / modification d'un plat ---------- */
+let menuFormPhoto = null;
+function menuForm(existing){
+  return `
+  <div class="form-wrap">
+    <div class="field"><label>Nom du plat</label><input id="mf-name" type="text" placeholder="Ex : Attiéké poisson braisé" value="${existing?Utils.escapeHtml(existing.name):''}"></div>
+    <div class="field"><label>Catégorie</label>
+      <select id="mf-category">
+        ${MENU_CATEGORIES.map(c=>`<option value="${c}" ${existing&&existing.category===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Prix (FCFA)</label>
+      <div class="price-field"><input id="mf-price" type="number" inputmode="numeric" placeholder="0" value="${existing?existing.price:''}"><div class="price-suffix">FCFA</div></div>
+    </div>
+    <div class="field"><label>Photo du plat (facultatif)</label>
+      <div id="menu-photo-gallery" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;"></div>
+      <div class="upload-box" id="menu-upload-box" onclick="document.getElementById('mf-photo').click()">
+        <input type="file" id="mf-photo" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleMenuPhoto(event)">
+        <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <strong>Ajouter une photo du plat</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 1 Mo</div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="toggle-row"><span>Disponible aujourd'hui</span><label class="switch"><input type="checkbox" id="mf-available" ${!existing || existing.available?'checked':''}><span class="slider"></span></label></div>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-bottom:24px;" onclick="saveMenuItem('${existing?existing.id:''}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>${existing?'Enregistrer les modifications':'Ajouter le plat'}</button>
+  </div>`;
+}
+function renderMenuPhotoGallery(){
+  const wrap = document.getElementById('menu-photo-gallery');
+  if(!wrap) return;
+  wrap.innerHTML = menuFormPhoto ? `
+    <div style="position:relative;width:64px;height:64px;">
+      <img src="${menuFormPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);">
+      <button onclick="removeMenuFormPhoto()" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);border:2px solid #fff;color:#fff;font-size:12px;line-height:1;cursor:pointer;">✕</button>
+    </div>` : '';
+}
+function removeMenuFormPhoto(){ menuFormPhoto = null; renderMenuPhotoGallery(); }
+function handleMenuPhoto(e){
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  siamsPrepareImageDataURL(file).then(dataUrl=>{
+    menuFormPhoto = dataUrl;
+    renderMenuPhotoGallery();
+  }).catch(()=>Toast.show('Impossible de traiter cette photo'));
+}
+Views['menu-add'] = function(){ return `${TopBar('Nouveau plat')}${menuForm(null)}`; };
+Views['menu-edit'] = function(opts){
+  const m = Store.menuItems.find(x=>x.id===opts.id);
+  if(!m) return `${TopBar('Plat introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Plat introuvable','Ce plat a peut-être été supprimé.')}</div>`;
+  return `${TopBar('Modifier le plat')}${menuForm(m)}`;
+};
+Views._after_menu_add = function(){ menuFormPhoto = null; renderMenuPhotoGallery(); };
+Views._after_menu_edit = function(opts){
+  const m = Store.menuItems.find(x=>x.id===opts.id);
+  menuFormPhoto = m ? (m.photo || null) : null;
+  renderMenuPhotoGallery();
+};
+async function saveMenuItem(id){
+  const name = document.getElementById('mf-name').value.trim();
+  const price = document.getElementById('mf-price').value;
+  if(!name){ Toast.show('Indiquez le nom du plat'); return; }
+  if(!price || Number(price) <= 0){ Toast.show('Indiquez un prix valide'); return; }
+  const category = document.getElementById('mf-category').value;
+  const available = document.getElementById('mf-available').checked;
+  const photo = menuFormPhoto;
+  const items = Store.menuItems;
+
+  let newItems;
+  if(id){
+    newItems = items.map(m=>m.id===id ? { ...m, name, price:Number(price), category, photo, available } : m);
+  } else {
+    newItems = [{ id:Utils.uid(), name, price:Number(price), category, photo, available, desc:'' }, ...items];
+  }
+
+  const saveBtn = document.querySelector('.btn.btn-primary.btn-block[onclick^="saveMenuItem"]');
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; }
+
+  try{
+    await Cloud.pushMenuItems(items, newItems);
+    _cache.menuItems = newItems;
+    Toast.show(id ? 'Plat modifié ✓' : 'Plat ajouté ✓');
+    menuFormPhoto = null;
+    Router.go('menu');
+  }catch(e){
+    console.error('Erreur enregistrement plat', e);
+    Toast.show("⚠️ Échec de l'enregistrement, réessayez");
     if(saveBtn){ saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
   }
 }
@@ -6771,6 +7068,7 @@ function catTileHtml(name, index, opts){
 /* ---------- Accueil client (bannière réduite + catégories + nouveautés) ---------- */
 Views.shop = function(){
   const store = Store.store;
+  const isRestauration = store.businessType==='restauration';
   const products = Store.products;
   const access = Store.access();
   const storeBadge = (access.status==='active' && access.badge) ? access.badge : null;
@@ -6787,11 +7085,18 @@ Views.shop = function(){
   <div class="topbar" style="padding-top:18px;${isPremiumStore?'animation:doyaEnter .5s ease both;':''}">
     <div style="display:flex;align-items:center;gap:12px;">
       ${store.photo ? `<div class="store-logo${isGoldenStore?' tier-golden-logo':isPlatinumStore?' tier-platinum-logo':isAllStore?' tier-all-logo':isDoyaStore?' tier-doya-logo':''}" style="width:40px;height:40px;border-radius:11px;"><img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:${isPremiumStore?'9px':'10px'};"></div>` : ''}
-      <div><h1 style="font-size:20px;display:flex;align-items:center;gap:6px;">${Utils.escapeHtml(store.name)}${badgeChip}</h1><div class="page-sub">Boutique en ligne</div></div>
+      <div><h1 style="font-size:20px;display:flex;align-items:center;gap:6px;">${Utils.escapeHtml(store.name)}${badgeChip}</h1><div class="page-sub">${isRestauration?'Restauration & street food':'Boutique en ligne'}</div></div>
     </div>
     <button class="cn-notif-btn" onclick="ClientNotify.openPanel()" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="cn-notif-dot" id="cn-notif-dot"></span></button>
   </div>
   ${store.banner ? `<div class="shop-banner-wrap"${isAllStore?' style="border:1.5px solid var(--ruby);"':isPlatinumStore?' style="border:1.5px solid #FF3B5C;"':isDoyaStore?' style="border:1.5px solid var(--gold);"':''}><img src="${store.banner}"></div>` : ''}
+  ${isRestauration ? `
+  <div class="search-wrap" style="padding-top:14px;">
+    <div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="menu-home-search" type="text" placeholder="Rechercher un plat..." oninput="renderClientMenu()"></div>
+  </div>
+  <div id="menu-home-empty" class="hidden">${EmptyState(ICONS.box,'Aucun plat disponible aujourd\u2019hui',"Repassez plus tard, le menu du jour n'a pas encore été mis à jour.")}</div>
+  <div id="menu-home-sections"></div>
+  ` : `
   <div class="search-wrap" style="padding-top:14px;">
     <div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="home-search" type="text" placeholder="Rechercher un produit..." oninput="renderHomeGrid()"></div>
   </div>
@@ -6801,6 +7106,7 @@ Views.shop = function(){
   <div class="home-section-row"><h3 id="home-grid-title">Nouveautés</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div>
   <div id="home-empty" class="hidden">${EmptyState(ICONS.box,'Boutique vide',"Cette boutique n'a pas encore de produits.")}</div>
   <div id="home-grid" class="home-grid"></div>
+  `}
   <div class="fab hidden" id="cart-bar" style="left:20px;right:20px;bottom:24px;max-width:440px;">
     <button class="btn btn-mango btn-block" onclick="Router.go('cart')" style="justify-content:space-between;">
       <span style="display:flex;align-items:center;gap:8px;">${ICONS.cart.replace('30','18').replace('30','18')} Voir le panier</span>
@@ -6812,9 +7118,48 @@ Views.shop = function(){
 Views._after_shop = function(){
   Wishlist.load();
   ClientLocal.load();
-  renderHomeGrid();
+  if(Store.store.businessType==='restauration') renderClientMenu();
+  else renderHomeGrid();
   ClientNotify.renderBadges();
 };
+/* ---- Rendu de la vitrine "restauration" : plats disponibles aujourd'hui,
+   groupés par catégorie (Entrée/Plat/Boisson/Dessert/Snack). Les plats
+   indisponibles ne sont jamais affichés côté client. ---- */
+function renderClientMenu(){
+  const wrap = document.getElementById('menu-home-sections');
+  if(!wrap) return;
+  const searchEl = document.getElementById('menu-home-search');
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const empty = document.getElementById('menu-home-empty');
+  let items = Store.menuItems.filter(m=>m.available);
+  if(q) items = items.filter(m=>m.name.toLowerCase().includes(q));
+  if(items.length===0){
+    if(empty) empty.classList.remove('hidden');
+    wrap.innerHTML = '';
+    updateCartBar();
+    return;
+  }
+  if(empty) empty.classList.add('hidden');
+  const groups = MENU_CATEGORIES.map(cat=>({ cat, list: items.filter(m=>m.category===cat) })).filter(g=>g.list.length);
+  wrap.innerHTML = groups.map(g=>`
+    <div class="home-section-row"><h3>${g.cat}</h3></div>
+    <div class="home-grid">${g.list.map(m=>menuItemCardHtml(m)).join('')}</div>
+  `).join('');
+  updateCartBar();
+}
+function menuItemCardHtml(m){
+  return `
+  <div class="pcard">
+    <div class="pcard-media">
+      ${m.photo?`<img src="${m.photo}" loading="lazy">`:`<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M7 2v6.5a2.2 2.2 0 0 0 2.2 2.2M7 2v8.7M9.2 2v6.5M11.4 2v6.5a2.2 2.2 0 0 1-2.2 2.2M9.2 10.7V22" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+    </div>
+    <div class="pcard-body">
+      <h4 class="pcard-name">${Utils.escapeHtml(m.name)}</h4>
+      <div class="pcard-price-row"><span class="pcard-price">${Utils.fmtFCFA(m.price)}</span></div>
+      <button class="pcard-add" onclick="addToCart('${m.id}')">Ajouter</button>
+    </div>
+  </div>`;
+}
 function renderHomeGrid(){
   const grid = document.getElementById('home-grid');
   if(!grid) return;
@@ -7710,7 +8055,7 @@ Views['shop-product'] = function(opts){
   `;
 };
 function addToCart(productId){
-  const p = Store.products.find(x=>x.id===productId);
+  const p = Store.sellables.find(x=>x.id===productId);
   if(!p) return;
   const meta = Utils.decodeMeta(p.desc);
   if(meta.sizes.length || meta.colors.length || (meta.extra&&meta.extra.length)){ openVariantPicker(productId, meta); return; }
@@ -7791,7 +8136,7 @@ function updateCartBar(){
   const bar = document.getElementById('cart-bar');
   if(!bar) return;
   if(count===0){ bar.classList.add('hidden'); return; }
-  const products = Store.products;
+  const products = Store.sellables;
   const amount = cart.reduce((s,c)=>{ const p = products.find(x=>x.id===c.productId); return s + (p?p.price*c.qty:0); },0);
   bar.classList.remove('hidden');
   document.getElementById('cart-bar-amount').textContent = `${count} · ${Utils.fmtFCFA(amount)}`;
@@ -7800,7 +8145,7 @@ function updateCartBar(){
 /* ---------- Panier ---------- */
 Views.cart = function(){
   const cart = Store.cart;
-  const products = Store.products;
+  const products = Store.sellables;
   const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
   const total = items.reduce((s,i)=>s+i.product.price*i.qty,0);
   return `
@@ -7842,7 +8187,7 @@ function changeCartQty(key, delta){
 /* ---------- Checkout ---------- */
 Views.checkout = function(){
   const cart = Store.cart;
-  const products = Store.products;
+  const products = Store.sellables;
   const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
   const total = items.reduce((s,i)=>s+i.product.price*i.qty,0);
   const pay = Store.payment;
@@ -7949,7 +8294,7 @@ function applyPromoCode(){
 }
 function recalcCheckoutTotal(){
   const cart = Store.cart;
-  const products = Store.products;
+  const products = Store.sellables;
   const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
   const subtotal = items.reduce((s,i)=>s+i.product.price*i.qty,0);
   let discount = 0;
@@ -8063,7 +8408,7 @@ async function confirmOrder(){
   const payMethod = payRadio?payRadio.value:'cash';
   if(payMethod!=='cash' && !checkoutPaymentProof){ Toast.show('Veuillez joindre la capture ou le reçu de votre paiement'); return; }
   const cart = Store.cart;
-  let products = Store.products;
+  let products = Store.sellables;
   const items = cart.map(c=>{ const p = products.find(x=>x.id===c.productId); if(!p) return null; const variantLabel = Utils.variantLabel(c); return {productId:c.productId, name: variantLabel ? `${p.name} (${variantLabel})` : p.name, price:p.price, qty:c.qty}; }).filter(Boolean);
   if(items.length===0){ Toast.show('Panier vide'); return; }
   const subtotal = items.reduce((s,i)=>s+i.price*i.qty,0);
@@ -8958,7 +9303,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if(session && session.user){
       Auth.loggedIn = true;
       await Bootstrap.loadStoreData(session.user);
-      Store.trialStartedAt; // amorce le pass gratuit de 30 jours dès la première ouverture
+      Store.trialStartedAt; // amorce le pass gratuit de 20 jours dès la première ouverture
       ThemeUnlock.init();
       Router.go('dashboard');
       AutoSync.start();
