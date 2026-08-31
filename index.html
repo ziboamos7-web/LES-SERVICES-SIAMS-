@@ -1559,7 +1559,7 @@ const Cloud = {
   async pushStore(prev, next){
     next.photo = await this.ensureStoredUrl(next.photo, 'store-photos');
     next.banner = await this.ensureStoredUrl(next.banner, 'store-banners');
-    const patch = { name:next.name, phone:next.phone, photo_url:next.photo, banner_url:next.banner };
+    const patch = { name:next.name, phone:next.phone, photo_url:next.photo, banner_url:next.banner, description:next.description||null, address:next.address||null, email:next.email||null, hours:next.hours||null };
     /* ---- Regénère un lien propre (ex: amos-boutique) quand le nom change, plutôt que de garder
        l'ancien slug aléatoire (boutique-xxxxxxxx-xxxx) généré à la création du compte. ---- */
     if(next.name && next.name !== prev.name){
@@ -8467,7 +8467,8 @@ async function confirmOrder(){
     await Cloud.waitForOrderPersisted(order.id);
   }catch(syncErr){
     console.error('Commande non synchronisée', syncErr);
-    Toast.show('⚠️ La commande n’a pas pu être transmise au serveur. Réessayez.');
+    const detail = syncErr && (syncErr.message || syncErr.code || (syncErr.error && syncErr.error.message) || JSON.stringify(syncErr));
+    Toast.show('⚠️ La commande n’a pas pu être transmise : '+(detail||'erreur inconnue'));
     return;
   }
 
