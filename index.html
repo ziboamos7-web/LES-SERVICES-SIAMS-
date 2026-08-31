@@ -1656,7 +1656,9 @@ const Cloud = {
 
       let lastError = null;
       for(let attempt=1; attempt<=3; attempt++){
-        const {error} = await sb.from('orders').upsert(payload);
+        const {error} = isNew
+          ? await sb.from('orders').insert(payload)
+          : await sb.from('orders').update(payload).eq('id', o.id);
         if(!error){ lastError=null; break; }
         lastError=error;
         if(attempt<3) await new Promise(r=>setTimeout(r, 500*attempt));
