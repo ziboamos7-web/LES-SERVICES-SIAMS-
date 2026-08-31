@@ -1501,7 +1501,7 @@ const Cloud = {
     _cache.orders = orders.map(o=>({
       id:o.id, number:o.number, customer:{name:o.customer_name, phone:o.customer_phone, address:o.customer_address},
       customerLat:o.customer_latitude!=null?Number(o.customer_latitude):null, customerLng:o.customer_longitude!=null?Number(o.customer_longitude):null,
-      items: items.filter(it=>it.order_id===o.id).map(it=>({productId:it.product_id, name:it.name, price:it.price, qty:it.qty})),
+      items: items.filter(it=>it.order_id===o.id).map(it=>({productId:it.product_id, name:it.name, price:it.price, qty:it.qty, photo:(photos.filter(ph=>ph.product_id===it.product_id).sort((a,b)=>a.position-b.position)[0]||{}).url||null})),
       amount:o.amount, discount:o.discount, deliveryZone:o.delivery_zone, deliveryFee:o.delivery_fee,
       promoCode:o.promo_code, paymentMethod:o.payment_method, status:o.status, createdAt:new Date(o.created_at).getTime(),
       paymentProof:o.payment_proof_url||null, confirmedAt:o.confirmed_at?new Date(o.confirmed_at).getTime():0,
@@ -6416,8 +6416,8 @@ Views.settings = function(){
 };
 
 /* ---------- Espace livreur ---------- */
-function courierSession(){ try{return JSON.parse(sessionStorage.getItem('siams_courier_session')||'null');}catch(e){return null;} }
-function setCourierSession(v){ if(v) sessionStorage.setItem('siams_courier_session',JSON.stringify(v)); else sessionStorage.removeItem('siams_courier_session'); }
+function courierSession(){ try{return JSON.parse(localStorage.getItem('siams_courier_session')||'null');}catch(e){return null;} }
+function setCourierSession(v){ if(v) localStorage.setItem('siams_courier_session',JSON.stringify(v)); else localStorage.removeItem('siams_courier_session'); }
 Views['courier-login']=function(){
   const invite=new URLSearchParams(location.search).get('courier_invite');
   return `<div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 24px;background:linear-gradient(180deg,#f8fbff,#fff);">
