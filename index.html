@@ -11090,9 +11090,16 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     if(!this.storeId) throw new Error('Boutique non initialisée');
     order.paymentProof = await this.ensureStoredUrl(order.paymentProof, 'payment-proofs');
     order.deliveryPhoto = await this.ensureStoredUrl(order.deliveryPhoto, 'delivery-photos');
+    /* Un doublon (code 23505) sur une nouvelle tentative signifie que la
+       commande a déjà été enregistrée lors d'un essai précédent : on le
+       traite comme un succès plutôt qu'une erreur. On utilise insert() au
+       lieu de upsert() : une clause ON CONFLICT DO UPDATE exige que le rôle
+       ait aussi le droit SELECT sur la table (même sans conflit réel), ce
+       que les clients anonymes n'ont pas — d'où l'échec RLS systématique. */
+    const isDuplicateKey = e => e && (e.code==='23505' || /duplicate key/i.test(e.message||''));
     let lastError=null;
     for(let attempt=1;attempt<=3;attempt++){
-      const {error}=await sb.from('orders').upsert({
+      const {error}=await sb.from('orders').insert({
         id:order.id, store_id:this.storeId, number:order.number,
         customer_name:order.customer?.name||'', customer_phone:order.customer?.phone||'',
         customer_address:order.customer?.address||'',
@@ -11108,12 +11115,12 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
         delivery_confirmed_at:order.deliveryConfirmedAt?new Date(order.deliveryConfirmedAt).toISOString():null,
         delivery_photo_url:order.deliveryPhoto||null, delivery_token:order.deliveryToken||undefined, courier_id:order.courierId||null
       });
-      if(!error){
+      if(!error || isDuplicateKey(error)){
         if(order.items?.length){
-          const {error:itemError}=await sb.from('order_items').upsert(
+          const {error:itemError}=await sb.from('order_items').insert(
             order.items.map(it=>({order_id:order.id,product_id:it.productId||null,name:it.name,price:it.price,qty:it.qty}))
           );
-          if(itemError) lastError=itemError; else return true;
+          if(itemError && !isDuplicateKey(itemError)) lastError=itemError; else return true;
         }else return true;
       }else lastError=error;
       if(attempt<3) await new Promise(r=>setTimeout(r,600*attempt));
