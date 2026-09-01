@@ -88,6 +88,16 @@
     --font-display:'Plus Jakarta Sans',-apple-system,sans-serif;
     --font-body:'Manrope',-apple-system,sans-serif;
     --font-mono:'JetBrains Mono',monospace;
+
+    /* ---- Thème d'accent (bleu/noir) : contrôle les boutons d'action et la carte du tableau de bord ---- */
+    --accent-1:#0091FD;
+    --accent-2:#0072E0;
+    --accent-3:#00B4FD;
+  }
+  [data-ui-theme="black"]{
+    --accent-1:#000000;
+    --accent-2:#111111;
+    --accent-3:#2E2E2E;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
@@ -149,7 +159,7 @@
   .btn{border:none;cursor:pointer;font-family:var(--font-body);display:inline-flex;align-items:center;justify-content:center;gap:8px;
     font-size:15px;font-weight:700;border-radius:16px;padding:14px 22px;transition:transform .12s ease,box-shadow .12s ease;}
   .btn:active{transform:scale(.97);}
-  .btn-primary{background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(17,17,17,.5);}
+  .btn-primary{background:linear-gradient(135deg,var(--accent-1) 0%,var(--accent-2) 55%,var(--accent-3) 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(17,17,17,.5);}
   .btn-mango{background:linear-gradient(135deg,var(--mango) 0%,#FF9A4D 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(255,122,26,.5);}
   .btn-block{width:100%;}
   .btn-ghost{background:var(--panel);color:var(--text);}
@@ -355,7 +365,7 @@
   .dashboard-v2-head{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 4px;}
   .dashboard-v2-greeting{font-size:12px;color:var(--text-mid);font-weight:700;margin-bottom:3px;}
   .dashboard-v2-title{font-family:var(--font-display);font-size:25px;font-weight:800;letter-spacing:-.7px;margin:0;line-height:1.05;}
-  .dashboard-v2-profile{width:44px;height:44px;border-radius:15px;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .dashboard-v2-profile{width:44px;height:44px;border-radius:15px;border:none;background:transparent;box-shadow:none;display:flex;align-items:center;justify-content:center;overflow:hidden;}
   .dashboard-v2-profile img{width:100%;height:100%;object-fit:cover;}
   .dashboard-v2-profile svg{width:20px;height:20px;color:var(--indigo);}
   .dashboard-v2-stat-card{margin:16px 20px 0;padding:20px;border-radius:26px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(135deg,#000000 0%,#111111 58%,#2E2E2E 100%);box-shadow:0 18px 40px -18px rgba(17,17,17,.48);}
@@ -623,7 +633,7 @@
   .notif-empty{padding:32px 18px;text-align:center;color:var(--text-mid);font-size:13.5px;}
 
   .hidden{display:none !important;}
-  .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#1C1C22;color:#fff;padding:13px 20px;border-radius:999px;font-size:13.5px;font-weight:600;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s ease, bottom .2s ease;white-space:nowrap;}
+  .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#fff;color:var(--ink);padding:13px 20px;border-radius:999px;font-size:13.5px;font-weight:600;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s ease, bottom .2s ease;white-space:nowrap;box-shadow:var(--shadow-lg);border:1.5px solid var(--line);}
   .toast.show{opacity:1;bottom:126px;}
 
   /* ============ Boutique client — refonte "style Jumia" ============ */
@@ -985,7 +995,7 @@
 .order-detail-status{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:7px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:11px;font-weight:800}
 .order-detail-status .dot{width:7px;height:7px;border-radius:50%;background:var(--indigo)}.order-detail-status.pending .dot{background:var(--mango)}.order-detail-status.delivered .dot{background:var(--green)}
 .order-section{margin:0 20px 12px;padding:16px;border:1px solid var(--line);border-radius:18px;background:#fff;box-shadow:0 5px 18px rgba(20,40,80,.045)}
-.order-section-title{display:flex;align-items:center;gap:9px;margin-bottom:12px;font-size:14px;font-weight:850}.order-section-title .ico{width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:var(--indigo-tint);color:var(--indigo)}
+.order-section-title{display:flex;align-items:center;gap:9px;margin-bottom:12px;font-size:14px;font-weight:850}.order-section-title .ico{width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:var(--indigo-tint);color:var(--indigo)}.order-section-title .ico.blue{background:var(--blue-tint);color:var(--blue)}.order-section-title .ico.green{background:var(--green-tint);color:var(--green)}.order-section-title .ico.gold{background:var(--gold-tint);color:var(--gold-dark)}.order-section-title .ico.mango{background:var(--mango-tint);color:var(--mango-dark)}
 .order-client-name{font-size:15px;font-weight:800;margin-bottom:3px}.order-client-meta{font-size:12px;color:var(--text-mid);line-height:1.6}.order-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .order-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.order-item:last-child{border-bottom:0}.order-item-thumb{width:44px;height:44px;border-radius:11px;background:var(--panel);overflow:hidden;display:grid;place-items:center;flex:none}.order-item-thumb img{width:100%;height:100%;object-fit:cover}.order-item-main{flex:1;min-width:0}.order-item-main b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-item-main span{font-size:11px;color:var(--text-mid)}.order-item-price{font-family:var(--font-mono);font-size:12.5px;font-weight:800}
 .order-total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}.order-total b{font-size:14px}.order-total strong{font-family:var(--font-mono);font-size:17px;color:var(--indigo)}
@@ -1017,35 +1027,19 @@
 @media(max-width:380px){.dashboard-v2-quick{gap:6px;padding-left:14px;padding-right:14px}.dashboard-v2-quick .quick-nav-card{min-height:84px;padding-left:4px;padding-right:4px}.dashboard-v2-quick .quick-nav-card .qicon{width:38px;height:38px;min-width:38px}}
 
 /* ---------- V18 — Dashboard financier premium ---------- */
-.dashboard-v18-finance{margin:16px 20px 0;padding:18px;border-radius:24px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 58%,var(--cyan) 100%);box-shadow:0 20px 44px -22px rgba(17,17,17,.48);border:1px solid rgba(255,255,255,.16);isolation:isolate;}
-.dashboard-v18-finance:before{content:attr(data-watermark);position:absolute;right:-18px;bottom:8px;font-family:var(--font-display);font-size:42px;font-weight:800;letter-spacing:-1.5px;line-height:1;white-space:nowrap;color:rgba(255,255,255,.085);transform:rotate(-12deg);pointer-events:none;z-index:0;max-width:92%;overflow:hidden;text-overflow:ellipsis;}
+.dashboard-v18-finance{margin:16px 20px 0;padding:20px;border-radius:24px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--accent-1) 0%,var(--accent-2) 55%,var(--accent-3) 100%);box-shadow:0 20px 44px -22px rgba(0,60,140,.5);border:1px solid rgba(255,255,255,.16);isolation:isolate;}
+.dashboard-v18-finance:before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.16) 1.4px,transparent 1.6px);background-size:16px 16px;background-position:60% -10%;-webkit-mask-image:linear-gradient(120deg,transparent 30%,#000 90%);mask-image:linear-gradient(120deg,transparent 30%,#000 90%);pointer-events:none;z-index:0;}
 .dashboard-v18-finance:after{content:'';position:absolute;width:150px;height:150px;left:-85px;bottom:-100px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none;z-index:0;}
-.dashboard-v18-finance .finance-head,.dashboard-v18-finance .finance-main,.dashboard-v18-finance .finance-grid,.dashboard-v18-finance .finance-footer{position:relative;z-index:1;}
-.finance-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.finance-brand{display:flex;align-items:center;gap:10px;min-width:0;}
-.finance-brand-logo{width:34px;height:34px;border-radius:11px;flex:none;background:#fff;color:#111;font:900 15px var(--font-display);display:flex;align-items:center;justify-content:center;overflow:hidden;}
-.finance-brand-logo img{width:100%;height:100%;object-fit:cover;}
-.finance-brand-name{font-size:13px;font-weight:800;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
-.finance-brand .finance-kicker{margin-top:1px;}
-.finance-kicker{font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.68);}
-.finance-period{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:7px 10px;font:800 9.5px var(--font-body);}
-.finance-main{margin-top:16px;}
-.finance-main-label{font-size:10.5px;color:rgba(255,255,255,.72);font-weight:700;}
-.finance-total{font-family:var(--font-mono);font-size:29px;font-weight:900;letter-spacing:-1.3px;line-height:1.05;margin-top:5px;color:#fff;}
-.finance-sub{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:9.5px;color:rgba(255,255,255,.72);}
-.finance-live-dot{width:7px;height:7px;border-radius:50%;background:#56e39f;box-shadow:0 0 0 4px rgba(86,227,159,.12);}
-.finance-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:17px;}
-.finance-metric{min-width:0;padding:11px 10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.075);border-radius:15px;}
-.finance-metric .metric-label{display:flex;align-items:center;gap:6px;font-size:9px;color:rgba(255,255,255,.72);font-weight:750;white-space:nowrap;}
-.finance-metric .metric-dot{width:6px;height:6px;border-radius:50%;flex:none;}
-.finance-metric .metric-value{font-family:var(--font-mono);font-size:13px;font-weight:850;color:#fff;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.finance-metric .metric-count{font-size:8.5px;color:rgba(255,255,255,.58);margin-top:3px;}
-.finance-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.11);font-size:9px;color:rgba(255,255,255,.62);}
-.finance-footer strong{color:#fff;font-weight:800;}
-.finance-mini-chart{height:24px;display:flex;align-items:flex-end;gap:3px;}
-.finance-mini-chart i{display:block;width:6px;border-radius:4px 4px 2px 2px;background:rgba(255,255,255,.62);}
-.finance-mini-chart i:nth-child(1){height:8px;opacity:.38}.finance-mini-chart i:nth-child(2){height:12px;opacity:.48}.finance-mini-chart i:nth-child(3){height:10px;opacity:.42}.finance-mini-chart i:nth-child(4){height:16px;opacity:.62}.finance-mini-chart i:nth-child(5){height:14px;opacity:.56}.finance-mini-chart i:nth-child(6){height:20px;opacity:.78}.finance-mini-chart i:nth-child(7){height:24px;}
-@media(max-width:380px){.dashboard-v18-finance{margin-left:14px;margin-right:14px;padding:16px}.finance-total{font-size:26px}.finance-grid{gap:6px}.finance-metric{padding:10px 8px}.finance-metric .metric-value{font-size:11.5px}.finance-period{padding:6px 8px;font-size:9px}}
+.dashboard-v18-finance .finance-main,.dashboard-v18-finance .finance-two-col,.dashboard-v18-finance .finance-trust-note{position:relative;z-index:1;}
+.finance-main-label{font-size:11.5px;color:rgba(255,255,255,.82);font-weight:700;}
+.finance-total{font-family:var(--font-mono);font-size:30px;font-weight:900;letter-spacing:-1.3px;line-height:1.05;margin-top:6px;color:#fff;}
+.finance-two-col{display:flex;justify-content:space-between;align-items:flex-start;margin-top:16px;gap:10px;}
+.finance-two-col-item{display:flex;flex-direction:column;gap:4px;}
+.finance-two-col-item.right{align-items:flex-end;text-align:right;}
+.finance-two-col-item span{font-size:10.5px;color:rgba(255,255,255,.78);font-weight:700;}
+.finance-two-col-item b{font-family:var(--font-mono);font-size:15px;font-weight:850;color:#fff;}
+.finance-trust-note{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,.18);font-size:10.5px;color:rgba(255,255,255,.85);line-height:1.4;}
+@media(max-width:380px){.dashboard-v18-finance{margin-left:14px;margin-right:14px;padding:16px}.finance-total{font-size:26px}}
 
 
 /* ---------- V33 : audit panorama 360–412 px ---------- */
@@ -1501,7 +1495,12 @@ const Cloud = {
 
     _cache.store = { name:s.name||'Ma boutique', phone:s.phone||'', slug:s.slug||'', photo:s.photo_url||null, banner:s.banner_url||null,
       description:s.description||"Boutique en ligne spécialisée dans la vente d'articles de qualité, avec livraison rapide et paiement sécurisé à la livraison.",
-      address:s.address||'Abidjan, Côte d’Ivoire', email:s.email||'', hours:s.hours||'Lundi – Samedi, 8h – 19h', loginId:s.login_id||'', businessType:s.business_type||'vente-ligne' };
+      address:s.address||'Abidjan, Côte d’Ivoire', email:s.email||'', hours:s.hours||'Lundi – Samedi, 8h – 19h', loginId:s.login_id||'', businessType:s.business_type||'vente-ligne',
+      uiTheme: s.ui_theme==='black' ? 'black' : 'blue' };
+    /* ---- Le thème (bleu/noir) fait foi côté cloud, comme le type d'activité juste au-dessus :
+       on garde une copie locale (localStorage) uniquement pour un affichage instantané avant que
+       ce chargement cloud ne soit terminé, jamais comme source de vérité. ---- */
+    Utils.setLocal('ui_theme', _cache.store.uiTheme);
     /* ---- Le type d'activité fait foi côté cloud (multi-appareils). On resynchronise
        le cache local du marchand pour que l'écran de choix ne se réaffiche pas et que
        la navigation (onglet Produits/Menu) reste cohérente sur cet appareil aussi. ---- */
@@ -1566,6 +1565,15 @@ const Cloud = {
     if(typeof s.commission_settled === 'boolean'){
       Utils.setLocal('commission_settled', s.commission_settled);
     }
+  },
+
+  /* ---- Écrit le thème choisi par le marchand dans Supabase, pour qu'il s'applique
+     sur tous les appareils (marchand, livreur, et vitrine client) au lieu de rester
+     coincé en localStorage sur le seul appareil où il a été choisi. ---- */
+  async pushTheme(theme){
+    if(!this.storeId) return;
+    const { error } = await sb.from('stores').update({ ui_theme: theme }).eq('id', this.storeId);
+    if(error){ console.error('Sync error [theme update]', error); throw error; }
   },
 
   async pushStore(prev, next){
@@ -1966,6 +1974,16 @@ const Store = {
   /* computed helpers */
   revenueDelivered(){ return this.orders.filter(o=>o.status==='delivered').reduce((s,o)=>s+o.amount,0); },
   get withdrawals(){ return Utils.getLocal('withdrawals', []); },
+  /* ---- Le thème vient du cloud (fiche boutique Supabase) dès que celui-ci est chargé,
+     pour être identique sur tous les appareils et côté client. Avant ce chargement (tout
+     début d'ouverture de l'app), on retombe sur la copie locale pour éviter un flash de
+     thème par défaut. ---- */
+  get uiTheme(){ return (_cache.store && _cache.store.uiTheme) || Utils.getLocal('ui_theme', 'blue'); },
+  set uiTheme(v){
+    if(_cache.store) _cache.store.uiTheme = v;
+    Utils.setLocal('ui_theme', v);
+    Cloud.pushTheme(v).catch(syncFail('theme'));
+  },
   set withdrawals(v){ Utils.setLocal('withdrawals', v); },
   totalWithdrawn(){ return this.withdrawals.reduce((s,w)=>s+w.amount,0); },
   /* ---- Espèces collectées par vos livreurs pour des commandes payées à la livraison ----
@@ -2497,6 +2515,14 @@ const Charts = {
 /* ---------------- Router ---------------- */
 const PUBLIC_VIEWS = ['welcome','onboarding-public','about-partnership','activation-code','courier-login','courier-invite','courier-dashboard','shop','shop-product','cart','checkout','confirmation','login','register','verify-otp','confirm-email','recover-id','shop-categories','shop-favorites','shop-account','order-track','shop-orders-history','shop-about','shop-help','onboarding-client'];
 const CLIENT_TAB_VIEWS = ['shop','shop-categories','cart','shop-favorites','shop-account'];
+function applyUiTheme(){
+  document.documentElement.setAttribute('data-ui-theme', Store.uiTheme==='black' ? 'black' : 'blue');
+}
+function setUiTheme(v){
+  Store.uiTheme = v;
+  applyUiTheme();
+  Router.go(Router.current, Router.currentOpts);
+}
 const Router = {
   current:'dashboard',
   go(name, opts){
@@ -2546,6 +2572,7 @@ const Router = {
     Sheet.close();
     Router.current = name;
     Router.currentOpts = opts || {};
+    applyUiTheme();
     /* ---- Un rendu de vue qui plante (exception JS) ne doit jamais laisser le clic
        « sans rien faire » à l'écran : on affiche l'erreur pour pouvoir la diagnostiquer
        facilement (capture d'écran), au lieu d'un échec silencieux visible seulement
@@ -3166,15 +3193,16 @@ function TopBarPlanBadge(){
   const isAll = badge==='TOUTE BOUTIQUE';
   const isDoya = badge==='DOYA';
   const style = isGolden
-    ? 'background:linear-gradient(135deg,#7A5A12,#F0C24B);color:#1a1300;box-shadow:0 2px 8px -1px rgba(240,194,75,.6);'
+    ? 'background:linear-gradient(135deg,#8A6410,#F5CB5C);color:#241900;box-shadow:0 3px 10px -2px rgba(240,194,75,.55),inset 0 0 0 1px rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);'
     : isPlatinum
-    ? 'background:linear-gradient(135deg,#8A0E22,#FF3B5C);color:#fff;box-shadow:0 2px 8px -1px rgba(255,59,92,.6);'
+    ? 'background:linear-gradient(135deg,#9C1128,#FF4766);color:#fff;box-shadow:0 3px 10px -2px rgba(255,59,92,.5),inset 0 0 0 1px rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.45);'
     : isAll
-    ? 'background:linear-gradient(135deg,var(--ruby),var(--ruby-dark));color:#fff;box-shadow:0 2px 6px -1px rgba(142,21,55,.55);'
+    ? 'background:linear-gradient(135deg,#A81C45,var(--ruby-dark));color:#fff;box-shadow:0 3px 10px -2px rgba(142,21,55,.5),inset 0 0 0 1px rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.45);'
     : isDoya
-    ? 'background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#fff;box-shadow:0 2px 6px -1px rgba(184,134,46,.5);'
-    : 'background:var(--indigo-tint);color:var(--indigo);';
-  return `<span class="${isGolden?'tier-badge-golden':isPlatinum?'tier-badge-platinum':isAll?'tier-badge-all':isDoya?'tier-badge-doya':''}" style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;letter-spacing:.3px;padding:3px 8px;border-radius:7px;margin-left:8px;vertical-align:middle;${style}">${(isGolden||isPlatinum||isAll||isDoya)?'★ ':''}${badge}</span>`;
+    ? 'background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#fff;box-shadow:0 3px 10px -2px rgba(184,134,46,.45),inset 0 0 0 1px rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.45);'
+    : 'background:var(--indigo-tint);color:var(--indigo);border:1px solid rgba(17,17,17,.08);';
+  const starIcon = '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="flex:none;"><path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.6l-6.1 3.4 1.5-6.8-5.2-4.7 6.9-.7L12 2.5Z"/></svg>';
+  return `<span class="${isGolden?'tier-badge-golden':isPlatinum?'tier-badge-platinum':isAll?'tier-badge-all':isDoya?'tier-badge-doya':''}" style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;letter-spacing:.45px;padding:5px 10px;border-radius:999px;margin-left:8px;vertical-align:middle;${style}">${(isGolden||isPlatinum||isAll||isDoya)?starIcon:''}${badge}</span>`;
 }
 function dashboardServiceGo(route){
   try{ Sheet.close(); }catch(e){}
@@ -4074,7 +4102,7 @@ Views['account-contract-notice'] = function(){
     <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0 0 22px;">Réf. contrat : <span class="mono" style="font-weight:700;color:var(--text);">${Utils.escapeHtml(ContractGate.ref)}</span>. Vous pouvez retélécharger le PDF à tout moment depuis votre tableau de bord.</p>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:26px;">
       <button class="btn btn-soft-green btn-block" onclick="ContractGate.contactSupportWhatsapp()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:6px;"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="var(--green)" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <svg width="16" height="16" viewBox="0 0 448 512" fill="var(--green)" style="vertical-align:-3px;margin-right:6px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>
         Envoyer via WhatsApp
       </button>
       <button class="btn btn-outline btn-block" onclick="ContractGate.contactSupportEmail()">
@@ -4445,7 +4473,7 @@ Views.dashboard = function(){
   ];
   return `
     <div class="dashboard-v2-head dashboard-v5-head">
-      <div class="dashboard-v5-heading"><div class="dashboard-v2-greeting">Bonjour 👋🏾</div><h1 class="dashboard-v2-title">${Utils.escapeHtml(store.name||'Ma boutique')}${TopBarPlanBadge()}</h1><div class="dashboard-v5-status"><span></span>${isPaidSubscriptionActive()?'Boutique active':'Mode découverte'}</div></div>
+      <div class="dashboard-v5-heading"><h1 class="dashboard-v2-title">${Utils.escapeHtml(store.name||'Ma boutique')}${TopBarPlanBadge()}</h1></div>
       <div style="display:flex;align-items:center;gap:9px;flex:none;">
         <button class="bell-btn" onclick="toggleNotifPanel()" aria-label="Notifications">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -4456,28 +4484,17 @@ Views.dashboard = function(){
         </button>
       </div>
     </div>
-    <section class="dashboard-v18-finance" aria-label="Tableau de bord financier" data-watermark="${Utils.escapeHtml(store.name||'Ma boutique')}">
-      <div class="finance-head">
-        <div class="finance-brand">
-          <span class="finance-brand-logo">${store.photo?`<img src="${store.photo}" alt="">`:Utils.escapeHtml((store.name||'B').trim().charAt(0).toUpperCase())}</span>
-          <div><div class="finance-brand-name">${Utils.escapeHtml(store.name||'Ma boutique')}</div><div class="finance-kicker">Performance financière</div></div>
-        </div>
-        <div class="finance-period">30 derniers jours</div>
-      </div>
+    <section class="dashboard-v18-finance" aria-label="Tableau de bord financier">
       <div class="finance-main">
-        <div class="finance-main-label">Total des ventes</div>
-        <div class="finance-total" id="finance-total-val" data-target="${totalSales}">0 FCFA</div>
-        <div class="finance-sub"><span class="finance-live-dot"></span><span>${orders.length} commande${orders.length>1?'s':''} enregistrée${orders.length>1?'s':''}</span></div>
+        <div class="finance-main-label">Ventes livrées</div>
+        <div class="finance-total" id="finance-total-val" data-target="${deliveredRevenue}">0 FCFA</div>
       </div>
-      <div class="finance-grid">
-        <div class="finance-metric"><div class="metric-label"><span class="metric-dot" style="background:#56e39f"></span>Livrées</div><div class="metric-value">${Utils.fmtFCFA(deliveredRevenue)}</div><div class="metric-count">${counts.done} commande${counts.done>1?'s':''}</div></div>
-        <div class="finance-metric"><div class="metric-label"><span class="metric-dot" style="background:#ffc857"></span>En attente</div><div class="metric-value">${Utils.fmtFCFA(pending)}</div><div class="metric-count">${counts.new + counts.preparing + counts.shipped} commande${(counts.new + counts.preparing + counts.shipped)>1?'s':''}</div></div>
-        <div class="finance-metric"><div class="metric-label"><span class="metric-dot" style="background:#ff6b7a"></span>Annulées</div><div class="metric-value">${counts.cancelled}</div><div class="metric-count">commande${counts.cancelled>1?'s':''}</div></div>
+      <div class="finance-two-col">
+        <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
+        <div class="finance-two-col-item right"><span>Total des ventes</span><b>${Utils.fmtFCFA(totalSales)}</b></div>
       </div>
-      <div class="finance-footer">
-        <span>Activité récente · <strong>${Utils.fmtFCFA(revWeek)}</strong> cette semaine</span>
-        <div class="finance-mini-chart" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-      </div>
+      <div class="finance-trust-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Chaque paiement client va directement sur votre compte Wave/OM/MTN</span></div>
+    </section>
     </section>
     <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
     <div class="dashboard-v2-quick">${quick.map(q=>`<button class="quick-nav-card" onclick="dashboardQuickGo('${q.route}')" aria-label="${q.label}"><div class="qicon" style="background:${q.tint};color:${q.color};">${q.icon}</div><span>${q.label}</span></button>`).join('')}</div>
@@ -4961,7 +4978,7 @@ const SubscriptionSheet = {
         <input type="file" id="sub-proof-input" accept="image/*,application/pdf" class="hidden" onchange="SubscriptionSheet.handleProofFile(event)">
         <div id="sub-proof-status" style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;min-height:14px;"></div>
         <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.startProofUpload('${plan.key}','${mode}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="margin-right:6px;vertical-align:-3px;"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <svg width="16" height="16" viewBox="0 0 448 512" fill="#fff" style="margin-right:6px;vertical-align:-3px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>
           J'ai payé, envoyer le reçu de paiement
         </button>
       </div>`;
@@ -6034,12 +6051,18 @@ Views['order-detail'] = function(opts){
   const steps=[['pending','Commande reçue',true],['confirmed','Commande confirmée',order.status==='confirmed'||order.status==='delivered'],['shipped','Commande en livraison',shipped],['delivered','Commande livrée',order.status==='delivered']];
   return `
   <div class="topbar" style="padding-top:18px;"><div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('orders')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>Commande</h1></div></div>
-  <div class="order-detail-hero"><div class="eyebrow">Détail de la vente</div><h2>#${order.number}</h2><p>${Utils.timeAgo(order.createdAt)} · ${order.items?.length||0} article(s)</p><div class="order-detail-status ${order.status}"><span class="dot"></span>${labels[order.status]||order.status}</div></div>
-  <div class="order-section"><div class="order-section-title"><span class="ico">⌖</span>Client</div><div class="order-client-name">${Utils.escapeHtml(order.customer.name)}</div><div class="order-client-meta">${Utils.escapeHtml(order.customer.phone)}<br>${Utils.escapeHtml(order.customer.address)}</div><div class="order-actions"><button class="btn btn-soft-green btn-sm" onclick="window.open('https://wa.me/225${(order.customer.phone||'').replace(/\D/g,'')}','_blank')">Contacter</button><button class="btn btn-soft-indigo btn-sm" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent('${Utils.escapeHtml(order.customer.address||'')}'),'_blank')">Itinéraire</button></div></div>
-  <div class="order-section"><div class="order-section-title"><span class="ico">▣</span>Articles</div>${(order.items||[]).map(it=>`<div class="order-item"><div class="order-item-thumb">${it.photo?`<img src="${it.photo}">`:'◫'}</div><div class="order-item-main"><b>${Utils.escapeHtml(it.name)}</b><span>Quantité ×${it.qty}</span></div><div class="order-item-price">${Utils.fmtFCFA(it.price*it.qty)}</div></div>`).join('')}${order.discount?`<div style="display:flex;justify-content:space-between;padding-top:10px;font-size:12px;color:var(--green);"><span>Réduction</span><span class="mono">−${Utils.fmtFCFA(order.discount)}</span></div>`:''}${order.deliveryFee?`<div style="display:flex;justify-content:space-between;padding-top:8px;font-size:12px;color:var(--text-mid);"><span>Livraison</span><span class="mono">${Utils.fmtFCFA(order.deliveryFee)}</span></div>`:''}<div class="order-total"><b>Total</b><strong>${Utils.fmtFCFA(order.amount)}</strong></div></div>
-  <div class="order-section"><div class="order-section-title"><span class="ico">✓</span>Suivi de la commande</div><div class="order-timeline">${steps.map(x=>`<div class="timeline-step ${x[2]?'done':''} ${x[0]==='delivered'&&x[2]?'delivered':''}"><span class="point"></span><b>${x[1]}</b><span>${x[2]?'Étape validée':'À venir'}</span></div>`).join('')}</div></div>
-  <div class="order-section"><div class="order-section-title"><span class="ico">$</span>Paiement</div><div style="font-size:13px;font-weight:700;">${PAY_LABELS[order.paymentMethod]||order.paymentMethod}</div>${order.paymentProof?`<div style="font-size:11.5px;color:var(--text-mid);margin-top:6px;">Preuve de paiement reçue</div>`:(order.paymentMethod!=='cash'?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;">Aucune preuve fournie.</div>`:'')}</div>
-  <div class="order-section"><div class="order-section-title"><span class="ico">♧</span>Livraison</div><div style="font-size:12px;color:var(--text-mid);">${order.courierId?'Livreur affecté · suivi GPS disponible.':shipped?'Commande en cours de livraison ou livrée.':order.status==='confirmed'?'Affectez un livreur pour cette commande.':'Affectation disponible après confirmation.'}</div>${(()=>{
+  <div class="order-detail-hero">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+      <div><div class="eyebrow">Détail de la vente</div><h2>#${order.number}</h2><p>${Utils.timeAgo(order.createdAt)} · ${order.items?.length||0} article(s)</p></div>
+      <div style="text-align:right;flex:none;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Total</div><div class="mono" style="font-size:19px;font-weight:800;color:var(--indigo);margin-top:2px;">${Utils.fmtFCFA(order.amount)}</div></div>
+    </div>
+    <div class="order-detail-status ${order.status}"><span class="dot"></span>${labels[order.status]||order.status}</div>
+  </div>
+  <div class="order-section"><div class="order-section-title"><span class="ico blue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.8-4 3.4-6.2 7-6.2s6.2 2.2 7 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>Client</div><div class="order-client-name">${Utils.escapeHtml(order.customer.name)}</div><div class="order-client-meta">${Utils.escapeHtml(order.customer.phone)}<br>${Utils.escapeHtml(order.customer.address)}</div><div class="order-actions"><button class="btn btn-soft-green btn-sm" onclick="window.open('https://wa.me/225${(order.customer.phone||'').replace(/\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" style="vertical-align:-2px;margin-right:5px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter</button><button class="btn btn-soft-indigo btn-sm" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent('${Utils.escapeHtml(order.customer.address||'')}'),'_blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.6"/></svg>Itinéraire</button></div></div>
+  <div class="order-section"><div class="order-section-title"><span class="ico indigo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8h16M4 8l1.5 11a2 2 0 0 0 2 1.7h9a2 2 0 0 0 2-1.7L20 8M4 8l2-4h12l2 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Articles</div>${(order.items||[]).map(it=>`<div class="order-item"><div class="order-item-thumb">${it.photo?`<img src="${it.photo}">`:'◫'}</div><div class="order-item-main"><b>${Utils.escapeHtml(it.name)}</b><span>Quantité ×${it.qty}</span></div><div class="order-item-price">${Utils.fmtFCFA(it.price*it.qty)}</div></div>`).join('')}${order.discount?`<div style="display:flex;justify-content:space-between;padding-top:10px;font-size:12px;color:var(--green);"><span>Réduction</span><span class="mono">−${Utils.fmtFCFA(order.discount)}</span></div>`:''}${order.deliveryFee?`<div style="display:flex;justify-content:space-between;padding-top:8px;font-size:12px;color:var(--text-mid);"><span>Livraison</span><span class="mono">${Utils.fmtFCFA(order.deliveryFee)}</span></div>`:''}<div class="order-total"><b>Total</b><strong>${Utils.fmtFCFA(order.amount)}</strong></div></div>
+  <div class="order-section"><div class="order-section-title"><span class="ico green"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Suivi de la commande</div><div class="order-timeline">${steps.map(x=>`<div class="timeline-step ${x[2]?'done':''} ${x[0]==='delivered'&&x[2]?'delivered':''}"><span class="point"></span><b>${x[1]}</b><span>${x[2]?'Étape validée':'À venir'}</span></div>`).join('')}</div></div>
+  <div class="order-section"><div class="order-section-title"><span class="ico gold"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.7"/></svg></span>Paiement</div><div style="font-size:13px;font-weight:700;">${PAY_LABELS[order.paymentMethod]||order.paymentMethod}</div>${order.paymentProof?`<div style="font-size:11.5px;color:var(--text-mid);margin-top:6px;">Preuve de paiement reçue</div>`:(order.paymentMethod!=='cash'?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;">Aucune preuve fournie.</div>`:'')}</div>
+  <div class="order-section"><div class="order-section-title"><span class="ico mango"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8h11v9H4zM15 11h3l3 3v3h-6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.5"/><circle cx="17.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.5"/></svg></span>Livraison</div><div style="font-size:12px;color:var(--text-mid);">${order.courierId?'Livreur affecté · suivi GPS disponible.':shipped?'Commande en cours de livraison ou livrée.':order.status==='confirmed'?'Affectez un livreur pour cette commande.':'Affectation disponible après confirmation.'}</div>${(()=>{
     if(order.courierId||shipped||order.status!=='confirmed') return '';
     const activeCouriers = Store.couriers.filter(c=>c.status==='active');
     if(!activeCouriers.length){
@@ -6385,7 +6408,7 @@ async function removeCourier(id){
   const btn = document.querySelector(`[onclick="removeCourier('${id}')"]`);
   if(btn){ btn.disabled=true; }
   try{
-    await Store.removeCourier(id);
+    await Cloud.removeCourier(id);
     Toast.show('Livreur retiré');
     Router.go('team');
   }catch(e){
@@ -6570,7 +6593,7 @@ async function initCourierInviteFlow(token){
     else body.innerHTML=renderCourierCodeForm();
   }catch(e){
     console.error(e);
-    body.innerHTML=`<div style="text-align:center;color:var(--red);padding:20px 0;">Invitation invalide. Contactez la boutique.</div><button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="Router.go('welcome')">Retour à SIAMS</button>`;
+    body.innerHTML=`<div style="text-align:center;color:var(--red);padding:20px 0;">Invitation invalide. Contactez la boutique.</div><button class="btn btn-soft-green btn-block" style="margin-top:14px;" onclick="window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent('Bonjour SIAMS, mon invitation de livreur semble invalide ou expirée. Pouvez-vous m’aider ?'),'_blank')">Contacter la boutique</button>`;
   }
 }
 Views['courier-dashboard']=function(){
@@ -6931,7 +6954,7 @@ Views['customer-detail'] = function(opts){
   <div style="padding:0 20px;">
     <div class="mono" style="font-size:13px;color:var(--text-mid);margin-bottom:2px;">${Utils.escapeHtml(opts.phone)}</div>
     <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px;">${Utils.escapeHtml(address)}</div>
-    <button class="btn btn-soft-green btn-sm" style="margin-bottom:16px;" onclick="window.open('https://wa.me/225${opts.phone.replace(/\\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="var(--green)" stroke-width="1.6" stroke-linejoin="round"/></svg>Contacter sur WhatsApp</button>
+    <button class="btn btn-soft-green btn-sm" style="margin-bottom:16px;" onclick="window.open('https://wa.me/225${opts.phone.replace(/\\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 448 512" fill="var(--green)"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter sur WhatsApp</button>
   </div>
   <div class="stat-grid">
     <div class="stat-card"><div class="lbl">Total dépensé</div><div class="val">${Utils.fmtFCFA(spent)}</div></div>
@@ -7056,7 +7079,7 @@ Views.boutique = function(){
       <h2>${Utils.escapeHtml(store.name)}</h2>
     </div>
     <div class="store-actions">
-      <button class="btn btn-soft-green btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="var(--green)" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 9.5c.3 2.7 2.3 4.7 5 5" stroke="var(--green)" stroke-width="1.6" stroke-linecap="round"/></svg>Ouvrir la boutique WhatsApp</button>
+      <button class="btn btn-soft-green btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="var(--green)"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Ouvrir la boutique WhatsApp</button>
       <div class="row2">
         <button class="btn btn-outline" onclick="copyLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.7"/></svg>Copier le lien</button>
         <button class="btn btn-outline" onclick="shareLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v10m0-10 4 4m-4-4-4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Partager</button>
@@ -7486,7 +7509,7 @@ Views['shop-account'] = function(){
   <div class="acc-group-label">Boutique</div>
   <div class="acc-card">
     <div class="acc-row" onclick="openWhatsapp()">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 448 512" fill="currentColor"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg></div>
       <div class="acc-row-text"><h4>Contacter le vendeur</h4><p>Discuter sur WhatsApp</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
@@ -7561,7 +7584,7 @@ Views['shop-about'] = function(){
         <div><h5>Adresse</h5><p>${Utils.escapeHtml(store.address || 'Abidjan, Côte d’Ivoire')}</p></div>
       </div>
       <div class="about-info-row">
-        <div class="about-info-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+        <div class="about-info-icon"><svg width="16" height="16" viewBox="0 0 448 512" fill="currentColor"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg></div>
         <div><h5>Téléphone / WhatsApp</h5><p>${Utils.escapeHtml(store.phone || 'Non renseigné')}</p></div>
       </div>
       ${store.email ? `<div class="about-info-row">
@@ -7590,7 +7613,7 @@ Views['shop-about'] = function(){
     </div>
 
     <div class="about-actions">
-      <button class="btn btn-mango btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>Discuter sur WhatsApp</button>
+      <button class="btn btn-mango btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="#fff"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Discuter sur WhatsApp</button>
       <button class="btn btn-outline btn-block" onclick="shareLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v10m0-10 4 4m-4-4-4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Partager la boutique</button>
     </div>
   </div>
@@ -7666,7 +7689,7 @@ Views['shop-help'] = function(){
   <div class="help-contact-card">
     <h4>Vous ne trouvez pas de réponse ?</h4>
     <p>Notre équipe vous répond directement sur WhatsApp.</p>
-    <button class="btn btn-mango btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>Contacter le vendeur</button>
+    <button class="btn btn-mango btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="#fff"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter le vendeur</button>
   </div>
   <div style="height:12px;"></div>
   `;
@@ -9236,7 +9259,10 @@ Views.confirmation = function(opts){
     waLink = `https://wa.me/225${(store.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(waText)}`;
   }
   return `
-  <div style="padding:40px 20px 24px;text-align:center;">
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Confirmation</h1></div>
+  </div>
+  <div style="padding:24px 20px 24px;text-align:center;">
     <div style="width:76px;height:76px;border-radius:22px;background:var(--green-tint);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
@@ -9253,7 +9279,7 @@ Views.confirmation = function(opts){
   </div>
   <div style="padding:0 20px;">
     <button class="btn btn-outline btn-block" style="margin-bottom:10px;" onclick="downloadReceiptPDF('${order.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Télécharger le reçu (PDF)</button>
-    ${waLink ? `<button class="btn btn-soft-green btn-block" style="margin-bottom:10px;" onclick="window.open('${waLink}','_blank')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-3.8-6.8L20 4l-1.2 3.5A8 8 0 0 1 20 12Z" stroke="var(--green)" stroke-width="1.6" stroke-linejoin="round"/></svg>Confirmer sur WhatsApp</button>` : ''}
+    ${waLink ? `<button class="btn btn-soft-green btn-block" style="margin-bottom:10px;" onclick="window.open('${waLink}','_blank')"><svg width="16" height="16" viewBox="0 0 448 512" fill="var(--green)"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Confirmer sur WhatsApp</button>` : ''}
     <button class="btn btn-mango btn-block" style="margin-bottom:10px;" onclick="Router.go('order-track',{id:'${order.id}'})">Suivre ma commande</button>
     <button class="btn btn-ghost btn-block" style="margin-bottom:24px;" onclick="Router.go('shop')">Retour à la boutique</button>
   </div>` : `
@@ -10476,6 +10502,19 @@ document.addEventListener('DOMContentLoaded', async ()=>{
           
           
           <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="Router.go('store-edit')">Informations de la boutique</button>
+        </section>
+        <section class="v39-settings-section">
+          <div class="v39-settings-head"><div class="v39-settings-icon">🎨</div><div><b>Thème de l'application</b><span>S'applique aux boutons d'action et à la carte du tableau de bord.</span></div></div>
+          <div style="display:flex;gap:10px;">
+            <button type="button" onclick="setUiTheme('blue')" style="flex:1;padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme!=='black'?'var(--blue)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+              <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#0091FD,#00B4FD);"></span>
+              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Bleu${Store.uiTheme!=='black'?' ✓':''}</span>
+            </button>
+            <button type="button" onclick="setUiTheme('black')" style="flex:1;padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme==='black'?'var(--ink)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+              <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#000000,#2E2E2E);"></span>
+              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Noir${Store.uiTheme==='black'?' ✓':''}</span>
+            </button>
+          </div>
         </section>
         <section class="v39-settings-section">
           <div class="v39-settings-head"><div class="v39-settings-icon">🛡️</div><div><b>Sécurité du compte</b><span>Identifiant et accès à votre espace marchand.</span></div></div>
