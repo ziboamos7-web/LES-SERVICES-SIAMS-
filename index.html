@@ -1755,7 +1755,8 @@ const Cloud = {
 
   async pushPayment(prev, next){
     const rows = ['wave','om','mtn','moov','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null, link:next[k].link||null, validated:!!next[k].validated, validated_at:next[k].validatedAt?new Date(next[k].validatedAt).toISOString():null}));
-    await sb.from('payment_methods').upsert(rows, {onConflict:'store_id,method_key'});
+    const {error} = await sb.from('payment_methods').upsert(rows, {onConflict:'store_id,method_key'});
+    if(error) throw error;
   },
 
   /* ---- SIAMS DELIVERY NETWORK ---- */
