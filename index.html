@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SIAMS – Boutique en ligne</title>
 <meta name="description" content="Les services SIAMS de boutique en ligne. Créez, gérez et développez votre boutique en ligne en toute simplicité : commandes, livraison en temps réel, paiements et notifications.">
-<meta name="theme-color" content="#0468E3">
+<meta name="theme-color" content="#111111">
 
 <!-- Nom affiché quand le site est ajouté à l'écran d'accueil -->
 <meta name="apple-mobile-web-app-title" content="SIAMS">
@@ -38,14 +38,19 @@
   :root{
     /* ---- Design tokens : identité "SIAMS" — couleurs extraites directement du logo ---- */
     --ink:#0B0E17;
-    --paper:#F5F7FC;
-    --panel:#EAF1FF;
-    --line:#D9E6FB;
+    --paper:#FAF9F5;
+    --panel:#F1EFE7;
+    --line:#E2DFD4;
 
-    --indigo:#0468E3;
-    --indigo-dark:#023E93;
-    --indigo-tint:#E3EEFF;
-    --cyan:#00B7FF;
+    --indigo:#111111;
+    --indigo-dark:#000000;
+    --indigo-tint:#EDECE7;
+    --cyan:#2E2E2E;
+
+    --blue:#1C7EF2;
+    --blue-tint:#E4EFFE;
+    --gray-cancel:#4A473C;
+    --gray-cancel-tint:#E7E4D9;
 
     --mango:#FF7A1A;
     --mango-dark:#DE5E00;
@@ -77,8 +82,8 @@
     --radius-sm:12px;
 
     --shadow-sm:0 1px 3px rgba(11,14,23,.06);
-    --shadow-md:0 10px 24px -10px rgba(4,104,227,.2);
-    --shadow-lg:0 20px 44px -16px rgba(4,104,227,.3);
+    --shadow-md:0 10px 24px -10px rgba(17,17,17,.2);
+    --shadow-lg:0 20px 44px -16px rgba(17,17,17,.3);
 
     --font-display:'Plus Jakarta Sans',-apple-system,sans-serif;
     --font-body:'Manrope',-apple-system,sans-serif;
@@ -89,7 +94,7 @@
   body{
     font-family:var(--font-body);
     background:
-      radial-gradient(620px 320px at 100% 0%, rgba(4,104,227,.10), transparent 60%),
+      radial-gradient(620px 320px at 100% 0%, rgba(17,17,17,.10), transparent 60%),
       radial-gradient(520px 300px at 0% 8%, rgba(255,122,26,.08), transparent 55%),
       var(--paper);
     color:var(--text);
@@ -144,13 +149,13 @@
   .btn{border:none;cursor:pointer;font-family:var(--font-body);display:inline-flex;align-items:center;justify-content:center;gap:8px;
     font-size:15px;font-weight:700;border-radius:16px;padding:14px 22px;transition:transform .12s ease,box-shadow .12s ease;}
   .btn:active{transform:scale(.97);}
-  .btn-primary{background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(4,104,227,.5);}
+  .btn-primary{background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(17,17,17,.5);}
   .btn-mango{background:linear-gradient(135deg,var(--mango) 0%,#FF9A4D 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(255,122,26,.5);}
   .btn-block{width:100%;}
   .btn-ghost{background:var(--panel);color:var(--text);}
-  .btn-outline{background:#fff;border:1.5px solid var(--line);color:var(--text);}
+  .btn-outline{background:#fff;border:1.5px solid var(--gray-cancel-tint);color:var(--gray-cancel);}
   .btn-soft-indigo{background:var(--indigo-tint);color:var(--indigo);}
-  .btn-soft-green{background:var(--green-tint);color:var(--green);}
+  .btn-soft-green{background:var(--blue-tint);color:var(--blue);}
   .btn-sm{padding:9px 16px;font-size:13.5px;}
 
   .fab{position:fixed;right:20px;bottom:96px;z-index:40;max-width:440px;}
@@ -164,11 +169,13 @@
     box-shadow:0 16px 36px -14px rgba(11,14,23,.22);border:1px solid var(--line);
   }
   .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px 6px;
-    background:none;border:none;cursor:pointer;color:var(--text-soft);font-family:var(--font-body);position:relative;border-radius:14px;transition:background .15s ease,color .15s ease;}
-  .nav-item svg{width:22px;height:22px;}
+    background:none;border:none;cursor:pointer;color:var(--text-soft);font-family:var(--font-body);position:relative;border-radius:14px;transition:background .2s cubic-bezier(.34,1.56,.64,1),color .2s ease;}
+  .nav-item svg{width:22px;height:22px;transition:transform .2s cubic-bezier(.34,1.56,.64,1);}
   .nav-item span{font-size:11px;font-weight:700;}
   .nav-item.active{color:var(--indigo);background:var(--indigo-tint);}
-  .nav-indicator{display:none;}
+  .nav-item.active svg{transform:translateY(-1px) scale(1.08);}
+  .nav-indicator{position:absolute;bottom:1px;left:50%;width:4px;height:4px;border-radius:50%;background:var(--indigo);transform:translateX(-50%) scale(0);transition:transform .2s cubic-bezier(.34,1.56,.64,1);}
+  .nav-item.active .nav-indicator{transform:translateX(-50%) scale(1);}
 
   /* ---------- Balance card ---------- */
   .balance-card{
@@ -340,7 +347,7 @@
   .siams-admin-nav .nav-icon-wrap svg{width:21px;height:21px;transition:transform .18s ease;}
   .siams-admin-nav .nav-item span{font-size:10.5px;font-weight:800;letter-spacing:-.1px;}
   .siams-admin-nav .nav-item.active{color:var(--indigo);background:transparent;}
-  .siams-admin-nav .nav-item.active .nav-icon-wrap{background:linear-gradient(135deg,var(--indigo-tint),#eef7ff);box-shadow:inset 0 0 0 1px rgba(4,104,227,.08);}
+  .siams-admin-nav .nav-item.active .nav-icon-wrap{background:linear-gradient(135deg,var(--indigo-tint),#eef7ff);box-shadow:inset 0 0 0 1px rgba(17,17,17,.08);}
   .siams-admin-nav .nav-item.active .nav-icon-wrap svg{transform:translateY(-1px);}
   .siams-admin-nav .nav-more .nav-icon-wrap{background:#f6f8fc;}
 
@@ -351,7 +358,7 @@
   .dashboard-v2-profile{width:44px;height:44px;border-radius:15px;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;overflow:hidden;}
   .dashboard-v2-profile img{width:100%;height:100%;object-fit:cover;}
   .dashboard-v2-profile svg{width:20px;height:20px;color:var(--indigo);}
-  .dashboard-v2-stat-card{margin:16px 20px 0;padding:20px;border-radius:26px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(135deg,#023E93 0%,#0468E3 58%,#00B7FF 100%);box-shadow:0 18px 40px -18px rgba(4,104,227,.48);}
+  .dashboard-v2-stat-card{margin:16px 20px 0;padding:20px;border-radius:26px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(135deg,#000000 0%,#111111 58%,#2E2E2E 100%);box-shadow:0 18px 40px -18px rgba(17,17,17,.48);}
   .dashboard-v2-stat-card:before{content:'';position:absolute;width:180px;height:180px;right:-70px;top:-90px;border-radius:50%;background:rgba(255,255,255,.12);}
   .dashboard-v2-stat-card:after{content:'';position:absolute;width:100px;height:100px;right:30px;bottom:-65px;border-radius:50%;background:rgba(255,255,255,.08);}
   .dashboard-v2-stat-top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
@@ -386,7 +393,7 @@
   .dashboard-v2-insight p{margin:0;color:var(--text-mid);font-size:10.5px;line-height:1.45;}
 
   /* ---------- Onboarding marchand V2 / AMS ---------- */
-  .onboard-merchant-pro{background:radial-gradient(520px 340px at 50% 18%,rgba(4,104,227,.12),transparent 68%),linear-gradient(180deg,#f9fbff 0%,#eef4ff 100%);color:var(--ink);}
+  .onboard-merchant-pro{background:radial-gradient(520px 340px at 50% 18%,rgba(17,17,17,.12),transparent 68%),linear-gradient(180deg,#f9fbff 0%,#eef4ff 100%);color:var(--ink);}
   .onboard-merchant-top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:15px 18px 5px;}
   .onboard-count{font:800 12px var(--font-mono);color:var(--indigo);white-space:nowrap;}
   .onboard-count span:last-child{color:var(--text-soft);margin-left:2px;}
@@ -395,7 +402,7 @@
   .onboard-merchant-top .onboard-skip{margin:0;padding:5px 0;font-size:12px;}
   .onboard-merchant-head{padding:10px 20px 0;display:flex;align-items:center;justify-content:space-between;}
   .onboard-brand{display:flex;align-items:center;gap:7px;font-size:9px;font-weight:900;letter-spacing:1px;color:var(--text-mid);}
-  .onboard-brand img{width:27px;height:27px;border-radius:8px;object-fit:cover;box-shadow:0 6px 14px -6px rgba(4,104,227,.4);}
+  .onboard-brand img{width:27px;height:27px;border-radius:8px;object-fit:cover;box-shadow:0 6px 14px -6px rgba(17,17,17,.4);}
   .onboard-kicker{font-size:9px;font-weight:900;letter-spacing:1.4px;color:var(--indigo);}
   .onboard-merchant-slides{min-height:0;height:calc(100vh - 174px);max-height:690px;}
   .merchant-slide{padding:4px 18px 8px;justify-content:center;}
@@ -410,22 +417,22 @@
   .merchant-footer .onboard-dots{gap:4px;margin-bottom:12px;}
   .merchant-footer .onboard-dot{width:6px;height:6px;}
   .merchant-footer .onboard-dot.active{width:20px;}
-  .ams-scene{width:min(340px,88vw);height:min(430px,55vh);min-height:360px;position:relative;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:34px;background:linear-gradient(145deg,#fff 0%,#edf5ff 58%,#dceaff 100%);border:1px solid rgba(4,104,227,.09);box-shadow:0 24px 50px -24px rgba(4,104,227,.3);}
+  .ams-scene{width:min(340px,88vw);height:min(430px,55vh);min-height:360px;position:relative;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:34px;background:linear-gradient(145deg,#fff 0%,#edf5ff 58%,#dceaff 100%);border:1px solid rgba(17,17,17,.09);box-shadow:0 24px 50px -24px rgba(17,17,17,.3);}
   .ams-orb{position:absolute;border-radius:50%;filter:blur(1px);}
-  .orb-a{width:210px;height:210px;right:-65px;top:-55px;background:radial-gradient(circle at 35% 35%,rgba(0,183,255,.24),rgba(4,104,227,0));}
+  .orb-a{width:210px;height:210px;right:-65px;top:-55px;background:radial-gradient(circle at 35% 35%,rgba(0,183,255,.24),rgba(17,17,17,0));}
   .orb-b{width:170px;height:170px;left:-70px;bottom:-60px;background:radial-gradient(circle at 55% 45%,rgba(255,122,26,.16),rgba(255,122,26,0));}
-  .ams-card-back{position:absolute;width:180px;height:105px;right:24px;top:52px;border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(231,240,255,.7));border:1px solid rgba(4,104,227,.08);transform:rotate(10deg);box-shadow:0 16px 30px -20px rgba(4,104,227,.5);}
+  .ams-card-back{position:absolute;width:180px;height:105px;right:24px;top:52px;border-radius:22px;background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(231,240,255,.7));border:1px solid rgba(17,17,17,.08);transform:rotate(10deg);box-shadow:0 16px 30px -20px rgba(17,17,17,.5);}
   .ams-avatar{width:220px;height:300px;position:relative;z-index:3;transform:translateY(12px);filter:saturate(.96);}
   .ams-avatar svg{width:100%;height:100%;filter:drop-shadow(0 22px 16px rgba(11,14,23,.20));overflow:visible;}
   .ams-glow{position:absolute;width:175px;height:175px;left:22px;top:58px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.98) 0%,rgba(220,235,255,.45) 42%,rgba(255,255,255,0) 72%);z-index:-1;}
   .ams-shadow{position:absolute;width:150px;height:24px;left:30px;bottom:4px;background:rgba(11,14,23,.13);filter:blur(10px);border-radius:50%;z-index:-1;}
-  .ams-badge{position:absolute;left:6px;top:30px;background:#fff;color:var(--indigo);font:900 10px var(--font-body);padding:7px 9px;border-radius:999px;box-shadow:0 8px 18px -10px rgba(4,104,227,.45);border:1px solid rgba(4,104,227,.08);}
+  .ams-badge{position:absolute;left:6px;top:30px;background:#fff;color:var(--indigo);font:900 10px var(--font-body);padding:7px 9px;border-radius:999px;box-shadow:0 8px 18px -10px rgba(17,17,17,.45);border:1px solid rgba(17,17,17,.08);}
   .ams-phone-mini{position:absolute;z-index:4;right:27px;bottom:45px;width:76px;height:142px;border:4px solid #111827;border-radius:18px;background:#0e1726;box-shadow:0 15px 28px -15px rgba(4,18,45,.5);transform:rotate(7deg);overflow:hidden;}
   .ams-phone-notch{position:absolute;top:5px;left:50%;transform:translateX(-50%);width:26px;height:7px;background:#000;border-radius:10px;z-index:3;}
   .ams-mini-screen{height:100%;padding:23px 7px 8px;color:#fff;background:linear-gradient(160deg,#071429,#0d2340);font-size:7px;line-height:1.4;}
   .ams-mini-screen b{display:block;font-size:10px;margin:7px 0 9px;}
   .ams-mini-screen span{display:block;height:10px;border-radius:4px;background:rgba(255,255,255,.12);margin-top:6px;}
-  .ams-final-brand{display:flex;align-items:center;justify-content:center;gap:8px;margin:12px auto 0;padding:9px 12px;background:rgba(255,255,255,.96);border:1px solid rgba(4,104,227,.12);border-radius:15px;box-shadow:var(--shadow-sm);width:max-content;max-width:100%;white-space:nowrap;}
+  .ams-final-brand{display:flex;align-items:center;justify-content:center;gap:8px;margin:12px auto 0;padding:9px 12px;background:rgba(255,255,255,.96);border:1px solid rgba(17,17,17,.12);border-radius:15px;box-shadow:var(--shadow-sm);width:max-content;max-width:100%;white-space:nowrap;}
   .ams-final-brand strong{font-size:10px;line-height:1.25;font-weight:800;}
   .ams-final-brand b{font-size:10px;letter-spacing:.8px;color:var(--indigo);font-weight:900;}
   .ams-final-brand img{width:24px;height:24px;border-radius:7px;object-fit:cover;flex:none;}
@@ -450,7 +457,7 @@
   .onboard-screen.dark{background:#0c1524;color:#f5f7fa;}
   .os-top{font-size:10px;font-weight:800;margin-bottom:8px;}
   .os-sub{font-size:6px;color:#7c8798;margin-bottom:8px;}
-  .os-card{border-radius:12px;background:linear-gradient(135deg,#0649c8,#0aa9ef);color:white;padding:12px 9px;margin-bottom:9px;box-shadow:0 8px 18px rgba(4,104,227,.22);}
+  .os-card{border-radius:12px;background:linear-gradient(135deg,#0649c8,#0aa9ef);color:white;padding:12px 9px;margin-bottom:9px;box-shadow:0 8px 18px rgba(17,17,17,.22);}
   .os-card strong{display:block;font-size:17px;margin:3px 0;}
   .os-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
   .os-tile{background:white;border-radius:8px;padding:8px 4px;text-align:center;box-shadow:0 2px 7px rgba(10,25,50,.08);min-height:38px;}
@@ -503,7 +510,7 @@
   .toggle-row span{font-size:14px;color:var(--text);}
 
   /* ---------- Barre de progression : paiement échelonné (socle de l'abonnement) ---------- */
-  .installment-bar-track{width:100%;height:9px;border-radius:999px;background:rgba(4,104,227,.15);overflow:hidden;}
+  .installment-bar-track{width:100%;height:9px;border-radius:999px;background:rgba(17,17,17,.15);overflow:hidden;}
   .installment-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--indigo),var(--cyan));transition:width .3s ease;}
 
   /* ---------- Horaires façon WhatsApp Business ---------- */
@@ -875,7 +882,7 @@
   .dashboard-v5-spark i{
     display:block;width:8px;border-radius:8px 8px 3px 3px;
     background:linear-gradient(180deg,var(--cyan),var(--indigo));
-    box-shadow:0 0 8px rgba(4,104,227,.16);
+    box-shadow:0 0 8px rgba(17,17,17,.16);
   }
   .dashboard-v5-spark i:nth-child(1){height:9px;opacity:.45}
   .dashboard-v5-spark i:nth-child(2){height:14px;opacity:.55}
@@ -891,8 +898,8 @@
   }
   .dashboard-v2-quick button,.dashboard-v2-service{transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;}
   .dashboard-v2-quick button:hover,.dashboard-v2-service:hover{
-    border-color:rgba(4,104,227,.22)!important;
-    box-shadow:0 14px 28px -18px rgba(4,104,227,.24)!important;
+    border-color:rgba(17,17,17,.22)!important;
+    box-shadow:0 14px 28px -18px rgba(17,17,17,.24)!important;
     transform:translateY(-2px);
   }
   .dashboard-v2-service-grid{padding-bottom:2px;}
@@ -919,7 +926,7 @@
   .products-v3-chips{display:flex;gap:7px;padding:8px 20px 2px;overflow-x:auto;scrollbar-width:none;}
   .products-v3-chips::-webkit-scrollbar{display:none;}
   .products-v3-chip{border:1px solid var(--line);background:#fff;color:var(--text-mid);border-radius:999px;padding:8px 13px;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;font-family:var(--font-body);}
-  .products-v3-chip.active{background:var(--indigo);border-color:var(--indigo);color:#fff;box-shadow:0 7px 16px -9px rgba(4,104,227,.55);}
+  .products-v3-chip.active{background:var(--indigo);border-color:var(--indigo);color:#fff;box-shadow:0 7px 16px -9px rgba(17,17,17,.55);}
   .products-v3-list{display:grid;gap:10px;padding:10px 20px 120px;}
   .product-v3-card{display:flex;gap:12px;padding:10px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
   .product-v3-card:active{transform:scale(.99);}
@@ -956,7 +963,7 @@
 .orders-list-premium{padding:0 20px 92px;}
 .order-card-premium{position:relative;display:flex;align-items:center;gap:12px;padding:14px;margin-bottom:9px;background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 20px rgba(20,40,80,.055);cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;}
 .order-card-premium:active{transform:scale(.985);}
-.order-card-premium:hover{border-color:var(--indigo);box-shadow:0 10px 26px rgba(4,104,227,.10);}
+.order-card-premium:hover{border-color:var(--indigo);box-shadow:0 10px 26px rgba(17,17,17,.10);}
 .order-card-premium .status-dot{width:10px;height:42px;border-radius:7px;flex:none;background:var(--indigo);}
 .order-card-premium .status-dot.pending{background:var(--mango);}
 .order-card-premium .status-dot.confirmed{background:var(--indigo);}
@@ -982,7 +989,7 @@
 .order-client-name{font-size:15px;font-weight:800;margin-bottom:3px}.order-client-meta{font-size:12px;color:var(--text-mid);line-height:1.6}.order-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .order-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.order-item:last-child{border-bottom:0}.order-item-thumb{width:44px;height:44px;border-radius:11px;background:var(--panel);overflow:hidden;display:grid;place-items:center;flex:none}.order-item-thumb img{width:100%;height:100%;object-fit:cover}.order-item-main{flex:1;min-width:0}.order-item-main b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order-item-main span{font-size:11px;color:var(--text-mid)}.order-item-price{font-family:var(--font-mono);font-size:12.5px;font-weight:800}
 .order-total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}.order-total b{font-size:14px}.order-total strong{font-family:var(--font-mono);font-size:17px;color:var(--indigo)}
-.order-timeline{position:relative;margin:4px 0 2px;padding-left:23px}.order-timeline:before{content:"";position:absolute;left:7px;top:7px;bottom:7px;width:2px;background:var(--line)}.timeline-step{position:relative;padding:0 0 16px}.timeline-step:last-child{padding-bottom:0}.timeline-step .point{position:absolute;left:-20px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--line);z-index:1}.timeline-step.done .point{background:var(--indigo);border-color:var(--indigo);box-shadow:0 0 0 4px var(--indigo-tint)}.timeline-step.delivered .point{background:var(--green);border-color:var(--green)}.timeline-step b{font-size:12.5px}.timeline-step span{display:block;font-size:11px;color:var(--text-mid);margin-top:2px}.order-main-action{margin:0 20px 24px;padding-bottom:76px}.order-main-action .btn{box-shadow:0 9px 22px rgba(4,104,227,.16)}
+.order-timeline{position:relative;margin:4px 0 2px;padding-left:23px}.order-timeline:before{content:"";position:absolute;left:7px;top:7px;bottom:7px;width:2px;background:var(--line)}.timeline-step{position:relative;padding:0 0 16px}.timeline-step:last-child{padding-bottom:0}.timeline-step .point{position:absolute;left:-20px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--line);z-index:1}.timeline-step.done .point{background:var(--indigo);border-color:var(--indigo);box-shadow:0 0 0 4px var(--indigo-tint)}.timeline-step.delivered .point{background:var(--green);border-color:var(--green)}.timeline-step b{font-size:12.5px}.timeline-step span{display:block;font-size:11px;color:var(--text-mid);margin-top:2px}.order-main-action{margin:0 20px 24px;padding-bottom:76px}.order-main-action .btn{box-shadow:0 9px 22px rgba(17,17,17,.16)}
 @media(max-width:380px){.order-detail-hero,.order-section,.order-main-action{margin-left:14px;margin-right:14px}.order-actions{grid-template-columns:1fr}}
 
 
@@ -1010,11 +1017,16 @@
 @media(max-width:380px){.dashboard-v2-quick{gap:6px;padding-left:14px;padding-right:14px}.dashboard-v2-quick .quick-nav-card{min-height:84px;padding-left:4px;padding-right:4px}.dashboard-v2-quick .quick-nav-card .qicon{width:38px;height:38px;min-width:38px}}
 
 /* ---------- V18 — Dashboard financier premium ---------- */
-.dashboard-v18-finance{margin:16px 20px 0;padding:18px;border-radius:24px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 58%,var(--cyan) 100%);box-shadow:0 20px 44px -22px rgba(4,104,227,.48);border:1px solid rgba(255,255,255,.16);isolation:isolate;}
+.dashboard-v18-finance{margin:16px 20px 0;padding:18px;border-radius:24px;color:#fff;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 58%,var(--cyan) 100%);box-shadow:0 20px 44px -22px rgba(17,17,17,.48);border:1px solid rgba(255,255,255,.16);isolation:isolate;}
 .dashboard-v18-finance:before{content:attr(data-watermark);position:absolute;right:-18px;bottom:8px;font-family:var(--font-display);font-size:42px;font-weight:800;letter-spacing:-1.5px;line-height:1;white-space:nowrap;color:rgba(255,255,255,.085);transform:rotate(-12deg);pointer-events:none;z-index:0;max-width:92%;overflow:hidden;text-overflow:ellipsis;}
 .dashboard-v18-finance:after{content:'';position:absolute;width:150px;height:150px;left:-85px;bottom:-100px;border-radius:50%;background:rgba(255,255,255,.09);pointer-events:none;z-index:0;}
 .dashboard-v18-finance .finance-head,.dashboard-v18-finance .finance-main,.dashboard-v18-finance .finance-grid,.dashboard-v18-finance .finance-footer{position:relative;z-index:1;}
 .finance-head{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.finance-brand{display:flex;align-items:center;gap:10px;min-width:0;}
+.finance-brand-logo{width:34px;height:34px;border-radius:11px;flex:none;background:#fff;color:#111;font:900 15px var(--font-display);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.finance-brand-logo img{width:100%;height:100%;object-fit:cover;}
+.finance-brand-name{font-size:13px;font-weight:800;color:#fff;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+.finance-brand .finance-kicker{margin-top:1px;}
 .finance-kicker{font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.68);}
 .finance-period{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:7px 10px;font:800 9.5px var(--font-body);}
 .finance-main{margin-top:16px;}
@@ -1757,6 +1769,13 @@ const Cloud = {
     if(error) throw error;
     return data;
   },
+  async removeCourier(courierId){
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    if(!courierId) throw new Error('Livreur manquant');
+    const {error}=await sb.from('couriers').update({status:'suspended'}).eq('id',courierId).eq('store_id',this.storeId);
+    if(error) throw error;
+    await this.loadCourierData();
+  },
   async assignCourier(orderId,courierId){
     if(!this.storeId) throw new Error('Boutique non initialisée');
     if(!orderId || !courierId) throw new Error('Commande ou livreur manquant');
@@ -1800,6 +1819,21 @@ const Cloud = {
   },
   async courierLogin(code){
     const {data,error}=await sb.rpc('courier_login',{p_access_code:code});
+    if(error) throw error;
+    return data;
+  },
+  async getCourierInviteStatus(token){
+    const {data,error}=await sb.rpc('get_courier_invite_status',{p_token:token});
+    if(error) throw error;
+    return data;
+  },
+  async courierSetPin(sessionToken,pin){
+    const {data,error}=await sb.rpc('courier_set_pin',{p_session_token:sessionToken,p_pin:pin});
+    if(error) throw error;
+    return data;
+  },
+  async courierLoginPin(token,pin){
+    const {data,error}=await sb.rpc('courier_login_pin',{p_token:token,p_pin:pin});
     if(error) throw error;
     return data;
   },
@@ -2511,6 +2545,7 @@ const Router = {
     Notify.closePanel();
     Sheet.close();
     Router.current = name;
+    Router.currentOpts = opts || {};
     /* ---- Un rendu de vue qui plante (exception JS) ne doit jamais laisser le clic
        « sans rien faire » à l'écran : on affiche l'erreur pour pouvoir la diagnostiquer
        facilement (capture d'écran), au lieu d'un échec silencieux visible seulement
@@ -2593,9 +2628,10 @@ const AutoSync = {
     const root=document.getElementById('page-root');
     if(!root || !Views[name]) return;
     try{
-      root.innerHTML=Views[name]({autoRefresh:true});
+      const opts=Object.assign({}, Router.currentOpts||{}, {autoRefresh:true});
+      root.innerHTML=Views[name](opts);
       const after=Views['_after_'+name.replace(/-/g,'_')];
-      if(after) after({autoRefresh:true});
+      if(after) after(opts);
       Notify.renderBell(); ClientNotify.renderBadges();
       if(name==='courier-dashboard') setTimeout(loadCourierDashboard,0);
     }catch(e){ console.error('AutoSync render',e); }
@@ -2927,7 +2963,7 @@ const Onboarding = {
       <div class="onboard-slides"><div class="onboard-track" id="onboard-track__v46_3">
         ${this.slides.map((s,i)=>`
           <div class="onboard-slide ${i===0?'active':''}" data-oi="${i}">
-            ${s.vision ? `<div style="width:88px;height:88px;border-radius:26px;margin-bottom:24px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(4,104,227,.5);overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div><div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;">${s.tagline||''}</div><h2>${s.title}</h2><p>${s.text}</p>` : `<div class="onboard-icon">${s.icon}</div><h2>${s.title}</h2><p>${s.text}</p>`}
+            ${s.vision ? `<div style="width:88px;height:88px;border-radius:26px;margin-bottom:24px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(17,17,17,.5);overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div><div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;">${s.tagline||''}</div><h2>${s.title}</h2><p>${s.text}</p>` : `<div class="onboard-icon">${s.icon}</div><h2>${s.title}</h2><p>${s.text}</p>`}
           </div>`).join('')}
       </div></div>
       <div class="onboard-footer"><div class="onboard-dots">${this.slides.map((s,i)=>`<div class="onboard-dot ${i===0?'active':''}"></div>`).join('')}</div><button class="btn btn-primary btn-block" id="onboard-next-btn__v46_3" onclick="Onboarding.next()">Suivant</button></div>
@@ -3186,25 +3222,27 @@ if(!document.getElementById('siams-splash-anim-style')){
     @keyframes siamsSplashLogoIn{0%{opacity:0;transform:scale(.55) translateY(14px);}60%{opacity:1;transform:scale(1.06) translateY(0);}100%{opacity:1;transform:scale(1) translateY(0);}}
     @keyframes siamsSplashGlow{0%,100%{box-shadow:0 20px 46px -14px rgba(22,200,220,.55),0 0 0 0 rgba(22,200,220,.35);}50%{box-shadow:0 20px 54px -10px rgba(22,200,220,.75),0 0 0 16px rgba(22,200,220,0);}}
     @keyframes siamsSplashTextIn{0%{opacity:0;transform:translateY(10px);}100%{opacity:1;transform:translateY(0);}}
-    @keyframes siamsSplashBg{0%,100%{opacity:.55;transform:scale(1) rotate(0deg);}50%{opacity:.9;transform:scale(1.1) rotate(4deg);}}
-    @keyframes siamsSplashBg2{0%,100%{opacity:.4;transform:scale(1) translate(0,0);}50%{opacity:.75;transform:scale(1.14) translate(-14px,12px);}}
-    @keyframes siamsSplashBar{0%{transform:scaleX(0);}100%{transform:scaleX(1);}}
-    @keyframes siamsSplashFloat{0%,100%{transform:translateY(0) scale(1);opacity:.3;}50%{transform:translateY(-16px) scale(1.2);opacity:.85;}}
+    @keyframes siamsSplashBg{0%,100%{opacity:.5;transform:translate(-8%,-6%) scale(1);}50%{opacity:.85;transform:translate(4%,5%) scale(1.16);}}
+    @keyframes siamsSplashBg2{0%,100%{opacity:.35;transform:translate(6%,8%) scale(1);}50%{opacity:.65;transform:translate(-5%,-4%) scale(1.2);}}
+    @keyframes siamsSplashRing{0%{transform:scale(.92);opacity:.5;}100%{transform:scale(1.6);opacity:0;}}
     @keyframes siamsSplashMsgIn{0%{opacity:0;transform:translateY(8px);}15%{opacity:1;transform:translateY(0);}85%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-8px);}}
-    @keyframes siamsSplashGrain{0%{transform:translate(0,0);}100%{transform:translate(-40px,-40px);}}
+    @keyframes siamsSplashBarLoop{0%{transform:translateX(-110%);}100%{transform:translateX(230%);}}
     .siams-splash-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;background:var(--paper);}
     .siams-splash-grid{display:none;}
-    .siams-splash-bg{display:none;}
-    .siams-splash-bg2{display:none;}
     .siams-splash-dot{display:none;}
+    .siams-splash-bg{position:absolute;top:-16%;left:-18%;width:68vw;height:68vw;max-width:420px;max-height:420px;border-radius:50%;background:radial-gradient(circle,rgba(28,126,242,.16),transparent 65%);animation:siamsSplashBg 7s ease-in-out infinite;pointer-events:none;}
+    .siams-splash-bg2{position:absolute;bottom:-14%;right:-16%;width:58vw;height:58vw;max-width:380px;max-height:380px;border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.14),transparent 65%);animation:siamsSplashBg2 8s ease-in-out infinite;pointer-events:none;}
     .siams-splash-card{position:relative;z-index:1;padding:30px 34px 26px;border-radius:32px;}
-    .siams-splash-logo{width:88px;height:88px;border-radius:24px;margin:0 auto 20px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;overflow:hidden;animation:siamsSplashLogoIn .65s cubic-bezier(.2,.9,.3,1.3) both, siamsSplashGlow 2.4s ease-in-out .65s infinite;}
+    .siams-splash-logo-wrap{position:relative;width:88px;height:88px;margin:0 auto 20px;}
+    .siams-splash-ring{position:absolute;inset:0;border-radius:24px;border:1.5px solid var(--cyan);animation:siamsSplashRing 2.2s ease-out infinite;pointer-events:none;}
+    .siams-splash-ring.delay{animation-delay:1.1s;}
+    .siams-splash-logo{width:88px;height:88px;border-radius:24px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;overflow:hidden;animation:siamsSplashLogoIn .65s cubic-bezier(.2,.9,.3,1.3) both, siamsSplashGlow 2.4s ease-in-out .65s infinite;}
     .siams-splash-logo img{width:100%;height:100%;object-fit:cover;}
     .siams-splash-brand{font-size:20px;font-weight:900;letter-spacing:.5px;position:relative;z-index:1;color:var(--text);opacity:0;animation:siamsSplashTextIn .5s ease-out .45s forwards;}
     .siams-splash-msg-wrap{height:20px;margin-top:9px;position:relative;z-index:1;overflow:hidden;}
     .siams-splash-text{font-size:13px;font-weight:600;color:var(--text-mid);position:relative;z-index:1;}
-    .siams-splash-bar-track{width:132px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin:22px auto 0;position:relative;z-index:1;}
-    .siams-splash-bar-fill{height:100%;width:100%;background:linear-gradient(90deg,var(--indigo-dark),var(--cyan));transform-origin:left;animation:siamsSplashBar 3s cubic-bezier(.3,.7,.4,1) .1s both;}
+    .siams-splash-bar-track{width:140px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin:24px auto 0;position:relative;z-index:1;}
+    .siams-splash-bar-fill{position:absolute;top:0;bottom:0;width:40%;border-radius:4px;background:linear-gradient(90deg,transparent,var(--indigo-dark),var(--cyan),transparent);animation:siamsSplashBarLoop 1.3s ease-in-out infinite;}
   `;
   document.head.appendChild(splashStyle);
 }
@@ -3278,9 +3316,15 @@ async function siamsPrepareImageDataURL(file, opts){
 
 Views.loading = function(){
   return `<div class="siams-splash-wrap">
+    <div class="siams-splash-bg"></div>
+    <div class="siams-splash-bg2"></div>
     <div class="siams-splash-card">
-      <div class="siams-splash-logo">
-        <img src="${LOGO_DATA_URI}" alt="SIAMS">
+      <div class="siams-splash-logo-wrap">
+        <span class="siams-splash-ring"></span>
+        <span class="siams-splash-ring delay"></span>
+        <div class="siams-splash-logo">
+          <img src="${LOGO_DATA_URI}" alt="SIAMS">
+        </div>
       </div>
       <div class="siams-splash-brand">SIAMS</div>
       <div class="siams-splash-msg-wrap"><div class="siams-splash-text">Bon retour</div></div>
@@ -3288,6 +3332,19 @@ Views.loading = function(){
     </div>
   </div>`;
 };
+/* Boucle de messages sans durée fixe : tourne tant que le démarrage réel n'est
+   pas terminé, puis s'arrête via la fonction retournée (stop()). */
+function siamsStartSplashLoop(root){
+  const el = root && root.querySelector('.siams-splash-text');
+  if(!el) return ()=>{};
+  const msgs = SIAMS_SPLASH_MESSAGES;
+  const step = 900;
+  let i = 0;
+  const show = ()=>{ el.style.animation='none'; void el.offsetWidth; el.textContent=msgs[i]; el.style.animation = `siamsSplashMsgIn ${step}ms ease-in-out both`; };
+  show();
+  const timer = setInterval(()=>{ i = (i+1) % msgs.length; show(); }, step);
+  return ()=>clearInterval(timer);
+}
 /* ---- Écran dédié logo + « Bon retour » affiché après connexion, avant le tableau de bord ---- */
 async function showWelcomeBackThenDashboard(){
   const root = document.getElementById('page-root');
@@ -3300,9 +3357,9 @@ async function showWelcomeBackThenDashboard(){
 Views.welcome = function(){
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;">
-    <div style="position:absolute;inset:0;background:radial-gradient(480px 320px at 50% -10%, rgba(4,104,227,.16), transparent 60%);pointer-events:none;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(480px 320px at 50% -10%, rgba(17,17,17,.16), transparent 60%);pointer-events:none;"></div>
     <img src="${SIAMS_WATERMARK_DATA_URI}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,92vw);height:auto;opacity:.09;pointer-events:none;z-index:0;">
-    <div style="width:88px;height:88px;border-radius:26px;margin-bottom:26px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(4,104,227,.5);position:relative;z-index:1;overflow:hidden;">
+    <div style="width:88px;height:88px;border-radius:26px;margin-bottom:26px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(17,17,17,.5);position:relative;z-index:1;overflow:hidden;">
       <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
     </div>
     <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;position:relative;z-index:1;">SIAMS</div>
@@ -3563,7 +3620,7 @@ Views['business-type'] = function(){
   businessTypeActiveTab = 'vente-ligne';
   return `
   <div style="padding:26px 20px 4px;text-align:center;">
-    <div style="width:52px;height:52px;border-radius:15px;margin:0 auto 16px;overflow:hidden;box-shadow:0 10px 22px -10px rgba(4,104,227,.4);">
+    <div style="width:52px;height:52px;border-radius:15px;margin:0 auto 16px;overflow:hidden;box-shadow:0 10px 22px -10px rgba(17,17,17,.4);">
       <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
     </div>
     <h1 style="font-size:21px;margin:0 0 6px;letter-spacing:-.3px;">SIAMS à vos côtés</h1>
@@ -4389,18 +4446,27 @@ Views.dashboard = function(){
   return `
     <div class="dashboard-v2-head dashboard-v5-head">
       <div class="dashboard-v5-heading"><div class="dashboard-v2-greeting">Bonjour 👋🏾</div><h1 class="dashboard-v2-title">${Utils.escapeHtml(store.name||'Ma boutique')}${TopBarPlanBadge()}</h1><div class="dashboard-v5-status"><span></span>${isPaidSubscriptionActive()?'Boutique active':'Mode découverte'}</div></div>
-      <button class="dashboard-v2-profile" onclick="Router.go('settings')" aria-label="Paramètres">
-        ${store.photo ? `<img src="${store.photo}" alt="">` : `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.9-4 3.7-6.2 7.5-6.2s6.6 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`}
-      </button>
+      <div style="display:flex;align-items:center;gap:9px;flex:none;">
+        <button class="bell-btn" onclick="toggleNotifPanel()" aria-label="Notifications">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <div class="bell-dot" id="bell-dot"></div>
+        </button>
+        <button class="dashboard-v2-profile" onclick="Router.go('settings')" aria-label="Paramètres">
+          ${store.photo ? `<img src="${store.photo}" alt="">` : `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.9-4 3.7-6.2 7.5-6.2s6.6 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`}
+        </button>
+      </div>
     </div>
     <section class="dashboard-v18-finance" aria-label="Tableau de bord financier" data-watermark="${Utils.escapeHtml(store.name||'Ma boutique')}">
       <div class="finance-head">
-        <div class="finance-kicker">Performance financière</div>
+        <div class="finance-brand">
+          <span class="finance-brand-logo">${store.photo?`<img src="${store.photo}" alt="">`:Utils.escapeHtml((store.name||'B').trim().charAt(0).toUpperCase())}</span>
+          <div><div class="finance-brand-name">${Utils.escapeHtml(store.name||'Ma boutique')}</div><div class="finance-kicker">Performance financière</div></div>
+        </div>
         <div class="finance-period">30 derniers jours</div>
       </div>
       <div class="finance-main">
         <div class="finance-main-label">Total des ventes</div>
-        <div class="finance-total">${Utils.fmtFCFA(totalSales)}</div>
+        <div class="finance-total" id="finance-total-val" data-target="${totalSales}">0 FCFA</div>
         <div class="finance-sub"><span class="finance-live-dot"></span><span>${orders.length} commande${orders.length>1?'s':''} enregistrée${orders.length>1?'s':''}</span></div>
       </div>
       <div class="finance-grid">
@@ -4451,7 +4517,19 @@ Views.dashboard = function(){
     ${SubscriptionCard(access)}
     <div style="height:16px;"></div>`;
 };
-Views._after_dashboard = function(){};
+Views._after_dashboard = function(){
+  const el=document.getElementById('finance-total-val');
+  if(!el) return;
+  const target=Number(el.getAttribute('data-target'))||0;
+  const dur=700; const start=performance.now();
+  function step(now){
+    const p=Math.min(1,(now-start)/dur);
+    const eased=1-Math.pow(1-p,3);
+    el.textContent=Utils.fmtFCFA(Math.round(target*eased));
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+};
 
 /* ---------- Carte « Commission » (dashboard) — période d'essai de 20 jours ---------- */
 function CommissionCard(){
@@ -6279,7 +6357,12 @@ Views.team = function(){
     ${Store.couriers.length ? Store.couriers.map(c=>`<div class="order-row" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:10px;padding:14px 16px;background:#fff;">
       <div class="store-logo" style="width:42px;height:42px;border-radius:12px;background:var(--green-tint);color:var(--green);">🚚</div>
       <div class="order-info"><h4>${Utils.escapeHtml(c.name||'Livreur')}</h4><div class="meta">${Utils.escapeHtml(c.phone||'')} · ${c.status==='active'?'Actif':c.status==='invited'?'Invitation envoyée':'Suspendu'}</div></div>
-      <span class="badge ${c.status==='active'?'delivered':'pending'}">${c.status==='active'?'Actif':'En attente'}</span>
+      <div style="display:flex;align-items:center;gap:7px;flex:none;">
+        <span class="badge ${c.status==='active'?'delivered':'pending'}">${c.status==='active'?'Actif':c.status==='invited'?'En attente':'Suspendu'}</span>
+        ${c.status!=='suspended' ? `<button type="button" onclick="removeCourier('${c.id}')" aria-label="Retirer ${Utils.escapeHtml(c.name||'livreur')}" style="width:34px;height:34px;border:1px solid var(--red-tint);background:var(--red-tint);color:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>` : ''}
+      </div>
     </div>`).join('') : `<div style="border:1.5px dashed var(--line);border-radius:var(--radius-md);padding:16px;text-align:center;color:var(--text-mid);font-size:13px;">Aucun livreur connecté.</div>`}
     <button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button>
     <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="Router.go('courier-login')">Ouvrir l'espace livreur</button>
@@ -6294,6 +6377,22 @@ function removeTeamMember(id){
   Store.team = (Store.team||[]).filter(m=>m.id!==id);
   Toast.show('Membre retiré de l’équipe');
   Router.go('team');
+}
+async function removeCourier(id){
+  const courier = (Store.couriers||[]).find(c=>c.id===id);
+  if(!courier) return;
+  if(!confirm(`Retirer ${courier.name||'ce livreur'} de votre équipe de livraison ? Il devra être réinvité pour reprendre du service.`)) return;
+  const btn = document.querySelector(`[onclick="removeCourier('${id}')"]`);
+  if(btn){ btn.disabled=true; }
+  try{
+    await Store.removeCourier(id);
+    Toast.show('Livreur retiré');
+    Router.go('team');
+  }catch(e){
+    console.error('Retrait livreur',e);
+    Toast.show(e && e.message ? `⚠️ ${e.message}` : '⚠️ Impossible de retirer ce livreur, réessayez');
+    if(btn){ btn.disabled=false; }
+  }
 }
 function openAddMember(){
   const name = prompt("Nom du membre");
@@ -6418,39 +6517,123 @@ Views.settings = function(){
 };
 
 /* ---------- Espace livreur ---------- */
-function courierSession(){ try{return JSON.parse(localStorage.getItem('siams_courier_session')||'null');}catch(e){return null;} }
-function setCourierSession(v){ if(v) localStorage.setItem('siams_courier_session',JSON.stringify(v)); else localStorage.removeItem('siams_courier_session'); }
+function courierSession(){ try{return JSON.parse(sessionStorage.getItem('siams_courier_session')||'null');}catch(e){return null;} }
+function setCourierSession(v){ if(v) sessionStorage.setItem('siams_courier_session',JSON.stringify(v)); else sessionStorage.removeItem('siams_courier_session'); }
+
+function renderCourierCodeForm(opts){
+  opts=opts||{};
+  return `<h1 style="font-size:25px;margin:0 0 8px;">Espace livreur</h1><p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 24px;">${opts.forgot?'Entrez le code à 6 chiffres remis par la boutique pour redéfinir votre PIN.':'Connectez-vous avec le code personnel remis par la boutique.'}</p>
+    <div class="field"><label>Code d'accès livreur</label><input id="courier-code" inputmode="numeric" maxlength="6" placeholder="Ex. 483921" autocomplete="one-time-code"></div>
+    <div id="courier-login-error" style="font-size:13px;color:var(--red);margin:4px 0 10px;"></div>
+    <button class="btn btn-primary btn-block" onclick="loginCourier(${opts.forgot?'true':'false'})">Se connecter</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Retour à SIAMS</button>`;
+}
+function renderCourierInviteAcceptScreen(name,token){
+  return `<h1 style="font-size:25px;margin:0 0 8px;">Espace livreur</h1><p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 24px;">Bienvenue ${Utils.escapeHtml(name||'')}. Acceptez l’invitation pour créer votre accès livreur.</p>
+    <button class="btn btn-primary btn-block" onclick="acceptCourierInvite('${Utils.escapeHtml(token)}')">Accepter l’invitation</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Retour à SIAMS</button>`;
+}
+function renderCourierSetPinScreen(name){
+  return `<h1 style="font-size:25px;margin:0 0 8px;">Créez votre code PIN</h1><p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 20px;">Bonjour ${Utils.escapeHtml(name||'')}. Choisissez un code à 4 chiffres pour protéger l’accès à votre espace livreur — il vous sera redemandé à chaque ouverture du lien.</p>
+    <div class="field"><label>Code PIN (4 chiffres)</label><input id="courier-pin-new" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"></div>
+    <div class="field"><label>Confirmez le PIN</label><input id="courier-pin-new-confirm" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"></div>
+    <div id="courier-pin-error" style="font-size:13px;color:var(--red);margin:4px 0 10px;"></div>
+    <button class="btn btn-primary btn-block" onclick="submitCourierSetPin()">Valider</button>`;
+}
+function renderCourierPinScreen(token,name){
+  return `<h1 style="font-size:25px;margin:0 0 8px;">Espace livreur</h1><p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 20px;">Bonjour ${Utils.escapeHtml(name||'')}. Entrez votre code PIN pour accéder à votre espace.</p>
+    <div class="field"><label>Code PIN (4 chiffres)</label><input id="courier-pin-login" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"></div>
+    <div id="courier-pin-login-error" style="font-size:13px;color:var(--red);margin:4px 0 10px;"></div>
+    <button class="btn btn-primary btn-block" onclick="submitCourierPinLogin('${Utils.escapeHtml(token)}')">Se connecter</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="forgotCourierPin()">PIN oublié ?</button>`;
+}
 Views['courier-login']=function(){
   const invite=new URLSearchParams(location.search).get('courier_invite');
   return `<div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 24px;background:linear-gradient(180deg,#f8fbff,#fff);">
     <div class="store-logo" style="width:68px;height:68px;border-radius:20px;margin-bottom:20px;overflow:hidden;"><img src="${LOGO_DATA_URI}" style="width:100%;height:100%;object-fit:cover;"></div>
-    <h1 style="font-size:25px;margin:0 0 8px;">Espace livreur</h1><p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 24px;">Connectez-vous avec le code personnel remis par la boutique.</p>
-    ${invite?`<div style="border:1.5px solid var(--green);background:var(--green-tint);border-radius:14px;padding:13px;margin-bottom:14px;font-size:13px;">Invitation détectée. Après acceptation, votre code de connexion sera affiché.</div>`:''}
-    <div class="field"><label>Code d'accès livreur</label><input id="courier-code" inputmode="numeric" maxlength="6" placeholder="Ex. 483921" autocomplete="one-time-code"></div>
-    <div id="courier-login-error" style="font-size:13px;color:var(--red);margin:4px 0 10px;"></div>
-    <button class="btn btn-primary btn-block" onclick="loginCourier()">Se connecter</button>
-    ${invite?`<button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="acceptCourierInvite('${Utils.escapeHtml(invite)}')">Accepter l’invitation</button>`:''}
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Retour à SIAMS</button>
+    <div id="courier-login-body">
+      ${invite?`<div style="text-align:center;padding:30px 0;"><div class="wd-spinner"></div></div>`:renderCourierCodeForm()}
+    </div>
   </div>`;
 };
 Views['courier-invite']=Views['courier-login'];
+Views._after_courier_login=function(){
+  const invite=new URLSearchParams(location.search).get('courier_invite');
+  if(invite) initCourierInviteFlow(invite);
+};
+async function initCourierInviteFlow(token){
+  const body=document.getElementById('courier-login-body'); if(!body)return;
+  try{
+    const r=await Cloud.getCourierInviteStatus(token); const st=Array.isArray(r)?r[0]:r;
+    if(st.status==='pending') body.innerHTML=renderCourierInviteAcceptScreen(st.name,token);
+    else if(st.pin_required) body.innerHTML=renderCourierPinScreen(token,st.name);
+    else body.innerHTML=renderCourierCodeForm();
+  }catch(e){
+    console.error(e);
+    body.innerHTML=`<div style="text-align:center;color:var(--red);padding:20px 0;">Invitation invalide. Contactez la boutique.</div><button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="Router.go('welcome')">Retour à SIAMS</button>`;
+  }
+}
 Views['courier-dashboard']=function(){
   const sess=courierSession(); if(!sess) return Views['courier-login']();
   return `<div class="topbar" style="padding-top:18px;"><div><h1>Espace livreur</h1><div style="font-size:12px;color:var(--text-mid);">${Utils.escapeHtml(sess.name||'Livreur')}</div></div><button class="btn btn-outline btn-sm" onclick="setCourierSession(null);Router.go('courier-login')">Déconnexion</button></div>
   <div style="padding:16px 20px 24px;"><div id="courier-assignment-list"><div class="wd-spinner"></div></div></div>`;
 };
 async function acceptCourierInvite(token){
-  try{ const r=await Cloud.courierInviteAccept(token); const x=Array.isArray(r)?r[0]:r; alert(`Invitation acceptée.\n\nVotre code d’accès livreur : ${x.access_code}\n\nConservez-le précieusement.`); document.getElementById('courier-code').value=x.access_code; }catch(e){
+  try{
+    const r=await Cloud.courierInviteAccept(token); const x=Array.isArray(r)?r[0]:r;
+    const sessRes=await Cloud.courierLogin(x.access_code); const sess=Array.isArray(sessRes)?sessRes[0]:sessRes;
+    setCourierSession(sess);
+    const body=document.getElementById('courier-login-body');
+    if(body) body.innerHTML=renderCourierSetPinScreen(sess.name||x.name);
+  }catch(e){
     console.error(e);
-    const detail = (e && (e.message || e.error_description || e.details || e.hint)) ? `${e.message||''}${e.details?'\n'+e.details:''}${e.hint?'\n'+e.hint:''}\n(code: ${e.code||'?'})` : JSON.stringify(e);
-    alert('Erreur lors de l’acceptation de l’invitation :\n\n'+detail);
     Toast.show('⚠️ Invitation invalide ou expirée');
   }
 }
-async function loginCourier(){
+async function loginCourier(forceReset){
   const code=(document.getElementById('courier-code')?.value||'').trim(); const err=document.getElementById('courier-login-error');
-  if(!/^\d{6}$/.test(code)){err.textContent='Entrez le code à 6 chiffres remis par la boutique.';return;}
-  try{ const r=await Cloud.courierLogin(code); const x=Array.isArray(r)?r[0]:r; setCourierSession(x); Router.go('courier-dashboard'); AutoSync.start(); }catch(e){console.error(e);err.textContent='Code invalide ou accès suspendu.';}
+  if(!err){ /* formulaire pas encore affiché */ }
+  if(!/^\d{6}$/.test(code)){ if(err) err.textContent='Entrez le code à 6 chiffres remis par la boutique.'; return; }
+  try{
+    const r=await Cloud.courierLogin(code); const x=Array.isArray(r)?r[0]:r; setCourierSession(x);
+    if(!x.pin_set || forceReset){
+      const body=document.getElementById('courier-login-body');
+      if(body){ body.innerHTML=renderCourierSetPinScreen(x.name); return; }
+    }
+    Router.go('courier-dashboard'); AutoSync.start();
+  }catch(e){ console.error(e); if(err) err.textContent='Code invalide ou accès suspendu.'; }
+}
+async function submitCourierSetPin(){
+  const p1=(document.getElementById('courier-pin-new')?.value||'').trim();
+  const p2=(document.getElementById('courier-pin-new-confirm')?.value||'').trim();
+  const err=document.getElementById('courier-pin-error');
+  if(!/^\d{4}$/.test(p1)){err.textContent='Le PIN doit contenir 4 chiffres.';return;}
+  if(p1!==p2){err.textContent='Les deux codes ne correspondent pas.';return;}
+  const sess=courierSession();
+  if(!sess){err.textContent='Session expirée, rouvrez le lien.';return;}
+  try{
+    await Cloud.courierSetPin(sess.session_token,p1);
+    Toast.show('PIN enregistré ✓');
+    Router.go('courier-dashboard'); AutoSync.start();
+  }catch(e){ console.error(e); err.textContent='Impossible d’enregistrer le PIN.'; }
+}
+async function submitCourierPinLogin(token){
+  const pin=(document.getElementById('courier-pin-login')?.value||'').trim();
+  const err=document.getElementById('courier-pin-login-error');
+  if(!/^\d{4}$/.test(pin)){err.textContent='Entrez les 4 chiffres de votre PIN.';return;}
+  try{
+    const r=await Cloud.courierLoginPin(token,pin); const x=Array.isArray(r)?r[0]:r;
+    setCourierSession(x);
+    Router.go('courier-dashboard'); AutoSync.start();
+  }catch(e){
+    console.error(e);
+    const msg=(e&&e.message)||'';
+    err.textContent=/Trop de tentatives/i.test(msg)?'Trop d’essais. Réessayez dans quelques minutes.':'PIN incorrect.';
+  }
+}
+function forgotCourierPin(){
+  const body=document.getElementById('courier-login-body');
+  if(body) body.innerHTML=renderCourierCodeForm({forgot:true});
 }
 async function loadCourierDashboard(){
   const sess=courierSession(); const el=document.getElementById('courier-assignment-list'); if(!sess||!el)return;
@@ -9274,16 +9457,18 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   if(initBottomNav) initBottomNav.classList.add('hidden');
   const initRoot = document.getElementById('page-root');
   initRoot.innerHTML = Views.loading();
-  siamsRunSplashMessages(initRoot, 3000);
-  const splashMinDelay = new Promise(resolve=>setTimeout(resolve, 3000));
-  await splashMinDelay;
+  const stopSplashLoop = siamsStartSplashLoop(initRoot);
+  /* Le chargement réel démarre tout de suite, en parallèle de ce délai minimum
+     (juste assez pour que l'animation ne clignote pas) — au lieu d'attendre
+     bêtement 3 secondes avant même de commencer à charger quoi que ce soit. */
+  const splashMinDelay = new Promise(resolve=>setTimeout(resolve, 900));
   try{
     /* ---- Vitrine publique : /{slug}[?produit={id}] ---- */
     const path = location.pathname.replace(/^\/+|\/+$/g, '');
     const qsEarly = new URLSearchParams(location.search);
     const courierInviteToken = qsEarly.get('courier_invite');
     if(path.toLowerCase()==='livreur'){ Router.go(courierSession()?'courier-dashboard':'courier-login'); return; }
-    if(courierInviteToken){ Router.go('courier-login'); return; }
+    if(courierInviteToken){ setCourierSession(null); Router.go('courier-login'); return; }
     /* URL publique : /?boutique=slug (robuste sur Vercel) ou ancien /slug. */
     const querySlug = qsEarly.get('boutique') || qsEarly.get('store') || qsEarly.get('shop');
     const pathSlug = path && path.toLowerCase() !== 'index.html' ? path.split('/')[0] : null;
@@ -9315,6 +9500,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         const productId = qs.get('produit');
         /* Les anciens paramètres de confirmation sont ignorés. La livraison est
            désormais validée directement par la photo prise dans le suivi de commande. */
+        await splashMinDelay;
         if(productId){
           const sharedProduct = Store.products.find(p=>String(p.id)===String(productId));
           if(sharedProduct){ Router.go('shop-product', {id: sharedProduct.id}); }
@@ -9342,9 +9528,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       await Bootstrap.loadStoreData(session.user);
       Store.trialStartedAt; // amorce le pass gratuit de 20 jours dès la première ouverture
       ThemeUnlock.init();
+      await splashMinDelay;
       Router.go('dashboard');
       AutoSync.start();
     } else {
+      await splashMinDelay;
       if(ActivationGate.getStored()){
         Router.go('register');
       } else if(ActivationGate.hasPendingRequest()){
@@ -9356,7 +9544,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   } catch(e){
     console.error(e);
     Auth.loggedIn = false;
+    await splashMinDelay;
     Router.go('welcome');
+  } finally {
+    stopSplashLoop();
   }
   Notify.renderBell();
 });
@@ -9373,7 +9564,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
  if(name==='customers'){const c=Store.customers(),o=c.reduce((a,x)=>a+(+x.orders||0),0),v=c.reduce((a,x)=>a+(+x.spent||0),0),f=c.filter(x=>x.isTopContributor).length;h=panel('Pilotage clients','Suivez la fidélité et la valeur de vos clients.',`<div class="v14-grid"><div class="v14-stat"><b>${c.length}</b><span>Clients connus</span></div><div class="v14-stat"><b>${o}</b><span>Commandes</span></div><div class="v14-stat"><b>${money(v)}</b><span>Dépenses cumulées</span></div><div class="v14-stat"><b>${f}</b><span>Clients fidèles</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="Router.go('orders')"><strong>🧾 Historique</strong><small>Commandes clients</small></button><button class="v14-action" onclick="Router.go('reviews')"><strong>⭐ Satisfaction</strong><small>Avis clients</small></button></div>`)}
  if(name==='delivery'){const o=Store.orders||[],z=Store.deliveryZones||[],d=o.filter(x=>x.status==='delivered').length,p=o.filter(x=>['pending','confirmed','preparing','shipped'].includes(x.status)).length,a=o.length?Math.round(o.reduce((s,x)=>s+(+x.deliveryFee||0),0)/o.length):0;h=panel('Centre livraison','Pilotez les zones, les frais et les livraisons.',`<div class="v14-grid"><div class="v14-stat"><b>${p}</b><span>À traiter / en cours</span></div><div class="v14-stat"><b>${d}</b><span>Livrées</span></div><div class="v14-stat"><b>${z.length}</b><span>Zones</span></div><div class="v14-stat"><b>${money(a)}</b><span>Frais moyen</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="Router.go('orders')"><strong>🚚 Voir les commandes</strong><small>Suivre les livraisons</small></button><button class="v14-action" onclick="addDeliveryZone()"><strong>＋ Ajouter une zone</strong><small>Frais et délai</small></button></div>`)}
  if(name==='team'){const t=Store.team||[],c=Store.couriers||[],a=t.filter(x=>['Admin','Administrateur','Propriétaire'].includes(x.role)).length;h=panel('Centre équipe','Organisez les rôles et la collaboration de votre boutique.',`<div class="v14-grid"><div class="v14-stat"><b>${t.length}</b><span>Membres</span></div><div class="v14-stat"><b>${t.filter(x=>x.status!=='suspended').length}</b><span>Actifs</span></div><div class="v14-stat"><b>${a}</b><span>Administrateurs</span></div><div class="v14-stat"><b>${c.length}</b><span>Livreurs</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="openAddMember()"><strong>＋ Ajouter un membre</strong><small>Gérant, vendeur, admin</small></button><button class="v14-action" onclick="inviteCourierFromMerchant()"><strong>🚚 Inviter un livreur</strong><small>Invitation SIAMS</small></button></div>`)}
- if(name==='boutique'){const st=Store.store||{},p=Store.products||[],cats=[...new Set(p.map(x=>x.category).filter(Boolean))];h=panel('Centre boutique','Gérez votre vitrine, votre catalogue et votre visibilité.',`<div class="v14-grid"><div class="v14-stat"><b>${p.length}</b><span>Produits</span></div><div class="v14-stat"><b>${cats.length}</b><span>Catégories</span></div><div class="v14-stat"><b>★ 4,8</b><span>Note boutique</span></div><div class="v14-stat"><b>${st.name?'Active':'À compléter'}</b><span>Profil</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="Router.go('store-edit')"><strong>✎ Modifier la vitrine</strong><small>Logo, bannière, infos</small></button><button class="v14-action" onclick="Router.go('products')"><strong>🛍️ Catalogue</strong><small>Produits, prix, stocks</small></button><button class="v14-action" onclick="Router.go('categories')"><strong>▦ Catégories</strong><small>Organiser le catalogue</small></button><button class="v14-action" onclick="Router.go('shop',{skipOnboarding:true})"><strong>👁 Aperçu client</strong><small>Voir la boutique</small></button></div>`)}
+ if(name==='boutique'){const st=Store.store||{},p=Store.products||[],cats=[...new Set(p.map(x=>x.category).filter(Boolean))];h=panel('Centre boutique','Gérez votre vitrine, votre catalogue et votre visibilité.',`<div class="v14-grid"><div class="v14-stat"><b>${p.length}</b><span>Produits</span></div><div class="v14-stat"><b>${cats.length}</b><span>Catégories</span></div><div class="v14-stat"><b>★ 4,8</b><span>Note boutique</span></div><div class="v14-stat"><b>${st.name?'Active':'À compléter'}</b><span>Profil</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="Router.go('store-edit')"><strong>✎ Modifier la vitrine</strong><small>Logo, bannière, infos</small></button><button class="v14-action" onclick="Router.go('products')"><strong>🛍️ Catalogue</strong><small>Produits, prix, stocks</small></button><button class="v14-action" onclick="Router.go('categories')"><strong>▦ Catégories</strong><small>Organiser le catalogue</small></button><button class="v14-action" onclick="Router.go('banners')"><strong>🖼️ Bannières</strong><small>Carrousel en haut de la boutique</small></button><button class="v14-action" onclick="Router.go('showcase')"><strong>📢 Cournsel client</strong><small>Annonces &amp; partenariats</small></button><button class="v14-action" onclick="Router.go('shop',{skipOnboarding:true})"><strong>👁 Aperçu client</strong><small>Voir la boutique</small></button></div>`)}
  root.insertAdjacentHTML('afterbegin',h)}
  Router.go=function(n,o){oldGo(n,o);setTimeout(()=>enhance(n),0)};window.SIAMS_V14={enhance};
 })();
@@ -9736,7 +9927,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   window.v20DeletePromo=function(id){const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;overlay('Supprimer le code promo',`<div class="v20-confirm"><div class="v20-confirm-icon">!</div><b>${esc(p.code)}</b><p>Cette action supprimera définitivement ce code de la boutique.</p><div class="v20-two"><button class="btn btn-ghost" onclick="document.getElementById('v20-modal')?.remove()">Annuler</button><button class="btn btn-danger" onclick="v20ConfirmDeletePromo(${JSON.stringify(id)})">Supprimer</button></div></div>`);};
   window.v20ConfirmDeletePromo=function(id){Store.promos=(Store.promos||[]).filter(x=>x.id!==id);PromoLocal.update(id,{active:false});Toast.show('Code supprimé');document.getElementById('v20-modal')?.remove();Router.go('promos');};
   Views.promos=function(){if(!Store.hasFeature('promos'))return FeatureLock('Codes promo','La création de codes promo est incluse à partir de la formule DOYEN.','doyen');const ps=(Store.promos||[]).map(p=>PromoLocal.merge(p)),active=ps.filter(p=>p.active&&(!p.maxUses||p.usedCount<p.maxUses)).length,uses=ps.reduce((s,p)=>s+(Number(p.usedCount)||0),0);return `${TopBar('Codes promo',ps.length+' code(s)')}<div class="v20-promo-head"><div><div class="v20-eyebrow">Marketing boutique</div><h2>Promotions</h2><p>Créez des offres maîtrisées et gardez le contrôle sur chaque utilisation.</p></div><button class="v20-promo-plus" onclick="v20AddPromo()">＋</button></div><div class="v20-promo-summary"><div><b>${ps.length}</b><span>Codes</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${uses}</b><span>Utilisations</span></div></div><div class="v20-promo-create" onclick="v20AddPromo()"><div class="v20-promo-create-icon">％</div><div><b>Créer une promotion</b><span>Code, réduction et limite d'utilisation</span></div><strong>›</strong></div><div class="v20-section-title">Vos codes</div><div class="v20-promo-list">${ps.length?ps.map(p=>{const ex=p.maxUses>0&&p.usedCount>=p.maxUses,pct=p.maxUses?Math.min(100,Math.round(p.usedCount/p.maxUses*100)):0;return `<article class="v20-promo-card"><div class="v20-promo-line"><div class="v20-code">${esc(p.code)}</div><span class="v20-promo-status ${p.active&&!ex?'on':'off'}">${ex?'Épuisé':p.active?'Actif':'Désactivé'}</span></div><div class="v20-promo-desc">${p.type==='percent'?p.value+'% de réduction':Utils.fmtFCFA(p.value)+' de réduction'}</div><div class="v20-promo-use"><span>${p.maxUses?`Utilisations <b>${p.usedCount}/${p.maxUses}</b>`:`Utilisations <b>${p.usedCount}</b> · illimité`}</span>${p.maxUses?`<span>${pct}%</span>`:''}</div>${p.maxUses?`<div class="v20-progress"><i style="width:${pct}%"></i></div>`:''}<div class="v20-promo-actions"><button onclick="v20LimitPromo('${p.id}')">Limite</button><button onclick="v20TogglePromo('${p.id}')" ${ex?'disabled':''}>${p.active?'Désactiver':'Activer'}</button><button class="danger" onclick="v20DeletePromo('${p.id}')">Supprimer</button></div></article>`}).join(''):`<div class="v20-empty"><div class="v20-empty-icon">％</div><b>Aucun code promo</b><span>Créez votre première promotion avec le bouton ci-dessus.</span></div>`}</div>`;};
-  const style=document.createElement('style');style.textContent=`#v20-modal{position:fixed;inset:0;z-index:99999}.v20-backdrop{position:absolute;inset:0;background:rgba(8,12,24,.52);backdrop-filter:blur(4px)}.v20-dialog{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(520px,100%);background:var(--panel,#fff);border-radius:24px 24px 0 0;padding:18px 20px 24px;box-shadow:0 -18px 50px rgba(0,0,0,.2)}.v20-dialog-head{display:flex;justify-content:space-between;align-items:center;font-size:18px;color:var(--text,#111)}.v20-dialog-head button{border:0;background:var(--line,#eee);width:34px;height:34px;border-radius:50%;font-size:22px;color:var(--text);cursor:pointer}.v20-dialog-body{padding-top:18px}.v20-field{display:block;font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px}.v20-field input,.v20-field select{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:#111;font:inherit}.v20-field small,.v20-help{display:block;color:var(--text-mid);font-size:11px;font-weight:500;margin-top:6px}.v20-two{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.btn-danger{background:#d84b55;color:#fff;border:0}.v20-confirm{text-align:center}.v20-confirm-icon{margin:0 auto 10px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#fff1f1;color:#d84b55;font-weight:900}.v20-cat-head,.v20-promo-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 12px;gap:12px}.v20-eyebrow{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:4px}.v20-cat-head h2,.v20-promo-head h2{margin:0;font-size:25px;letter-spacing:-.04em;color:var(--text)}.v20-cat-head p,.v20-promo-head p{margin:5px 0 0;font-size:12px;color:var(--text-mid);line-height:1.45}.v20-add-cat,.v20-promo-plus{width:46px;height:46px;border:0;border-radius:15px;background:var(--indigo);color:#fff;font-size:25px;box-shadow:0 10px 22px rgba(4,104,227,.22);cursor:pointer}.v20-cat-summary,.v20-promo-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:6px 20px 16px}.v20-cat-summary>div,.v20-promo-summary>div{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:11px 12px}.v20-cat-summary b,.v20-promo-summary b{display:block;font:800 19px var(--font-mono);color:var(--text)}.v20-cat-summary span,.v20-promo-summary span{font-size:10.5px;color:var(--text-mid)}.v20-section-title{padding:4px 20px 9px;font-size:12px;font-weight:900;color:var(--text)}.v20-cat-list,.v20-promo-list{padding:0 20px}.v20-cat-card,.v20-promo-card{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:13px 14px;margin-bottom:9px}.v20-cat-card{display:flex;align-items:center;gap:12px}.v20-cat-icon{width:43px;height:43px;border-radius:13px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo)}.v20-cat-icon.c1{background:var(--green-tint);color:var(--green)}.v20-cat-icon.c2{background:var(--mango-tint);color:var(--mango-dark)}.v20-cat-icon.c3{background:var(--blue-tint);color:var(--blue)}.v20-cat-icon.c4{background:var(--red-tint);color:var(--red)}.v20-cat-main{flex:1;min-width:0}.v20-cat-main b{display:block;font-size:14px;color:var(--text)}.v20-cat-main span{display:block;font-size:11px;color:var(--text-mid);margin-top:3px}.v20-cat-action{border:0;background:transparent;color:var(--text-soft);font-size:21px;cursor:pointer}.v20-add-cat-full{margin:5px 20px 100px;width:calc(100% - 40px);padding:13px;border:1.5px dashed var(--indigo);border-radius:13px;background:var(--indigo-tint);color:var(--indigo);font-weight:850;cursor:pointer}.v20-promo-create{margin:0 20px 16px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel);display:flex;align-items:center;gap:12px;cursor:pointer}.v20-promo-create-icon{width:42px;height:42px;border-radius:13px;background:var(--mango-tint);color:var(--mango-dark);display:grid;place-items:center;font-weight:900}.v20-promo-create div:nth-child(2){flex:1}.v20-promo-create b{display:block;color:var(--text);font-size:13px}.v20-promo-create span{display:block;color:var(--text-mid);font-size:11px;margin-top:3px}.v20-promo-create strong{font-size:23px;color:var(--text-soft)}.v20-promo-line,.v20-promo-use{display:flex;justify-content:space-between;align-items:center;gap:8px}.v20-code{font:850 14px var(--font-mono);letter-spacing:.04em;color:var(--indigo)}.v20-promo-status{font-size:10px;font-weight:850;padding:5px 8px;border-radius:999px}.v20-promo-status.on{background:var(--green-tint);color:var(--green)}.v20-promo-status.off{background:var(--panel);color:var(--text-mid)}.v20-promo-desc{font-size:12px;color:var(--text-mid);margin:9px 0}.v20-promo-use{font-size:11px;color:var(--text-mid)}.v20-promo-use b{color:var(--text)}.v20-progress{height:5px;border-radius:999px;background:var(--line);overflow:hidden;margin:8px 0}.v20-progress i{display:block;height:100%;background:var(--indigo)}.v20-promo-actions{display:flex;gap:7px;margin-top:10px}.v20-promo-actions button{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 5px;font-size:10.5px;font-weight:800;color:var(--text);cursor:pointer}.v20-promo-actions button.danger{color:#d84b55}.v20-promo-actions button:disabled{opacity:.45}.v20-empty{text-align:center;border:1px dashed var(--line);border-radius:17px;padding:28px 20px;margin-bottom:12px}.v20-empty-icon{width:44px;height:44px;margin:0 auto 9px;border-radius:14px;background:var(--panel);display:grid;place-items:center;color:var(--indigo);font-weight:900}.v20-empty b{display:block;color:var(--text);font-size:14px}.v20-empty span{display:block;color:var(--text-mid);font-size:11px;margin-top:5px}.v20-promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v20-promo-grid .full{grid-column:1/-1}@media(max-width:380px){.v20-cat-head,.v20-promo-head{padding-left:14px;padding-right:14px}.v20-cat-summary,.v20-promo-summary,.v20-cat-list,.v20-promo-list{padding-left:14px;padding-right:14px}.v20-add-cat-full,.v20-promo-create{margin-left:14px;margin-right:14px;width:calc(100% - 28px)}}`;document.head.appendChild(style);
+  const style=document.createElement('style');style.textContent=`#v20-modal{position:fixed;inset:0;z-index:99999}.v20-backdrop{position:absolute;inset:0;background:rgba(8,12,24,.52);backdrop-filter:blur(4px)}.v20-dialog{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(520px,100%);background:var(--panel,#fff);border-radius:24px 24px 0 0;padding:18px 20px 24px;box-shadow:0 -18px 50px rgba(0,0,0,.2)}.v20-dialog-head{display:flex;justify-content:space-between;align-items:center;font-size:18px;color:var(--text,#111)}.v20-dialog-head button{border:0;background:var(--line,#eee);width:34px;height:34px;border-radius:50%;font-size:22px;color:var(--text);cursor:pointer}.v20-dialog-body{padding-top:18px}.v20-field{display:block;font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px}.v20-field input,.v20-field select{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:#111;font:inherit}.v20-field small,.v20-help{display:block;color:var(--text-mid);font-size:11px;font-weight:500;margin-top:6px}.v20-two{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.btn-danger{background:#d84b55;color:#fff;border:0}.v20-confirm{text-align:center}.v20-confirm-icon{margin:0 auto 10px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#fff1f1;color:#d84b55;font-weight:900}.v20-cat-head,.v20-promo-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 12px;gap:12px}.v20-eyebrow{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:4px}.v20-cat-head h2,.v20-promo-head h2{margin:0;font-size:25px;letter-spacing:-.04em;color:var(--text)}.v20-cat-head p,.v20-promo-head p{margin:5px 0 0;font-size:12px;color:var(--text-mid);line-height:1.45}.v20-add-cat,.v20-promo-plus{width:46px;height:46px;border:0;border-radius:15px;background:var(--indigo);color:#fff;font-size:25px;box-shadow:0 10px 22px rgba(17,17,17,.22);cursor:pointer}.v20-cat-summary,.v20-promo-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:6px 20px 16px}.v20-cat-summary>div,.v20-promo-summary>div{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:11px 12px}.v20-cat-summary b,.v20-promo-summary b{display:block;font:800 19px var(--font-mono);color:var(--text)}.v20-cat-summary span,.v20-promo-summary span{font-size:10.5px;color:var(--text-mid)}.v20-section-title{padding:4px 20px 9px;font-size:12px;font-weight:900;color:var(--text)}.v20-cat-list,.v20-promo-list{padding:0 20px}.v20-cat-card,.v20-promo-card{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:13px 14px;margin-bottom:9px}.v20-cat-card{display:flex;align-items:center;gap:12px}.v20-cat-icon{width:43px;height:43px;border-radius:13px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo)}.v20-cat-icon.c1{background:var(--green-tint);color:var(--green)}.v20-cat-icon.c2{background:var(--mango-tint);color:var(--mango-dark)}.v20-cat-icon.c3{background:var(--blue-tint);color:var(--blue)}.v20-cat-icon.c4{background:var(--red-tint);color:var(--red)}.v20-cat-main{flex:1;min-width:0}.v20-cat-main b{display:block;font-size:14px;color:var(--text)}.v20-cat-main span{display:block;font-size:11px;color:var(--text-mid);margin-top:3px}.v20-cat-action{border:0;background:transparent;color:var(--text-soft);font-size:21px;cursor:pointer}.v20-add-cat-full{margin:5px 20px 100px;width:calc(100% - 40px);padding:13px;border:1.5px dashed var(--indigo);border-radius:13px;background:var(--indigo-tint);color:var(--indigo);font-weight:850;cursor:pointer}.v20-promo-create{margin:0 20px 16px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel);display:flex;align-items:center;gap:12px;cursor:pointer}.v20-promo-create-icon{width:42px;height:42px;border-radius:13px;background:var(--mango-tint);color:var(--mango-dark);display:grid;place-items:center;font-weight:900}.v20-promo-create div:nth-child(2){flex:1}.v20-promo-create b{display:block;color:var(--text);font-size:13px}.v20-promo-create span{display:block;color:var(--text-mid);font-size:11px;margin-top:3px}.v20-promo-create strong{font-size:23px;color:var(--text-soft)}.v20-promo-line,.v20-promo-use{display:flex;justify-content:space-between;align-items:center;gap:8px}.v20-code{font:850 14px var(--font-mono);letter-spacing:.04em;color:var(--indigo)}.v20-promo-status{font-size:10px;font-weight:850;padding:5px 8px;border-radius:999px}.v20-promo-status.on{background:var(--green-tint);color:var(--green)}.v20-promo-status.off{background:var(--panel);color:var(--text-mid)}.v20-promo-desc{font-size:12px;color:var(--text-mid);margin:9px 0}.v20-promo-use{font-size:11px;color:var(--text-mid)}.v20-promo-use b{color:var(--text)}.v20-progress{height:5px;border-radius:999px;background:var(--line);overflow:hidden;margin:8px 0}.v20-progress i{display:block;height:100%;background:var(--indigo)}.v20-promo-actions{display:flex;gap:7px;margin-top:10px}.v20-promo-actions button{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 5px;font-size:10.5px;font-weight:800;color:var(--text);cursor:pointer}.v20-promo-actions button.danger{color:#d84b55}.v20-promo-actions button:disabled{opacity:.45}.v20-empty{text-align:center;border:1px dashed var(--line);border-radius:17px;padding:28px 20px;margin-bottom:12px}.v20-empty-icon{width:44px;height:44px;margin:0 auto 9px;border-radius:14px;background:var(--panel);display:grid;place-items:center;color:var(--indigo);font-weight:900}.v20-empty b{display:block;color:var(--text);font-size:14px}.v20-empty span{display:block;color:var(--text-mid);font-size:11px;margin-top:5px}.v20-promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v20-promo-grid .full{grid-column:1/-1}@media(max-width:380px){.v20-cat-head,.v20-promo-head{padding-left:14px;padding-right:14px}.v20-cat-summary,.v20-promo-summary,.v20-cat-list,.v20-promo-list{padding-left:14px;padding-right:14px}.v20-add-cat-full,.v20-promo-create{margin-left:14px;margin-right:14px;width:calc(100% - 28px)}}`;document.head.appendChild(style);
 })();
 </script>
 
@@ -10061,7 +10252,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 .v37-team-list{padding:0 20px 110px;display:grid;gap:10px}.v37-team-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}.v37-team-card-top{display:flex;align-items:center;gap:12px}.v37-team-avatar{width:58px;height:58px;border-radius:17px;overflow:hidden;background:var(--indigo-tint);color:var(--indigo);display:grid;place-items:center;flex:none;border:1px solid var(--line)}.v37-team-avatar img{width:100%;height:100%;object-fit:cover}.v37-team-main{min-width:0;flex:1}.v37-team-main h3{margin:0 0 4px;font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v37-team-role{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;padding:5px 8px;border-radius:999px;background:var(--indigo-tint);color:var(--indigo)}.v37-team-status{font-size:9.5px;font-weight:800;padding:5px 8px;border-radius:999px;background:var(--green-tint);color:var(--green);white-space:nowrap}.v37-team-status.invited{background:var(--mango-tint);color:var(--mango-dark)}
 .v37-team-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}.v37-team-info-item{min-width:0}.v37-team-info-item.full{grid-column:1/-1}.v37-team-info-item small{display:block;color:var(--text-soft);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}.v37-team-info-item span{display:block;font-size:11.5px;font-weight:650;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v37-team-actions{display:flex;gap:7px;margin-top:12px}.v37-team-actions button{flex:1;min-height:38px;border:1px solid var(--line);background:var(--panel);border-radius:11px;font-size:10.5px;font-weight:800;color:var(--text);cursor:pointer}.v37-team-actions button.danger{color:var(--red);background:var(--red-tint);border-color:var(--red-tint)}
 .v37-team-add{margin:0 20px 14px}.v37-team-add .btn{min-height:48px}.v37-team-empty{margin:0 20px 110px;padding:28px 18px;text-align:center;border:1px dashed var(--line);border-radius:18px;color:var(--text-mid)}
-.v37-team-couriers{margin:0 20px 28px;padding:15px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}.v37-team-couriers h3{margin:0 0 9px;font-size:14px}.v37-courier-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line)}.v37-courier-row:first-child{border-top:0}.v37-courier-avatar{width:38px;height:38px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;flex:none}.v37-courier-main{min-width:0;flex:1}.v37-courier-main b{display:block;font-size:12px}.v37-courier-main span{display:block;font-size:10.5px;color:var(--text-mid);margin-top:2px}
+.v37-team-couriers{margin:0 20px 28px;padding:15px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}.v37-team-couriers h3{margin:0 0 9px;font-size:14px}.v37-courier-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line)}.v37-courier-row:first-child{border-top:0}.v37-courier-avatar{width:38px;height:38px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;flex:none}.v37-courier-main{min-width:0;flex:1}.v37-courier-main b{display:block;font-size:12px}.v37-courier-main span{display:block;font-size:10.5px;color:var(--text-mid);margin-top:2px}.v37-courier-remove{flex:none;min-height:32px;padding:0 12px;border:1px solid var(--red-tint);background:var(--red-tint);color:var(--red);border-radius:9px;font-size:10.5px;font-weight:800;cursor:pointer}
 @media(max-width:380px){.v37-team-head{padding-left:14px;padding-right:14px}.v37-team-summary{padding-left:14px;padding-right:14px;gap:6px}.v37-team-list{padding-left:14px;padding-right:14px}.v37-team-add,.v37-team-couriers{margin-left:14px;margin-right:14px}.v37-team-info{grid-template-columns:1fr}.v37-team-info-item.full{grid-column:auto}.v37-client-promo-cta{margin-left:14px;margin-right:14px}}
 </style>
 <script id="siams-v37-final-corrections-script">
@@ -10155,7 +10346,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   Views.team=function(){
     if(!Store.hasFeature('team')) return oldTeam();
     const t=Store.team||[], c=Store.couriers||[], active=t.filter(x=>x.status!=='suspended').length;
-    return `${TopBar('Équipe',t.length+' membre(s)')}<div class="v37-team-head"><div class="eyebrow">Gestion de votre équipe</div><h2>Membres de l’équipe</h2><p>Chaque membre dispose maintenant d’une carte complète avec photo, rôle et informations complémentaires.</p></div><div class="v37-team-summary"><div><b>${t.length}</b><span>Membres</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${c.length}</b><span>Livreurs</span></div></div><div class="v37-team-add"><button class="btn btn-primary btn-block" type="button" onclick="v37OpenAddMember()">＋ Ajouter un membre</button></div>${t.length?`<div class="v37-team-list">${t.map(teamCard).join('')}</div>`:`<div class="v37-team-empty"><b>Aucun membre d’équipe</b><div style="margin-top:5px;font-size:11.5px;">Ajoutez un gérant, vendeur ou administrateur.</div></div>`}<section class="v37-team-couriers"><h3>Livreurs SIAMS</h3>${c.length?c.map(q=>`<div class="v37-courier-row"><div class="v37-courier-avatar">🚚</div><div class="v37-courier-main"><b>${esc(q.name||'Livreur')}</b><span>${esc(q.phone||'')} · ${q.status==='active'?'Actif':q.status==='invited'?'Invitation envoyée':'Suspendu'}</span></div></div>`).join(''):`<div style="font-size:11.5px;color:var(--text-mid);">Aucun livreur connecté.</div>`}<button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button></section>`;
+    return `${TopBar('Équipe',t.length+' membre(s)')}<div class="v37-team-head"><div class="eyebrow">Gestion de votre équipe</div><h2>Membres de l’équipe</h2><p>Chaque membre dispose maintenant d’une carte complète avec photo, rôle et informations complémentaires.</p></div><div class="v37-team-summary"><div><b>${t.length}</b><span>Membres</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${c.length}</b><span>Livreurs</span></div></div><div class="v37-team-add"><button class="btn btn-primary btn-block" type="button" onclick="v37OpenAddMember()">＋ Ajouter un membre</button></div>${t.length?`<div class="v37-team-list">${t.map(teamCard).join('')}</div>`:`<div class="v37-team-empty"><b>Aucun membre d’équipe</b><div style="margin-top:5px;font-size:11.5px;">Ajoutez un gérant, vendeur ou administrateur.</div></div>`}<section class="v37-team-couriers"><h3>Livreurs SIAMS</h3>${c.length?c.map(q=>`<div class="v37-courier-row"><div class="v37-courier-avatar">🚚</div><div class="v37-courier-main"><b>${esc(q.name||'Livreur')}</b><span>${esc(q.phone||'')} · ${q.status==='active'?'Actif':q.status==='invited'?'Invitation envoyée':'Suspendu'}</span></div>${q.status!=='suspended'?`<button type="button" class="v37-courier-remove" onclick="removeCourier('${esc(q.id)}')" aria-label="Retirer ${esc(q.name||'livreur')}">Retirer</button>`:''}</div>`).join(''):`<div style="font-size:11.5px;color:var(--text-mid);">Aucun livreur connecté.</div>`}<button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button></section>`;
   };
 
   window.v37OpenAddMember=function(){
@@ -10216,7 +10407,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
 <!-- ================= SIAMS V39/V40 — ID marchand, paramètres et espace client ================= -->
 <style id="siams-v39-client-polish">
-  .v39-id-card{background:linear-gradient(145deg,#f7fbff,#eef5ff);border:1.5px solid rgba(4,104,227,.18);border-radius:24px;padding:20px;box-shadow:0 18px 42px -26px rgba(4,104,227,.35);margin:4px 0 18px;}
+  .v39-id-card{background:linear-gradient(145deg,#f7fbff,#eef5ff);border:1.5px solid rgba(17,17,17,.18);border-radius:24px;padding:20px;box-shadow:0 18px 42px -26px rgba(17,17,17,.35);margin:4px 0 18px;}
   .v39-id-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
   .v39-id-label{font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--indigo);text-transform:uppercase;}
   .v39-id-status{font-size:10px;font-weight:800;padding:6px 9px;border-radius:999px;background:var(--green-tint);color:var(--green);white-space:nowrap;}
@@ -10234,7 +10425,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   .v39-cat-chips{display:flex;gap:8px;padding:0 20px 15px;overflow-x:auto;scrollbar-width:none;}
   .v39-cat-chips::-webkit-scrollbar{display:none;}
   .v39-cat-chip{flex:none;border:1px solid var(--line);background:#fff;color:var(--text-mid);border-radius:999px;padding:9px 13px;font:700 11.5px var(--font-body);cursor:pointer;}
-  .v39-cat-chip.active{background:var(--indigo);color:#fff;border-color:var(--indigo);box-shadow:0 8px 18px -12px rgba(4,104,227,.7);}
+  .v39-cat-chip.active{background:var(--indigo);color:#fff;border-color:var(--indigo);box-shadow:0 8px 18px -12px rgba(17,17,17,.7);}
   .v39-cat-results{padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
   .v39-cat-results strong{font-size:12px;}.v39-cat-results span{font-size:10.5px;color:var(--text-mid);}
   .v39-location-card{border:1px solid var(--line);background:linear-gradient(145deg,#fff,#f7fbff);border-radius:18px;padding:14px;margin-top:4px;margin-bottom:12px;}
@@ -11336,5 +11527,297 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
   /* Si le dashboard est reconstruit par un module ultérieur, réinjecte le raccourci au rendu. */
   const originalDashboardQuick=window.dashboardQuickGo;
   if(originalDashboardQuick){ /* aucun remplacement : le raccourci dédié utilise Router.go directement */ }
+})();
+</script>
+
+<!-- SIAMS V56 : bannières multiples (vitrine client) -->
+<style id="siams-v56-banners-style">
+.siams-banner-carousel{margin:4px 20px 12px;position:relative;border-radius:18px;overflow:hidden;box-shadow:0 9px 24px rgba(18,54,90,.12)}
+.siams-banner-track{display:flex;transition:transform .45s ease}
+.siams-banner-slide{flex:0 0 100%;cursor:pointer}
+.siams-banner-slide img{width:100%;display:block;aspect-ratio:16/7;object-fit:cover;background:#eef3f9}
+.siams-banner-dots{position:absolute;left:0;right:0;bottom:9px;display:flex;justify-content:center;gap:5px}
+.siams-banner-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.55)}
+.siams-banner-dot.active{background:#fff;width:16px;border-radius:4px}
+.v56-link-type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+@media(max-width:380px){.siams-banner-carousel{margin-left:14px;margin-right:14px}}
+</style>
+<script id="siams-v56-banners-script">
+(function(){
+  'use strict';
+  const TABLE='store_banners';
+  const BUCKET='siams-banners';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const uid=()=>Utils.uid();
+  const getSid=()=>Cloud.storeId || (Store.store&&Store.store.id) || null;
+  const localKey=()=> 'siams_banners_'+((Store.store&&Store.store.slug)||'default');
+  const localLoad=()=>{try{return JSON.parse(localStorage.getItem(localKey())||'[]')}catch(e){return[]}};
+  const localSave=a=>{try{localStorage.setItem(localKey(),JSON.stringify(a.slice(0,30)))}catch(e){}};
+
+  const Banners={
+    items:[], loading:false,
+    async load(){
+      const sid=getSid(); if(!sid){this.items=localLoad().filter(x=>x.active!==false);return this.items;}
+      this.loading=true; let remote=[];
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).eq('active',true).order('position',{ascending:true}).limit(20);if(!error)remote=data||[];}catch(e){console.warn('Banners load',e)}
+      const local=localLoad(); const map=new Map([...remote,...local].map(x=>[x.id,x]));
+      this.items=[...map.values()].filter(x=>x.active!==false).sort((a,b)=>Number(a.position||0)-Number(b.position||0));
+      return this.items;
+    },
+    async all(){
+      const sid=getSid(); if(!sid){this.items=localLoad();return this.items;}
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).order('position',{ascending:true}).limit(50);if(!error){this.items=data||[];return this.items;}}catch(e){}
+      this.items=localLoad();return this.items;
+    },
+    async upload(file){
+      if(!file)throw new Error('Fichier manquant');
+      let ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+      if(file.type && file.type.startsWith('image/')){
+        const compressed = await siamsCompressImageFile(file);
+        if(compressed && compressed.size && compressed.size < file.size){ file = compressed; ext='jpg'; }
+      }
+      const max=5*1024*1024;
+      if(file.size>max)throw new Error('Image trop volumineuse (5 Mo maximum).');
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const path=sid+'/'+Date.now()+'-'+uid().replace(/-/g,'')+'.'+ext;
+      const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'31536000'});
+      if(error)throw error;
+      const {data}=sb.storage.from(BUCKET).getPublicUrl(path);
+      if(!data?.publicUrl)throw new Error('URL publique indisponible');
+      return data.publicUrl;
+    },
+    async create(item){
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const row={id:item.id||uid(),store_id:sid,image_url:item.image_url,link_type:item.link_type||'none',link_url:item.link_url||null,link_product_id:item.link_product_id||null,link_category_id:item.link_category_id||null,active:item.active!==false,position:Number(item.position||0)};
+      try{const {data,error}=await sb.from(TABLE).insert(row).select().single();if(error)throw error;this.items.push(data||row);localSave(this.items);return data||row;}catch(e){
+        this.items.push(row); localSave(this.items);
+        throw e;
+      }
+    },
+    async update(id,patch){
+      const idx=this.items.findIndex(x=>x.id===id); if(idx>=0)this.items[idx]={...this.items[idx],...patch};
+      try{const {error}=await sb.from(TABLE).update(patch).eq('id',id);if(error)throw error;}catch(e){localSave(this.items);throw e}
+      localSave(this.items);return true;
+    },
+    async remove(id){
+      try{const {error}=await sb.from(TABLE).delete().eq('id',id);if(error)throw error;}catch(e){localSave(this.items.filter(x=>x.id!==id));throw e}
+      this.items=this.items.filter(x=>x.id!==id);localSave(this.items);return true;
+    }
+  };
+  window.SIAMSBanners=Banners;
+
+  Banners.openBanner=function(id){
+    const x=Banners.items.find(i=>String(i.id)===String(id)); if(!x)return;
+    if(x.link_type==='external' && x.link_url){ window.open(x.link_url,'_blank','noopener,noreferrer'); }
+    else if(x.link_type==='product' && x.link_product_id){ Router.go('shop-product',{id:x.link_product_id}); }
+    else if(x.link_type==='category' && x.link_category_id){
+      const cat=(Store.categories||[]).find(c=>String(c.id)===String(x.link_category_id));
+      Router.go('shop-categories',{cat:cat?cat.name:''});
+    }
+  };
+
+  function bannerMarkup(items){
+    if(!items.length)return '';
+    return `<div class="siams-banner-carousel" id="siams-banner-carousel"><div class="siams-banner-track" id="siams-banner-track">${items.map(x=>`<div class="siams-banner-slide" onclick="SIAMSBanners.openBanner('${esc(x.id)}')"><img src="${esc(x.image_url)}" loading="lazy" alt="Bannière boutique"></div>`).join('')}</div>${items.length>1?`<div class="siams-banner-dots" id="siams-banner-dots">${items.map((_,i)=>`<span class="siams-banner-dot ${i===0?'active':''}"></span>`).join('')}</div>`:''}</div>`;
+  }
+  Banners.renderClient=async function(){
+    const root=document.getElementById('siams-banners-client'); if(!root)return;
+    await Banners.load(); root.innerHTML=bannerMarkup(Banners.items);
+    startBannerCarousel();
+  };
+  function startBannerCarousel(){
+    const track=document.getElementById('siams-banner-track'); if(!track)return;
+    const n=track.children.length; if(n<1)return;
+    const dots=document.getElementById('siams-banner-dots'); let i=0;
+    const render=()=>{track.style.transform=`translateX(-${i*100}%)`;if(dots)[...dots.children].forEach((d,j)=>d.classList.toggle('active',j===i));};
+    window.v56BannerTimer&&clearInterval(window.v56BannerTimer); render();
+    if(n>1) window.v56BannerTimer=setInterval(()=>{i=(i+1)%n;render();},5500);
+    let sx=0; track.ontouchstart=e=>{sx=e.touches[0].clientX}; track.ontouchend=e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40){i=(i+(dx<0?1:-1)+n)%n;render();}};
+  }
+  const oldShop=Views.shop;
+  Views.shop=function(){let h=oldShop();const marker='<div class="search-wrap"';if(!h.includes(marker))return h;return h.replace(marker,'<div id="siams-banners-client"></div>'+marker);};
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=async function(opts){if(oldAfterShop)await oldAfterShop(opts);try{await Banners.renderClient();}catch(e){console.warn('Banners client',e)}};
+
+  /* ---------- Gestionnaire marchand ---------- */
+  let bannerFormState={file:null,linkType:'none'};
+  function linkTypeLabel(x){
+    if(x.link_type==='external')return '🔗 Lien externe';
+    if(x.link_type==='product')return '🛍️ Vers un produit';
+    if(x.link_type==='category')return '▦ Vers une catégorie';
+    return 'Sans lien';
+  }
+  function bannerFormHtml(){
+    const products=Store.products||[]; const categories=Store.categories||[];
+    return `<div class="v54-form">
+      <div style="font-size:13px;font-weight:850;margin-bottom:10px">Ajouter une bannière</div>
+      <div class="v54-upload" onclick="document.getElementById('v56-file').click()"><input id="v56-file" class="hidden" type="file" accept="image/png,image/jpeg,image/webp" onchange="previewBannerFile(event)"><strong>＋ Ajouter une image</strong><small>Photo : 5 Mo maximum</small><div id="v56-file-name" style="font-size:10px;color:var(--indigo);margin-top:6px">${bannerFormState.file?esc(bannerFormState.file.name):''}</div></div>
+      <div id="v56-preview" class="v54-preview" style="${bannerFormState.file?'display:block':''}"></div>
+      <div class="field" style="margin-top:11px"><label>Lien au clic (facultatif)</label>
+        <div class="v56-link-type-grid">
+          <button class="v54-type ${bannerFormState.linkType==='none'?'active':''}" onclick="setBannerLinkType('none')">Aucun</button>
+          <button class="v54-type ${bannerFormState.linkType==='external'?'active':''}" onclick="setBannerLinkType('external')">🔗 Lien externe</button>
+          <button class="v54-type ${bannerFormState.linkType==='product'?'active':''}" onclick="setBannerLinkType('product')">🛍️ Produit</button>
+          <button class="v54-type ${bannerFormState.linkType==='category'?'active':''}" onclick="setBannerLinkType('category')">▦ Catégorie</button>
+        </div>
+      </div>
+      ${bannerFormState.linkType==='external'?`<div class="field"><label>Lien externe</label><input id="v56-link-url" type="url" placeholder="https://..."></div>`:''}
+      ${bannerFormState.linkType==='product'?`<div class="field"><label>Produit</label><select id="v56-link-product"><option value="">Choisir un produit</option>${products.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div>`:''}
+      ${bannerFormState.linkType==='category'?`<div class="field"><label>Catégorie</label><select id="v56-link-category"><option value="">Choisir une catégorie</option>${categories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></div>`:''}
+      <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="publishBannerItem()">Publier la bannière</button>
+    </div>`;
+  }
+  function renderManager(){
+    const root=document.getElementById('v56-banners-manager'); if(!root)return;
+    const cards=Banners.items.length ? Banners.items.map(function(x,idx){
+      return `<article class="v54-list-card"><div style="position:relative">${x.image_url?`<img class="v54-list-media" src="${esc(x.image_url)}" loading="lazy">`:`<div style="height:150px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo);font-size:34px;">🖼️</div>`}<span style="position:absolute;left:10px;top:10px;background:rgba(5,25,48,.75);color:#fff;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:850">${x.active===false?'Masquée':'Visible'}</span></div><div class="v54-list-body"><h4>${esc(linkTypeLabel(x))}</h4><div class="v54-list-actions"><button class="btn btn-outline btn-sm" ${idx===0?'disabled':''} onclick="moveBannerUp('${esc(x.id)}')">↑</button><button class="btn btn-outline btn-sm" ${idx===Banners.items.length-1?'disabled':''} onclick="moveBannerDown('${esc(x.id)}')">↓</button><button class="btn btn-outline btn-sm" onclick="toggleBannerItem('${esc(x.id)}')">${x.active===false?'Afficher':'Masquer'}</button><button class="btn btn-ghost btn-sm" onclick="deleteBannerItem('${esc(x.id)}')">Supprimer</button></div></div></article>`;
+    }).join('') : `<div style="margin:0 20px 100px">${EmptyState(ICONS.box,'Aucune bannière','Ajoutez une bannière : elle apparaîtra en haut de la boutique, au-dessus de la recherche.')}</div>`;
+    root.innerHTML=bannerFormHtml()+`<div class="v54-count">${Banners.items.filter(x=>x.active!==false).length} bannière(s) visible(s) actuellement sur la boutique.</div>${cards}`;
+  }
+  async function openManager(){
+    const root=document.getElementById('v56-banners-manager'); if(!root)return;
+    root.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-mid)">Chargement…</div>';
+    await Banners.all(); renderManager();
+  }
+  window.setBannerLinkType=t=>{bannerFormState.linkType=t;renderManager();};
+  window.previewBannerFile=e=>{const f=e.target.files?.[0];if(!f)return;bannerFormState.file=f;const p=document.getElementById('v56-preview'),n=document.getElementById('v56-file-name');if(n)n.textContent=f.name;const u=URL.createObjectURL(f);if(p){p.style.display='block';p.innerHTML=`<img src="${u}" alt="Aperçu">`;}};
+  window.publishBannerItem=async()=>{
+    const linkType=bannerFormState.linkType;
+    const linkUrl=document.getElementById('v56-link-url')?.value.trim()||'';
+    const linkProductId=document.getElementById('v56-link-product')?.value||'';
+    const linkCategoryId=document.getElementById('v56-link-category')?.value||'';
+    if(!bannerFormState.file)return Toast.show('Ajoutez une image');
+    if(linkType==='external' && !linkUrl)return Toast.show('Ajoutez le lien externe');
+    if(linkType==='product' && !linkProductId)return Toast.show('Choisissez un produit');
+    if(linkType==='category' && !linkCategoryId)return Toast.show('Choisissez une catégorie');
+    const btn=document.querySelector('#v56-banners-manager .btn-primary'); if(btn){btn.disabled=true;btn.textContent='Publication…';}
+    try{
+      const media=await Banners.upload(bannerFormState.file);
+      const maxPos=Banners.items.reduce((m,x)=>Math.max(m,Number(x.position||0)),0);
+      await Banners.create({image_url:media,link_type:linkType,link_url:linkType==='external'?linkUrl:null,link_product_id:linkType==='product'?linkProductId:null,link_category_id:linkType==='category'?linkCategoryId:null,active:true,position:maxPos+10});
+      Toast.show('Bannière publiée ✓');
+      bannerFormState={file:null,linkType:'none'};
+      await Banners.all(); renderManager();
+    }catch(e){console.error(e);Toast.show('Impossible de publier. Vérifiez la configuration du stockage SIAMS.');if(btn){btn.disabled=false;btn.textContent='Publier la bannière';}}
+  };
+  window.toggleBannerItem=async id=>{const x=Banners.items.find(i=>String(i.id)===String(id));if(!x)return;try{await Banners.update(id,{active:x.active===false});Toast.show(x.active===false?'Bannière affichée ✓':'Bannière masquée ✓');renderManager();}catch(e){Toast.show('Impossible de modifier cette bannière');}};
+  window.deleteBannerItem=async id=>{if(!confirm('Supprimer définitivement cette bannière ?'))return;try{await Banners.remove(id);Toast.show('Bannière supprimée ✓');renderManager();}catch(e){Toast.show('Impossible de supprimer cette bannière');}};
+  async function moveBanner(id,dir){
+    const items=Banners.items; const idx=items.findIndex(x=>String(x.id)===String(id)); const swapIdx=idx+dir;
+    if(idx<0||swapIdx<0||swapIdx>=items.length)return;
+    const a=items[idx], b=items[swapIdx];
+    const posA=Number(a.position||0), posB=Number(b.position||0);
+    try{await Banners.update(a.id,{position:posB});await Banners.update(b.id,{position:posA});}catch(e){Toast.show('Impossible de réordonner');return;}
+    items.sort((x,y)=>Number(x.position||0)-Number(y.position||0));
+    renderManager();
+  }
+  window.moveBannerUp=id=>moveBanner(id,-1);
+  window.moveBannerDown=id=>moveBanner(id,1);
+
+  Views['banners']=function(){return `${TopBar('Bannières','Vitrine boutique')}<div class="v54-admin-head"><h2>Bannières de la boutique</h2><p>Ajoutez, réordonnez ou masquez les bannières affichées en haut de la boutique, au-dessus de la recherche. Chaque bannière peut pointer vers un lien externe, un produit ou une catégorie.</p></div><div id="v56-banners-manager"><div style="padding:35px;text-align:center;color:var(--text-mid)">Chargement…</div></div>`;};
+  const oldAfterBanners=Views._after_banners;
+  Views._after_banners=async function(){if(oldAfterBanners)await oldAfterBanners();await openManager();};
+  /* La route reste volontairement hors navigation principale : accès depuis le Centre boutique. */
+  AutoSync.safeViews.add('banners');
+})();
+</script>
+
+<!-- SIAMS V57 : popups accueil client (commande en attente / offres du jour) -->
+<style id="siams-v57-popups-style">
+.v57-popup-overlay{position:fixed;inset:0;background:rgba(10,10,20,.55);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .22s ease}
+.v57-popup-overlay.show{opacity:1;pointer-events:auto}
+.v57-popup-card{background:#fff;border-radius:22px;max-width:400px;width:100%;max-height:86vh;overflow-y:auto;position:relative;box-shadow:0 30px 60px -20px rgba(0,0,0,.4)}
+.v57-popup-close{position:absolute;right:12px;top:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;border:none;display:grid;place-items:center;font-size:15px;cursor:pointer;z-index:3}
+.v57-pending-hero{background:linear-gradient(135deg,var(--mango),var(--mango-dark));padding:28px 22px 22px;border-radius:22px 22px 0 0;color:#fff;text-align:center}
+.v57-pending-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);padding:6px 12px;border-radius:999px;font-size:10.5px;font-weight:850;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
+.v57-pending-hero h2{margin:0;font-size:20px;line-height:1.25}
+.v57-pending-hero p{margin:8px 0 0;font-size:12.5px;opacity:.92;line-height:1.4}
+.v57-trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:18px 18px 4px}
+.v57-trust-item{display:flex;gap:9px;align-items:flex-start;padding:11px;border-radius:14px;background:var(--panel)}
+.v57-trust-ico{width:32px;height:32px;border-radius:10px;background:#fff;display:grid;place-items:center;font-size:15px;flex:none}
+.v57-trust-item b{display:block;font-size:11px}
+.v57-trust-item span{display:block;font-size:9.5px;color:var(--text-mid);margin-top:2px;line-height:1.3}
+.v57-popup-cta{margin:14px 18px 18px}
+.v57-deals-head{display:flex;align-items:center;gap:8px;padding:18px 44px 10px 18px}
+.v57-deals-head b{font-size:14px}
+.v57-deals-track{display:flex;overflow:hidden}
+.v57-deals-slide{flex:0 0 100%;padding:0 18px 16px;text-align:center}
+.v57-deals-slide img{width:100%;max-height:180px;object-fit:contain;border-radius:14px;background:var(--panel)}
+.v57-deals-badge{display:inline-block;background:var(--red);color:#fff;font-size:10.5px;font-weight:850;padding:4px 9px;border-radius:999px;margin:10px 0 6px}
+.v57-deals-name{font-size:13px;font-weight:700;margin:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v57-deals-price-row{display:flex;align-items:baseline;justify-content:center;gap:8px;margin-bottom:12px}
+.v57-deals-price{font-size:17px;font-weight:850;color:var(--indigo)}
+.v57-deals-old-price{font-size:11.5px;color:var(--text-soft);text-decoration:line-through}
+.v57-deals-arrow{position:absolute;top:96px;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18);border:none;display:grid;place-items:center;cursor:pointer;z-index:2;font-size:16px}
+.v57-deals-arrow.prev{left:6px}.v57-deals-arrow.next{right:6px}
+.v57-deals-dots{display:flex;justify-content:center;gap:5px;padding-bottom:16px}
+.v57-deals-dot{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.v57-deals-dot.active{background:var(--indigo);width:16px;border-radius:4px}
+</style>
+<script id="siams-v57-popups-script">
+(function(){
+  'use strict';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+
+  window.closeV57Popup=function(id){const el=document.getElementById(id);if(el)el.remove();};
+
+  function openPendingOrderPopup(order){
+    if(document.getElementById('v57-pending-popup'))return;
+    const html=`<div id="v57-pending-popup" class="v57-popup-overlay" onclick="if(event.target===this)closeV57Popup('v57-pending-popup')"><div class="v57-popup-card"><button class="v57-popup-close" onclick="closeV57Popup('v57-pending-popup')">✕</button>
+      <div class="v57-pending-hero"><span class="v57-pending-badge">🕒 En attente</span><h2>Commande en attente de validation</h2><p>Le vendeur va bientôt confirmer votre commande #${esc(order.number)}.</p></div>
+      <div class="v57-trust-grid">
+        <div class="v57-trust-item"><div class="v57-trust-ico">🔒</div><div><b>Paiement sécurisé</b><span>Wave, OM, MTN, Moov ou cash</span></div></div>
+        <div class="v57-trust-item"><div class="v57-trust-ico">🚚</div><div><b>Livraison suivie</b><span>Statut mis à jour en temps réel</span></div></div>
+        <div class="v57-trust-item"><div class="v57-trust-ico">✔</div><div><b>Vendeur vérifié</b><span>Boutique active sur SIAMS</span></div></div>
+        <div class="v57-trust-item"><div class="v57-trust-ico">💬</div><div><b>Support disponible</b><span>En cas de question sur la commande</span></div></div>
+      </div>
+      <div class="v57-popup-cta"><button class="btn btn-primary btn-block" onclick="closeV57Popup('v57-pending-popup');Router.go('order-track',{id:'${esc(order.id)}'})">SUIVRE MA COMMANDE</button></div>
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+    requestAnimationFrame(()=>document.getElementById('v57-pending-popup')?.classList.add('show'));
+  }
+
+  function openDealsPopup(products){
+    if(document.getElementById('v57-deals-popup'))return;
+    let i=0;
+    const slideHtml=p=>{const discount=p.oldPrice?Math.round((1-p.price/p.oldPrice)*100):0;return `<div class="v57-deals-slide"><img src="${esc(p.photo||'')}" alt="${esc(p.name)}">${discount?`<div class="v57-deals-badge">-${discount}%</div>`:''}<div class="v57-deals-name">${esc(p.name)}</div><div class="v57-deals-price-row"><span class="v57-deals-price">${Utils.fmtFCFA(p.price)}</span>${p.oldPrice?`<span class="v57-deals-old-price">${Utils.fmtFCFA(p.oldPrice)}</span>`:''}</div><button class="btn btn-mango btn-block" onclick="closeV57Popup('v57-deals-popup');Router.go('shop-product',{id:'${esc(p.id)}'})">Voir l'article →</button></div>`;};
+    const html=`<div id="v57-deals-popup" class="v57-popup-overlay" onclick="if(event.target===this)closeV57Popup('v57-deals-popup')"><div class="v57-popup-card" style="position:relative;">
+      <button class="v57-popup-close" onclick="closeV57Popup('v57-deals-popup')">✕</button>
+      <div class="v57-deals-head"><span style="font-size:16px;">⚡</span><b>Offres du jour</b></div>
+      ${products.length>1?`<button class="v57-deals-arrow prev" onclick="moveV57DealsSlide(-1)">‹</button><button class="v57-deals-arrow next" onclick="moveV57DealsSlide(1)">›</button>`:''}
+      <div class="v57-deals-track" id="v57-deals-track">${products.map(slideHtml).join('')}</div>
+      ${products.length>1?`<div class="v57-deals-dots" id="v57-deals-dots">${products.map((_,j)=>`<span class="v57-deals-dot ${j===0?'active':''}"></span>`).join('')}</div>`:''}
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+    requestAnimationFrame(()=>document.getElementById('v57-deals-popup')?.classList.add('show'));
+    const track=document.getElementById('v57-deals-track');
+    if(track)track.style.transition='transform .35s ease';
+    window.moveV57DealsSlide=dir=>{i=(i+dir+products.length)%products.length;if(track)track.style.transform=`translateX(-${i*100}%)`;const dots=document.getElementById('v57-deals-dots');if(dots)[...dots.children].forEach((d,j)=>d.classList.toggle('active',j===i));};
+    let sx=0; if(track){track.ontouchstart=e=>{sx=e.touches[0].clientX};track.ontouchend=e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40)window.moveV57DealsSlide(dx<0?1:-1);};}
+  }
+
+  function maybeShowHomePopups(){
+    const sid=(Store.store&&Store.store.slug)||'default';
+    const pendingKey='siams_popup_pending_'+sid;
+    const dealsKey='siams_popup_deals_'+sid;
+    let orders=[];
+    try{orders=(window.ClientOrderCache?ClientOrderCache.load():[])||[];}catch(e){}
+    const pendingOrder=orders.find(o=>o&&o.status==='pending');
+    if(pendingOrder && !sessionStorage.getItem(pendingKey)){
+      sessionStorage.setItem(pendingKey,'1');
+      setTimeout(()=>openPendingOrderPopup(pendingOrder),600);
+      return;
+    }
+    if(!sessionStorage.getItem(dealsKey)){
+      const discounted=(Store.products||[]).filter(p=>p.oldPrice && Number(p.oldPrice)>Number(p.price)).sort((a,b)=>(1-b.price/b.oldPrice)-(1-a.price/a.oldPrice)).slice(0,10);
+      if(discounted.length){
+        sessionStorage.setItem(dealsKey,'1');
+        setTimeout(()=>openDealsPopup(discounted),600);
+      }
+    }
+  }
+
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=async function(opts){if(oldAfterShop)await oldAfterShop(opts);try{maybeShowHomePopups();}catch(e){console.warn('Home popups',e)}};
 })();
 </script>
