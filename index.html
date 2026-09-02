@@ -7012,7 +7012,7 @@ async function loadCourierDashboard(){
     </div>`).join('');
   }catch(e){console.error(e);el.innerHTML='<div style="color:var(--red);padding:20px;">Impossible de charger les livraisons.</div>';}
 }
-async function acceptCourierDelivery(id){ const sess=courierSession(); const eta=document.getElementById('eta-'+id)?.value||60; try{await Cloud.courierAcceptAssignment(sess.session_token,id,eta); Toast.show('Livraison acceptée ✓'); loadCourierDashboard();}catch(e){console.error(e);Toast.show('⚠️ Impossible d’accepter la livraison');} }
+async function acceptCourierDelivery(id){ const sess=courierSession(); const eta=document.getElementById('eta-'+id)?.value||60; try{await Cloud.courierAcceptAssignment(sess.session_token,id,eta); Toast.show('Livraison acceptée ✓'); loadCourierDashboard();}catch(e){console.error(e);const detail=(e&&(e.message||e.error_description||e.hint))||'Erreur inconnue';Toast.show('⚠️ '+detail);} }
 let courierWatchId=null, courierLastSent=0;
 function startCourierLiveGps(assignmentId){
   const sess=courierSession(); if(!sess||!navigator.geolocation){Toast.show('GPS indisponible');return;}
