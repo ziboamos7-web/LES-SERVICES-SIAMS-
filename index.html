@@ -178,18 +178,16 @@
   .courier-code-input::placeholder,.courier-pin-input::placeholder{color:var(--text-soft);letter-spacing:7px;}
   .btn-courier-primary{background:linear-gradient(135deg,#0b67d8,#16b6ff)!important;box-shadow:0 16px 30px -12px rgba(11,103,216,.55)!important;}
 
-  .courier-dash-hero{background:#fff;padding:20px 20px 16px;border-radius:0 0 20px 20px;border-bottom:1.5px solid var(--line);}
+  .courier-dash-hero{background:linear-gradient(135deg,#0b67d8,#16b6ff);padding:22px 20px 24px;border-radius:0 0 26px 26px;color:#fff;box-shadow:0 18px 36px -18px rgba(11,103,216,.5);}
   .courier-dash-top{display:flex;align-items:center;justify-content:space-between;gap:12px;}
   .courier-dash-id{display:flex;align-items:center;gap:12px;min-width:0;}
-  .courier-avatar{width:44px;height:44px;border-radius:50%;background:var(--blue-tint);color:#0b67d8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;letter-spacing:.3px;flex:none;}
-  .courier-dash-name{font-family:var(--font-display);font-weight:800;font-size:17px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
-  .courier-dash-sub{font-size:12px;color:var(--text-mid);margin-top:1px;}
+  .courier-avatar{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;letter-spacing:.3px;flex:none;}
+  .courier-dash-name{font-family:var(--font-display);font-weight:800;font-size:17px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .courier-dash-sub{font-size:12px;opacity:.85;margin-top:1px;}
 
   .courier-stats-row{display:flex;gap:10px;margin-bottom:16px;}
-  .courier-stat{flex:1;background:var(--mango-tint);border-radius:16px;padding:12px 14px;text-align:center;}
-  .courier-stat:nth-child(2){background:var(--blue-tint);}
-  .courier-stat b{display:block;font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--mango-dark);}
-  .courier-stat:nth-child(2) b{color:#0b67d8;}
+  .courier-stat{flex:1;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;text-align:center;}
+  .courier-stat b{display:block;font-family:var(--font-display);font-size:20px;font-weight:800;}
   .courier-stat span{font-size:11px;color:var(--text-mid);}
 
   .courier-card{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:17px 17px 15px;margin-bottom:13px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;}
@@ -206,16 +204,14 @@
   .courier-progress-note{font-size:12.5px;color:var(--green);}
 
   /* ---------- Shell « app » de l'espace livreur : bandeau statut + navigation
-     en bas à 4 onglets (Accueil / Missions / Gains / Profil), version sobre :
-     en-tête blanc, interrupteur de disponibilité, cartes statistiques colorées. ---------- */
-  .courier-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;background:var(--panel,#f4f5f8);border-radius:14px;padding:11px 14px;}
-  .courier-status-label{font-size:12.5px;color:var(--text-mid);font-weight:700;}
-  .courier-switch{position:relative;display:inline-block;width:42px;height:24px;flex:none;}
-  .courier-switch input{opacity:0;width:0;height:0;position:absolute;margin:0;}
-  .courier-switch-track{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .15s ease;pointer-events:none;}
-  .courier-switch input:checked + .courier-switch-track{background:var(--green);}
-  .courier-switch-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .15s ease;box-shadow:0 1px 3px rgba(0,0,0,.25);}
-  .courier-switch input:checked + .courier-switch-track .courier-switch-thumb{transform:translateX(18px);}
+     en bas à 4 onglets (Accueil / Missions / Gains / Profil), inspiré du prototype
+     SIGO Driver mais avec les couleurs et le style SIAMS (bleu #0b67d8/#16b6ff). ---------- */
+  .courier-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;}
+  .courier-status-label{font-size:11px;opacity:.8;}
+  .courier-online-toggle{border:none;border-radius:999px;padding:9px 16px;font-weight:800;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .15s;}
+  .courier-online-toggle.online{background:var(--green);color:#fff;box-shadow:0 4px 14px -4px rgba(18,183,106,.6);}
+  .courier-online-toggle.offline{background:rgba(255,255,255,.18);color:#fff;}
+  .courier-online-toggle .dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none;}
 
   .courier-tab-panel{display:none;}
   .courier-tab-panel.active{display:block;}
@@ -1826,19 +1822,6 @@ const Cloud = {
     return true;
   },
 
-  /* ---- Décrément sécurisé du stock après une commande client : le client
-     public n'a pas le droit d'écrire dans la table products (RLS), donc ce
-     décrément passe par la fonction serveur decrement_stock (voir
-     migration_decrement_stock.sql), qui ne touche que la colonne stock_qty
-     et uniquement pour des produits de la boutique concernée. ---- */
-  async decrementStock(storeId, items){
-    if(!storeId || !items || !items.length) return;
-    const payload = items.map(i=>({product_id:i.productId, qty:Number(i.qty)||0})).filter(i=>i.product_id && i.qty>0);
-    if(!payload.length) return;
-    const {error} = await sb.rpc('decrement_stock', {p_store_id:storeId, p_items:payload});
-    if(error) throw error;
-  },
-
   async pushTeam(prev, next){
     const prevIds = prev.map(t=>t.id), nextIds = next.map(t=>t.id);
     const removed = prevIds.filter(id=>!nextIds.includes(id));
@@ -1926,13 +1909,6 @@ const Cloud = {
     if(!this.storeId) throw new Error('Boutique non initialisée');
     if(!courierId) throw new Error('Livreur manquant');
     const {error}=await sb.from('couriers').update({status:'suspended'}).eq('id',courierId).eq('store_id',this.storeId);
-    if(error) throw error;
-    await this.loadCourierData();
-  },
-  async deleteCourier(courierId){
-    if(!this.storeId) throw new Error('Boutique non initialisée');
-    if(!courierId) throw new Error('Livreur manquant');
-    const {error}=await sb.from('couriers').delete().eq('id',courierId).eq('store_id',this.storeId);
     if(error) throw error;
     await this.loadCourierData();
   },
@@ -2093,14 +2069,6 @@ function syncFail(label){ return (err)=>{ console.error('Sync error ['+label+']'
 const Store = {
   get products(){ return _cache.products; },
   set products(v){ const prev=_cache.products; _cache.products=v; Cloud.pushProducts(prev, v).catch(syncFail('products')); },
-  /* ---- Mise à jour du cache produits SANS écriture cloud : utilisée côté
-     client (checkout) pour refléter localement le décrément de stock après
-     une commande. Le client public n'est pas propriétaire de la boutique et
-     la table products est protégée par RLS (écriture réservée au marchand) :
-     utiliser le setter "products" normal depuis le checkout provoquait
-     l'erreur "new row violates row-level security policy for table products"
-     affichée sur l'écran de confirmation de commande. ---- */
-  setProductsLocal(v){ _cache.products = v; },
 
   get menuItems(){ return _cache.menuItems; },
   set menuItems(v){ const prev=_cache.menuItems; _cache.menuItems=v; Cloud.pushMenuItems(prev, v).catch(syncFail('menuItems')); },
@@ -6830,9 +6798,7 @@ Views.team = function(){
         <span class="badge ${c.status==='active'?'delivered':'pending'}">${c.status==='active'?'Actif':c.status==='invited'?'En attente':'Suspendu'}</span>
         ${c.status!=='suspended' ? `<button type="button" onclick="removeCourier('${c.id}')" aria-label="Retirer ${Utils.escapeHtml(c.name||'livreur')}" style="width:34px;height:34px;border:1px solid var(--red-tint);background:var(--red-tint);color:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>` : `<button type="button" onclick="deleteCourierPermanently('${c.id}')" aria-label="Supprimer ${Utils.escapeHtml(c.name||'livreur')}" style="width:34px;height:34px;border:1px solid var(--line);background:var(--panel);color:var(--text-mid);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>`}
+        </button>` : ''}
       </div>
     </div>`).join('') : `<div style="border:1.5px dashed var(--line);border-radius:var(--radius-md);padding:16px;text-align:center;color:var(--text-mid);font-size:13px;">Aucun livreur connecté.</div>`}
     <button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button>
@@ -6862,22 +6828,6 @@ async function removeCourier(id){
   }catch(e){
     console.error('Retrait livreur',e);
     Toast.show(e && e.message ? `⚠️ ${e.message}` : '⚠️ Impossible de retirer ce livreur, réessayez');
-    if(btn){ btn.disabled=false; }
-  }
-}
-async function deleteCourierPermanently(id){
-  const courier = (Store.couriers||[]).find(c=>c.id===id);
-  if(!courier) return;
-  if(!confirm(`Supprimer définitivement ${courier.name||'ce livreur'} ? Cette action est irréversible.`)) return;
-  const btn = document.querySelector(`[onclick="deleteCourierPermanently('${id}')"]`);
-  if(btn){ btn.disabled=true; }
-  try{
-    await Cloud.deleteCourier(id);
-    Toast.show('Livreur supprimé');
-    Router.go('team');
-  }catch(e){
-    console.error('Suppression livreur',e);
-    Toast.show(e && e.message ? `⚠️ ${e.message}` : '⚠️ Impossible de supprimer ce livreur, réessayez');
     if(btn){ btn.disabled=false; }
   }
 }
@@ -7074,11 +7024,8 @@ Views['courier-dashboard']=function(){
       <button class="btn btn-outline btn-sm" onclick="setCourierSession(null);Router.go('courier-login')">Déconnexion</button>
     </div>
     <div class="courier-status-row">
-      <span class="courier-status-label" id="courier-status-label">${online?'En ligne':'Hors ligne'}</span>
-      <label class="courier-switch">
-        <input type="checkbox" id="courier-online-input" onchange="CourierApp.toggleOnline()" ${online?'checked':''}>
-        <span class="courier-switch-track"><span class="courier-switch-thumb"></span></span>
-      </label>
+      <span class="courier-status-label">Statut de disponibilité</span>
+      <button id="courier-online-btn" class="courier-online-toggle ${online?'online':'offline'}" onclick="CourierApp.toggleOnline()"><span class="dot"></span>${online?'En ligne':'Hors ligne'}</button>
     </div>
   </div>
   <div id="courier-page-body" style="padding:16px 20px 88px;">
@@ -7126,11 +7073,10 @@ const CourierApp = {
   _key(){ const sess=courierSession(); return 'siams_courier_online_'+((sess&&sess.session_token)||'x'); },
   isOnline(){ const v=localStorage.getItem(this._key()); return v===null ? true : v==='1'; },
   toggleOnline(){
-    const input=document.getElementById('courier-online-input');
-    const next = input ? input.checked : !this.isOnline();
+    const next=!this.isOnline();
     localStorage.setItem(this._key(), next?'1':'0');
-    const label=document.getElementById('courier-status-label');
-    if(label){ label.textContent = next?'En ligne':'Hors ligne'; }
+    const btn=document.getElementById('courier-online-btn');
+    if(btn){ btn.className='courier-online-toggle '+(next?'online':'offline'); btn.innerHTML='<span class="dot"></span>'+(next?'En ligne':'Hors ligne'); }
     Toast.show(next?'Vous êtes en ligne ✓':'Vous êtes hors ligne');
   }
 };
@@ -9433,17 +9379,7 @@ async function confirmOrder(){
     }
     return p;
   });
-  /* setProductsLocal (et non "Store.products =") : le client public n'a pas
-     le droit d'écrire dans la table products (RLS), voir commentaire sur
-     Store.setProductsLocal. Ce décrément local ne fait que rafraîchir
-     l'affichage sur l'appareil de l'acheteur. */
-  Store.setProductsLocal(products);
-  /* Décrément réel du stock en base, via la fonction serveur sécurisée
-     decrement_stock (voir migration_decrement_stock.sql) : seule cette
-     écriture rend le stock visible par le marchand et par les autres
-     acheteurs. Ne bloque jamais la confirmation de commande si elle échoue
-     (ex : migration pas encore déployée) — la commande reste prioritaire. */
-  Cloud.decrementStock(Cloud.storeId, items).catch(e=>console.error('Décrément stock',e));
+  Store.products = products;
 
   Store.cart = [];
   appliedPromo = null;
@@ -10050,26 +9986,6 @@ Views._after_confirmation = function(opts){
 Views['order-track'] = function(opts){
   const order = Store.orders.find(o=>o.id===opts.id);
   if(!order) return `${TopBar('Commande introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Commande introuvable',"Cette commande n'existe pas ou a été supprimée.")}</div>`;
-  if(order.status==='cancelled'){
-    return `
-    <div class="topbar" style="padding-top:18px;">
-      <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Suivi de commande</h1></div>
-    </div>
-    <div class="track-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-        <div><div class="mono" style="font-size:13px;color:var(--text-mid);">Commande</div><div style="font-weight:700;font-size:16px;">#${order.number}</div></div>
-        <div style="text-align:right;"><div style="font-size:13px;color:var(--text-mid);">Total</div><div class="mono" style="font-weight:700;font-size:16px;color:var(--indigo);">${Utils.fmtFCFA(order.amount)}</div></div>
-      </div>
-      <div style="text-align:center;padding:14px 6px;">
-        <div style="width:46px;height:46px;border-radius:50%;background:var(--red-tint);color:var(--red);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:22px;">✕</div>
-        <div style="font-weight:800;font-size:15px;color:var(--red);">Commande annulée</div>
-        <p style="font-size:12.5px;color:var(--text-mid);margin-top:6px;">Cette commande a été annulée avant confirmation par le vendeur.</p>
-      </div>
-    </div>
-    <div style="padding:0 20px 28px;">
-      <button class="btn btn-ghost btn-block" onclick="Router.go('shop-account')">Retour à mon compte</button>
-    </div>`;
-  }
   const shipped = !!order.shipped || order.status==='delivered';
   const delivered = order.status==='delivered';
   const confirmed = order.status==='confirmed' || delivered;
@@ -10114,12 +10030,6 @@ Views['order-track'] = function(opts){
   <div class="home-section-row" style="padding-top:0;"><h3 style="font-size:14.5px;">Photo de réception</h3></div>
   <div style="margin:0 20px 20px;border-radius:var(--radius-md);overflow:hidden;border:1.5px solid var(--line);"><img src="${order.deliveryPhoto}" style="width:100%;display:block;"></div>
   ${buildDetailedReceiptHtml(order)}` : ''}
-  ${order.status==='pending' ? `
-  <div style="padding:0 20px 6px;">
-    <div style="font-size:11.5px;color:var(--text-mid);text-align:center;margin-bottom:10px;">Le vendeur n'a pas encore confirmé votre commande : vous pouvez encore la modifier.</div>
-    <button class="btn btn-outline btn-block" style="margin-bottom:8px;" onclick="openReplaceOrderItemSheet('${order.id}')">Remplacer un produit</button>
-    <button class="btn btn-outline btn-block" style="color:var(--red);border-color:var(--red-tint);" onclick="confirmCancelOrder('${order.id}')">Annuler la commande</button>
-  </div>` : ''}
   <div style="padding:0 20px 28px;">
     <button class="btn btn-ghost btn-block" onclick="Router.go('shop-account')">Retour à mon compte</button>
   </div>
@@ -10697,124 +10607,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 </html>
 
 </html>
-<script id="siams-v58-order-cancel-replace">
-(function(){
-  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
-  function modal(title,body){
-    document.getElementById('v20-modal')?.remove();
-    const d=document.createElement('div'); d.id='v20-modal'; d.innerHTML=`<div class="v20-backdrop" onclick="document.getElementById('v20-modal')?.remove()"></div><div class="v20-dialog"><div class="v20-dialog-head"><b>${title}</b><button onclick="document.getElementById('v20-modal')?.remove()">×</button></div><div class="v20-dialog-body">${body}</div></div>`; document.body.appendChild(d);
-  }
-  function closeModal(){ document.getElementById('v20-modal')?.remove(); }
-
-  /* ---------- Annulation de commande par le client (avant confirmation) ---------- */
-  window.confirmCancelOrder=function(orderId){
-    const order=(Store.orders||[]).find(o=>String(o.id)===String(orderId));
-    if(!order) return;
-    if(order.status!=='pending'){ Toast.show('Cette commande a déjà été confirmée par le vendeur, elle ne peut plus être annulée.'); return; }
-    modal('Annuler la commande',`
-      <div class="v20-confirm">
-        <div class="v20-confirm-icon">!</div>
-        <b>Commande #${esc(order.number)}</b>
-        <p>Voulez-vous vraiment annuler cette commande ? Cette action est définitive.</p>
-        <div class="v20-two">
-          <button class="btn btn-ghost" onclick="document.getElementById('v20-modal')?.remove()">Retour</button>
-          <button class="btn btn-danger" onclick="cancelOrderByClient('${esc(order.id)}')">Confirmer l'annulation</button>
-        </div>
-      </div>`);
-  };
-  window.cancelOrderByClient=async function(orderId){
-    const order=(Store.orders||[]).find(o=>String(o.id)===String(orderId));
-    if(!order) return;
-    if(order.status!=='pending'){ Toast.show('Cette commande ne peut plus être annulée.'); closeModal(); return; }
-    closeModal();
-    Toast.show('Annulation en cours…');
-    try{
-      const token=await ensureDeliverySecurityToken(order);
-      if(!token) throw new Error('security_token_unavailable');
-      const {error}=await sb.rpc('cancel_order_by_client',{p_order_id:orderId,p_token:token});
-      if(error) throw error;
-      const updated={...order,status:'cancelled',cancelledAt:Date.now()};
-      _cache.orders=(_cache.orders||[]).map(o=>String(o.id)===String(orderId)?updated:o);
-      try{ClientOrderCache.save(updated);}catch(e){}
-      try{Notify.add('order',`Le client a annulé la commande #${order.number}.`);}catch(e){}
-      Toast.show('✓ Commande annulée');
-      Router.go('order-track',{id:orderId});
-    }catch(e){
-      console.error('Annulation commande client',e);
-      Toast.show('⚠️ Impossible d’annuler la commande pour le moment. Réessayez.');
-    }
-  };
-
-  /* ---------- Remplacement d'un produit dans une commande (avant confirmation) ---------- */
-  window.openReplaceOrderItemSheet=function(orderId){
-    const order=(Store.orders||[]).find(o=>String(o.id)===String(orderId));
-    if(!order) return;
-    if(order.status!=='pending'){ Toast.show('Cette commande a déjà été confirmée par le vendeur, elle ne peut plus être modifiée.'); return; }
-    const itemsHtml=(order.items||[]).map((it,idx)=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:10px;">
-        <div><div style="font-weight:700;font-size:13.5px;">${esc(it.name)}</div><div style="font-size:12px;color:var(--text-mid);">Qté ${it.qty} · ${Utils.fmtFCFA(it.price)}</div></div>
-        <button class="btn btn-outline btn-sm" style="flex:none;" onclick="openReplaceProductPicker('${esc(order.id)}',${idx})">Remplacer</button>
-      </div>`).join('');
-    modal('Remplacer un produit',`
-      <div style="padding:2px;">
-        <p style="font-size:12.5px;color:var(--text-mid);margin:0 0 8px;">Vous pouvez remplacer un article tant que le vendeur n'a pas confirmé la commande.</p>
-        ${itemsHtml||'<p style="font-size:12.5px;color:var(--text-mid);">Aucun article dans cette commande.</p>'}
-        <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="document.getElementById('v20-modal')?.remove()">Fermer</button>
-      </div>`);
-  };
-  window.openReplaceProductPicker=function(orderId,itemIndex){
-    const order=(Store.orders||[]).find(o=>String(o.id)===String(orderId));
-    if(!order) return;
-    const currentItem=(order.items||[])[itemIndex];
-    if(!currentItem) return;
-    const products=(Store.sellables||[]).filter(p=>p.id!==currentItem.productId);
-    const listHtml=products.length?products.map(p=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:10px;">
-        <div><div style="font-weight:700;font-size:13.5px;">${esc(p.name)}</div><div style="font-size:12px;color:var(--text-mid);">${Utils.fmtFCFA(p.price)}</div></div>
-        <button class="btn btn-primary btn-sm" style="flex:none;" onclick="confirmReplaceOrderItem('${esc(order.id)}',${itemIndex},'${esc(p.id)}')">Choisir</button>
-      </div>`).join(''):'<p style="font-size:12.5px;color:var(--text-mid);">Aucun autre produit disponible dans la boutique.</p>';
-    modal('Choisir un produit de remplacement',`
-      <div style="padding:2px;max-height:60vh;overflow:auto;">
-        ${listHtml}
-        <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="openReplaceOrderItemSheet('${esc(order.id)}')">Retour</button>
-      </div>`);
-  };
-  window.confirmReplaceOrderItem=async function(orderId,itemIndex,newProductId){
-    const order=(Store.orders||[]).find(o=>String(o.id)===String(orderId));
-    if(!order) return;
-    if(order.status!=='pending'){ Toast.show('Cette commande a déjà été confirmée par le vendeur, elle ne peut plus être modifiée.'); closeModal(); return; }
-    const newProduct=(Store.sellables||[]).find(p=>String(p.id)===String(newProductId));
-    if(!newProduct){ Toast.show('Produit introuvable.'); return; }
-    const oldItem=(order.items||[])[itemIndex];
-    if(!oldItem) return;
-    closeModal();
-    Toast.show('Mise à jour de la commande…');
-    try{
-      const token=await ensureDeliverySecurityToken(order);
-      if(!token) throw new Error('security_token_unavailable');
-      const newItems=order.items.map((it,idx)=>idx===itemIndex?{productId:newProduct.id,name:newProduct.name,price:newProduct.price,qty:oldItem.qty}:it);
-      const subtotal=newItems.reduce((s,i)=>s+i.price*i.qty,0);
-      const discount=Math.min(Number(order.discount||0),subtotal);
-      const amount=subtotal-discount+Number(order.deliveryFee||0);
-      const {error}=await sb.rpc('replace_order_item_by_client',{
-        p_order_id:orderId, p_token:token, p_old_product_id:oldItem.productId,
-        p_new_product_id:newProduct.id, p_new_name:newItems[itemIndex].name,
-        p_new_price:newProduct.price, p_new_amount:amount
-      });
-      if(error) throw error;
-      const updated={...order,items:newItems,amount};
-      _cache.orders=(_cache.orders||[]).map(o=>String(o.id)===String(orderId)?updated:o);
-      try{ClientOrderCache.save(updated);}catch(e){}
-      try{Notify.add('order',`Le client a remplacé un article dans la commande #${order.number}.`);}catch(e){}
-      Toast.show('✓ Article remplacé');
-      Router.go('order-track',{id:orderId});
-    }catch(e){
-      console.error('Remplacement produit commande',e);
-      Toast.show('⚠️ Impossible de remplacer ce produit pour le moment. Réessayez.');
-    }
-  };
-})();
-</script>
 <script id="siams-v20-promos-categories">
 (function(){
   const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
@@ -11268,7 +11060,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   Views.team=function(){
     if(!Store.hasFeature('team')) return oldTeam();
     const t=Store.team||[], c=Store.couriers||[], active=t.filter(x=>x.status!=='suspended').length;
-    return `${TopBar('Équipe',t.length+' membre(s)')}<div class="v37-team-head"><div class="eyebrow">Gestion de votre équipe</div><h2>Membres de l’équipe</h2><p>Chaque membre dispose maintenant d’une carte complète avec photo, rôle et informations complémentaires.</p></div><div class="v37-team-summary"><div><b>${t.length}</b><span>Membres</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${c.length}</b><span>Livreurs</span></div></div><div class="v37-team-add"><button class="btn btn-primary btn-block" type="button" onclick="v37OpenAddMember()">＋ Ajouter un membre</button></div>${t.length?`<div class="v37-team-list">${t.map(teamCard).join('')}</div>`:`<div class="v37-team-empty"><b>Aucun membre d’équipe</b><div style="margin-top:5px;font-size:11.5px;">Ajoutez un gérant, vendeur ou administrateur.</div></div>`}<section class="v37-team-couriers"><h3>Livreurs SIAMS</h3>${c.length?c.map(q=>`<div class="v37-courier-row"><div class="v37-courier-avatar">🚚</div><div class="v37-courier-main"><b>${esc(q.name||'Livreur')}</b><span>${esc(q.phone||'')} · ${q.status==='active'?'Actif':q.status==='invited'?'Invitation envoyée':'Suspendu'}</span></div>${q.status!=='suspended'?`<button type="button" class="v37-courier-remove" onclick="removeCourier('${esc(q.id)}')" aria-label="Retirer ${esc(q.name||'livreur')}">Retirer</button>`:`<button type="button" class="v37-courier-remove" onclick="deleteCourierPermanently('${esc(q.id)}')" aria-label="Supprimer ${esc(q.name||'livreur')}">Supprimer</button>`}</div>`).join(''):`<div style="font-size:11.5px;color:var(--text-mid);">Aucun livreur connecté.</div>`}<button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button></section>`;
+    return `${TopBar('Équipe',t.length+' membre(s)')}<div class="v37-team-head"><div class="eyebrow">Gestion de votre équipe</div><h2>Membres de l’équipe</h2><p>Chaque membre dispose maintenant d’une carte complète avec photo, rôle et informations complémentaires.</p></div><div class="v37-team-summary"><div><b>${t.length}</b><span>Membres</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${c.length}</b><span>Livreurs</span></div></div><div class="v37-team-add"><button class="btn btn-primary btn-block" type="button" onclick="v37OpenAddMember()">＋ Ajouter un membre</button></div>${t.length?`<div class="v37-team-list">${t.map(teamCard).join('')}</div>`:`<div class="v37-team-empty"><b>Aucun membre d’équipe</b><div style="margin-top:5px;font-size:11.5px;">Ajoutez un gérant, vendeur ou administrateur.</div></div>`}<section class="v37-team-couriers"><h3>Livreurs SIAMS</h3>${c.length?c.map(q=>`<div class="v37-courier-row"><div class="v37-courier-avatar">🚚</div><div class="v37-courier-main"><b>${esc(q.name||'Livreur')}</b><span>${esc(q.phone||'')} · ${q.status==='active'?'Actif':q.status==='invited'?'Invitation envoyée':'Suspendu'}</span></div>${q.status!=='suspended'?`<button type="button" class="v37-courier-remove" onclick="removeCourier('${esc(q.id)}')" aria-label="Retirer ${esc(q.name||'livreur')}">Retirer</button>`:''}</div>`).join(''):`<div style="font-size:11.5px;color:var(--text-mid);">Aucun livreur connecté.</div>`}<button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button></section>`;
   };
 
   window.v37OpenAddMember=function(){
