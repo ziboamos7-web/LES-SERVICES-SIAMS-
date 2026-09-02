@@ -201,6 +201,27 @@
   .courier-card-status.accepted{background:var(--blue-tint);color:#0b67d8;}
   .courier-card-actions{margin-top:14px;display:flex;flex-direction:column;gap:9px;}
   .courier-card-actions .field{margin-bottom:0;}
+  .courier-card-info-row{display:flex;gap:8px;margin-top:12px;}
+  .courier-card-info-chip{flex:1;display:flex;align-items:center;gap:7px;background:var(--panel);border-radius:12px;padding:9px 10px;}
+  .courier-card-info-chip .ico-round{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;background:#fff;}
+  .courier-card-info-chip .ico-round.green{color:var(--green);}
+  .courier-card-info-chip .ico-round.blue{color:#0b67d8;}
+  .courier-card-info-chip .txt{min-width:0;}
+  .courier-card-info-chip .txt b{display:block;font-size:12.5px;font-weight:800;line-height:1.2;font-family:var(--font-mono);}
+  .courier-card-info-chip .txt span{display:block;font-size:9.5px;color:var(--text-mid);margin-top:1px;text-transform:uppercase;letter-spacing:.03em;}
+  .courier-card-timer{display:flex;align-items:center;gap:6px;margin-top:11px;padding:8px 11px;border-radius:11px;background:var(--mango-tint);color:var(--mango-dark);font-size:11.5px;font-weight:800;}
+  .courier-card-timer.low{background:var(--red-tint);color:var(--red);}
+  .courier-card-actions-row{display:flex;gap:9px;}
+  .courier-card-actions-row .btn{flex:1;}
+  .courier-payout-hero{background:linear-gradient(135deg,#0b67d8,#16b6ff);border-radius:18px;padding:18px 20px;color:#fff;}
+  .courier-payout-hero b{display:block;font-family:var(--font-mono);font-size:26px;font-weight:800;margin-top:4px;}
+  .courier-payout-hero span{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.85;}
+  .courier-payout-hero small{display:block;font-size:11.5px;opacity:.9;margin-top:8px;line-height:1.4;}
+  .courier-payout-row{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px;}
+  .courier-payout-row-head{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .courier-payout-status{font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .courier-payout-status.wait{background:var(--mango-tint);color:var(--mango-dark);}
+  .courier-payout-status.sub{background:var(--blue-tint);color:#0b67d8;}
   .courier-progress-note{font-size:12.5px;color:var(--green);}
 
   /* ---------- Shell « app » de l'espace livreur : bandeau statut + navigation
@@ -1983,11 +2004,27 @@ const Cloud = {
     if(error) throw error;
     return data;
   },
-  /* ---- Refus (ou expiration du compte à rebours de 5 min) d'une mission proposée :
+  /* ---- Refus (ou expiration du compte à rebours de 10 min) d'une mission proposée :
      remet la commande "non affectée" côté marchand. Nécessite la fonction SQL
      courier_decline_assignment (voir migration_mission_popup.sql). ---- */
   async courierDeclineAssignment(sessionToken,assignmentId){
     const {data,error}=await sb.rpc('courier_decline_assignment',{p_session_token:sessionToken,p_assignment_id:assignmentId});
+    if(error) throw error;
+    return data;
+  },
+  /* ---- Documents administratifs du livreur (CNI, permis, carte grise, assurance) : chaque
+     pièce est envoyée séparément vers Supabase Storage puis enregistrée sur la fiche livreur
+     (statut 'pending') en vue d'une validation manuelle par un admin SIAMS. Le badge vert
+     certifié s'affiche automatiquement dès que les 4 pièces sont validées (voir
+     courier_recompute_documents_verified côté SQL — migration_courier_documents.sql). ---- */
+  async courierDocuments(sessionToken){
+    const {data,error}=await sb.rpc('courier_get_documents',{p_session_token:sessionToken});
+    if(error) throw error;
+    return data;
+  },
+  async courierSubmitDocument(sessionToken, docKey, docDataUrl){
+    const docUrl = await this.ensureStoredUrl(docDataUrl, 'courier-documents');
+    const {data,error}=await sb.rpc('courier_submit_document',{p_session_token:sessionToken,p_doc_key:docKey,p_doc_url:docUrl});
     if(error) throw error;
     return data;
   },
@@ -1999,6 +2036,30 @@ const Cloud = {
   async courierMarkDelivered(sessionToken,assignmentId){
     const {data,error}=await sb.rpc('courier_mark_delivered',{p_session_token:sessionToken,p_assignment_id:assignmentId});
     if(error) throw error;
+    return data;
+  },
+  /* ---- Reversement à la boutique des espèces encaissées par le livreur pour des commandes
+     "paiement à la livraison" — nécessite les fonctions SQL courier_get_cash_due et
+     courier_submit_payout_receipt côté livreur, et merchant_confirm_courier_payout côté
+     boutique (voir migration_courier_payouts.sql). Le solde dû par le livreur, la pièce
+     jointe du reçu de virement et la confirmation de réception par le marchand vivent tous
+     dans la table courier_payouts déjà utilisée par Cloud.setCourierPayout. ---- */
+  async courierCashDue(sessionToken){
+    const {data,error}=await sb.rpc('courier_get_cash_due',{p_session_token:sessionToken});
+    if(error) throw error;
+    return data || [];
+  },
+  async courierSubmitPayoutReceipt(sessionToken, orderId, receiptDataUrl){
+    const receiptUrl = await this.ensureStoredUrl(receiptDataUrl, 'courier-payout-receipts');
+    const {data,error}=await sb.rpc('courier_submit_payout_receipt',{p_session_token:sessionToken,p_order_id:orderId,p_receipt_url:receiptUrl});
+    if(error) throw error;
+    return data;
+  },
+  async confirmCourierPayout(orderId){
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    const {data,error}=await sb.rpc('merchant_confirm_courier_payout',{p_store_id:this.storeId,p_order_id:orderId});
+    if(error) throw error;
+    await this.loadCourierData();
     return data;
   },
   /* Écran Gains livreur — nécessite la fonction SQL courier_get_earnings
@@ -2089,6 +2150,16 @@ const Store = {
   get couriers(){ return _cache.couriers; },
   get courierAssignments(){ return _cache.courierAssignments; },
   get courierPayouts(){ return _cache.courierPayouts; },
+  /* ---- Reçus de virement envoyés par les livreurs, en attente de confirmation par la
+     boutique (voir Cloud.confirmCourierPayout). Jointe avec le n° de commande et le nom
+     du livreur pour l'affichage. ---- */
+  pendingCourierReceipts(){
+    return (this.courierPayouts||[]).filter(p=>p.status==='submitted').map(p=>{
+      const order = this.orders.find(o=>o.id===p.order_id);
+      const courier = this.couriers.find(c=>c.id===p.courier_id);
+      return { ...p, orderNumber: order?order.number:'', courierName: courier?courier.name:'Livreur' };
+    });
+  },
 
   get payment(){ return _cache.payment; },
   set payment(v){ const prev=_cache.payment; _cache.payment=v; Cloud.pushPayment(prev, v).catch(syncFail('payment')); },
@@ -4226,7 +4297,7 @@ Views['commissions-apercu'] = function(){
   return `${TopBar('Aperçu de mon contrat','Commissions applicables — les points importants')}
   <div style="padding:16px 20px 28px;">
     <div class="stats-card" style="margin-bottom:14px;background:var(--indigo-tint);border:1px solid var(--indigo);">
-      <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des principales clauses de commission de votre contrat SIAMS, pour vous permettre de vous y référer rapidement. Il ne remplace pas le contrat complet, disponible en PDF depuis « Mon ID marchand SIAMS ».</div>
+      <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des principales clauses de commission de votre contrat SIAMS, pour vous permettre de vous y référer rapidement. Il ne remplace pas le contrat complet, que vous pouvez télécharger en PDF ci-dessous.</div>
     </div>
     ${items.map(it=>`
       <div class="stats-card" style="margin-bottom:14px;border-left:4px solid var(--mango);">
@@ -4237,7 +4308,7 @@ Views['commissions-apercu'] = function(){
         <h4 style="margin:0 0 6px;font-size:14.5px;">${Utils.escapeHtml(it.title)}</h4>
         <p style="margin:0;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
       </div>`).join('')}
-    <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="AccountId.open()">Voir le contrat complet (PDF)</button>
+    <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
   </div>`;
 };
 
@@ -5553,6 +5624,35 @@ const Withdraw = {
       .slice(0,4);
   },
 
+  /* ---- Reçus de virement livreur en attente de confirmation : affichés en tête du
+     rapport pour que la boutique les traite avant même de calculer son propre retrait. ---- */
+  renderPendingCourierReceipts(){
+    const pending = Store.pendingCourierReceipts();
+    if(!pending.length) return '';
+    return `<div class="sub-label">Reçus de virement livreurs à confirmer</div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:14px;">
+      ${pending.map(p=>`
+        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:11px 13px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+            <div><b style="font-size:12.5px;">${Utils.escapeHtml(p.courierName)}</b><div style="font-size:11px;color:var(--text-mid);margin-top:1px;">Commande #${Utils.escapeHtml(p.orderNumber)} · ${Utils.fmtFCFA(p.amount)}</div></div>
+          </div>
+          ${p.receipt_url?`<a href="${Utils.escapeHtml(p.receipt_url)}" target="_blank"><img src="${Utils.escapeHtml(p.receipt_url)}" style="width:100%;max-width:220px;border-radius:10px;border:1px solid var(--line);display:block;margin-bottom:9px;"></a>`:''}
+          <button class="btn btn-primary btn-sm btn-block" onclick="Withdraw.confirmCourierReceipt('${Utils.escapeHtml(p.order_id)}')">✓ Confirmer la réception</button>
+        </div>`).join('')}
+    </div>`;
+  },
+  async confirmCourierReceipt(orderId){
+    try{
+      await Cloud.confirmCourierPayout(orderId);
+      Toast.show('Réception confirmée ✓ Solde du livreur remis à zéro');
+      this.buildReport();
+      this.render();
+    }catch(e){
+      console.error('Confirmation reçu livreur',e);
+      Toast.show('⚠️ '+((e&&e.message)||'Impossible de confirmer la réception'));
+    }
+  },
+
   mount(){
     const existing = document.getElementById('withdraw-wrap');
     if(existing) existing.remove();
@@ -5615,6 +5715,7 @@ const Withdraw = {
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--text-mid);"><span>Réserve conseillée (réapprovisionnement)</span><span class="mono">${Utils.fmtFCFA(this.reserve)}</span></div>
         <div style="display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--indigo);"><span>Montant recommandé</span><span class="mono">${Utils.fmtFCFA(this.recommended)}</span></div>
       </div>
+      ${this.renderPendingCourierReceipts()}
 
       ${this.restockSuggestions.length ? `
       <div class="sub-label">Articles conseillés à précommander</div>
@@ -7019,7 +7120,7 @@ Views['courier-dashboard']=function(){
     <div class="courier-dash-top">
       <div class="courier-dash-id">
         <div class="courier-avatar">${initials}</div>
-        <div style="min-width:0;"><div class="courier-dash-name">${name}</div><div class="courier-dash-sub">Espace livreur</div></div>
+        <div style="min-width:0;"><div class="courier-dash-name" style="display:flex;align-items:center;gap:6px;">${name}<span id="courier-cert-badge-hero"></span></div><div class="courier-dash-sub">Espace livreur</div></div>
       </div>
       <button class="btn btn-outline btn-sm" onclick="setCourierSession(null);Router.go('courier-login')">Déconnexion</button>
     </div>
@@ -7044,17 +7145,24 @@ Views['courier-dashboard']=function(){
     <div class="courier-tab-panel" data-tab="profil">
       <div style="text-align:center;padding:20px 10px 6px;">
         <div class="courier-avatar" style="width:64px;height:64px;border-radius:20px;background:var(--blue-tint);color:#0b67d8;font-size:20px;margin:0 auto 10px;">${initials}</div>
-        <div style="font-weight:800;font-size:16px;">${name}</div>
+        <div style="font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;gap:6px;">${name}<span id="courier-cert-badge"></span></div>
         <div style="font-size:12px;color:var(--text-mid);margin-top:2px;">Espace livreur SIAMS</div>
       </div>
+      <div id="courier-profile-stats" style="margin-top:16px;"><div class="courier-stats-row"><div class="courier-stat"><b>—</b><span>Acceptation</span></div><div class="courier-stat"><b>—</b><span>Missions</span></div><div class="courier-stat"><b>—</b><span>Ce mois-ci</span></div></div></div>
+      <div class="section-title" style="padding:0;margin:20px 0 10px;">💰 Solde à verser à la boutique</div>
+      <div id="courier-payout-list"><div class="wd-spinner"></div></div>
+      <div class="section-title" style="padding:0;margin:20px 0 10px;">📋 Documents vérifiés</div>
+      <div id="courier-docs-list"><div class="wd-spinner"></div></div>
+      <div class="section-title" style="padding:0;margin:20px 0 10px;">⚙️ Paramètres</div>
+      <div id="courier-settings-list"></div>
       <button class="btn btn-outline btn-block" style="margin-top:18px;" onclick="setCourierSession(null);Router.go('courier-login')">Se déconnecter</button>
     </div>
   </div>
   <nav class="courier-nav">
-    <button class="courier-nav-btn active" data-tab="dashboard" onclick="CourierApp.setTab('dashboard')"><span class="courier-nav-ico">🏠</span><span>Accueil</span></button>
-    <button class="courier-nav-btn" data-tab="missions" onclick="CourierApp.setTab('missions')"><span class="courier-nav-ico">📦</span><span>Missions</span></button>
-    <button class="courier-nav-btn" data-tab="gains" onclick="CourierApp.setTab('gains')"><span class="courier-nav-ico">💰</span><span>Gains</span></button>
-    <button class="courier-nav-btn" data-tab="profil" onclick="CourierApp.setTab('profil')"><span class="courier-nav-ico">👤</span><span>Profil</span></button>
+    <button class="courier-nav-btn active" data-tab="dashboard" onclick="CourierApp.setTab('dashboard')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-5.5h4V20h3a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span>Accueil</span></button>
+    <button class="courier-nav-btn" data-tab="missions" onclick="CourierApp.setTab('missions')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 8h16M4 8l1.5 11a2 2 0 0 0 2 1.7h9a2 2 0 0 0 2-1.7L20 8M4 8l2-4h12l2 4M9 12v3M15 12v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Missions</span></button>
+    <button class="courier-nav-btn" data-tab="gains" onclick="CourierApp.setTab('gains')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="6" width="19" height="12" rx="2.4" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Gains</span></button>
+    <button class="courier-nav-btn" data-tab="profil" onclick="CourierApp.setTab('profil')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.8-4 3.4-6.2 7-6.2s6.2 2.2 7 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span>Profil</span></button>
   </nav>`;
 };
 /* ---------- État de l'app livreur (onglet actif + statut en ligne/hors ligne) ----------
@@ -7069,6 +7177,7 @@ const CourierApp = {
     document.querySelectorAll('.courier-tab-panel').forEach(el=>el.classList.toggle('active', el.dataset.tab===tab));
     document.querySelectorAll('.courier-nav-btn').forEach(el=>el.classList.toggle('active', el.dataset.tab===tab));
     if(tab==='gains') loadCourierEarnings();
+    if(tab==='profil') loadCourierProfileExtras();
   },
   _key(){ const sess=courierSession(); return 'siams_courier_online_'+((sess&&sess.session_token)||'x'); },
   isOnline(){ const v=localStorage.getItem(this._key()); return v===null ? true : v==='1'; },
@@ -7137,14 +7246,94 @@ function forgotCourierPin(){
   const body=document.getElementById('courier-login-body');
   if(body) body.innerHTML=renderCourierCodeForm({forgot:true});
 }
+const ICO_MONEY_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="6" width="19" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg>';
+const ICO_PIN_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.6"/></svg>';
+const ICO_CLOCK_SVG='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* ---- Délai de réponse à une mission proposée : si le livreur n'accepte ni ne refuse
+   dans ce délai, la mission est automatiquement remise à disposition de la boutique
+   pour être proposée à un autre livreur (voir declineCourierDelivery silencieux
+   ci-dessous et MissionOfferPopup pour la variante en popup). ---- */
+const COURIER_OFFER_TIMEOUT_MS = 10*60*1000;
+function courierOfferDeadline(id){
+  const key='siams_mission_deadline_'+id;
+  let d=Number(sessionStorage.getItem(key)||0);
+  if(!d || d<Date.now()){ d=Date.now()+COURIER_OFFER_TIMEOUT_MS; sessionStorage.setItem(key,String(d)); }
+  return d;
+}
+function courierTickOfferTimers(){
+  document.querySelectorAll('[data-courier-timer]').forEach(el=>{
+    const id=el.getAttribute('data-courier-timer');
+    const deadline=courierOfferDeadline(id);
+    const remain=deadline-Date.now();
+    const span=el.querySelector('span');
+    if(remain<=0){
+      el.classList.add('low');
+      if(span) span.textContent='Délai dépassé — réaffectation…';
+      if(!el.dataset.expiredHandled){ el.dataset.expiredHandled='1'; declineCourierDelivery(id, true); }
+      return;
+    }
+    const m=Math.floor(remain/60000), s=Math.floor((remain%60000)/1000);
+    if(span) span.textContent='Réponse attendue sous '+m+':'+String(s).padStart(2,'0');
+    el.classList.toggle('low', remain<60000);
+  });
+}
+if(!window._courierTimerInterval) window._courierTimerInterval=setInterval(courierTickOfferTimers,1000);
+
+/* ---- Distance à parcourir : calculée côté appareil (formule de Haversine) entre la
+   position GPS actuelle du livreur et les coordonnées du client, sans appel serveur. ---- */
+function courierHaversineKm(lat1,lon1,lat2,lon2){
+  const toRad=d=>d*Math.PI/180, R=6371;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const s=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+}
+let _courierLastPos=null,_courierLastPosAt=0;
+function courierUpdateCardDistances(rows){
+  if(!navigator.geolocation) return;
+  const apply=coords=>{
+    _courierLastPos=coords; _courierLastPosAt=Date.now();
+    rows.forEach(a=>{
+      const el=document.getElementById('courier-dist-'+a.id); if(!el) return;
+      if(a.customer_latitude==null||a.customer_longitude==null){ el.textContent='—'; return; }
+      const km=courierHaversineKm(coords.latitude,coords.longitude,Number(a.customer_latitude),Number(a.customer_longitude));
+      el.textContent = km<1 ? Math.round(km*1000)+' m' : km.toFixed(1)+' km';
+    });
+  };
+  if(_courierLastPos && Date.now()-_courierLastPosAt<60000){ apply(_courierLastPos); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos=>apply(pos.coords),
+    ()=>rows.forEach(a=>{ const el=document.getElementById('courier-dist-'+a.id); if(el) el.textContent='GPS requis'; }),
+    {enableHighAccuracy:true,maximumAge:60000,timeout:10000}
+  );
+}
 function courierAssignmentCard(a){
-  return `<div class="courier-card ${a.status==='accepted'?'accepted':''}"><div class="courier-card-head"><div><div class="courier-card-order">Commande #${Utils.escapeHtml(a.order_number||'')}</div><div class="courier-card-meta">${Utils.escapeHtml(a.customer_name||'')} · ${Utils.escapeHtml(a.customer_address||'')}</div></div><span class="courier-card-status ${a.status==='accepted'?'accepted':'offered'}">${a.status==='offered'?'Proposée':a.status==='accepted'?'Acceptée':a.status}</span></div>
+  const offered=a.status==='offered', accepted=a.status==='accepted';
+  return `<div class="courier-card ${accepted?'accepted':''}"><div class="courier-card-head"><div><div class="courier-card-order">Commande #${Utils.escapeHtml(a.order_number||'')}</div><div class="courier-card-meta">${Utils.escapeHtml(a.customer_name||'')} · ${Utils.escapeHtml(a.customer_address||'')}</div></div><span class="courier-card-status ${accepted?'accepted':'offered'}">${offered?'Proposée':accepted?'Acceptée':a.status}</span></div>
+      <div class="courier-card-info-row">
+        <div class="courier-card-info-chip"><span class="ico-round green">${ICO_MONEY_SVG}</span><div class="txt"><b>${a.amount!=null?Utils.fmtFCFA(a.amount):'—'}</b><span>Montant</span></div></div>
+        <div class="courier-card-info-chip"><span class="ico-round blue">${ICO_PIN_SVG}</span><div class="txt"><b id="courier-dist-${a.id}">…</b><span>Distance</span></div></div>
+      </div>
+      ${offered?`<div class="courier-card-timer" data-courier-timer="${a.id}">${ICO_CLOCK_SVG}<span>Réponse attendue sous 10:00</span></div>`:''}
       <div class="courier-card-actions">
-      ${a.status==='offered'?`<div class="field"><label>Délai estimé</label><select id="eta-${a.id}"><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div><button class="btn btn-primary btn-courier-primary btn-block" onclick="acceptCourierDelivery('${a.id}')">Accepter la livraison</button>`:''}
-      ${a.status==='accepted'?`<div class="courier-progress-note">✓ Livraison acceptée. Le client et la boutique ont été informés.</div><button class="btn btn-primary btn-courier-primary btn-block" onclick="CourierMission.open('${a.id}')">Voir la mission ›</button><button class="btn btn-soft-indigo btn-block" onclick="startCourierLiveGps('${a.id}')">Démarrer mon GPS</button><button class="btn btn-soft-green btn-block" onclick="courierDelivered('${a.id}')">Marquer la livraison effectuée</button>`:''}
+      ${offered?`<div class="field"><label>Délai estimé</label><select id="eta-${a.id}"><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div><div class="courier-card-actions-row"><button class="btn btn-outline" onclick="declineCourierDelivery('${a.id}')">✕ Ignorer</button><button class="btn btn-primary btn-courier-primary" onclick="acceptCourierDelivery('${a.id}')">✓ Accepter</button></div>`:''}
+      ${accepted?`<div class="courier-progress-note">✓ Livraison acceptée. Le client et la boutique ont été informés.</div><button class="btn btn-primary btn-courier-primary btn-block" onclick="CourierMission.open('${a.id}')">Voir la mission ›</button><button class="btn btn-soft-indigo btn-block" onclick="startCourierLiveGps('${a.id}')">Démarrer mon GPS</button><button class="btn btn-soft-green btn-block" onclick="courierDelivered('${a.id}')">Marquer la livraison effectuée</button>`:''}
       <button class="btn btn-outline btn-block" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent((a.customer_latitude||'')+','+(a.customer_longitude||'')),'_blank')">Itinéraire</button>
       </div>
     </div>`;
+}
+async function declineCourierDelivery(id, silent){
+  const sess=courierSession(); if(!sess) return;
+  const btns=document.querySelectorAll(`[data-courier-timer="${id}"]`);
+  try{
+    await Cloud.courierDeclineAssignment(sess.session_token, id);
+    sessionStorage.removeItem('siams_mission_deadline_'+id);
+    Toast.show(silent?'Délai dépassé — mission réaffectée à un autre livreur':'Mission ignorée — elle sera proposée à un autre livreur');
+    loadCourierDashboard();
+  }catch(e){
+    console.error('Refus mission (liste)',e);
+    if(!silent) Toast.show('⚠️ Impossible d’ignorer cette mission pour le moment');
+  }
 }
 async function loadCourierDashboard(){
   const sess=courierSession();
@@ -7166,6 +7355,7 @@ async function loadCourierDashboard(){
     if(missionsList){
       missionsList.innerHTML = rows.length ? rows.map(courierAssignmentCard).join('') : emptyState;
     }
+    courierUpdateCardDistances([...offered,...accepted]);
     CourierMission.refresh();
   }catch(e){
     console.error(e);
@@ -7174,7 +7364,24 @@ async function loadCourierDashboard(){
     if(missionsList) missionsList.innerHTML=errHtml;
   }
 }
-async function acceptCourierDelivery(id){ const sess=courierSession(); const eta=document.getElementById('eta-'+id)?.value||60; try{await Cloud.courierAcceptAssignment(sess.session_token,id,eta); Toast.show('Livraison acceptée ✓'); loadCourierDashboard();}catch(e){console.error(e);const detail=(e&&(e.message||e.error_description||e.hint))||'Erreur inconnue';Toast.show('⚠️ '+detail);} }
+/* ---- Acceptation d'une mission proposée. Le détail d'erreur exact renvoyé par Supabase
+   (message/code/hint/details) est systématiquement affiché dans le Toast : c'est ce texte,
+   copié tel quel, qu'il faut relire pour diagnostiquer un refus d'acceptation côté serveur
+   (fonction RPC courier_accept_assignment) — un simple "Erreur inconnue" générique ne
+   suffit pas à savoir si la mission a déjà été prise, si le livreur est suspendu, etc. ---- */
+async function acceptCourierDelivery(id){
+  const sess=courierSession(); const eta=document.getElementById('eta-'+id)?.value||60;
+  try{
+    await Cloud.courierAcceptAssignment(sess.session_token,id,eta);
+    sessionStorage.removeItem('siams_mission_deadline_'+id);
+    Toast.show('Livraison acceptée ✓');
+    loadCourierDashboard();
+  }catch(e){
+    console.error('Acceptation mission (liste)',e);
+    const detail=(e&&(e.message||e.error_description||e.hint||e.details))||('code '+(e&&e.code||'inconnu'));
+    Toast.show('⚠️ '+detail);
+  }
+}
 let courierWatchId=null, courierLastSent=0, courierTrackingId=null;
 function startCourierLiveGps(assignmentId){
   const sess=courierSession(); if(!sess||!navigator.geolocation){Toast.show('GPS indisponible');return;}
@@ -7185,6 +7392,102 @@ function startCourierLiveGps(assignmentId){
   CourierMission.refresh();
 }
 async function courierDelivered(id){ const sess=courierSession(); try{await Cloud.courierMarkDelivered(sess.session_token,id); if(courierWatchId!==null){navigator.geolocation.clearWatch(courierWatchId);courierWatchId=null;courierTrackingId=null;} Toast.show('Livraison signalée ✓'); CourierMission.close(); loadCourierDashboard();}catch(e){console.error(e);Toast.show('⚠️ Impossible de clôturer la livraison');} }
+
+/* =========================================================
+   Reversement à la boutique — espèces "paiement à la livraison"
+   encaissées par le livreur. Un livreur qui a livré une commande
+   payée en cash doit ce montant à la boutique ; il déclare son
+   virement et joint un reçu, la boutique confirme réception et le
+   solde correspondant est remis à zéro (voir Cloud.courierCashDue,
+   Cloud.courierSubmitPayoutReceipt, migration_courier_payouts.sql).
+   Si la boutique ne réagit pas sous 1h, la fonction SQL
+   courier_get_cash_due considère le versement confirmé automatiquement. */
+(function(){
+  'use strict';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+
+  async function loadCourierPayoutSection(){
+    const mount=document.getElementById('courier-payout-list');
+    const sess=courierSession();
+    if(!mount||!sess) return;
+    try{
+      const rows=await Cloud.courierCashDue(sess.session_token);
+      window._courierPayoutRows = rows||[];
+      mount.innerHTML = renderCourierPayoutSection(rows||[]);
+    }catch(e){
+      console.error('Solde livreur',e);
+      mount.innerHTML = '<div style="font-size:11.5px;color:var(--text-soft);padding:4px 2px;">Solde bientôt disponible.</div>';
+    }
+  }
+
+  function renderCourierPayoutSection(rows){
+    const due = rows.filter(r=>r.status!=='confirmed');
+    const total = due.reduce((s,r)=>s+Number(r.amount||0),0);
+    if(!rows.length){
+      return `<div style="font-size:11.5px;color:var(--text-mid);padding:4px 2px;">Aucune espèce en attente de reversement. Ce solde apparaît automatiquement après chaque livraison réglée en paiement à la livraison.</div>`;
+    }
+    const hero = total>0
+      ? `<div class="courier-payout-hero"><span>Montant à reverser à la boutique</span><b>${Utils.fmtFCFA(total)}</b><small>Effectuez le virement puis joignez votre reçu ci-dessous. La boutique confirme réception ; le solde est remis à zéro automatiquement.</small></div>`
+      : `<div style="font-size:11.5px;color:var(--green);font-weight:700;padding:4px 2px;">✓ Tout est à jour, aucun solde en attente.</div>`;
+    const list = rows.map(r=>{
+      const submitted = r.status==='submitted';
+      return `<div class="courier-payout-row">
+        <div class="courier-payout-row-head">
+          <div><b style="font-size:12.5px;">Commande #${esc(r.order_number||'')}</b><div style="font-size:11px;color:var(--text-mid);margin-top:2px;">${Utils.fmtFCFA(r.amount)}</div></div>
+          <span class="courier-payout-status ${submitted?'sub':'wait'}">${submitted?'Reçu envoyé · en attente':'À reverser'}</span>
+        </div>
+        ${submitted?`<div style="font-size:10.5px;color:var(--text-soft);margin-top:6px;">Confirmation boutique attendue sous 1h.</div>`:`<button class="btn btn-primary btn-sm btn-block" style="margin-top:9px;" onclick="CourierPayout.openSubmit('${esc(r.order_id)}','${esc(r.order_number||'')}',${Number(r.amount)||0})">Joindre mon reçu de virement</button>`}
+      </div>`;
+    }).join('');
+    return hero + list;
+  }
+
+  window.CourierPayout = {
+    openSubmit(orderId, orderNumber, amount){
+      const w=document.createElement('div'); w.id='courier-payout-sheet';
+      w.innerHTML=`<div class="shop-sheet-overlay show" onclick="document.getElementById('courier-payout-sheet')?.remove()"></div>
+      <div class="shop-sheet show">
+        <div class="sheet-handle"></div>
+        <h3>Reçu de virement — Commande #${esc(orderNumber)}</h3>
+        <p style="font-size:12px;color:var(--text-mid);margin:0 0 12px;">Montant à reverser : <strong>${Utils.fmtFCFA(amount)}</strong>. Joignez une capture d'écran ou une photo du reçu de votre virement à la boutique.</p>
+        <label class="btn btn-outline btn-block" style="cursor:pointer;">📎 Choisir le reçu<input type="file" accept="image/*" class="hidden" onchange="CourierPayout.handleFile(event)"></label>
+        <div id="courier-payout-preview" style="margin-top:10px;"></div>
+        <button id="courier-payout-submit-btn" class="btn btn-primary btn-block" style="margin-top:14px;" disabled onclick="CourierPayout.submit('${esc(orderId)}')">Envoyer le reçu</button>
+      </div>`;
+      document.body.appendChild(w);
+    },
+    _dataUrl:null,
+    handleFile(evt){
+      const f=evt.target.files&&evt.target.files[0]; if(!f) return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        this._dataUrl=reader.result;
+        const p=document.getElementById('courier-payout-preview');
+        if(p) p.innerHTML=`<img src="${reader.result}" style="width:100%;border-radius:12px;border:1px solid var(--line);">`;
+        const btn=document.getElementById('courier-payout-submit-btn'); if(btn) btn.disabled=false;
+      };
+      reader.readAsDataURL(f);
+    },
+    async submit(orderId){
+      if(!this._dataUrl){ Toast.show('Ajoutez la photo du reçu'); return; }
+      const btn=document.getElementById('courier-payout-submit-btn'); if(btn){btn.disabled=true;btn.textContent='Envoi…';}
+      try{
+        const sess=courierSession(); if(!sess) throw new Error('Session expirée');
+        await Cloud.courierSubmitPayoutReceipt(sess.session_token, orderId, this._dataUrl);
+        Toast.show('Reçu envoyé ✓ En attente de confirmation de la boutique');
+        this._dataUrl=null;
+        document.getElementById('courier-payout-sheet')?.remove();
+        loadCourierPayoutSection();
+      }catch(e){
+        console.error('Envoi reçu reversement',e);
+        Toast.show('⚠️ '+((e&&e.message)||'Impossible d’envoyer le reçu'));
+        if(btn){btn.disabled=false;btn.textContent='Envoyer le reçu';}
+      }
+    }
+  };
+
+  window.loadCourierPayoutSection = loadCourierPayoutSection;
+})();
 
 /* ---------- Écran Gains livreur ----------
    S'appuie sur Cloud.courierEarnings(), qui appelle la fonction SQL
@@ -12795,7 +13098,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 })();
 </script>
 
-<!-- SIAMS V58 : popup mission (livraison proposée) avec compte à rebours de 5 min -->
+<!-- SIAMS V58 : popup mission (livraison proposée) avec compte à rebours de 10 min -->
 <style id="siams-v58-mission-popup-style">
 .v58-mission-hero{background:linear-gradient(135deg,#0b67d8,#16b6ff);padding:24px 22px 20px;border-radius:22px 22px 0 0;color:#fff;text-align:center}
 .v58-mission-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);padding:6px 12px;border-radius:999px;font-size:10.5px;font-weight:850;letter-spacing:.04em;text-transform:uppercase}
@@ -12819,7 +13122,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 (function(){
   'use strict';
   const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
-  const DURATION_MS = 5*60*1000;
+  const DURATION_MS = 10*60*1000; // même délai que COURIER_OFFER_TIMEOUT_MS (vue liste)
   const deadlineKey = id => 'siams_mission_deadline_'+id;
   const handledKey = id => 'siams_mission_handled_'+id; /* évite de reproposer la même offre au livreur pendant la session en cours, le temps que le backend reflète le refus/l'expiration */
 
@@ -12845,8 +13148,8 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
       this._deadline = deadline;
       const html = `<div id="v58-mission-popup" class="v57-popup-overlay"><div class="v57-popup-card" style="max-width:380px;">
         <div class="v58-mission-hero">
-          <span class="v58-mission-badge">🛵 Nouvelle mission</span>
-          <span id="v58-mission-countdown" class="v58-mission-countdown">5:00</span>
+          <span class="v58-mission-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:3px;"><circle cx="6" cy="18" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.6" stroke="currentColor" stroke-width="1.7"/><path d="M6 18h6l1.8-6H10M13.8 12l1.7-3.5h3M17 18l-1.6-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.5" cy="7" r="1.3" fill="currentColor"/></svg>Nouvelle mission</span>
+          <span id="v58-mission-countdown" class="v58-mission-countdown">10:00</span>
           <div class="v58-mission-bar-track"><div id="v58-mission-bar-fill" class="v58-mission-bar-fill" style="width:100%;"></div></div>
         </div>
         <div class="v58-mission-body">
@@ -12944,6 +13247,269 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
           MissionOfferPopup.maybeShow(rows);
         }
       }catch(e){ console.error('Vérification popup mission',e); }
+      return r;
+    };
+  }
+})();
+</script>
+
+<!-- SIAMS V60 : espace profil livreur — documents vérifiés (CNI, permis, carte grise,
+     assurance) + badge certifié vert automatique + paramètres (notifications, partage
+     de position, assistance SIAMS). Nécessite la fonction SQL courier_get_documents et
+     courier_submit_document (voir migration_courier_documents.sql, à exécuter côté
+     Supabase) : tant qu'elles ne sont pas déployées, la section affiche un message
+     d'attente au lieu d'inventer un statut. -->
+<style id="siams-v60-courier-docs-style">
+.courier-doc-row{display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:13px 14px;margin-bottom:10px;box-shadow:var(--shadow-sm);}
+.courier-doc-row input[type="file"]{display:none;}
+</style>
+<script id="siams-v60-courier-docs-script">
+(function(){
+  'use strict';
+  const esc = s => { try{ return Utils.escapeHtml(String(s??'')); }catch(e){ return String(s??''); } };
+
+  const COURIER_DOC_TYPES = [
+    {key:'cni', label:"CNI / Carte d'identité", svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="12" r="2.1" stroke="currentColor" stroke-width="1.5"/><path d="M12.5 9.5h6M12.5 12.5h6M12.5 15.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'},
+    {key:'permis', label:'Permis de conduire', svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12h6M9 15.5h6M9 8.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'},
+    {key:'carte_grise', label:'Carte grise du véhicule', svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 8h11v9H4zM15 11h3l3 3v3h-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="7.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="17.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.4"/></svg>'},
+    {key:'assurance', label:'Assurance véhicule', svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3.5 19 6.5v5c0 5-3 8.3-7 9.5-4-1.2-7-4.5-7-9.5v-5L12 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2.2 2.2L15.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+  ];
+
+  const STATUS_CHIP = {
+    none:     {label:'À fournir',        bg:'var(--mango-tint)', fg:'var(--mango-dark)'},
+    pending:  {label:'En vérification',  bg:'var(--gold-tint)',  fg:'var(--gold-dark)'},
+    verified: {label:'Validé ✓',         bg:'var(--green-tint)', fg:'var(--green)'},
+    rejected: {label:'Refusé',           bg:'var(--red-tint)',   fg:'var(--red)'}
+  };
+  function statusChip(status){
+    const m = STATUS_CHIP[status] || STATUS_CHIP.none;
+    return `<span style="font-size:10.5px;font-weight:800;padding:5px 11px;border-radius:999px;background:${m.bg};color:${m.fg};white-space:nowrap;flex:none;">${m.label}</span>`;
+  }
+
+  window.CourierDocs = {
+    _data: null,
+    async load(){
+      const sess = courierSession();
+      const mount = document.getElementById('courier-docs-list');
+      if(!sess || !mount) return;
+      try{
+        const r = await Cloud.courierDocuments(sess.session_token);
+        this._data = Array.isArray(r) ? r[0] : r;
+        this.render();
+        this.renderBadge();
+      }catch(e){
+        console.error('Chargement documents livreur', e);
+        mount.innerHTML = `<div class="courier-tab-empty-note" style="padding:24px 10px;">
+          <div style="margin-bottom:6px;display:flex;justify-content:center;color:var(--text-soft);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          Cette fonctionnalité attend une mise à jour côté serveur. Contactez l'assistant SIAMS si ce message persiste.
+        </div>`;
+      }
+    },
+    render(){
+      const mount = document.getElementById('courier-docs-list'); if(!mount) return;
+      const c = this._data || {};
+      mount.innerHTML = COURIER_DOC_TYPES.map(d=>{
+        const status = c['doc_'+d.key+'_status'] || 'none';
+        const rejectReason = status==='rejected' ? (c.doc_reject_reason||'') : '';
+        return `<label class="courier-doc-row">
+          <div style="width:38px;height:38px;border-radius:12px;background:var(--panel);display:flex;align-items:center;justify-content:center;color:var(--ink);flex:none;">${d.svg}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:13.5px;">${esc(d.label)}</div>
+            ${rejectReason?`<div style="font-size:11px;color:var(--red);margin-top:2px;">${esc(rejectReason)}</div>`:''}
+          </div>
+          ${statusChip(status)}
+          <input type="file" accept="image/*" onchange="CourierDocs.handleFile('${d.key}', event)">
+        </label>`;
+      }).join('') + `<p style="font-size:11px;color:var(--text-soft);margin:6px 4px 0;">Touchez un document pour l'ajouter ou le remplacer. Une fois vos 4 pièces validées par SIAMS, votre badge certifié s'affiche automatiquement.</p>`;
+    },
+    renderBadge(){
+      const verified = !!(this._data && this._data.documents_verified);
+      const html = verified ? CertifiedBadge(16) : '';
+      const a = document.getElementById('courier-cert-badge'); if(a) a.innerHTML = html;
+      const b = document.getElementById('courier-cert-badge-hero'); if(b) b.innerHTML = html;
+    },
+    async handleFile(docKey, evt){
+      const f = evt.target.files && evt.target.files[0]; if(!f) return;
+      const sess = courierSession(); if(!sess) return;
+      try{
+        const dataUrl = await siamsPrepareImageDataURL(f, {maxDim:1600});
+        Toast.show('Envoi du document…');
+        await Cloud.courierSubmitDocument(sess.session_token, docKey, dataUrl);
+        Toast.show('Document envoyé ✓ En cours de vérification');
+        this.load();
+      }catch(e){
+        console.error('Envoi document livreur', e);
+        Toast.show("⚠️ Impossible d'envoyer ce document, réessayez.");
+      }
+    }
+  };
+
+  function renderCourierSettingsSection(){
+    const notifOn = localStorage.getItem('siams_courier_notif_pref')!=='0';
+    const gpsOn = localStorage.getItem('siams_courier_gps_pref')!=='0';
+    const toggleSw = on => `<span style="display:inline-flex;align-items:center;width:38px;height:22px;border-radius:999px;background:${on?'var(--green)':'var(--line)'};position:relative;transition:background .2s;flex:none;"><span style="position:absolute;top:2px;left:${on?'18px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s;"></span></span>`;
+    const icoBell='<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 19.5a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+    const icoPin='<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="1.6"/></svg>';
+    const icoChat='<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 1 3.5 6.6L4 20l1.2-3.6A7.9 7.9 0 0 1 4 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+    const icoWrap = svg => `<div style="width:38px;height:38px;border-radius:12px;background:var(--panel);display:flex;align-items:center;justify-content:center;color:var(--ink);flex:none;">${svg}</div>`;
+    return `
+    <div class="courier-doc-row" onclick="CourierSettings.toggleNotif()" style="cursor:pointer;">
+      ${icoWrap(icoBell)}
+      <div style="flex:1;font-weight:800;font-size:13.5px;">Notifications missions</div>
+      ${toggleSw(notifOn)}
+    </div>
+    <div class="courier-doc-row" onclick="CourierSettings.toggleGps()" style="cursor:pointer;">
+      ${icoWrap(icoPin)}
+      <div style="flex:1;font-weight:800;font-size:13.5px;">Partage de position</div>
+      ${toggleSw(gpsOn)}
+    </div>
+    <div class="courier-doc-row" onclick="window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent('Bonjour SIAMS, j’ai besoin d’assistance depuis mon espace livreur.'),'_blank')" style="cursor:pointer;">
+      ${icoWrap(icoChat)}
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:800;font-size:13.5px;">Assistance SIAMS</div>
+        <div style="font-size:11px;color:var(--text-mid);margin-top:2px;">0748964690 · serviceclientsiams.ci@gmail.com</div>
+      </div>
+      <span style="color:var(--text-soft);font-size:16px;">›</span>
+    </div>`;
+  }
+
+  window.CourierSettings = {
+    toggleNotif(){
+      const cur = localStorage.getItem('siams_courier_notif_pref')!=='0';
+      localStorage.setItem('siams_courier_notif_pref', cur?'0':'1');
+      const mount=document.getElementById('courier-settings-list'); if(mount) mount.innerHTML=renderCourierSettingsSection();
+      Toast.show(cur?'Notifications désactivées':'Notifications activées');
+    },
+    toggleGps(){
+      const cur = localStorage.getItem('siams_courier_gps_pref')!=='0';
+      localStorage.setItem('siams_courier_gps_pref', cur?'0':'1');
+      const mount=document.getElementById('courier-settings-list'); if(mount) mount.innerHTML=renderCourierSettingsSection();
+      Toast.show(cur?'Partage de position désactivé':'Partage de position activé (utilisé pendant vos livraisons)');
+    }
+  };
+
+  /* ---- Statistiques de l'onglet Profil (Acceptation / Missions / Ce mois-ci) : réutilise
+     les mêmes appels Cloud que les onglets Missions et Gains, sans dupliquer de logique. ---- */
+  async function loadCourierProfileStats(){
+    const sess = courierSession();
+    const mount = document.getElementById('courier-profile-stats');
+    if(!sess || !mount) return;
+    try{
+      const rows = await Cloud.courierAssignments(sess.session_token);
+      const total = rows.length;
+      const accepted = rows.filter(a=>a.status==='accepted'||a.status==='delivered').length;
+      const declined = rows.filter(a=>a.status==='declined').length;
+      const rate = (accepted+declined)>0 ? Math.round(accepted/(accepted+declined)*100)+'%' : '—';
+      let monthTotal = '—';
+      try{
+        const earn = await Cloud.courierEarnings(sess.session_token);
+        const e = Array.isArray(earn) ? earn[0] : earn;
+        if(e && e.month!=null) monthTotal = Utils.fmtFCFA(Number(e.month||0));
+      }catch(e2){ /* écran Gains gère déjà l'absence de la fonction SQL ; ici on garde le tiret */ }
+      mount.innerHTML = `<div class="courier-stats-row">
+        <div class="courier-stat"><b>${rate}</b><span>Acceptation</span></div>
+        <div class="courier-stat"><b>${total}</b><span>Missions</span></div>
+        <div class="courier-stat"><b>${monthTotal}</b><span>Ce mois-ci</span></div>
+      </div>`;
+    }catch(e){ console.error('Statistiques profil livreur', e); }
+  }
+
+  /* ---- Panneau admin SIAMS : validation des pièces d'identité du livreur (CNI, permis,
+     carte grise, assurance) — même logique que la certification boutique existante
+     (Views['siams-admin-verifications']), mais document par document puisqu'un livreur
+     envoie 4 pièces distinctes. Mise à jour directe de la ligne "couriers" ; le trigger
+     SQL courier_recompute_documents_verified (migration_courier_documents.sql) active
+     seul le badge vert dès que les 4 statuts passent à 'verified'. ---- */
+  const ADMIN_EMAIL_V60 = 'serviceclientsiams.ci@gmail.com';
+  function isSiamsAdminV60(){
+    return (window._siamsCurrentAdminEmail||'').toLowerCase() === ADMIN_EMAIL_V60;
+  }
+
+  async function loadAdminCourierVerifications(){
+    try{
+      const {data,error} = await sb.from('couriers')
+        .select('id,name,phone,doc_cni_status,doc_cni_url,doc_permis_status,doc_permis_url,doc_carte_grise_status,doc_carte_grise_url,doc_assurance_status,doc_assurance_url,documents_submitted_at,documents_verified,doc_reject_reason')
+        .or('doc_cni_status.eq.pending,doc_permis_status.eq.pending,doc_carte_grise_status.eq.pending,doc_assurance_status.eq.pending')
+        .order('documents_submitted_at',{ascending:true}).limit(100);
+      if(!error) return data||[];
+      console.error(error);
+    }catch(e){ console.error(e); }
+    return [];
+  }
+  window.adminCourierDocStatus = async function(courierId, docKey, status, reason){
+    try{
+      const patch = { ['doc_'+docKey+'_status']: status, doc_reject_reason: status==='rejected' ? (reason||'Document illisible ou non conforme. Merci de renvoyer une pièce nette.') : null };
+      const {error} = await sb.from('couriers').update(patch).eq('id', courierId);
+      if(error) throw error;
+      Toast.show(status==='verified' ? 'Document validé ✓' : 'Document refusé');
+    }catch(e){ console.error(e); Toast.show('Erreur lors de la mise à jour'); }
+    Router.go('siams-admin-courier-verifications');
+  };
+  window.adminRejectCourierDoc = function(courierId, docKey){
+    const reason = prompt('Motif du refus (visible par le livreur) :', 'Document illisible ou non conforme. Merci de renvoyer une pièce nette.');
+    if(reason===null) return;
+    adminCourierDocStatus(courierId, docKey, 'rejected', reason);
+  };
+  Views['siams-admin-courier-verifications'] = function(){
+    if(!isSiamsAdminV60()) return `<div style="padding:30px 20px"><h2>Accès administrateur SIAMS</h2><p style="color:var(--text-mid)">Cette section est réservée au compte administrateur SIAMS.</p><button class="btn btn-primary btn-block" onclick="Router.go('dashboard')">Retour</button></div>`;
+    return `<div class="topbar" style="padding-top:18px"><div><h1>Certifications livreurs</h1><div style="font-size:11px;color:var(--text-mid)">Documents en attente de vérification</div></div><button class="bell-btn" onclick="Router.go('dashboard')">←</button></div><div id="v60-admin-courier-verifs" style="padding:0 20px 100px"><div style="padding:20px;text-align:center;color:var(--text-mid)">Chargement des documents…</div></div>`;
+  };
+  Views._after_siams_admin_courier_verifications = async function(){
+    const root = document.getElementById('v60-admin-courier-verifs'); if(!root) return;
+    const rows = await loadAdminCourierVerifications();
+    if(!rows.length){ root.innerHTML = '<div style="padding:40px 10px;text-align:center;color:var(--text-mid)">Aucun document en attente.</div>'; return; }
+    root.innerHTML = rows.map(r=>{
+      const pendingDocs = COURIER_DOC_TYPES.filter(d=>r['doc_'+d.key+'_status']==='pending');
+      return `<article style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:12px;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><b>${esc(r.name||'Livreur')}</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px">${esc(r.phone||'')}</div></div>
+          ${r.documents_verified?CertifiedBadge(18):''}
+        </div>
+        ${pendingDocs.map(d=>{
+          const url = r['doc_'+d.key+'_url'];
+          return `<div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);">
+            <div style="font-size:12.5px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:7px;"><span style="color:var(--ink);display:inline-flex;">${d.svg}</span>${esc(d.label)}</div>
+            ${url?`<a href="${esc(url)}" target="_blank"><img src="${esc(url)}" style="width:100%;max-width:220px;border-radius:12px;border:1px solid var(--line);object-fit:cover;display:block;"></a>`:'<div style="font-size:11px;color:var(--text-soft);">Aucun fichier</div>'}
+            <div style="display:flex;gap:7px;margin-top:10px"><button class="btn btn-primary" style="flex:1" onclick="adminCourierDocStatus('${esc(r.id)}','${d.key}','verified')">✓ Valider</button><button class="btn btn-outline" style="flex:1" onclick="adminRejectCourierDoc('${esc(r.id)}','${d.key}')">Refuser</button></div>
+          </div>`;
+        }).join('')}
+      </article>`;
+    }).join('');
+  };
+  /* Ajoute l'accès depuis le dashboard admin SIAMS, à côté des demandes de comptes et
+     de la certification boutique déjà présentes. */
+  const oldDashV60 = Views.dashboard;
+  if(oldDashV60) Views.dashboard = function(){
+    let h = oldDashV60();
+    if(isSiamsAdminV60() && !h.includes('siams-admin-courier-verifications')){
+      h = h.replace('<div class="dashboard-v2-head">', '<div style="margin:0 20px 10px;"><button class="btn btn-outline btn-block" onclick="Router.go(\'siams-admin-courier-verifications\')">🛡️ Demandes de certification livreur</button></div><div class="dashboard-v2-head">');
+    }
+    return h;
+  };
+
+  window.loadCourierProfileExtras = function(){
+    const settingsMount = document.getElementById('courier-settings-list');
+    if(settingsMount) settingsMount.innerHTML = renderCourierSettingsSection();
+    CourierDocs.load();
+    loadCourierProfileStats();
+    if(window.loadCourierPayoutSection) loadCourierPayoutSection();
+  };
+
+  /* ---- Le badge certifié doit aussi apparaître dès l'ouverture du tableau de bord (pas
+     seulement quand le livreur va sur l'onglet Profil) : on le charge une fois en tâche de
+     fond dès que le tableau de bord livreur est prêt. ---- */
+  const oldLoadForCourierDocs = window.loadCourierDashboard;
+  if(oldLoadForCourierDocs){
+    window.loadCourierDashboard = async function(){
+      const r = await oldLoadForCourierDocs.apply(this, arguments);
+      try{
+        const sess = courierSession();
+        if(sess && Router.current==='courier-dashboard' && !CourierDocs._data){
+          const data = await Cloud.courierDocuments(sess.session_token);
+          CourierDocs._data = Array.isArray(data) ? data[0] : data;
+          CourierDocs.renderBadge();
+        }
+      }catch(e){ /* fonction SQL pas encore déployée : on n'affiche simplement pas le badge */ }
       return r;
     };
   }
