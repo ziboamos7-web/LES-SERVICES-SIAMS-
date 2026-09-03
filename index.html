@@ -13211,6 +13211,13 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     async create(item){
       const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
       const row={id:item.id||uid(),store_id:sid,image_url:item.image_url,link_type:item.link_type||'none',link_url:item.link_url||null,link_product_id:item.link_product_id||null,link_category_id:item.link_category_id||null,active:item.active!==false,position:Number(item.position||0)};
+      /* V67 — Promotions articles : ces champs étaient perdus avant l'enregistrement
+         (ils n'étaient pas repris dans `row`), donc les affiches promo n'étaient plus
+         reconnues comme telles au rechargement. On les repasse uniquement quand ils
+         sont fournis, pour ne rien changer au comportement des bannières classiques. */
+      if(item.promo_product!==undefined) row.promo_product = item.promo_product;
+      if(item.promo_title!==undefined) row.promo_title = item.promo_title;
+      if(item.promo_subtitle!==undefined) row.promo_subtitle = item.promo_subtitle;
       try{const {data,error}=await sb.from(TABLE).insert(row).select().single();if(error)throw error;this.items.push(data||row);localSave(this.items);return data||row;}catch(e){
         this.items.push(row); localSave(this.items);
         throw e;
@@ -13320,7 +13327,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
       Toast.show('Bannière publiée ✓');
       bannerFormState={file:null,linkType:'none'};
       await Banners.all(); renderManager();
-    }catch(e){console.error(e);Toast.show('Impossible de publier. Vérifiez la configuration du stockage SIAMS.');if(btn){btn.disabled=false;btn.textContent='Publier la bannière';}}
+    }catch(e){console.error(e);Toast.show('Erreur : '+(e&&(e.message||e.error_description||e.toString&&e.toString())||'inconnue'));if(btn){btn.disabled=false;btn.textContent='Publier la bannière';}}
   };
   window.toggleBannerItem=async id=>{const x=Banners.items.find(i=>String(i.id)===String(id));if(!x)return;try{await Banners.update(id,{active:x.active===false});Toast.show(x.active===false?'Bannière affichée ✓':'Bannière masquée ✓');renderManager();}catch(e){Toast.show('Impossible de modifier cette bannière');}};
   window.deleteBannerItem=async id=>{if(!confirm('Supprimer définitivement cette bannière ?'))return;try{await Banners.remove(id);Toast.show('Bannière supprimée ✓');renderManager();}catch(e){Toast.show('Impossible de supprimer cette bannière');}};
