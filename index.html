@@ -959,10 +959,20 @@
   .lb-slide img{width:100%;height:100%;object-fit:contain;transform-origin:center center;transition:transform .08s linear;touch-action:none;}
   .lb-hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);color:rgba(255,255,255,.75);font-size:12px;font-weight:600;background:rgba(255,255,255,.1);padding:7px 14px;border-radius:999px;}
 
-  /* ================= Client bottom nav (5 onglets) ================= */
-  .client-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;width:calc(100% - 24px);max-width:456px;background:#fff;border-top:none;border-radius:22px;display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 16px 36px -14px rgba(11,14,23,.22);border:1px solid var(--line);}
+  /* ================= Client bottom nav (5 onglets, panier flottant) ================= */
+  .client-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;width:calc(100% - 24px);max-width:440px;height:52px;background:rgba(255,255,255,.96);border-top:none;border-radius:20px;display:flex;padding:0 10px calc(0px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 20px 40px -16px rgba(11,14,23,.28),0 2px 6px rgba(11,14,23,.05);border:1px solid var(--line);}
   .client-nav.hidden{display:none;}
-  .client-nav .nav-item{position:relative;}
+  .client-nav .nav-item{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0;border-radius:0;background:none;color:#8A8578;}
+  .client-nav .nav-item svg{width:18px;height:18px;}
+  .client-nav .nav-item .nav-label{font-size:9px;font-weight:700;}
+  .client-nav .nav-item.active{color:var(--indigo);background:none;}
+  .client-nav .nav-item.active svg{transform:none;}
+  .client-nav .nav-indicator{bottom:auto;top:0;}
+  .client-nav .nav-spacer{width:52px;flex:none;}
+  .client-nav .fab{position:absolute;left:50%;top:-18px;transform:translateX(-50%);width:48px;height:48px;border-radius:50%;background:var(--indigo);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 22px -6px rgba(17,17,17,.55),0 0 0 5px #fff;z-index:2;color:#fff;}
+  .client-nav .fab svg{width:20px;height:20px;}
+  .client-nav .fab .cn-badge{top:-3px;right:-3px;background:var(--gold);border:1.5px solid #fff;}
+  .client-nav .fab-label{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--indigo);}
   .cn-badge{position:absolute;top:2px;right:22%;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:var(--red);color:#fff;font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;}
   .cn-badge.show{display:flex;}
 
@@ -1329,34 +1339,37 @@
     </button>
   </nav>
 
-  <!-- ============ BOTTOM NAV (client, 5 onglets) ============ -->
+  <!-- ============ BOTTOM NAV (client, 5 onglets, panier flottant) ============ -->
   <nav class="client-nav hidden" id="client-nav">
     <button class="nav-item" data-nav="home" onclick="Router.go('shop')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>Accueil</span>
+      <span class="nav-label">Accueil</span>
     </button>
     <button class="nav-item" data-nav="categories" onclick="Router.go('shop-categories')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/></svg>
-      <span>Catégories</span>
+      <span class="nav-label">Catégories</span>
     </button>
-    <button class="nav-item" data-nav="cart" onclick="Router.go('cart')">
-      <div class="nav-indicator"></div>
-      <span class="cn-badge" id="cn-cart-badge">0</span>
-      <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>Panier</span>
-    </button>
+
+    <div class="nav-spacer"></div>
+
     <button class="nav-item" data-nav="favorites" onclick="Router.go('shop-favorites')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-      <span>Favoris</span>
+      <span class="nav-label">Favoris</span>
     </button>
     <button class="nav-item" data-nav="account" onclick="Router.go('shop-account')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-4.2 4-6.5 7.5-6.5s6.5 2.3 7.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <span>Compte</span>
+      <span class="nav-label">Compte</span>
     </button>
+
+    <button class="nav-item fab" data-nav="cart" onclick="Router.go('cart')">
+      <span class="cn-badge" id="cn-cart-badge">0</span>
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="fab-label" onclick="Router.go('cart')">Panier</div>
   </nav>
 
   <!-- ============ SHEET "PLUS" ============ -->
@@ -1898,9 +1911,16 @@ const Cloud = {
 
       let lastError = null;
       for(let attempt=1; attempt<=3; attempt++){
-        const {error} = isNew
-          ? await sb.from('orders').insert(payload)
-          : await sb.from('orders').update(payload).eq('id', o.id);
+        /* CORRECTIF : .select('id') après l'update permet de détecter un échec
+           silencieux (0 ligne modifiée par ex. à cause d'une règle RLS qui bloque
+           l'écriture) — sans ce .select(), Supabase ne renvoie aucune erreur dans
+           ce cas et l'appli croit à tort que l'enregistrement a réussi. */
+        let { data, error } = isNew
+          ? await sb.from('orders').insert(payload).select('id')
+          : await sb.from('orders').update(payload).eq('id', o.id).select('id');
+        if(!error && (!data || data.length===0)){
+          error = new Error(`Écriture refusée pour la commande #${o.number||o.id} (probablement une règle RLS Supabase qui bloque la mise à jour) — 0 ligne modifiée.`);
+        }
         if(!error){ lastError=null; break; }
         lastError=error;
         if(attempt<3) await new Promise(r=>setTimeout(r, 500*attempt));
@@ -6758,16 +6778,46 @@ Views._after_order_detail = function(opts){
 async function adminConfirmOrder(id){
   const order = Store.orders.find(o=>o.id===id);
   if(!order || order.status!=='pending') return;
-  Store.orders = Store.orders.map(o=>o.id===id?{...o,status:'confirmed',confirmedAt:Date.now()}:o);
-  Toast.show('Commande confirmée ✓');
-  Router.go('order-detail',{id});
+  /* CORRECTIF : on attend désormais la fin réelle de l'écriture Supabase avant
+     d'afficher « Confirmée ✓ ». Avant, Store.orders=... déclenchait l'écriture
+     en arrière-plan (fire-and-forget) : le toast de succès s'affichait tout de
+     suite quoi qu'il arrive, donc un échec silencieux (ex. RLS) passait
+     inaperçu — la commande restait « pending » côté client alors que tout
+     semblait fonctionner côté marchand. */
+  const prev = Store.orders;
+  const next = prev.map(o=>o.id===id?{...o,status:'confirmed',confirmedAt:Date.now()}:o);
+  const btn = document.querySelector(`[onclick="adminConfirmOrder('${id}')"]`);
+  if(btn){ btn.disabled=true; btn.textContent='Confirmation…'; }
+  try{
+    await Cloud.pushOrders(prev, next);
+    _cache.orders = next;
+    Toast.show('Commande confirmée ✓');
+    Router.go('order-detail',{id});
+  }catch(e){
+    console.error('adminConfirmOrder', e);
+    Toast.show('⚠️ Échec de la confirmation : '+(e&&e.message?e.message:'erreur inconnue'));
+    if(btn){ btn.disabled=false; btn.textContent='Confirmer la commande'; }
+  }
 }
 async function adminMarkShipped(id){
   const order = Store.orders.find(o=>o.id===id);
   if(!order || order.status!=='confirmed' || order.shipped) return;
-  Store.orders = Store.orders.map(o=>o.id===id?{...o,shipped:true,shippedAt:Date.now()}:o);
-  Toast.show('Commande marquée « en livraison » ✓');
-  Router.go('order-detail',{id});
+  /* CORRECTIF : même principe que adminConfirmOrder ci-dessus — on attend la
+     confirmation réelle de Supabase avant d'afficher le succès. */
+  const prev = Store.orders;
+  const next = prev.map(o=>o.id===id?{...o,shipped:true,shippedAt:Date.now()}:o);
+  const btn = document.querySelector(`[onclick="adminMarkShipped('${id}')"]`);
+  if(btn){ btn.disabled=true; btn.textContent='Mise à jour…'; }
+  try{
+    await Cloud.pushOrders(prev, next);
+    _cache.orders = next;
+    Toast.show('Commande marquée « en livraison » ✓');
+    Router.go('order-detail',{id});
+  }catch(e){
+    console.error('adminMarkShipped', e);
+    Toast.show('⚠️ Échec de la mise en livraison : '+(e&&e.message?e.message:'erreur inconnue'));
+    if(btn){ btn.disabled=false; btn.textContent='Marquer « en livraison »'; }
+  }
 }
 async function assignOrderToCourier(id){
   const sel = document.getElementById('assign-courier-select');
