@@ -9,10 +9,6 @@
 <meta name="description" content="Les services SIAMS de boutique en ligne. Créez, gérez et développez votre boutique en ligne en toute simplicité : commandes, livraison en temps réel, paiements et notifications.">
 <meta name="theme-color" content="#111111">
 
-<!-- Carte livreur (suivi GPS en temps réel) : Leaflet + tuiles OpenStreetMap, gratuites, sans clé API. -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
 <!-- Nom affiché quand le site est ajouté à l'écran d'accueil -->
 <meta name="apple-mobile-web-app-title" content="SIAMS">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -282,50 +278,6 @@
   .courier-mission-gps-badge .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
   .courier-mission-gps-badge.off{background:var(--surface-2,#f2f4f8);color:var(--text-mid);}
   .courier-mission-actions{position:fixed;left:0;right:0;bottom:0;z-index:71;background:#fff;border-top:1px solid var(--line);padding:12px 18px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:9px;box-shadow:0 -6px 20px rgba(15,23,42,.06);}
-
-  /* ---------- Carte de suivi en temps réel (écran mission) : tuiles OSM + marqueurs
-     livreur/client + tracé de route, dans le style "Track Package" demandé. ---------- */
-  .courier-track-map-wrap{position:relative;flex:none;background:#eef2f7;}
-  .courier-track-map{width:100%;height:230px;background:#e7ecf3;}
-  .courier-track-map.loading::after{content:'Chargement de la carte…';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-mid);font-weight:700;}
-  .courier-track-map-badge{position:absolute;left:14px;top:14px;z-index:20;background:#fff;border-radius:999px;padding:7px 13px 7px 10px;box-shadow:0 8px 20px rgba(15,23,42,.16);display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#172033;}
-  .courier-track-map-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--green,#16a36b);flex:none;box-shadow:0 0 0 3px rgba(22,163,107,.18);}
-  .courier-track-map-badge.off .dot{background:#c7ccd4;box-shadow:none;}
-  .courier-track-eta-badge{position:absolute;right:14px;top:14px;z-index:20;background:#0b67d8;color:#fff;border-radius:999px;padding:7px 13px;box-shadow:0 8px 20px rgba(11,103,216,.35);font-size:11px;font-weight:800;white-space:nowrap;}
-  .cm-pin{width:32px;height:32px;border-radius:50% 50% 50% 4px;display:flex;align-items:center;justify-content:center;font-size:15px;transform:rotate(45deg);box-shadow:0 6px 14px rgba(15,23,42,.3);border:2px solid #fff;}
-  .cm-pin span{transform:rotate(-45deg);display:block;}
-  .cm-pin-client{background:#172033;}
-  .cm-pin-courier{background:#0b67d8;border-radius:50%;transform:none;width:36px;height:36px;box-shadow:0 6px 16px rgba(11,103,216,.45),0 0 0 6px rgba(11,103,216,.16);}
-  .cm-pin-courier span{transform:none;}
-
-  .courier-track-card{position:relative;z-index:5;margin:-22px 14px 14px;background:#fff;border-radius:22px;box-shadow:0 16px 34px -14px rgba(15,23,42,.22);padding:16px 16px 14px;}
-  .courier-track-card-top{display:flex;align-items:center;gap:11px;}
-  .courier-track-avatar{width:46px;height:46px;border-radius:15px;background:var(--blue-tint,#e8f2ff);color:#0b67d8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none;}
-  .courier-track-id{min-width:0;flex:1;}
-  .courier-track-name{font-family:var(--font-display);font-weight:800;font-size:15.5px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .courier-track-sub{font-size:11.5px;color:var(--text-mid);margin-top:2px;display:flex;align-items:center;gap:5px;}
-  .courier-track-sub b{color:#0b67d8;font-weight:800;}
-  .courier-track-contact{display:flex;gap:8px;flex:none;}
-  .courier-track-contact a,.courier-track-contact button{width:38px;height:38px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;}
-  .courier-track-contact .call{background:var(--green-tint,#e7f8ef);color:var(--green,#16a36b);}
-  .courier-track-contact .msg{background:var(--panel,#f2f4f8);color:#344054;}
-  .courier-track-status-row{display:flex;align-items:center;gap:8px;margin-top:13px;padding:9px 12px;border-radius:12px;background:var(--blue-tint,#e8f2ff);color:#0b67d8;font-size:11.5px;font-weight:800;}
-  .courier-track-status-row.done{background:var(--green-tint,#e7f8ef);color:var(--green,#16a36b);}
-  .courier-track-route{display:flex;gap:10px;margin-top:14px;}
-  .courier-track-route-rail{display:flex;flex-direction:column;align-items:center;padding-top:3px;flex:none;}
-  .courier-track-route-rail .rdot{width:9px;height:9px;border-radius:50%;flex:none;}
-  .courier-track-route-rail .rdot.a{background:#0b67d8;}
-  .courier-track-route-rail .rdot.b{background:#172033;}
-  .courier-track-route-rail .rline{width:2px;flex:1;background:repeating-linear-gradient(180deg,#c7ccd4 0 4px,transparent 4px 8px);margin:4px 0;min-height:20px;}
-  .courier-track-route-pts{flex:1;min-width:0;}
-  .courier-track-route-pt{margin-bottom:16px;}
-  .courier-track-route-pt:last-child{margin-bottom:0;}
-  .courier-track-route-pt span{display:block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-mid);}
-  .courier-track-route-pt b{display:block;font-size:12.5px;font-weight:700;margin-top:2px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .courier-track-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--line);}
-  .courier-track-foot-chip{font-size:11px;color:var(--text-mid);}
-  .courier-track-foot-chip b{color:var(--ink);font-family:var(--font-mono);}
-  .courier-track-foot-amount{font-family:var(--font-display);font-weight:800;font-size:16px;}
 
   /* ---------- Écran Gains livreur ---------- */
   .courier-earn-period-tabs{display:flex;gap:6px;background:var(--surface-2,#f2f4f8);border-radius:12px;padding:4px;margin-bottom:14px;}
@@ -891,39 +843,6 @@
   .pd-similar-name{font-size:12.5px;font-weight:600;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pd-similar-price{font-size:12.5px;color:var(--indigo);font-weight:700;}
   .pcard-add{width:100%;border:none;border-radius:999px;padding:7px 8px;font-size:11px;font-weight:700;background:var(--indigo-tint);color:var(--indigo);cursor:pointer;font-family:var(--font-body);}
-
-  /* ---------- Accueil client "premium fintech" : hero sombre + stats animées,
-     micro-interactions sur les cartes produit et la barre panier. Purement
-     additif : ne touche à aucune logique existante, seulement le rendu. ---------- */
-  .shop-hero-premium{position:relative;margin:14px 20px 0;border-radius:22px;padding:18px 18px 16px;background:linear-gradient(135deg,#0b1220 0%,#111c33 55%,#0b3b70 130%);color:#fff;overflow:hidden;box-shadow:0 18px 34px -18px rgba(11,20,32,.55);}
-  .shop-hero-premium::after{content:'';position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(11,103,216,.35),transparent 70%);pointer-events:none;}
-  .shop-hero-top{display:flex;align-items:center;gap:12px;position:relative;z-index:1;}
-  .shop-hero-store{min-width:0;flex:1;}
-  .shop-hero-store h1{font-size:19px;margin:0;display:flex;align-items:center;gap:6px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .shop-hero-store .page-sub{color:rgba(255,255,255,.62);font-size:11.5px;margin-top:2px;}
-  .shop-hero-premium .store-logo{border:1.5px solid rgba(255,255,255,.18);}
-  .shop-hero-premium .cn-notif-btn{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.14);color:#fff;}
-  .shop-hero-stats{display:flex;gap:8px;margin-top:16px;position:relative;z-index:1;}
-  .shop-hero-stat{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 8px;text-align:center;}
-  .shop-hero-stat b{display:block;font-family:var(--font-mono);font-size:16px;font-weight:800;letter-spacing:-.2px;}
-  .shop-hero-stat span{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.6);margin-top:2px;}
-
-  .cat-tile,.pcard{transition:transform .16s cubic-bezier(.34,1.4,.64,1),box-shadow .16s ease;}
-  .cat-tile:active{transform:scale(.95);}
-  .pcard:active{transform:scale(.97);}
-  .home-grid .pcard{animation:pcardIn .38s cubic-bezier(.22,.9,.4,1) both;}
-  .home-grid .pcard:nth-child(1){animation-delay:.02s}.home-grid .pcard:nth-child(2){animation-delay:.06s}
-  .home-grid .pcard:nth-child(3){animation-delay:.1s}.home-grid .pcard:nth-child(4){animation-delay:.14s}
-  .home-grid .pcard:nth-child(5){animation-delay:.18s}.home-grid .pcard:nth-child(6){animation-delay:.22s}
-  .home-grid .pcard:nth-child(n+7){animation-delay:.26s}
-  @keyframes pcardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-  .pcard-add{position:relative;overflow:hidden;transition:background .2s ease,color .2s ease;}
-  .pcard-add.added{background:var(--green-tint,#e7f8ef);color:var(--green,#16a36b);}
-  .search-box{transition:box-shadow .18s ease,border-color .18s ease;}
-  .search-box:focus-within{box-shadow:0 0 0 3px rgba(11,103,216,.14);border-color:#0b67d8;}
-  #cart-bar .btn{transition:transform .12s ease;}
-  #cart-bar .btn:active{transform:scale(.98);}
-  #cart-bar-amount{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
   .pcard-review{background:none;border:none;color:var(--text-mid);font-size:9.5px;font-weight:600;width:100%;text-align:center;padding-top:5px;cursor:pointer;font-family:var(--font-body);}
 
   /* ---- Barre latérale de catégories (boutique client) ---- */
@@ -959,20 +878,10 @@
   .lb-slide img{width:100%;height:100%;object-fit:contain;transform-origin:center center;transition:transform .08s linear;touch-action:none;}
   .lb-hint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);color:rgba(255,255,255,.75);font-size:12px;font-weight:600;background:rgba(255,255,255,.1);padding:7px 14px;border-radius:999px;}
 
-  /* ================= Client bottom nav (5 onglets, panier flottant) ================= */
-  .client-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;width:calc(100% - 24px);max-width:440px;height:52px;background:rgba(255,255,255,.96);border-top:none;border-radius:20px;display:flex;padding:0 10px calc(0px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 20px 40px -16px rgba(11,14,23,.28),0 2px 6px rgba(11,14,23,.05);border:1px solid var(--line);}
+  /* ================= Client bottom nav (5 onglets) ================= */
+  .client-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;width:calc(100% - 24px);max-width:456px;background:#fff;border-top:none;border-radius:22px;display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 16px 36px -14px rgba(11,14,23,.22);border:1px solid var(--line);}
   .client-nav.hidden{display:none;}
-  .client-nav .nav-item{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0;border-radius:0;background:none;color:#8A8578;}
-  .client-nav .nav-item svg{width:18px;height:18px;}
-  .client-nav .nav-item .nav-label{font-size:9px;font-weight:700;}
-  .client-nav .nav-item.active{color:var(--indigo);background:none;}
-  .client-nav .nav-item.active svg{transform:none;}
-  .client-nav .nav-indicator{bottom:auto;top:0;}
-  .client-nav .nav-spacer{width:52px;flex:none;}
-  .client-nav .fab{position:absolute;left:50%;top:-18px;transform:translateX(-50%);width:48px;height:48px;border-radius:50%;background:var(--indigo);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 22px -6px rgba(17,17,17,.55),0 0 0 5px #fff;z-index:2;color:#fff;}
-  .client-nav .fab svg{width:20px;height:20px;}
-  .client-nav .fab .cn-badge{top:-3px;right:-3px;background:var(--gold);border:1.5px solid #fff;}
-  .client-nav .fab-label{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--indigo);}
+  .client-nav .nav-item{position:relative;}
   .cn-badge{position:absolute;top:2px;right:22%;min-width:15px;height:15px;padding:0 3px;border-radius:999px;background:var(--red);color:#fff;font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;}
   .cn-badge.show{display:flex;}
 
@@ -1339,37 +1248,34 @@
     </button>
   </nav>
 
-  <!-- ============ BOTTOM NAV (client, 5 onglets, panier flottant) ============ -->
+  <!-- ============ BOTTOM NAV (client, 5 onglets) ============ -->
   <nav class="client-nav hidden" id="client-nav">
     <button class="nav-item" data-nav="home" onclick="Router.go('shop')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="nav-label">Accueil</span>
+      <span>Accueil</span>
     </button>
     <button class="nav-item" data-nav="categories" onclick="Router.go('shop-categories')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/></svg>
-      <span class="nav-label">Catégories</span>
+      <span>Catégories</span>
     </button>
-
-    <div class="nav-spacer"></div>
-
+    <button class="nav-item" data-nav="cart" onclick="Router.go('cart')">
+      <div class="nav-indicator"></div>
+      <span class="cn-badge" id="cn-cart-badge">0</span>
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Panier</span>
+    </button>
     <button class="nav-item" data-nav="favorites" onclick="Router.go('shop-favorites')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-      <span class="nav-label">Favoris</span>
+      <span>Favoris</span>
     </button>
     <button class="nav-item" data-nav="account" onclick="Router.go('shop-account')">
       <div class="nav-indicator"></div>
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-4.2 4-6.5 7.5-6.5s6.5 2.3 7.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <span class="nav-label">Compte</span>
+      <span>Compte</span>
     </button>
-
-    <button class="nav-item fab" data-nav="cart" onclick="Router.go('cart')">
-      <span class="cn-badge" id="cn-cart-badge">0</span>
-      <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="fab-label" onclick="Router.go('cart')">Panier</div>
   </nav>
 
   <!-- ============ SHEET "PLUS" ============ -->
@@ -1388,11 +1294,6 @@
     <div class="menu-item" onclick="Sheet.close(); Router.go('boutique')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       <div class="menu-item-text"><span class="menu-item-title">Boutique</span><span class="menu-item-desc">Nom, logo, lien et informations de votre boutique</span></div>
-      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div class="menu-item" onclick="Sheet.close(); Router.go('verification')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Certification boutique</span><span class="menu-item-desc">Vérifiez votre pièce d'identité pour obtenir le badge certifié</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('commissions-apercu')">
@@ -1911,16 +1812,9 @@ const Cloud = {
 
       let lastError = null;
       for(let attempt=1; attempt<=3; attempt++){
-        /* CORRECTIF : .select('id') après l'update permet de détecter un échec
-           silencieux (0 ligne modifiée par ex. à cause d'une règle RLS qui bloque
-           l'écriture) — sans ce .select(), Supabase ne renvoie aucune erreur dans
-           ce cas et l'appli croit à tort que l'enregistrement a réussi. */
-        let { data, error } = isNew
-          ? await sb.from('orders').insert(payload).select('id')
-          : await sb.from('orders').update(payload).eq('id', o.id).select('id');
-        if(!error && (!data || data.length===0)){
-          error = new Error(`Écriture refusée pour la commande #${o.number||o.id} (probablement une règle RLS Supabase qui bloque la mise à jour) — 0 ligne modifiée.`);
-        }
+        const {error} = isNew
+          ? await sb.from('orders').insert(payload)
+          : await sb.from('orders').update(payload).eq('id', o.id);
         if(!error){ lastError=null; break; }
         lastError=error;
         if(attempt<3) await new Promise(r=>setTimeout(r, 500*attempt));
@@ -2239,23 +2133,14 @@ let _cache = {
   store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:'',verification:{status:'none',docType:'',docUrl:null,photoUrl:null,submittedAt:0,verified:false,verifiedAt:0,rejectReason:''}}
 };
 function syncFail(label){ return (err)=>{ console.error('Sync error ['+label+']', err); Toast.show('⚠️ Erreur ['+label+'] : '+(err && (err.message||err.code||JSON.stringify(err)))); }; }
-/* CORRECTIF : compteur d'écritures Supabase en cours. Le rafraîchissement automatique
-   (AutoSync) recharge périodiquement toutes les données depuis Supabase et remplace
-   _cache en bloc. Si ce rechargement survenait pendant qu'un envoi (ex. création d'un
-   code promo) était encore en vol, les données fraîchement ajoutées localement étaient
-   écrasées par la version serveur pas encore à jour — d'où leur disparition après
-   quelques secondes. On bloque désormais le rafraîchissement tant qu'une écriture est
-   en cours. */
-let _pendingWrites = 0;
-function trackWrite(promise){ _pendingWrites++; return promise.finally(()=>{ _pendingWrites--; }); }
 
 /* ---------------- Store ---------------- */
 const Store = {
   get products(){ return _cache.products; },
-  set products(v){ const prev=_cache.products; _cache.products=v; trackWrite(Cloud.pushProducts(prev, v)).catch(syncFail('products')); },
+  set products(v){ const prev=_cache.products; _cache.products=v; Cloud.pushProducts(prev, v).catch(syncFail('products')); },
 
   get menuItems(){ return _cache.menuItems; },
-  set menuItems(v){ const prev=_cache.menuItems; _cache.menuItems=v; trackWrite(Cloud.pushMenuItems(prev, v)).catch(syncFail('menuItems')); },
+  set menuItems(v){ const prev=_cache.menuItems; _cache.menuItems=v; Cloud.pushMenuItems(prev, v).catch(syncFail('menuItems')); },
 
   /* ---- Vue unifiée produits + plats du menu du jour, utilisée uniquement par le
      panier/checkout pour résoudre un productId sans se soucier de sa provenance
@@ -2263,13 +2148,13 @@ const Store = {
   get sellables(){ return _cache.products.concat(_cache.menuItems); },
 
   get orders(){ return _cache.orders; },
-  set orders(v){ const prev=_cache.orders; _cache.orders=v; trackWrite(Cloud.pushOrders(prev, v)).catch(syncFail('orders')); },
+  set orders(v){ const prev=_cache.orders; _cache.orders=v; Cloud.pushOrders(prev, v).catch(syncFail('orders')); },
 
   get store(){ return _cache.store; },
-  set store(v){ const prev=_cache.store; _cache.store=v; trackWrite(Cloud.pushStore(prev, v)).catch(syncFail('store')); },
+  set store(v){ const prev=_cache.store; _cache.store=v; Cloud.pushStore(prev, v).catch(syncFail('store')); },
 
   get team(){ return _cache.team; },
-  set team(v){ const prev=_cache.team; _cache.team=v; trackWrite(Cloud.pushTeam(prev, v)).catch(syncFail('team')); },
+  set team(v){ const prev=_cache.team; _cache.team=v; Cloud.pushTeam(prev, v).catch(syncFail('team')); },
   get couriers(){ return _cache.couriers; },
   get courierAssignments(){ return _cache.courierAssignments; },
   get courierPayouts(){ return _cache.courierPayouts; },
@@ -2285,26 +2170,26 @@ const Store = {
   },
 
   get payment(){ return _cache.payment; },
-  set payment(v){ const prev=_cache.payment; _cache.payment=v; trackWrite(Cloud.pushPayment(prev, v)).catch(syncFail('payment')); },
+  set payment(v){ const prev=_cache.payment; _cache.payment=v; Cloud.pushPayment(prev, v).catch(syncFail('payment')); },
 
   get notifications(){ return _cache.notifications; },
-  set notifications(v){ const prev=_cache.notifications; _cache.notifications=v; trackWrite(Cloud.pushNotifications(prev, v)).catch(syncFail('notifications')); },
+  set notifications(v){ const prev=_cache.notifications; _cache.notifications=v; Cloud.pushNotifications(prev, v).catch(syncFail('notifications')); },
 
   get cart(){ return JSON.parse(sessionStorage.getItem('belou_cart')||'[]'); },
   set cart(v){ sessionStorage.setItem('belou_cart', JSON.stringify(v)); },
 
   get categories(){ return _cache.categories; },
-  set categories(v){ const prev=_cache.categories; _cache.categories=v; trackWrite(Cloud.pushCategories(prev, v)).catch(syncFail('categories')); },
+  set categories(v){ const prev=_cache.categories; _cache.categories=v; Cloud.pushCategories(prev, v).catch(syncFail('categories')); },
   get categoryPhotos(){ return _cache.categoryPhotos || {}; },
 
   get promos(){ return _cache.promos; },
-  set promos(v){ const prev=_cache.promos; _cache.promos=v; trackWrite(Cloud.pushPromos(prev, v)).catch(syncFail('promos')); },
+  set promos(v){ const prev=_cache.promos; _cache.promos=v; Cloud.pushPromos(prev, v).catch(syncFail('promos')); },
 
   get reviews(){ return _cache.reviews; },
-  set reviews(v){ const prev=_cache.reviews; _cache.reviews=v; trackWrite(Cloud.pushReviews(prev, v)).catch(syncFail('reviews')); },
+  set reviews(v){ const prev=_cache.reviews; _cache.reviews=v; Cloud.pushReviews(prev, v).catch(syncFail('reviews')); },
 
   get deliveryZones(){ return _cache.deliveryZones; },
-  set deliveryZones(v){ const prev=_cache.deliveryZones; _cache.deliveryZones=v; trackWrite(Cloud.pushDeliveryZones(prev, v)).catch(syncFail('deliveryZones')); },
+  set deliveryZones(v){ const prev=_cache.deliveryZones; _cache.deliveryZones=v; Cloud.pushDeliveryZones(prev, v).catch(syncFail('deliveryZones')); },
 
   reviewsFor(productId){ return this.reviews.filter(r=>r.productId===productId); },
   avgRating(productId){
@@ -3019,7 +2904,6 @@ const AutoSync = {
       return;
     }
     if(this.busy || !Cloud.storeId) return;
-    if(_pendingWrites>0) return; /* CORRECTIF : une écriture (ex. création de promo) est en vol, on ne rafraîchit pas tant qu'elle n'est pas confirmée par Supabase */
     const now=Date.now();
     if(!force && now-this.lastRun<1500) return;
     this.busy=true; this.lastRun=now;
@@ -6778,46 +6662,16 @@ Views._after_order_detail = function(opts){
 async function adminConfirmOrder(id){
   const order = Store.orders.find(o=>o.id===id);
   if(!order || order.status!=='pending') return;
-  /* CORRECTIF : on attend désormais la fin réelle de l'écriture Supabase avant
-     d'afficher « Confirmée ✓ ». Avant, Store.orders=... déclenchait l'écriture
-     en arrière-plan (fire-and-forget) : le toast de succès s'affichait tout de
-     suite quoi qu'il arrive, donc un échec silencieux (ex. RLS) passait
-     inaperçu — la commande restait « pending » côté client alors que tout
-     semblait fonctionner côté marchand. */
-  const prev = Store.orders;
-  const next = prev.map(o=>o.id===id?{...o,status:'confirmed',confirmedAt:Date.now()}:o);
-  const btn = document.querySelector(`[onclick="adminConfirmOrder('${id}')"]`);
-  if(btn){ btn.disabled=true; btn.textContent='Confirmation…'; }
-  try{
-    await Cloud.pushOrders(prev, next);
-    _cache.orders = next;
-    Toast.show('Commande confirmée ✓');
-    Router.go('order-detail',{id});
-  }catch(e){
-    console.error('adminConfirmOrder', e);
-    Toast.show('⚠️ Échec de la confirmation : '+(e&&e.message?e.message:'erreur inconnue'));
-    if(btn){ btn.disabled=false; btn.textContent='Confirmer la commande'; }
-  }
+  Store.orders = Store.orders.map(o=>o.id===id?{...o,status:'confirmed',confirmedAt:Date.now()}:o);
+  Toast.show('Commande confirmée ✓');
+  Router.go('order-detail',{id});
 }
 async function adminMarkShipped(id){
   const order = Store.orders.find(o=>o.id===id);
   if(!order || order.status!=='confirmed' || order.shipped) return;
-  /* CORRECTIF : même principe que adminConfirmOrder ci-dessus — on attend la
-     confirmation réelle de Supabase avant d'afficher le succès. */
-  const prev = Store.orders;
-  const next = prev.map(o=>o.id===id?{...o,shipped:true,shippedAt:Date.now()}:o);
-  const btn = document.querySelector(`[onclick="adminMarkShipped('${id}')"]`);
-  if(btn){ btn.disabled=true; btn.textContent='Mise à jour…'; }
-  try{
-    await Cloud.pushOrders(prev, next);
-    _cache.orders = next;
-    Toast.show('Commande marquée « en livraison » ✓');
-    Router.go('order-detail',{id});
-  }catch(e){
-    console.error('adminMarkShipped', e);
-    Toast.show('⚠️ Échec de la mise en livraison : '+(e&&e.message?e.message:'erreur inconnue'));
-    if(btn){ btn.disabled=false; btn.textContent='Marquer « en livraison »'; }
-  }
+  Store.orders = Store.orders.map(o=>o.id===id?{...o,shipped:true,shippedAt:Date.now()}:o);
+  Toast.show('Commande marquée « en livraison » ✓');
+  Router.go('order-detail',{id});
 }
 async function assignOrderToCourier(id){
   const sel = document.getElementById('assign-courier-select');
@@ -7552,39 +7406,12 @@ async function acceptCourierDelivery(id){
     Toast.show('⚠️ '+detail);
   }
 }
-let courierWatchId=null, courierLastSent=0, courierTrackingId=null, courierGpsErrorShown=false;
-/* CORRECTIF : le toast "Suivi GPS livreur activé ✓" s'affichait dès le démarrage de
-   watchPosition, indépendamment du succès réel de l'envoi de la position vers Supabase.
-   Si l'appel RPC courier_update_location échouait (fonction absente côté base, RLS,
-   paramètres invalides, etc.), l'erreur finissait uniquement dans console.error : le
-   livreur croyait son GPS actif et la boutique ne recevait jamais aucune position, sans
-   qu'aucune des deux parties ne soit prévenue. On affiche désormais l'erreur au livreur
-   dès la première tentative ratée (throttlée pour ne pas spammer), afin que le problème
-   soit visible immédiatement au lieu de rester silencieux. */
+let courierWatchId=null, courierLastSent=0, courierTrackingId=null;
 function startCourierLiveGps(assignmentId){
   const sess=courierSession(); if(!sess||!navigator.geolocation){Toast.show('GPS indisponible');return;}
   if(courierWatchId!==null) navigator.geolocation.clearWatch(courierWatchId);
   courierTrackingId=assignmentId;
-  courierGpsErrorShown=false;
-  courierWatchId=navigator.geolocation.watchPosition(async pos=>{
-    /* Met à jour le marqueur/la distance sur la carte à chaque position reçue — indépendant
-       du throttle réseau ci-dessous qui ne concerne que l'envoi vers Supabase. */
-    if(typeof CourierMission!=='undefined' && typeof CourierMission.updateCourierPosition==='function' && String(courierTrackingId)===String(assignmentId)){
-      CourierMission.updateCourierPosition(pos.coords.latitude,pos.coords.longitude);
-    }
-    const now=Date.now(); if(now-courierLastSent<5000)return; courierLastSent=now;
-    try{
-      await Cloud.courierUpdateLocation(sess.session_token,assignmentId,pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy,pos.coords.heading,pos.coords.speed);
-      courierGpsErrorShown=false;
-    }catch(e){
-      console.error('GPS livreur',e);
-      if(!courierGpsErrorShown){
-        courierGpsErrorShown=true;
-        const detail=(e&&(e.message||e.error_description||e.hint||e.details))||('code '+(e&&e.code||'inconnu'));
-        Toast.show('⚠️ Position non transmise : '+detail);
-      }
-    }
-  }, err=>Toast.show(err.code===1?'Autorisez la localisation pour le suivi du livreur.':'GPS indisponible'), {enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+  courierWatchId=navigator.geolocation.watchPosition(async pos=>{ const now=Date.now(); if(now-courierLastSent<5000)return; courierLastSent=now; try{await Cloud.courierUpdateLocation(sess.session_token,assignmentId,pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy,pos.coords.heading,pos.coords.speed);}catch(e){console.error('GPS livreur',e);} }, err=>Toast.show(err.code===1?'Autorisez la localisation pour le suivi du livreur.':'GPS indisponible'), {enableHighAccuracy:true,maximumAge:5000,timeout:15000});
   Toast.show('Suivi GPS livreur activé ✓');
   CourierMission.refresh();
 }
@@ -8495,25 +8322,13 @@ Views.shop = function(){
   // La vitrine client affiche uniquement le badge de visibilité.
   const badgeChip = paidVerified ? VerifiedBadge(16, access.plan) : '';
   const certifiedChip = (store.verification && store.verification.verified) ? CertifiedBadge(16) : '';
-  /* ---- Stats du hero premium : nombre d'articles, note moyenne boutique (toutes
-     les notes produits confondues), commandes livrées. Purement dérivé des
-     données déjà en cache, aucun nouvel appel réseau. ---- */
-  const catalogCount = (isRestauration ? Store.menuItems : Store.products).length;
-  const allReviews = Store.reviews||[];
-  const storeAvgRating = allReviews.length ? (allReviews.reduce((s,r)=>s+r.rating,0)/allReviews.length) : null;
-  const deliveredCount = Store.orders.filter(o=>o.status==='delivered').length;
   return `
-  <div class="shop-hero-premium">
-    <div class="shop-hero-top">
-      ${store.photo ? `<div class="store-logo${isGoldenStore?' tier-golden-logo':isPlatinumStore?' tier-platinum-logo':isAllStore?' tier-all-logo':isDoyaStore?' tier-doya-logo':''}" style="width:44px;height:44px;border-radius:13px;"><img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:${isPremiumStore?'11px':'12px'};"></div>` : ''}
-      <div class="shop-hero-store"><h1>${Utils.escapeHtml(store.name)}${badgeChip}${certifiedChip}</h1><div class="page-sub">${isRestauration?'Restauration & street food':'Boutique en ligne'}</div></div>
-      <button class="cn-notif-btn" onclick="ClientNotify.openPanel()" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="cn-notif-dot" id="cn-notif-dot"></span></button>
+  <div class="topbar" style="padding-top:18px;${isPremiumStore?'animation:doyaEnter .5s ease both;':''}">
+    <div style="display:flex;align-items:center;gap:12px;">
+      ${store.photo ? `<div class="store-logo${isGoldenStore?' tier-golden-logo':isPlatinumStore?' tier-platinum-logo':isAllStore?' tier-all-logo':isDoyaStore?' tier-doya-logo':''}" style="width:40px;height:40px;border-radius:11px;"><img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:${isPremiumStore?'9px':'10px'};"></div>` : ''}
+      <div><h1 style="font-size:20px;display:flex;align-items:center;gap:6px;">${Utils.escapeHtml(store.name)}${badgeChip}${certifiedChip}</h1><div class="page-sub">${isRestauration?'Restauration & street food':'Boutique en ligne'}</div></div>
     </div>
-    <div class="shop-hero-stats">
-      <div class="shop-hero-stat"><b data-count-to="${catalogCount}">0</b><span>${isRestauration?'Plats':'Articles'}</span></div>
-      <div class="shop-hero-stat"><b>${storeAvgRating!=null?storeAvgRating.toFixed(1):'—'}</b><span>Note ${storeAvgRating!=null?`(${allReviews.length})`:''}</span></div>
-      <div class="shop-hero-stat"><b data-count-to="${deliveredCount}">0</b><span>Livrées</span></div>
-    </div>
+    <button class="cn-notif-btn" onclick="ClientNotify.openPanel()" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="cn-notif-dot" id="cn-notif-dot"></span></button>
   </div>
   ${store.banner ? `<div class="shop-banner-wrap"${isAllStore?' style="border:1.5px solid var(--ruby);"':isPlatinumStore?' style="border:1.5px solid #FF3B5C;"':isDoyaStore?' style="border:1.5px solid var(--gold);"':''}><img src="${store.banner}"></div>` : ''}
   ${isRestauration ? `
@@ -8547,24 +8362,7 @@ Views._after_shop = function(){
   if(Store.store.businessType==='restauration') renderClientMenu();
   else renderHomeGrid();
   ClientNotify.renderBadges();
-  animateShopHeroStats();
 };
-/* ---- Compteurs animés du hero premium (0 -> valeur réelle en ~600ms). Purement
-   cosmétique, ne modifie aucune donnée. ---- */
-function animateShopHeroStats(){
-  document.querySelectorAll('.shop-hero-stat b[data-count-to]').forEach(el=>{
-    const target = Number(el.getAttribute('data-count-to'))||0;
-    const start = performance.now();
-    const dur = 650;
-    function tick(now){
-      const p = Math.min(1,(now-start)/dur);
-      const eased = 1-Math.pow(1-p,3);
-      el.textContent = String(Math.round(target*eased));
-      if(p<1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  });
-}
 /* ---- Rendu de la vitrine "restauration" : plats disponibles aujourd'hui,
    groupés par catégorie (Entrée/Plat/Boisson/Dessert/Snack). Les plats
    indisponibles ne sont jamais affichés côté client. ---- */
@@ -9597,40 +9395,8 @@ function updateCartBar(){
   const products = Store.sellables;
   const amount = cart.reduce((s,c)=>{ const p = products.find(x=>x.id===c.productId); return s + (p?p.price*c.qty:0); },0);
   bar.classList.remove('hidden');
-  animateCartAmount(count, amount);
+  document.getElementById('cart-bar-amount').textContent = `${count} · ${Utils.fmtFCFA(amount)}`;
 }
-/* ---- Anime le montant du panier vers sa nouvelle valeur au lieu de le remplacer
-   brutalement, façon compteur d'app bancaire. Repli immédiat si aucune valeur
-   précédente (premier article ajouté). ---- */
-let _cartBarAmountShown = 0;
-function animateCartAmount(count, amount){
-  const el = document.getElementById('cart-bar-amount');
-  if(!el) return;
-  const from = _cartBarAmountShown;
-  const to = amount;
-  _cartBarAmountShown = to;
-  if(from===to){ el.textContent = `${count} · ${Utils.fmtFCFA(to)}`; return; }
-  const start = performance.now(), dur = 420;
-  function tick(now){
-    const p = Math.min(1,(now-start)/dur);
-    const eased = 1-Math.pow(1-p,3);
-    const val = Math.round(from + (to-from)*eased);
-    el.textContent = `${count} · ${Utils.fmtFCFA(val)}`;
-    if(p<1) requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-}
-/* ---- Retour visuel "Ajouté ✓" sur les boutons produit (délégation, purement
-   cosmétique — n'intercepte ni ne remplace la logique d'ajout existante). ---- */
-document.addEventListener('click', e=>{
-  const btn = e.target.closest && e.target.closest('.pcard-add');
-  if(!btn || btn.dataset.animLock) return;
-  const original = btn.textContent;
-  btn.dataset.animLock = '1';
-  btn.classList.add('added');
-  btn.textContent = '✓ Ajouté';
-  setTimeout(()=>{ btn.classList.remove('added'); btn.textContent = original; delete btn.dataset.animLock; }, 900);
-});
 
 /* ---------- Panier ---------- */
 Views.cart = function(){
@@ -13211,13 +12977,6 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     async create(item){
       const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
       const row={id:item.id||uid(),store_id:sid,image_url:item.image_url,link_type:item.link_type||'none',link_url:item.link_url||null,link_product_id:item.link_product_id||null,link_category_id:item.link_category_id||null,active:item.active!==false,position:Number(item.position||0)};
-      /* V67 — Promotions articles : ces champs étaient perdus avant l'enregistrement
-         (ils n'étaient pas repris dans `row`), donc les affiches promo n'étaient plus
-         reconnues comme telles au rechargement. On les repasse uniquement quand ils
-         sont fournis, pour ne rien changer au comportement des bannières classiques. */
-      if(item.promo_product!==undefined) row.promo_product = item.promo_product;
-      if(item.promo_title!==undefined) row.promo_title = item.promo_title;
-      if(item.promo_subtitle!==undefined) row.promo_subtitle = item.promo_subtitle;
       try{const {data,error}=await sb.from(TABLE).insert(row).select().single();if(error)throw error;this.items.push(data||row);localSave(this.items);return data||row;}catch(e){
         this.items.push(row); localSave(this.items);
         throw e;
@@ -13327,7 +13086,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
       Toast.show('Bannière publiée ✓');
       bannerFormState={file:null,linkType:'none'};
       await Banners.all(); renderManager();
-    }catch(e){console.error(e);Toast.show('Erreur : '+(e&&(e.message||e.error_description||e.toString&&e.toString())||'inconnue'));if(btn){btn.disabled=false;btn.textContent='Publier la bannière';}}
+    }catch(e){console.error(e);Toast.show('Impossible de publier. Vérifiez la configuration du stockage SIAMS.');if(btn){btn.disabled=false;btn.textContent='Publier la bannière';}}
   };
   window.toggleBannerItem=async id=>{const x=Banners.items.find(i=>String(i.id)===String(id));if(!x)return;try{await Banners.update(id,{active:x.active===false});Toast.show(x.active===false?'Bannière affichée ✓':'Bannière masquée ✓');renderManager();}catch(e){Toast.show('Impossible de modifier cette bannière');}};
   window.deleteBannerItem=async id=>{if(!confirm('Supprimer définitivement cette bannière ?'))return;try{await Banners.remove(id);Toast.show('Bannière supprimée ✓');renderManager();}catch(e){Toast.show('Impossible de supprimer cette bannière');}};
@@ -14126,10 +13885,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     };
   }
 
-  /* ---------- Mission plein écran : bandeau + carte live (Leaflet/OSM) + fiche client
-     façon "Track Package". La carte n'est initialisée qu'après insertion du HTML dans
-     le DOM (CourierMission.open/refresh sont enveloppés plus bas pour appeler
-     CourierMission._initMap juste après avoir posé le innerHTML). ---------- */
+  /* ---------- Mission plein écran ---------- */
   if(typeof CourierMission!=='undefined'){
     const oldRender=CourierMission._render.bind(CourierMission);
     CourierMission._render=function(a){
@@ -14140,8 +13896,6 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
       const phone=(a.customer_phone||'').trim();
       const gpsOn=courierWatchId!==null && String(courierTrackingId)===String(a.id);
       const mapsUrl='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent((a.customer_latitude||'')+','+(a.customer_longitude||''));
-      const initials=(a.customer_name||'C').trim().split(/\s+/).map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'C';
-      const hasGeo=a.customer_latitude!=null && a.customer_longitude!=null;
       return `<div class="courier-mission-head">
         <div class="courier-mission-head-row">
           <button class="courier-mission-back" onclick="CourierMission.close()" aria-label="Retour">←</button>
@@ -14156,138 +13910,18 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
           <div class="courier-mission-step"><div class="courier-mission-step-dot">3</div><span>Client confirme</span></div>
         </div>
       </div>
-      <div class="courier-track-map-wrap">
-        <div class="courier-track-map-badge ${gpsOn?'':'off'}"><span class="dot"></span>${gpsOn?'GPS en direct':'GPS non démarré'}</div>
-        ${hasGeo?`<div class="courier-track-eta-badge" id="courier-mission-dist">…</div>`:''}
-        <div id="courier-mission-map" class="courier-track-map loading"></div>
-      </div>
-      <div class="courier-mission-body" style="padding-top:0;">
-        <div class="courier-track-card">
-          <div class="courier-track-card-top">
-            <div class="courier-track-avatar">${Utils.escapeHtml(initials)}</div>
-            <div class="courier-track-id">
-              <div class="courier-track-name">${name}</div>
-              <div class="courier-track-sub">📍 ${addr}</div>
-            </div>
-            <div class="courier-track-contact">
-              ${phone?`<a class="call" href="tel:${Utils.escapeHtml(phone)}" aria-label="Appeler">${typeof ICO_PHONE_SVG!=='undefined'?ICO_PHONE_SVG:'📞'}</a><a class="msg" href="https://wa.me/${Utils.escapeHtml(phone.replace(/\\D/g,''))}" target="_blank" aria-label="WhatsApp">💬</a>`:''}
-            </div>
-          </div>
-          <div class="courier-track-status-row ${status==='arrived'?'done':''}">
-            ${status==='arrived'?'📍 Arrivé — en attente de confirmation du client':'🛵 En route vers le client'}
-          </div>
-          <div class="courier-track-route">
-            <div class="courier-track-route-rail"><span class="rdot a"></span><span class="rline"></span><span class="rdot b"></span></div>
-            <div class="courier-track-route-pts">
-              <div class="courier-track-route-pt"><span>Départ</span><b>Votre position (GPS)</b></div>
-              <div class="courier-track-route-pt"><span>Arrivée</span><b>${addr}</b></div>
-            </div>
-          </div>
-          <div class="courier-track-foot">
-            <div class="courier-track-foot-chip">Commande <b>#${Utils.escapeHtml(a.order_number||'')}</b></div>
-            <div class="courier-track-foot-amount">${a.amount!=null?Utils.fmtFCFA(a.amount):'—'}</div>
-          </div>
-        </div>
+      <div class="courier-mission-body">
+        <div class="courier-mission-card"><h4>Client</h4><div class="courier-mission-client-name">${name}</div><div class="courier-mission-client-addr">📍 ${addr}</div>
+        ${phone?`<div class="courier-mission-contact-row"><button class="btn btn-soft-green" onclick="window.open('tel:${Utils.escapeHtml(phone)}','_self')">📞 Appeler</button><button class="btn btn-outline" onclick="window.open('https://wa.me/${Utils.escapeHtml(phone.replace(/\\D/g,''))}','_blank')">WhatsApp</button></div>`:''}</div>
+        <div class="courier-mission-card"><h4>GPS</h4><span class="courier-mission-gps-badge ${gpsOn?'':'off'}"><span class="dot"></span>${gpsOn?'Position partagée en direct':'GPS non démarré'}</span></div>
         ${status==='arrived'?`<div class="courier-arrived-note">📍 Arrivée enregistrée. Demandez au client de confirmer la réception depuis son téléphone.</div>`:''}
       </div>
       <div class="courier-mission-actions">
-        <button class="btn btn-outline btn-block" onclick="window.open('${mapsUrl}','_blank')">Itinéraire (Google Maps)</button>
+        <button class="btn btn-outline btn-block" onclick="window.open('${mapsUrl}','_blank')">Itinéraire</button>
         <button class="btn btn-soft-indigo btn-block" onclick="startCourierLiveGps('${a.id}')">${gpsOn?'GPS actif — relancer':'Démarrer mon GPS'}</button>
         ${status==='accepted'?`<button class="btn btn-primary btn-courier-primary btn-block" onclick="courierArrived('${a.id}')">📍 Je suis arrivé</button>`:`<button class="btn btn-outline btn-block" onclick="CourierMission.close()">Attendre la confirmation du client</button>`}
       </div>`;
     };
-
-    /* ---- Cycle de vie de la carte Leaflet : init après insertion du DOM, mise à jour
-       légère de la position sans tout re-rendre, nettoyage à la fermeture. ---- */
-    let courierMissionMapObj=null, courierMissionCourierMarker=null, courierMissionClientMarker=null, courierMissionRouteLine=null;
-    let courierMissionRouteFetchAt=0;
-    window.courierLastGpsCoords=window.courierLastGpsCoords||null;
-
-    CourierMission._destroyMap=function(){
-      if(courierMissionMapObj){ try{courierMissionMapObj.remove();}catch(e){} }
-      courierMissionMapObj=null; courierMissionCourierMarker=null; courierMissionClientMarker=null; courierMissionRouteLine=null;
-    };
-
-    CourierMission._drawRoute=function(lat1,lng1,lat2,lng2){
-      const map=courierMissionMapObj; if(!map) return;
-      const drawStraight=()=>{
-        if(courierMissionRouteLine){ try{map.removeLayer(courierMissionRouteLine);}catch(e){} }
-        courierMissionRouteLine=L.polyline([[lat1,lng1],[lat2,lng2]],{color:'#ff7a00',weight:4,opacity:.85,dashArray:'2 10',lineCap:'round'}).addTo(map);
-      };
-      const now=Date.now();
-      if(now-courierMissionRouteFetchAt<15000){ if(!courierMissionRouteLine) drawStraight(); return; }
-      courierMissionRouteFetchAt=now;
-      fetch(`https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson`)
-        .then(r=>r.ok?r.json():Promise.reject())
-        .then(d=>{
-          const coords=d && d.routes && d.routes[0] && d.routes[0].geometry && d.routes[0].geometry.coordinates;
-          if(!coords || !coords.length) return drawStraight();
-          const latlngs=coords.map(c=>[c[1],c[0]]);
-          if(courierMissionRouteLine){ try{map.removeLayer(courierMissionRouteLine);}catch(e){} }
-          courierMissionRouteLine=L.polyline(latlngs,{color:'#ff7a00',weight:5,opacity:.9,lineCap:'round',lineJoin:'round'}).addTo(map);
-        })
-        .catch(drawStraight);
-    };
-
-    CourierMission._initMap=function(a){
-      const mapEl=document.getElementById('courier-mission-map');
-      if(!mapEl || typeof L==='undefined') return;
-      CourierMission._destroyMap();
-      mapEl.classList.remove('loading');
-      const clientLat=Number(a.customer_latitude), clientLng=Number(a.customer_longitude);
-      const hasClient=isFinite(clientLat) && isFinite(clientLng);
-      const start=window.courierLastGpsCoords;
-      const center = start?[start.lat,start.lng]:(hasClient?[clientLat,clientLng]:[5.3599,-4.0083]);
-      const map=L.map(mapEl,{zoomControl:false,attributionControl:false}).setView(center,14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-      courierMissionMapObj=map;
-      if(hasClient) courierMissionClientMarker=L.marker([clientLat,clientLng],{icon:L.divIcon({className:'',html:'<div class="cm-pin cm-pin-client"><span>🏠</span></div>',iconSize:[32,32],iconAnchor:[16,32]})}).addTo(map);
-      if(start) courierMissionCourierMarker=L.marker([start.lat,start.lng],{icon:L.divIcon({className:'',html:'<div class="cm-pin cm-pin-courier"><span>🛵</span></div>',iconSize:[36,36],iconAnchor:[18,18]})}).addTo(map);
-      if(hasClient && start){
-        map.fitBounds(L.latLngBounds([[start.lat,start.lng],[clientLat,clientLng]]),{padding:[44,44]});
-        CourierMission._drawRoute(start.lat,start.lng,clientLat,clientLng);
-      }
-      CourierMission._updateDistanceBadge(a);
-      setTimeout(()=>{ try{map.invalidateSize();}catch(e){} },80);
-    };
-
-    CourierMission._updateDistanceBadge=function(a){
-      const el=document.getElementById('courier-mission-dist'); if(!el) return;
-      const start=window.courierLastGpsCoords;
-      const clientLat=Number(a.customer_latitude), clientLng=Number(a.customer_longitude);
-      if(!start || !isFinite(clientLat) || !isFinite(clientLng)){ el.textContent='—'; return; }
-      const km=courierHaversineKm(start.lat,start.lng,clientLat,clientLng);
-      el.textContent = km<1 ? Math.round(km*1000)+' m' : km.toFixed(1)+' km';
-    };
-
-    CourierMission.updateCourierPosition=function(lat,lng){
-      window.courierLastGpsCoords={lat,lng};
-      const map=courierMissionMapObj; if(!map) return;
-      if(courierMissionCourierMarker) courierMissionCourierMarker.setLatLng([lat,lng]);
-      else courierMissionCourierMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div class="cm-pin cm-pin-courier"><span>🛵</span></div>',iconSize:[36,36],iconAnchor:[18,18]})}).addTo(map);
-      const a=CourierMission.find(CourierMission.openId);
-      if(a){
-        CourierMission._updateDistanceBadge(a);
-        const clientLat=Number(a.customer_latitude), clientLng=Number(a.customer_longitude);
-        if(isFinite(clientLat) && isFinite(clientLng)) CourierMission._drawRoute(lat,lng,clientLat,clientLng);
-      }
-    };
-
-    const oldOpen=CourierMission.open.bind(CourierMission);
-    CourierMission.open=function(id){
-      oldOpen(id);
-      const a=CourierMission.find(id);
-      if(a && (a.status==='accepted'||a.status==='arrived')) setTimeout(()=>CourierMission._initMap(a),30);
-    };
-    const oldRefresh=CourierMission.refresh.bind(CourierMission);
-    CourierMission.refresh=function(){
-      oldRefresh();
-      if(!CourierMission.openId) return;
-      const a=CourierMission.find(CourierMission.openId);
-      if(a && (a.status==='accepted'||a.status==='arrived')) setTimeout(()=>CourierMission._initMap(a),30);
-    };
-    const oldClose=CourierMission.close.bind(CourierMission);
-    CourierMission.close=function(){ CourierMission._destroyMap(); oldClose(); };
   }
 
   /* ---------- Empêche l'ancien bouton livreur "Marquer livrée" d'apparaître. */
