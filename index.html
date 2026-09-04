@@ -3632,92 +3632,35 @@ const ICONS = {
    ========================================================= */
 const Views = {};
 
-/* ---------- Écran d'animation SIAMS — ouverture premium du premier écran ---------- */
+/* ---------- Écran d'animation au démarrage / après connexion ---------- */
 if(!document.getElementById('siams-splash-anim-style')){
   const splashStyle=document.createElement('style');
   splashStyle.id='siams-splash-anim-style';
   splashStyle.textContent=`
-    @keyframes siamsSplashReveal{0%{opacity:0;transform:scale(.82) translateY(18px);filter:blur(8px)}55%{opacity:1;transform:scale(1.045) translateY(0);filter:blur(0)}75%{transform:scale(.985)}100%{transform:scale(1)}}
-    @keyframes siamsSplashLogoFloat{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-5px) rotate(.4deg)}}
-    @keyframes siamsSplashSweep{0%{transform:translateX(-150%) skewX(-18deg);opacity:0}25%{opacity:.7}55%{opacity:.15}100%{transform:translateX(180%) skewX(-18deg);opacity:0}}
-    @keyframes siamsSplashGlow{0%,100%{box-shadow:0 22px 48px -18px rgba(0,145,253,.32),0 0 0 0 rgba(0,145,253,.18)}50%{box-shadow:0 26px 58px -15px rgba(0,145,253,.45),0 0 0 13px rgba(0,145,253,0)}}
-    @keyframes siamsSplashBrandIn{0%{opacity:0;transform:translateY(14px);letter-spacing:5px}100%{opacity:1;transform:translateY(0);letter-spacing:.8px}}
-    @keyframes siamsSplashEntityIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
-    @keyframes siamsSplashMsgIn{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:translateY(0)}85%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-8px)}}
-    @keyframes siamsSplashBg{0%,100%{opacity:.32;transform:translate(-8%,-6%) scale(1)}50%{opacity:.62;transform:translate(5%,4%) scale(1.14)}}
-    @keyframes siamsSplashBg2{0%,100%{opacity:.20;transform:translate(6%,8%) scale(1)}50%{opacity:.46;transform:translate(-4%,-4%) scale(1.18)}}
-    @keyframes siamsSplashRing{0%{transform:scale(.9);opacity:.55}100%{transform:scale(1.62);opacity:0}}
-    @keyframes siamsSplashBarLoop{0%{transform:translateX(-130%)}100%{transform:translateX(260%)}}
-
-    .siams-splash-wrap{
-      min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
-      padding:32px 24px;text-align:center;position:relative;overflow:hidden;background:var(--paper);
-      isolation:isolate;
-    }
-    .siams-splash-wrap::before{
-      content:'';position:absolute;inset:0;z-index:-1;
-      background:radial-gradient(420px 260px at 50% 38%,rgba(0,145,253,.075),transparent 68%);
-      pointer-events:none;
-    }
-    .siams-splash-bg{
-      position:absolute;top:-16%;left:-18%;width:68vw;height:68vw;max-width:420px;max-height:420px;
-      border-radius:50%;background:radial-gradient(circle,rgba(0,145,253,.17),transparent 65%);
-      animation:siamsSplashBg 7s ease-in-out infinite;pointer-events:none;z-index:-1;
-    }
-    .siams-splash-bg2{
-      position:absolute;bottom:-14%;right:-16%;width:58vw;height:58vw;max-width:380px;max-height:380px;
-      border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.15),transparent 65%);
-      animation:siamsSplashBg2 8s ease-in-out infinite;pointer-events:none;z-index:-1;
-    }
-    .siams-splash-card{
-      position:relative;z-index:1;padding:26px 24px 24px;border-radius:32px;
-      animation:siamsSplashReveal .8s cubic-bezier(.2,.85,.25,1) both;
-    }
-    .siams-splash-logo-wrap{position:relative;width:104px;height:104px;margin:0 auto 22px;}
-    .siams-splash-ring{
-      position:absolute;inset:0;border-radius:29px;border:1.5px solid var(--accent-1);
-      animation:siamsSplashRing 2.4s ease-out infinite;pointer-events:none;
-    }
-    .siams-splash-ring.delay{animation-delay:1.2s}
-    .siams-splash-logo{
-      width:104px;height:104px;border-radius:29px;
-      background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 52%,var(--accent-1) 100%);
-      display:flex;align-items:center;justify-content:center;position:relative;z-index:1;overflow:hidden;
-      animation:siamsSplashGlow 2.4s ease-in-out .8s infinite,siamsSplashLogoFloat 3.8s ease-in-out 1.2s infinite;
-    }
-    .siams-splash-logo::after{
-      content:'';position:absolute;top:-20%;bottom:-20%;left:0;width:38%;
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,.48),transparent);
-      animation:siamsSplashSweep 2.8s ease-in-out 1.1s infinite;pointer-events:none;
-    }
-    .siams-splash-logo img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1}
-    .siams-splash-brand{
-      font-family:var(--font-display);font-size:27px;font-weight:900;letter-spacing:.8px;
-      position:relative;z-index:1;color:var(--text);opacity:0;
-      animation:siamsSplashBrandIn .65s cubic-bezier(.2,.9,.3,1) .55s forwards;
-    }
-    .siams-splash-entity{
-      margin-top:6px;font-size:10.5px;line-height:1.4;font-weight:800;letter-spacing:.04em;
-      text-transform:uppercase;color:var(--text-mid);opacity:0;max-width:290px;
-      animation:siamsSplashEntityIn .55s ease-out .95s forwards;
-    }
-    .siams-splash-msg-wrap{height:20px;margin-top:13px;position:relative;z-index:1;overflow:hidden}
-    .siams-splash-text{font-size:13px;font-weight:650;color:var(--text-mid);position:relative;z-index:1}
-    .siams-splash-bar-track{
-      width:156px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;
-      margin:25px auto 0;position:relative;z-index:1
-    }
-    .siams-splash-bar-fill{
-      position:absolute;top:0;bottom:0;width:42%;border-radius:4px;
-      background:linear-gradient(90deg,transparent,var(--accent-1),var(--mango),transparent);
-      animation:siamsSplashBarLoop 1.35s ease-in-out infinite
-    }
-    @media(prefers-reduced-motion:reduce){
-      .siams-splash-card,.siams-splash-logo,.siams-splash-bg,.siams-splash-bg2,
-      .siams-splash-ring,.siams-splash-ring.delay,.siams-splash-logo::after,
-      .siams-splash-brand,.siams-splash-entity,.siams-splash-bar-fill{animation:none!important}
-      .siams-splash-brand,.siams-splash-entity{opacity:1}
-    }
+    @keyframes siamsSplashLogoIn{0%{opacity:0;transform:scale(.55) translateY(14px);}60%{opacity:1;transform:scale(1.06) translateY(0);}100%{opacity:1;transform:scale(1) translateY(0);}}
+    @keyframes siamsSplashGlow{0%,100%{box-shadow:0 20px 46px -14px rgba(22,200,220,.55),0 0 0 0 rgba(22,200,220,.35);}50%{box-shadow:0 20px 54px -10px rgba(22,200,220,.75),0 0 0 16px rgba(22,200,220,0);}}
+    @keyframes siamsSplashTextIn{0%{opacity:0;transform:translateY(10px);}100%{opacity:1;transform:translateY(0);}}
+    @keyframes siamsSplashBg{0%,100%{opacity:.5;transform:translate(-8%,-6%) scale(1);}50%{opacity:.85;transform:translate(4%,5%) scale(1.16);}}
+    @keyframes siamsSplashBg2{0%,100%{opacity:.35;transform:translate(6%,8%) scale(1);}50%{opacity:.65;transform:translate(-5%,-4%) scale(1.2);}}
+    @keyframes siamsSplashRing{0%{transform:scale(.92);opacity:.5;}100%{transform:scale(1.6);opacity:0;}}
+    @keyframes siamsSplashMsgIn{0%{opacity:0;transform:translateY(8px);}15%{opacity:1;transform:translateY(0);}85%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-8px);}}
+    @keyframes siamsSplashBarLoop{0%{transform:translateX(-110%);}100%{transform:translateX(230%);}}
+    .siams-splash-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;background:var(--paper);}
+    .siams-splash-grid{display:none;}
+    .siams-splash-dot{display:none;}
+    .siams-splash-bg{position:absolute;top:-16%;left:-18%;width:68vw;height:68vw;max-width:420px;max-height:420px;border-radius:50%;background:radial-gradient(circle,rgba(28,126,242,.16),transparent 65%);animation:siamsSplashBg 7s ease-in-out infinite;pointer-events:none;}
+    .siams-splash-bg2{position:absolute;bottom:-14%;right:-16%;width:58vw;height:58vw;max-width:380px;max-height:380px;border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.14),transparent 65%);animation:siamsSplashBg2 8s ease-in-out infinite;pointer-events:none;}
+    .siams-splash-card{position:relative;z-index:1;padding:30px 34px 26px;border-radius:32px;}
+    .siams-splash-logo-wrap{position:relative;width:88px;height:88px;margin:0 auto 20px;}
+    .siams-splash-ring{position:absolute;inset:0;border-radius:24px;border:1.5px solid var(--cyan);animation:siamsSplashRing 2.2s ease-out infinite;pointer-events:none;}
+    .siams-splash-ring.delay{animation-delay:1.1s;}
+    .siams-splash-logo{width:88px;height:88px;border-radius:24px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;overflow:hidden;animation:siamsSplashLogoIn .65s cubic-bezier(.2,.9,.3,1.3) both, siamsSplashGlow 2.4s ease-in-out .65s infinite;}
+    .siams-splash-logo img{width:100%;height:100%;object-fit:cover;}
+    .siams-splash-brand{font-size:20px;font-weight:900;letter-spacing:.5px;position:relative;z-index:1;color:var(--text);opacity:0;animation:siamsSplashTextIn .5s ease-out .45s forwards;}
+    .siams-splash-msg-wrap{height:20px;margin-top:9px;position:relative;z-index:1;overflow:hidden;}
+    .siams-splash-text{font-size:13px;font-weight:600;color:var(--text-mid);position:relative;z-index:1;}
+    .siams-splash-bar-track{width:140px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin:24px auto 0;position:relative;z-index:1;}
+    .siams-splash-bar-fill{position:absolute;top:0;bottom:0;width:40%;border-radius:4px;background:linear-gradient(90deg,transparent,var(--indigo-dark),var(--cyan),transparent);animation:siamsSplashBarLoop 1.3s ease-in-out infinite;}
   `;
   document.head.appendChild(splashStyle);
 }
@@ -3802,8 +3745,7 @@ Views.loading = function(){
         </div>
       </div>
       <div class="siams-splash-brand">SIAMS</div>
-      <div class="siams-splash-entity">Société Informatique Agréée Multi-Services</div>
-      <div class="siams-splash-msg-wrap"><div class="siams-splash-text">L’innovation au service de vos ambitions</div></div>
+      <div class="siams-splash-msg-wrap"><div class="siams-splash-text">Bon retour</div></div>
       <div class="siams-splash-bar-track"><div class="siams-splash-bar-fill"></div></div>
     </div>
   </div>`;
@@ -3826,8 +3768,8 @@ async function showWelcomeBackThenDashboard(){
   const root = document.getElementById('page-root');
   const bottomNav = document.getElementById('bottom-nav');
   if(bottomNav) bottomNav.classList.add('hidden');
-  if(root){ root.innerHTML = Views.loading(); siamsRunSplashMessages(root, 1800); }
-  await new Promise(resolve=>setTimeout(resolve, 1800));
+  if(root){ root.innerHTML = Views.loading(); siamsRunSplashMessages(root, 1200); }
+  await new Promise(resolve=>setTimeout(resolve, 1200));
   Router.go('dashboard');
 }
 Views.welcome = function(){
@@ -10794,7 +10736,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   /* Le chargement réel démarre tout de suite, en parallèle de ce délai minimum
      (juste assez pour que l'animation ne clignote pas) — au lieu d'attendre
      bêtement 3 secondes avant même de commencer à charger quoi que ce soit. */
-  const splashMinDelay = new Promise(resolve=>setTimeout(resolve, 1800));
+  const splashMinDelay = new Promise(resolve=>setTimeout(resolve, 900));
   try{
     /* ---- Vitrine publique : /{slug}[?produit={id}] ---- */
     const path = location.pathname.replace(/^\/+|\/+$/g, '');
@@ -11205,7 +11147,15 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 .ams-final-brand strong,.ams-final-brand b{font-size:9px;}
 .ams-final-brand img{width:22px;height:22px;}
 .ams-final-divider{height:18px;}
-.onboard-public-panorama .onboard-kicker{color:var(--indigo);}
+.onboard-public-panorama .onboard-kicker{color:var(--mango-dark);}
+/* ---- Palette "Découvrir SIAMS" alignée sur login-preview (mango/bleu) ---- */
+.onboard-public-panorama.onboard-merchant-pro{background:radial-gradient(600px 380px at 50% 12%,rgba(255,122,26,.12),transparent 70%),linear-gradient(180deg,var(--mango-tint) 0%,var(--panel) 100%);}
+.onboard-public-panorama .onboard-progress-line{background:var(--mango-tint);}
+.onboard-public-panorama .onboard-progress-line span{background:linear-gradient(90deg,var(--mango),var(--blue));}
+.onboard-public-panorama .onboard-arrow{color:var(--mango-dark);border-color:var(--mango-tint);}
+.onboard-public-panorama .onboard-gesture span{color:var(--mango-dark);}
+.onboard-public-panorama .onboard-icon{background:var(--mango-tint);color:var(--mango-dark);}
+.onboard-public-panorama .onboard-skip:hover{color:var(--mango-dark);}
 @media(max-width:380px){
   .onboard-merchant-top{padding-left:13px;padding-right:13px;gap:8px;}
   .onboard-merchant-head{padding-left:14px;padding-right:14px;}
