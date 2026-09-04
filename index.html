@@ -3941,32 +3941,6 @@ Views.login = function(){
   return `
   <div class="siams-login-preview">
     <style>
-      .siams-login-preview{
-        position:fixed;
-        inset:0;
-        z-index:99999;
-        width:100vw;
-        height:100dvh;
-        min-height:100dvh;
-        overflow-y:auto;
-        overflow-x:hidden;
-        background:#EDEAE0;
-        -webkit-overflow-scrolling:touch;
-      }
-      .siams-login-preview .siams-lp-phone{
-        width:100%;
-        max-width:none;
-        min-height:100dvh;
-        height:auto;
-        margin:0;
-        border-radius:0;
-        box-shadow:none;
-        background:transparent;
-      }
-      .siams-login-preview .siams-lp-hero{width:100%;}
-      .siams-login-preview .siams-lp-card{width:100%;}
-    </style>
-    <style>
 
   :root{
     --ink:#0B0E17;
@@ -3985,12 +3959,22 @@ Views.login = function(){
     --line:#E7E2D6;
   }
   *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#EDEAE0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:40px 16px;
+  }
   .siams-lp-phone{
     width:100%;
-    max-width:none;
-    min-height:100dvh;
+    max-width:480px;
+    min-height:100vh;
     height:auto;
-    background:transparent;
+    background:#fff;
     border-radius:0;
     box-shadow:none;
     overflow:hidden;
@@ -4124,22 +4108,26 @@ Views.login = function(){
     display:flex;
     align-items:center;
     gap:9px;
-    background:var(--panel);
-    border:1.5px solid transparent;
+    background:var(--blue-tint);
+    border:1.5px solid var(--blue);
     border-radius:14px;
     padding:0 14px;
     height:52px;
-    transition:border-color .15s ease;
+    transition:border-color .15s ease, background .15s ease, box-shadow .15s ease;
   }
-  .siams-lp-input-wrap:focus-within{border-color:var(--mango);background:#fff;}
-  .siams-lp-input-wrap svg{flex:none;color:var(--text-soft);}
+  .siams-lp-input-wrap:focus-within{
+    border-color:var(--blue);
+    background:#EAF6FF;
+    box-shadow:0 0 0 3px rgba(0,145,253,.12);
+  }
+  .siams-lp-input-wrap svg{flex:none;color:#0B67D8;}
   .siams-lp-input-wrap input{
     border:none;outline:none;background:transparent;
-    flex:1;font-size:14.5px;color:var(--text);
+    flex:1;font-size:14.5px;color:#0B67D8;
     font-family:inherit;height:100%;
   }
-  .siams-lp-input-wrap input::placeholder{color:var(--text-soft);}
-  .siams-lp-eye-btn{background:none;border:none;padding:2px;color:var(--text-soft);display:flex;cursor:pointer;}
+  .siams-lp-input-wrap input::placeholder{color:#0B67D8;opacity:.82;}
+  .siams-lp-eye-btn{background:none;border:none;padding:2px;color:#0B67D8;display:flex;cursor:pointer;}
 
   .siams-lp-row-between{
     display:flex;align-items:center;justify-content:space-between;
@@ -4149,21 +4137,26 @@ Views.login = function(){
   .siams-lp-remember{display:flex;align-items:center;gap:7px;color:var(--text-mid);}
   .siams-lp-checkbox{
     width:17px;height:17px;border-radius:6px;
-    border:1.6px solid var(--line);
+    border:1.6px solid var(--blue);
     display:flex;align-items:center;justify-content:center;
-    background:var(--mango);
+    background:var(--blue);
     color:#fff;
   }
-  .siams-lp-link{color:var(--mango-dark);font-weight:700;text-decoration:none;}
+  .siams-lp-link{color:#0B67D8;font-weight:700;text-decoration:none;}
 
   .siams-lp-btn-primary{
     display:block;width:100%;border:none;cursor:pointer;
-    background:linear-gradient(135deg,var(--mango) 0%, #FF9A4D 100%);
+    background:linear-gradient(135deg,#0866FF 0%, var(--blue) 100%);
     color:#fff;font-size:15.5px;font-weight:800;
     padding:16px;border-radius:16px;
-    box-shadow:0 14px 26px -10px rgba(255,122,26,.55);
+    box-shadow:0 14px 26px -10px rgba(0,102,255,.35);
     letter-spacing:.1px;
+    transition:transform .15s ease, box-shadow .15s ease;
   }
+  .siams-lp-btn-primary:hover{
+    box-shadow:0 16px 30px -10px rgba(0,102,255,.45);
+  }
+  .siams-lp-btn-primary:active{transform:translateY(1px);}
 
   .siams-lp-id-note{
     margin-top:16px;
@@ -4223,16 +4216,16 @@ Views.login = function(){
     </div>
 
     <div class="siams-lp-msg-board">
-      <div class="siams-lp-msg-siams-lp-card">
-        <div class="siams-lp-msg-ico siams-lp-mango">🛍️</div>
+      <div class="siams-lp-msg-card">
+        <div class="siams-lp-msg-ico mango">🛍️</div>
         <div class="siams-lp-msg-text"><b>Nouvelle commande</b><span>Robe wax — 12 000 FCFA</span></div>
       </div>
-      <div class="siams-lp-msg-siams-lp-card">
-        <div class="siams-lp-msg-ico siams-lp-green">💳</div>
+      <div class="siams-lp-msg-card">
+        <div class="siams-lp-msg-ico green">💳</div>
         <div class="siams-lp-msg-text"><b>Paiement reçu</b><span>Wave — confirmé</span></div>
       </div>
-      <div class="siams-lp-msg-siams-lp-card">
-        <div class="siams-lp-msg-ico siams-lp-blue">⭐</div>
+      <div class="siams-lp-msg-card">
+        <div class="siams-lp-msg-ico blue">⭐</div>
         <div class="siams-lp-msg-text"><b>Nouvel avis client</b><span>5 étoiles — merci !</span></div>
       </div>
     </div>
