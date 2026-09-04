@@ -3939,21 +3939,11 @@ Views['activation-code'] = function(){
 Views.login = function(){
   authMode='login';
   return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">
-    <button onclick="Router.go('welcome')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
-    <h1 style="font-size:24px;margin:0 0 6px;">Connexion</h1>
-    <p style="color:var(--text-mid);font-size:14px;margin:0 0 26px;">Connectez-vous pour gérer votre boutique.</p>
-    <div class="field"><label>E-mail ou ID marchand SIAMS</label><input id="auth-email" type="text" placeholder="vous@exemple.com ou SIAMS-XXXXXX" autocomplete="username"></div>
-    <div class="field"><label>Mot de passe</label>
-      <div class="pass-field-wrap"><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass', this)">${EYE_SVG}</button></div>
-      <div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go('recover-id')">ID marchand oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button></div>
-    </div>
-    <div id="auth-error" style="font-size:13px;margin-bottom:14px;"></div>
-    <button class="btn btn-primary btn-block" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>
-    <div style="margin-top:14px;padding:12px 13px;border-radius:13px;background:var(--panel);color:var(--text-mid);font-size:11.5px;line-height:1.45;">L’accès aux nouvelles inscriptions est réservé aux personnes ayant reçu un code partenaire du service client SIAMS.</div>
+  <style>
+${css}
+  </style>
+  <div class="lp-phone">
+${inner}
   </div>`;
 };
 Views.register = function(){
@@ -11147,15 +11137,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 .ams-final-brand strong,.ams-final-brand b{font-size:9px;}
 .ams-final-brand img{width:22px;height:22px;}
 .ams-final-divider{height:18px;}
-.onboard-public-panorama .onboard-kicker{color:var(--mango-dark);}
-/* ---- Palette "Découvrir SIAMS" alignée sur login-preview (mango/bleu) ---- */
-.onboard-public-panorama.onboard-merchant-pro{background:radial-gradient(600px 380px at 50% 12%,rgba(255,122,26,.12),transparent 70%),linear-gradient(180deg,var(--mango-tint) 0%,var(--panel) 100%);}
-.onboard-public-panorama .onboard-progress-line{background:var(--mango-tint);}
-.onboard-public-panorama .onboard-progress-line span{background:linear-gradient(90deg,var(--mango),var(--blue));}
-.onboard-public-panorama .onboard-arrow{color:var(--mango-dark);border-color:var(--mango-tint);}
-.onboard-public-panorama .onboard-gesture span{color:var(--mango-dark);}
-.onboard-public-panorama .onboard-icon{background:var(--mango-tint);color:var(--mango-dark);}
-.onboard-public-panorama .onboard-skip:hover{color:var(--mango-dark);}
+.onboard-public-panorama .onboard-kicker{color:var(--indigo);}
 @media(max-width:380px){
   .onboard-merchant-top{padding-left:13px;padding-right:13px;gap:8px;}
   .onboard-merchant-head{padding-left:14px;padding-right:14px;}
