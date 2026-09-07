@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="format-detection" content="telephone=no">
-<link rel="preload" as="image" href="/assets/siams-mascotte.webp" fetchpriority="high">
+<link rel="preload" as="image" href="./assets/siams-mascotte.webp" fetchpriority="high">
 <title>SIAMS – Boutique en ligne</title>
 <meta name="description" content="Les services SIAMS de boutique en ligne. Créez, gérez et développez votre boutique en ligne en toute simplicité : commandes, livraison en temps réel, paiements et notifications.">
 <meta name="theme-color" content="#111111">
@@ -1480,8 +1480,8 @@
    ========================================================= */
 
 /* ---------------- Logo SIAMS ---------------- */
-const LOGO_DATA_URI = "/assets/siams-logo.webp";
-const LOGO_ASSET_URL = "/assets/siams-logo.webp";
+const LOGO_DATA_URI = "./assets/siams-logo.webp";
+const LOGO_ASSET_URL = "./assets/siams-logo.webp";
 
 /* ---------------- Supabase ---------------- */
 const SUPABASE_URL = 'https://anlqgkrjiwkeaqikgdcd.supabase.co';
@@ -2700,7 +2700,7 @@ async function exportSalesReportPDF(){
   if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
-  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('/assets/siams-logo.webp');
+  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('./assets/siams-logo.webp');
   const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
   const M=40, store=Store.store||{};
   const C={navy:[5,42,77],blue:[0,96,217],ink:[22,35,47],muted:[92,107,122],line:[220,228,236],soft:[244,247,250],green:[30,158,107],white:[255,255,255]};
@@ -4003,7 +4003,7 @@ Views.login = function(){
     inset:0;
     width:100vw;
     height:100dvh;
-    z-index:1;
+    z-index:auto;
     flex:none;
     background:
       radial-gradient(120% 90% at 50% 0%, var(--mango-tint) 0%, #FDE3CC 45%, var(--panel) 100%);
@@ -4018,8 +4018,8 @@ Views.login = function(){
     pointer-events:none;
   }
   .siams-lp-hero-top{
-    position:relative;
-    z-index:2;
+    position:fixed;
+    z-index:25;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -4046,9 +4046,10 @@ Views.login = function(){
   }
   .siams-lp-brand .siams-lp-dot{width:8px;height:8px;border-radius:50%;background:var(--mango);}
   .siams-lp-mascot-wrap{
-    position:absolute;
+    position:fixed;
     left:2%;
     bottom:0;
+    z-index:20;
     width:min(42vw,360px);
     height:min(58vh,520px);
     pointer-events:none;
@@ -4056,7 +4057,7 @@ Views.login = function(){
 
   .siams-lp-mascot-img{
     position:absolute;
-    z-index:2;
+    z-index:21;
     left:50%;
     bottom:0;
     width:min(42vw,360px);
@@ -4068,7 +4069,7 @@ Views.login = function(){
   }
 
   .siams-lp-msg-board{
-    position:absolute;
+    position:fixed;
     right:5vw;
     top:12vh;
     width:min(46vw,390px);
@@ -4076,7 +4077,7 @@ Views.login = function(){
     display:flex;
     flex-direction:column;
     gap:10px;
-    z-index:2;
+    z-index:19;
   }
   .siams-lp-msg-card{
     display:flex;
@@ -4254,7 +4255,7 @@ Views.login = function(){
     </div>
 
     <div class="siams-lp-mascot-wrap">
-      <img class="siams-lp-mascot-img" src="/assets/siams-mascotte.webp">
+      <img class="siams-lp-mascot-img" src="./assets/siams-mascotte.webp">
     </div>
 
     <div class="siams-lp-msg-board">
@@ -4566,7 +4567,7 @@ async function downloadAccountIdCardPDF(){
   const navy = [5,42,77], blueDeep = [0,96,217], cyan = [0,214,238], white = [255,255,255];
   const cardW = 340, cardH = 214; // format carte bancaire, en points
   const doc = new jsPDF({ unit:'pt', format:[cardW+40, cardH+40] });
-  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('/assets/siams-logo.webp');
+  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('./assets/siams-logo.webp');
   const ox = 20, oy = 20;
 
   // Fond dégradé simulé (bandes) + panneau navy
@@ -4939,7 +4940,7 @@ async function downloadAccountContractPDF(){
   if(!ContractGate.ref){ ContractGate.ref = Utils.genAccountContractRef(); ContractGate.createdAt = Date.now(); }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
-  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('/assets/siams-logo.webp');
+  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('./assets/siams-logo.webp');
   const W = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 46;
@@ -5175,7 +5176,7 @@ const COMMISSION_RATE = 0.05; // 5%
 const SUBSCRIPTION_COMMISSION_RATE = 0; // commission d'abonnement retirée
 const PAYMENT_CONFIRM_DELAY_MS = 5*60*1000; // délai de vérification manuelle du paiement : 5 minutes
 /* ---- Identité SIAMS pour tout reçu officiel émis par l'application (voir renderSIAMSReceiptPDF) ---- */
-const SIAMS_WATERMARK_DATA_URI = "/assets/siams-watermark.webp";
+const SIAMS_WATERMARK_DATA_URI = "./assets/siams-watermark.webp";
 const SIAMS_RECEIPT_IDENTITY = {
   name: 'SIAMS',
   fullName: 'Société Informatique Agréée Multi-Services',
@@ -10587,7 +10588,7 @@ async function renderSIAMSReceiptPDF(doc, data){
   doc.setFillColor(PAPER[0],PAPER[1],PAPER[2]);
   doc.roundedRect(W-margin-58, 20, 58, 58, 12, 12, 'F');
   try{
-    const pdfLogo = issuer.logo && String(issuer.logo).startsWith('data:image/') ? issuer.logo : await loadImageAsDataURL(issuer.logo || '/assets/siams-logo.webp');
+    const pdfLogo = issuer.logo && String(issuer.logo).startsWith('data:image/') ? issuer.logo : await loadImageAsDataURL(issuer.logo || './assets/siams-logo.webp');
     if(pdfLogo) doc.addImage(pdfLogo, 'PNG', W-margin-53, 25, 48, 48);
   }catch(e){}
   doc.setTextColor(255,255,255);
@@ -10769,7 +10770,7 @@ async function downloadReceiptPDF(orderId){
   const store = Store.store;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
-  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('/assets/siams-logo.webp');
+  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('./assets/siams-logo.webp');
 
   if(!order.receiptNumber){ order.receiptNumber = Utils.genReceiptNumber(); Store.orders = Store.orders.map(o=>o.id===order.id?order:o); }
 
@@ -10836,7 +10837,7 @@ async function downloadSubscriptionReceiptPDF(){
   const store = Store.store;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
-  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('/assets/siams-logo.webp');
+  const PDF_LOGO_DATA_URI = await loadImageAsDataURL('./assets/siams-logo.webp');
 
   const receiptNumber = Store.subscription.receiptNumber || Utils.genReceiptNumber();
   if(!Store.subscription.receiptNumber){ Store.subscription = { ...Store.subscription, receiptNumber }; }
@@ -13109,7 +13110,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     const margin = 46;
     const blueDeep=[0,96,217], mid=[92,107,122], ink=[22,35,47], line=[220,228,236];
     let y = 0;
-    try{ const pdfLogo=await loadImageAsDataURL('/assets/siams-logo.webp'); if(pdfLogo) doc.addImage(pdfLogo,'PNG',W-margin-40,30,40,40); }catch(e){}
+    try{ const pdfLogo=await loadImageAsDataURL('./assets/siams-logo.webp'); if(pdfLogo) doc.addImage(pdfLogo,'PNG',W-margin-40,30,40,40); }catch(e){}
     doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(blueDeep[0],blueDeep[1],blueDeep[2]);
     doc.text('Dossier de certification boutique', margin, 52);
     doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(mid[0],mid[1],mid[2]);
