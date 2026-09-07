@@ -3984,11 +3984,12 @@ Views.login = function(){
     margin:0;
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     background:#fff;
+    overflow-x:hidden;
   }
   .siams-lp-phone{
     width:100vw;
     max-width:none;
-    min-height:100dvh;
+    min-height:140dvh;
     height:auto;
     background:transparent;
     border-radius:0;
@@ -4003,7 +4004,7 @@ Views.login = function(){
     inset:0;
     width:100vw;
     height:100dvh;
-    z-index:auto;
+    z-index:1;
     flex:none;
     background:
       radial-gradient(120% 90% at 50% 0%, var(--mango-tint) 0%, #FDE3CC 45%, var(--panel) 100%);
@@ -4019,7 +4020,9 @@ Views.login = function(){
   }
   .siams-lp-hero-top{
     position:fixed;
-    z-index:25;
+    left:0;
+    top:0;
+    z-index:60;
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -4049,7 +4052,7 @@ Views.login = function(){
     position:fixed;
     left:2%;
     bottom:0;
-    z-index:20;
+    z-index:50;
     width:min(42vw,360px);
     height:min(58vh,520px);
     pointer-events:none;
@@ -4057,7 +4060,7 @@ Views.login = function(){
 
   .siams-lp-mascot-img{
     position:absolute;
-    z-index:21;
+    z-index:51;
     left:50%;
     bottom:0;
     width:min(42vw,360px);
@@ -4077,7 +4080,7 @@ Views.login = function(){
     display:flex;
     flex-direction:column;
     gap:10px;
-    z-index:19;
+    z-index:45;
   }
   .siams-lp-msg-card{
     display:flex;
@@ -4106,7 +4109,7 @@ Views.login = function(){
     border-radius:32px 32px 0 0;
     margin-top:58dvh;
     position:relative;
-    z-index:3;
+    z-index:10;
     padding:30px 24px calc(42px + env(safe-area-inset-bottom));
     min-height:70dvh;
     overflow:visible;
@@ -4242,6 +4245,14 @@ Views.login = function(){
   @media (min-width:601px){
     .siams-lp-card{max-width:760px;margin-left:auto;margin-right:auto;padding-left:34px;padding-right:34px;}
   }
+
+  /* FINAL MOBILE COMPOSITION: the hero and mascot stay fixed; the white login sheet scrolls underneath. */
+  .siams-lp-hero{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;z-index:1!important;pointer-events:none;}
+  .siams-lp-hero-top{position:fixed!important;left:0!important;top:0!important;z-index:60!important;}
+  .siams-lp-msg-board{position:fixed!important;z-index:45!important;}
+  .siams-lp-mascot-wrap{position:fixed!important;z-index:50!important;left:0!important;bottom:0!important;pointer-events:none!important;}
+  .siams-lp-mascot-img{position:absolute!important;z-index:51!important;bottom:0!important;}
+  .siams-lp-card{position:relative!important;z-index:10!important;margin-top:57dvh!important;min-height:75dvh!important;}
 
     </style>
 <div class="siams-lp-phone">
