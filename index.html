@@ -3962,29 +3962,27 @@ Views.login = function(){
   body{
     margin:0;
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    background:#EDEAE0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    min-height:100vh;
-    padding:40px 16px;
+    background:#fff;
   }
   .siams-lp-phone{
-    width:100%;
-    max-width:480px;
-    min-height:100vh;
+    width:100vw;
+    max-width:none;
+    min-height:100dvh;
     height:auto;
-    background:#fff;
+    background:transparent;
     border-radius:0;
     box-shadow:none;
-    overflow:hidden;
+    overflow:visible;
     position:relative;
-    display:flex;
-    flex-direction:column;
+    display:block;
+    margin-left:calc(50% - 50vw);
   }
   .siams-lp-hero{
-    position:relative;
-    height:340px;
+    position:fixed;
+    inset:0;
+    width:100vw;
+    height:100dvh;
+    z-index:1;
     flex:none;
     background:
       radial-gradient(120% 90% at 50% 0%, var(--mango-tint) 0%, #FDE3CC 45%, var(--panel) 100%);
@@ -4007,13 +4005,19 @@ Views.login = function(){
     padding:20px 20px 0;
   }
   .siams-lp-back-btn{
-    width:38px;height:38px;border-radius:12px;
-    background:rgba(255,255,255,.75);
-    backdrop-filter:blur(6px);
+    width:44px;height:44px;border-radius:50%;
+    background:rgba(255,255,255,.72);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
     display:flex;align-items:center;justify-content:center;
     color:var(--ink);
-    box-shadow:0 4px 14px -6px rgba(11,14,23,.25);
+    border:none;
+    outline:none;
+    box-shadow:0 6px 18px -10px rgba(11,14,23,.22);
+    padding:0;
+    cursor:pointer;
   }
+  .siams-lp-back-btn:focus{outline:none;border:none;}
   .siams-lp-brand{
     display:flex;align-items:center;gap:8px;
     font-weight:800;font-size:15px;color:var(--ink);
@@ -4022,10 +4026,10 @@ Views.login = function(){
   .siams-lp-brand .siams-lp-dot{width:8px;height:8px;border-radius:50%;background:var(--mango);}
   .siams-lp-mascot-wrap{
     position:absolute;
-    left:2px;
+    left:2%;
     bottom:0;
-    width:190px;
-    height:250px;
+    width:min(42vw,360px);
+    height:min(58vh,520px);
     pointer-events:none;
   }
 
@@ -4034,9 +4038,9 @@ Views.login = function(){
     z-index:2;
     left:50%;
     bottom:0;
-    width:190px;
+    width:min(42vw,360px);
     height:auto;
-    max-height:250px;
+    max-height:min(58vh,520px);
     object-fit:contain;
     transform:translateX(-50%);
     filter:drop-shadow(0 14px 16px rgba(11,14,23,.16));
@@ -4044,9 +4048,10 @@ Views.login = function(){
 
   .siams-lp-msg-board{
     position:absolute;
-    right:14px;
-    top:56px;
-    width:172px;
+    right:5vw;
+    top:12vh;
+    width:min(46vw,390px);
+    max-width:390px;
     display:flex;
     flex-direction:column;
     gap:10px;
@@ -4075,14 +4080,24 @@ Views.login = function(){
   .siams-lp-msg-text span{color:var(--text-mid);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
 
   .siams-lp-card{
-    flex:1;
     background:#fff;
-    border-radius:28px 28px 0 0;
-    margin-top:-28px;
+    border-radius:32px 32px 0 0;
+    margin-top:58dvh;
     position:relative;
     z-index:3;
-    padding:26px 24px 28px;
-    overflow-y:auto;
+    padding:30px 24px calc(42px + env(safe-area-inset-bottom));
+    min-height:70dvh;
+    overflow:visible;
+    box-shadow:0 -10px 30px -22px rgba(11,14,23,.35);
+  }
+  .siams-lp-card::before{
+    content:'';
+    display:block;
+    width:42px;
+    height:4px;
+    border-radius:999px;
+    background:#D8D5CC;
+    margin:-8px auto 22px;
   }
   .siams-login-preview h1{
     font-size:23px;
@@ -4108,26 +4123,22 @@ Views.login = function(){
     display:flex;
     align-items:center;
     gap:9px;
-    background:var(--blue-tint);
-    border:1.5px solid var(--blue);
+    background:#F7F5F0;
+    border:1.5px solid #E5E1D7;
     border-radius:14px;
     padding:0 14px;
     height:52px;
-    transition:border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    transition:border-color .15s ease;
   }
-  .siams-lp-input-wrap:focus-within{
-    border-color:var(--blue);
-    background:#EAF6FF;
-    box-shadow:0 0 0 3px rgba(0,145,253,.12);
-  }
-  .siams-lp-input-wrap svg{flex:none;color:#0B67D8;}
+  .siams-lp-input-wrap:focus-within{border-color:#CFC9BC;background:#fff;box-shadow:none;}
+  .siams-lp-input-wrap svg{flex:none;color:var(--text-soft);}
   .siams-lp-input-wrap input{
     border:none;outline:none;background:transparent;
-    flex:1;font-size:14.5px;color:#0B67D8;
+    flex:1;font-size:14.5px;color:var(--text);
     font-family:inherit;height:100%;
   }
-  .siams-lp-input-wrap input::placeholder{color:#0B67D8;opacity:.82;}
-  .siams-lp-eye-btn{background:none;border:none;padding:2px;color:#0B67D8;display:flex;cursor:pointer;}
+  .siams-lp-input-wrap input::placeholder{color:var(--text-soft);}
+  .siams-lp-eye-btn{background:none;border:none;padding:2px;color:var(--text-soft);display:flex;cursor:pointer;}
 
   .siams-lp-row-between{
     display:flex;align-items:center;justify-content:space-between;
@@ -4137,26 +4148,21 @@ Views.login = function(){
   .siams-lp-remember{display:flex;align-items:center;gap:7px;color:var(--text-mid);}
   .siams-lp-checkbox{
     width:17px;height:17px;border-radius:6px;
-    border:1.6px solid var(--blue);
+    border:1.6px solid var(--line);
     display:flex;align-items:center;justify-content:center;
-    background:var(--blue);
+    background:var(--mango);
     color:#fff;
   }
-  .siams-lp-link{color:#0B67D8;font-weight:700;text-decoration:none;}
+  .siams-lp-link{color:var(--mango-dark);font-weight:700;text-decoration:none;}
 
   .siams-lp-btn-primary{
     display:block;width:100%;border:none;cursor:pointer;
-    background:linear-gradient(135deg,#0866FF 0%, var(--blue) 100%);
+    background:linear-gradient(135deg,var(--mango) 0%, #FF9A4D 100%);
     color:#fff;font-size:15.5px;font-weight:800;
     padding:16px;border-radius:16px;
-    box-shadow:0 14px 26px -10px rgba(0,102,255,.35);
+    box-shadow:0 14px 26px -10px rgba(255,122,26,.55);
     letter-spacing:.1px;
-    transition:transform .15s ease, box-shadow .15s ease;
   }
-  .siams-lp-btn-primary:hover{
-    box-shadow:0 16px 30px -10px rgba(0,102,255,.45);
-  }
-  .siams-lp-btn-primary:active{transform:translateY(1px);}
 
   .siams-lp-id-note{
     margin-top:16px;
@@ -4188,7 +4194,7 @@ Views.login = function(){
   .siams-lp-id-recover{margin-top:16px;
     display:flex;align-items:center;justify-content:center;gap:8px;
     width:100%;padding:14px;border-radius:14px;
-    background:var(--blue-tint);color:#0b67d8;
+    background:#F4F1EA;color:var(--text-mid);
     font-size:13.5px;font-weight:700;border:none;
   }
 
@@ -4200,10 +4206,25 @@ Views.login = function(){
   }
   .siams-lp-footer-link b{color:var(--ink);}
 
+  @media (max-width:600px){
+    .siams-lp-hero-top{padding:calc(14px + env(safe-area-inset-top)) 18px 0;}
+    .siams-lp-mascot-wrap{left:0;width:52vw;height:52vh;}
+    .siams-lp-mascot-img{width:52vw;max-height:52vh;}
+    .siams-lp-msg-board{right:4vw;top:13vh;width:58vw;max-width:340px;}
+    .siams-lp-msg-card{padding:11px 12px;border-radius:18px;}
+    .siams-lp-msg-text b{font-size:13px;}
+    .siams-lp-msg-text span{font-size:11px;}
+    .siams-lp-card{margin-top:57dvh;padding-left:22px;padding-right:22px;}
+  }
+
+  @media (min-width:601px){
+    .siams-lp-card{max-width:760px;margin-left:auto;margin-right:auto;padding-left:34px;padding-right:34px;}
+  }
+
     </style>
 <div class="siams-lp-phone">
   <div class="siams-lp-hero">
-    <div class="siams-lp-siams-lp-hero-top">
+    <div class="siams-lp-hero-top">
       <button type="button" class="siams-lp-back-btn" onclick="Router.go('welcome')" aria-label="Retour">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -4217,15 +4238,15 @@ Views.login = function(){
 
     <div class="siams-lp-msg-board">
       <div class="siams-lp-msg-card">
-        <div class="siams-lp-msg-ico mango">🛍️</div>
+        <div class="siams-lp-msg-ico siams-lp-mango">🛍️</div>
         <div class="siams-lp-msg-text"><b>Nouvelle commande</b><span>Robe wax — 12 000 FCFA</span></div>
       </div>
       <div class="siams-lp-msg-card">
-        <div class="siams-lp-msg-ico green">💳</div>
+        <div class="siams-lp-msg-ico siams-lp-green">💳</div>
         <div class="siams-lp-msg-text"><b>Paiement reçu</b><span>Wave — confirmé</span></div>
       </div>
       <div class="siams-lp-msg-card">
-        <div class="siams-lp-msg-ico blue">⭐</div>
+        <div class="siams-lp-msg-ico siams-lp-blue">⭐</div>
         <div class="siams-lp-msg-text"><b>Nouvel avis client</b><span>5 étoiles — merci !</span></div>
       </div>
     </div>
@@ -4254,13 +4275,7 @@ Views.login = function(){
       </div>
     </div>
 
-    <div class="siams-lp-row-between">
-      <div class="siams-lp-remember">
-        <span class="siams-lp-checkbox">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
-        Rester connecté
-      </div>
+    <div style="display:flex;justify-content:flex-end;margin:4px 0 22px;">
       <button type="button" class="siams-lp-link" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button>
     </div>
 
