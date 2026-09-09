@@ -11728,6 +11728,205 @@ Views['siams-admin-courier-identity-v67']=function(){ Router.go('siams-admin-ide
   };
 })();
 </script>
+
+<!-- SIAMS V71 : centre promotions + affiches universelles + adaptation automatique banderole -->
+<style id="siams-v71-promo-style">
+.v71-promo-hero{margin:10px 20px 16px;padding:20px;border-radius:24px;background:linear-gradient(135deg,#0B0E17 0%,#171B28 58%,#2E2E2E 100%);color:#fff;position:relative;overflow:hidden;box-shadow:0 18px 40px -18px rgba(11,14,23,.38)}
+.v71-promo-hero:after{content:'';position:absolute;width:150px;height:150px;border-radius:50%;right:-65px;top:-75px;background:rgba(255,255,255,.09)}
+.v71-promo-kicker{font-size:9.5px;font-weight:900;letter-spacing:.09em;opacity:.68;text-transform:uppercase}
+.v71-promo-hero h2{margin:5px 0 5px;font:800 24px var(--font-display);letter-spacing:-.5px}
+.v71-promo-hero p{margin:0;max-width:320px;font-size:11.5px;line-height:1.5;opacity:.78}
+.v71-promo-quick{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px;position:relative;z-index:1}
+.v71-promo-quick button{border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.09);color:#fff;border-radius:14px;padding:10px 11px;text-align:left;font:800 11px var(--font-body);cursor:pointer}
+.v71-promo-quick small{display:block;opacity:.62;font-size:9px;font-weight:600;margin-top:3px}
+.v71-banner-card{margin:0 20px 16px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:var(--shadow-sm);overflow:hidden}
+.v71-banner-card-head{padding:15px 16px 10px;display:flex;gap:10px;align-items:center}
+.v71-banner-icon{width:40px;height:40px;border-radius:12px;background:var(--mango-tint);display:grid;place-items:center;font-size:19px;flex:none}
+.v71-banner-card-head b{font-size:13px;display:block}.v71-banner-card-head span{display:block;color:var(--text-mid);font-size:10.5px;margin-top:3px;line-height:1.35}
+.v71-banner-preview{margin:0 14px 12px;border-radius:14px;overflow:hidden;background:#eef2f7;aspect-ratio:16/7;position:relative}
+.v71-banner-preview img{width:100%;height:100%;object-fit:cover;display:block}
+.v71-banner-preview-empty{height:100%;display:grid;place-items:center;color:var(--text-soft);font-size:11px;font-weight:700}
+.v71-upload{margin:0 14px 12px;border:1.5px dashed #cfd5df;border-radius:14px;padding:13px;text-align:center;cursor:pointer;background:#fafbfc}
+.v71-upload b{display:block;font-size:11.5px}.v71-upload small{display:block;color:var(--text-mid);font-size:9.5px;margin-top:4px}
+.v71-upload input{display:none}
+.v71-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 14px}
+.v71-grid .full{grid-column:1/-1}
+.v71-field label{display:block;font-size:10px;font-weight:800;color:var(--text);margin-bottom:5px}
+.v71-field input,.v71-field select{width:100%;padding:10px 11px;border:1.5px solid var(--line);border-radius:11px;background:#fff;font:12px var(--font-body);color:var(--text);outline:none}
+.v71-field input:focus,.v71-field select:focus{border-color:var(--mango)}
+.v71-submit{margin:12px 14px 15px;width:calc(100% - 28px)}
+.v71-help{margin:0 14px 13px;padding:10px 11px;border-radius:12px;background:var(--panel);font-size:9.5px;color:var(--text-mid);line-height:1.4}
+.v71-list-title{padding:4px 20px 9px;font-size:15px;font-weight:800}
+.v71-banner-list{padding:0 20px 100px}
+.v71-banner-item{background:#fff;border:1px solid var(--line);border-radius:17px;overflow:hidden;margin-bottom:10px}
+.v71-banner-item-media{aspect-ratio:16/7;background:#eef2f7;position:relative}
+.v71-banner-item-media img{width:100%;height:100%;object-fit:cover;display:block}
+.v71-banner-badge{position:absolute;left:9px;top:9px;background:rgba(11,14,23,.76);color:#fff;border-radius:999px;padding:5px 8px;font-size:8.5px;font-weight:900}
+.v71-banner-item-body{padding:11px}
+.v71-banner-item-body strong{display:block;font-size:12.5px}.v71-banner-item-body small{display:block;color:var(--text-mid);font-size:9.5px;margin-top:3px}
+.v71-banner-actions{display:flex;gap:6px;margin-top:9px}.v71-banner-actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 5px;font-size:9.5px;font-weight:800;cursor:pointer}.v71-banner-actions .danger{color:var(--red)}
+.v71-ratio-note{display:flex;align-items:center;gap:7px;margin:0 14px 11px;padding:8px 10px;border-radius:10px;background:var(--green-tint);color:var(--green);font-size:9.5px;font-weight:800}
+.v71-promo-code-bridge{margin:0 20px 16px;border:1px solid #ffd2b4;border-radius:19px;padding:14px;background:linear-gradient(135deg,#fff7f0,#fff);box-shadow:var(--shadow-sm)}
+.v71-promo-code-bridge-top{display:flex;align-items:center;gap:10px}.v71-promo-code-bridge-icon{width:39px;height:39px;border-radius:12px;background:var(--mango-tint);display:grid;place-items:center;font-size:18px}
+.v71-promo-code-bridge b{font-size:13px;display:block}.v71-promo-code-bridge span{font-size:10px;color:var(--text-mid);display:block;margin-top:2px;line-height:1.35}
+.v71-promo-code-bridge button{margin-top:11px;width:100%}
+@media(max-width:380px){.v71-promo-hero,.v71-promo-code-bridge,.v71-banner-card{margin-left:14px;margin-right:14px}.v71-banner-list{padding-left:14px;padding-right:14px}.v71-grid{grid-template-columns:1fr}}
+</style>
+<script id="siams-v71-promo-system">
+(function(){
+'use strict';
+if(!window.SIAMSBanners)return;
+
+const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+const products=()=>Store.products||[];
+const categories=()=>Store.categories||[];
+const types=[
+ {id:'offer',name:'Offre promotionnelle',icon:'🔥',desc:'Réduction, prix spécial ou offre flash'},
+ {id:'new',name:'Nouveauté',icon:'✨',desc:'Nouveau produit ou nouvelle collection'},
+ {id:'sale',name:'Solde / Déstockage',icon:'🏷️',desc:'Liquidation ou fin de stock'},
+ {id:'event',name:'Événement',icon:'📅',desc:'Événement, lancement ou occasion'},
+ {id:'announcement',name:'Annonce boutique',icon:'📣',desc:'Information importante à vos clients'},
+ {id:'custom',name:'Affiche personnalisée',icon:'🎨',desc:'Tout autre visuel promotionnel'}
+];
+let state={file:null,processed:null,linkType:'product',type:'offer'};
+
+async function fit(file){
+ const r=await siamsFitBannerImage(file,{ratio:16/7,maxWidth:1280,maxBytes:5*1024*1024});
+ return r;
+}
+async function onFile(e){
+ const f=e.target.files&&e.target.files[0]; if(!f)return;
+ state.file=f; state.processed=null;
+ const p=document.getElementById('v71-banner-preview');
+ if(p)p.innerHTML='<div class="v71-banner-preview-empty">Adaptation automatique au format banderole…</div>';
+ try{
+   state.processed=await fit(f);
+   const url=URL.createObjectURL(state.processed.blob);
+   if(p)p.innerHTML='<img src="'+url+'" alt="Aperçu banderole"><div style="position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.92);color:var(--green);padding:5px 8px;border-radius:999px;font-size:8.5px;font-weight:900">✓ Format 16:7 prêt</div>';
+ }catch(err){state.file=null;state.processed=null;if(p)p.innerHTML='<div class="v71-banner-preview-empty">Image impossible à traiter</div>';Toast.show('Impossible de traiter cette image.');}
+}
+
+function form(){
+ const ps=products(),cs=categories();
+ return `<section class="v71-banner-card">
+  <div class="v71-banner-card-head"><div class="v71-banner-icon">🖼️</div><div><b>Créer une affiche pour la banderole</b><span>Ajoutez vos visuels d'offres, nouveautés, annonces et autres campagnes.</span></div></div>
+  <div id="v71-banner-preview" class="v71-banner-preview"><div class="v71-banner-preview-empty">Aperçu de votre banderole</div></div>
+  <label class="v71-upload"><b>＋ Ajouter une affiche</b><small>PNG, JPG ou WEBP · l'image sera automatiquement recadrée au format 16:7</small><input id="v71-file" type="file" accept="image/png,image/jpeg,image/webp" onchange="window.siamsV71File(event)"></label>
+  <div class="v71-ratio-note">✓ Aucun étirement : recadrage intelligent centré + compression automatique</div>
+  <div class="v71-grid">
+   <div class="v71-field"><label>Type de campagne</label><select id="v71-type" onchange="window.siamsV71State('type',this.value)">${types.map(t=>`<option value="${t.id}" ${state.type===t.id?'selected':''}>${t.icon} ${esc(t.name)}</option>`).join('')}</select></div>
+   <div class="v71-field"><label>Action au clic</label><select id="v71-link" onchange="window.siamsV71State('linkType',this.value)"><option value="none" ${state.linkType==='none'?'selected':''}>Aucune</option><option value="product" ${state.linkType==='product'?'selected':''}>Produit</option><option value="category" ${state.linkType==='category'?'selected':''}>Catégorie</option><option value="external" ${state.linkType==='external'?'selected':''}>Lien externe</option></select></div>
+   <div class="v71-field full"><label>Titre de l'affiche</label><input id="v71-title" maxlength="70" placeholder="Ex. Grande promotion de la semaine"></div>
+   <div class="v71-field full"><label>Sous-titre (facultatif)</label><input id="v71-sub" maxlength="110" placeholder="Profitez de nos meilleures offres"></div>
+  </div>
+  <div id="v71-link-fields" style="padding:10px 14px 0"></div>
+  <div class="v71-help">Conseil : préparez une affiche avec le texte important au centre. Le système conserve automatiquement les proportions de la banderole pour éviter les images déformées.</div>
+  <button class="btn btn-mango v71-submit" type="button" onclick="window.siamsV71Publish()">Publier dans la banderole</button>
+ </section>`;
+}
+function linkFields(){
+ const box=document.getElementById('v71-link-fields');if(!box)return;
+ const lt=document.getElementById('v71-link')?.value||state.linkType;
+ if(lt==='product')box.innerHTML=`<div class="v71-field"><label>Produit lié</label><select id="v71-product"><option value="">Choisir un produit</option>${products().map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${Utils.fmtFCFA(Number(p.price)||0)}</option>`).join('')}</select></div>`;
+ else if(lt==='category')box.innerHTML=`<div class="v71-field"><label>Catégorie liée</label><select id="v71-category"><option value="">Choisir une catégorie</option>${categories().map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></div>`;
+ else if(lt==='external')box.innerHTML=`<div class="v71-field"><label>Lien externe</label><input id="v71-url" type="url" placeholder="https://..."></div>`;
+ else box.innerHTML='';
+}
+function render(){
+ const root=document.getElementById('siams-v71-promo-root');if(!root)return;
+ root.innerHTML=form();
+ linkFields();
+}
+window.siamsV71State=(k,v)=>{state[k]=v;if(k==='linkType')linkFields();};
+window.siamsV71File=onFile;
+window.siamsV71Publish=async function(){
+ const btn=document.querySelector('.v71-submit');
+ if(!state.processed)return Toast.show('Ajoutez une affiche');
+ const type=document.getElementById('v71-type')?.value||'offer';
+ const lt=document.getElementById('v71-link')?.value||'none';
+ const title=(document.getElementById('v71-title')?.value||'').trim()||types.find(t=>t.id===type)?.name||'Promotion';
+ const sub=(document.getElementById('v71-sub')?.value||'').trim();
+ let productId=null,categoryId=null,url=null;
+ if(lt==='product'){productId=document.getElementById('v71-product')?.value||null;if(!productId)return Toast.show('Choisissez le produit lié.');}
+ if(lt==='category'){categoryId=document.getElementById('v71-category')?.value||null;if(!categoryId)return Toast.show('Choisissez la catégorie liée.');}
+ if(lt==='external'){url=document.getElementById('v71-url')?.value.trim()||null;if(!url)return Toast.show('Ajoutez le lien externe.');}
+ if(btn){btn.disabled=true;btn.textContent='Publication…';}
+ try{
+   const file=new File([state.processed.blob],'affiche-'+Date.now()+'.jpg',{type:'image/jpeg'});
+   const image=await SIAMSBanners.upload(file);
+   const maxPos=(SIAMSBanners.items||[]).reduce((m,x)=>Math.max(m,Number(x.position||0)),0);
+   await window.siamsV71CreateBanner({image_url:image,link_type:lt,link_url:url,link_product_id:productId,link_category_id:categoryId,active:true,position:maxPos+10,promo_product:true,promo_type:type,promo_title:title,promo_subtitle:sub});
+   Toast.show('Affiche publiée ✓');
+   state={file:null,processed:null,linkType:'product',type:'offer'};
+   await SIAMSBanners.all();renderList();
+   render();
+ }catch(err){console.error(err);Toast.show('Impossible de publier cette affiche. Vérifiez la configuration de la table store_banners et du stockage.');}
+ finally{if(btn){btn.disabled=false;btn.textContent='Publier dans la banderole';}}
+};
+
+function typeName(id){return (types.find(t=>t.id===id)||types[0]).name;}
+function renderList(){
+ const root=document.getElementById('v71-list-root');if(!root)return;
+ const items=(SIAMSBanners.items||[]).filter(x=>x.promo_product===true || x.promo_type);
+ root.innerHTML=`<div class="v71-list-title">Affiches publiées <span style="font-size:10px;color:var(--text-soft);font-weight:600">${items.length} au total</span></div><div class="v71-banner-list">${items.length?items.map((x,i)=>`<article class="v71-banner-item">
+  <div class="v71-banner-item-media"><img src="${esc(x.image_url)}" loading="lazy"><span class="v71-banner-badge">${x.active===false?'MASQUÉE':'VISIBLE'}</span></div>
+  <div class="v71-banner-item-body"><strong>${esc(x.promo_title||typeName(x.promo_type))}</strong><small>${esc(typeName(x.promo_type||'offer'))} · ${x.link_type==='product'?'Produit lié':x.link_type==='category'?'Catégorie liée':x.link_type==='external'?'Lien externe':'Sans action'}</small>
+  <div class="v71-banner-actions"><button onclick="window.siamsV71Toggle('${esc(x.id)}')">${x.active===false?'Afficher':'Masquer'}</button><button onclick="window.siamsV71Move('${esc(x.id)}',-1)">↑</button><button onclick="window.siamsV71Move('${esc(x.id)}',1)">↓</button><button class="danger" onclick="window.siamsV71Remove('${esc(x.id)}')">Supprimer</button></div></div>
+ </article>`).join(''):'<div style="text-align:center;padding:28px 10px;color:var(--text-mid);font-size:11px">Aucune affiche promotionnelle publiée.</div>'}</div>`;
+}
+window.siamsV71Toggle=async id=>{const x=(SIAMSBanners.items||[]).find(a=>String(a.id)===String(id));if(!x)return;try{await SIAMSBanners.update(id,{active:x.active===false});Toast.show(x.active===false?'Affiche affichée ✓':'Affiche masquée ✓');await SIAMSBanners.all();renderList();}catch(e){Toast.show('Impossible de modifier cette affiche.');}};
+window.siamsV71Remove=async id=>{if(!confirm('Supprimer définitivement cette affiche ?'))return;try{await SIAMSBanners.remove(id);Toast.show('Affiche supprimée ✓');await SIAMSBanners.all();renderList();}catch(e){Toast.show('Impossible de supprimer cette affiche.');}};
+window.siamsV71Move=async(id,dir)=>{const a=(SIAMSBanners.items||[]).find(x=>String(x.id)===String(id));if(!a)return;const sorted=[...(SIAMSBanners.items||[])].sort((x,y)=>Number(x.position||0)-Number(y.position||0));const i=sorted.findIndex(x=>String(x.id)===String(id)),j=i+dir;if(i<0||j<0||j>=sorted.length)return;const b=sorted[j],pa=Number(a.position||0),pb=Number(b.position||0);try{await SIAMSBanners.update(a.id,{position:pb});await SIAMSBanners.update(b.id,{position:pa});await SIAMSBanners.all();renderList();}catch(e){Toast.show('Impossible de réordonner les affiches.');}};
+
+async function createBanner(item){
+ const sid=Cloud.storeId || (Store.store&&Store.store.id);
+ if(!sid)throw new Error('Boutique non identifiée');
+ /* Les colonnes promotionnelles sont facultatives côté client : si elles existent,
+    elles sont conservées. Si la table V67/V70 ne les a pas encore, on retente sans
+    métadonnées afin de ne pas casser le système de bannière existant. */
+ const base={id:item.id||Utils.uid(),store_id:sid,image_url:item.image_url,link_type:item.link_type||'none',link_url:item.link_url||null,link_product_id:item.link_product_id||null,link_category_id:item.link_category_id||null,active:item.active!==false,position:Number(item.position||0)};
+ const extra={promo_product:item.promo_product===true,promo_type:item.promo_type||'offer',promo_title:item.promo_title||null,promo_subtitle:item.promo_subtitle||null};
+ try{
+   const r=await sb.from('store_banners').insert({...base,...extra}).select().single();
+   if(r.error)throw r.error;
+   SIAMSBanners.items.push(r.data||{...base,...extra});return r.data||{...base,...extra};
+ }catch(err){
+   /* Si les colonnes V71 n'existent pas, la bannière reste publiable dans le système V56. */
+   const r2=await sb.from('store_banners').insert(base).select().single();
+   if(r2.error)throw r2.error;
+   SIAMSBanners.items.push(r2.data||base);return r2.data||base;
+ }
+}
+window.siamsV71CreateBanner=createBanner;
+
+function buildPromoView(){
+ if(!Store.hasFeature('promos'))return FeatureLock('Codes promo','La création de codes promo est incluse à partir de la formule DOYEN.','doyen');
+ const ps=(Store.promos||[]).map(p=>PromoLocal.merge(p));
+ const active=ps.filter(p=>p.active&&(!p.maxUses||Number(p.usedCount||0)<Number(p.maxUses))).length;
+ const uses=ps.reduce((s,p)=>s+Number(p.usedCount||0),0);
+ return TopBar('Codes promo',ps.length+' code(s)')+
+ `<div class="v71-promo-hero"><div class="v71-promo-kicker">MARKETING BOUTIQUE</div><h2>Codes promo & affiches</h2><p>Centralisez vos réductions et vos campagnes visuelles. Une affiche publiée ici apparaît directement dans la banderole de votre boutique.</p><div class="v71-promo-quick"><button type="button" onclick="document.getElementById('v71-code-anchor')?.scrollIntoView({behavior:'smooth'})">％ Code promo<small>Créer une réduction</small></button><button type="button" onclick="document.getElementById('v71-banner-anchor')?.scrollIntoView({behavior:'smooth'})">🖼️ Affiche<small>Publier dans la banderole</small></button></div></div>`+
+ `<div class="v71-promo-code-bridge"><div class="v71-promo-code-bridge-top"><div class="v71-promo-code-bridge-icon">🖼️</div><div><b>Votre banderole promotionnelle</b><span>Ajoutez plusieurs affiches : offres, nouveautés, soldes, événements ou annonces.</span></div></div><button class="btn btn-mango" type="button" onclick="document.getElementById('v71-banner-anchor')?.scrollIntoView({behavior:'smooth'})">Ajouter une affiche promotionnelle ›</button></div>`+
+ `<div id="v71-code-anchor"></div><section class="v22-create"><div class="v22-create-title"><span>＋</span><div><b>Créer un code promo</b><small>Le code sera disponible immédiatement dans votre boutique.</small></div></div><div class="v22-grid"><label>Code promo<input id="v22-code" maxlength="30" autocomplete="off" placeholder="BIENVENUE10" oninput="this.value=this.value.toUpperCase().replace(/\\s/g,'')"></label><label>Type<select id="v22-type"><option value="percent">Pourcentage (%)</option><option value="fixed">Montant fixe (FCFA)</option></select></label><label>Valeur<input id="v22-value" type="number" min="1" step="1" placeholder="10"></label><label>Utilisations max<input id="v22-max" type="number" min="0" step="1" value="0"><small>0 = illimité</small></label></div><button class="btn btn-mango btn-block" type="button" onclick="window.siamsCreatePromoV22()">Créer le code promo</button></section>`+
+ `<div class="v22-stats" style="padding-top:0"><div><b>${ps.length}</b><span>Codes créés</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${uses}</b><span>Utilisations</span></div></div>`+
+ `<div id="v71-banner-anchor"></div><div id="siams-v71-promo-root"></div><div id="v71-list-root"></div>`;
+}
+Views.promos=buildPromoView;
+
+Views._after_promos=(async function(oldAfter){
+ return async function(){
+   try{if(oldAfter)await oldAfter();}catch(e){}
+   try{await SIAMSBanners.all();renderList();render();}catch(e){console.warn('SIAMS V71 promos',e);}
+ };
+})(Views._after_promos);
+
+Views['product-promotions']=function(){
+ return `${TopBar('Affiches promotionnelles','Banderole client')}<div style="padding-top:4px" id="siams-v71-promo-root"></div><div id="v71-list-root"></div>`;
+};
+Views._after_product_promotions=async function(){try{await SIAMSBanners.all();renderList();render();}catch(e){console.warn(e)}};
+AutoSync.safeViews.add('product-promotions');
+})();
+</script>
 </html>
 
 
