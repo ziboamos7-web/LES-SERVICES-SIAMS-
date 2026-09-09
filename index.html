@@ -42,13 +42,13 @@
   :root{
     /* ---- Design tokens : identité "SIAMS" — couleurs extraites directement du logo ---- */
     --ink:#0B0E17;
-    --paper:#FAF9F5;
-    --panel:#F1EFE7;
-    --line:#E2DFD4;
+    --paper:#FFFFFF;
+    --panel:#F7F7F8;
+    --line:#E7E7EA;
 
     --indigo:#111111;
     --indigo-dark:#000000;
-    --indigo-tint:#EDECE7;
+    --indigo-tint:#F0F0F1;
     --cyan:#2E2E2E;
 
     --blue:#1C7EF2;
@@ -107,10 +107,7 @@
   html,body{margin:0;padding:0;}
   body{
     font-family:var(--font-body);
-    background:
-      radial-gradient(620px 320px at 100% 0%, rgba(17,17,17,.10), transparent 60%),
-      radial-gradient(520px 300px at 0% 8%, rgba(255,122,26,.08), transparent 55%),
-      var(--paper);
+    background:var(--paper);
     color:var(--text);
     overscroll-behavior-y:none;
   }
@@ -6774,7 +6771,7 @@ Views['order-detail'] = function(opts){
   <div class="order-section"><div class="order-section-title"><span class="ico blue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.8-4 3.4-6.2 7-6.2s6.2 2.2 7 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>Client</div><div class="order-client-name">${Utils.escapeHtml(order.customer.name)}</div><div class="order-client-meta">${Utils.escapeHtml(order.customer.phone)}<br>${Utils.escapeHtml(order.customer.address)}</div><div class="order-actions"><button class="btn btn-soft-green btn-sm" onclick="window.open('https://wa.me/225${(order.customer.phone||'').replace(/\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" style="vertical-align:-2px;margin-right:5px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter</button><button class="btn btn-soft-indigo btn-sm" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent('${Utils.escapeHtml(order.customer.address||'')}'),'_blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.6"/></svg>Itinéraire</button></div></div>
   <div class="order-section"><div class="order-section-title"><span class="ico indigo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8h16M4 8l1.5 11a2 2 0 0 0 2 1.7h9a2 2 0 0 0 2-1.7L20 8M4 8l2-4h12l2 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Articles</div>${(order.items||[]).map(it=>`<div class="order-item"><div class="order-item-thumb">${it.photo?`<img src="${it.photo}">`:'◫'}</div><div class="order-item-main"><b>${Utils.escapeHtml(it.name)}</b><span>Quantité ×${it.qty}</span></div><div class="order-item-price">${Utils.fmtFCFA(it.price*it.qty)}</div></div>`).join('')}${order.discount?`<div style="display:flex;justify-content:space-between;padding-top:10px;font-size:12px;color:var(--green);"><span>Réduction</span><span class="mono">−${Utils.fmtFCFA(order.discount)}</span></div>`:''}${order.deliveryFee?`<div style="display:flex;justify-content:space-between;padding-top:8px;font-size:12px;color:var(--text-mid);"><span>Livraison</span><span class="mono">${Utils.fmtFCFA(order.deliveryFee)}</span></div>`:''}<div class="order-total"><b>Total</b><strong>${Utils.fmtFCFA(order.amount)}</strong></div></div>
   <div class="order-section"><div class="order-section-title"><span class="ico green"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Suivi de la commande</div><div class="order-timeline">${steps.map(x=>`<div class="timeline-step ${x[2]?'done':''} ${x[0]==='delivered'&&x[2]?'delivered':''}"><span class="point"></span><b>${x[1]}</b><span>${x[2]?'Étape validée':'À venir'}</span></div>`).join('')}</div></div>
-  <div class="order-section"><div class="order-section-title"><span class="ico gold"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.7"/></svg></span>Paiement</div><div style="font-size:13px;font-weight:700;">${PAY_LABELS[order.paymentMethod]||order.paymentMethod}</div>${order.paymentProof?`<div style="font-size:11.5px;color:var(--text-mid);margin-top:6px;">Preuve de paiement reçue</div>`:(order.paymentMethod!=='cash'?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;">Aucune preuve fournie.</div>`:'')}</div>
+  <div class="order-section"><div class="order-section-title"><span class="ico gold"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.7"/></svg></span>Paiement</div><div style="font-size:13px;font-weight:700;">${PAY_LABELS[order.paymentMethod]||order.paymentMethod}</div>${order.paymentProof?`<div style="margin-top:10px;"><div style="font-size:11.5px;color:var(--green);font-weight:700;margin-bottom:6px;">✓ Preuve de paiement reçue</div><a href="${Utils.escapeHtml(order.paymentProof)}" target="_blank" style="display:block;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;max-width:220px;"><img src="${Utils.escapeHtml(order.paymentProof)}" alt="Preuve de paiement" style="width:100%;display:block;" onerror="this.closest('a').innerHTML='<div style=&quot;padding:14px;font-size:11px;color:var(--text-mid);text-align:center;&quot;>📎 Document joint — appuyez pour ouvrir</div>'"></a></div>`:(order.paymentMethod!=='cash'?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;">Aucune preuve fournie.</div>`:'')}</div>
   <div class="order-section"><div class="order-section-title"><span class="ico mango"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8h11v9H4zM15 11h3l3 3v3h-6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.5"/><circle cx="17.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.5"/></svg></span>Livraison</div><div style="font-size:12px;color:var(--text-mid);">${order.courierId?'Livreur affecté · suivi GPS disponible.':shipped?'Commande en cours de livraison ou livrée.':order.status==='confirmed'?'Affectez un livreur pour cette commande.':'Affectation disponible après confirmation.'}</div>${(()=>{
     if(order.courierId||shipped||order.status!=='confirmed') return '';
     const activeCouriers = Store.couriers.filter(c=>c.status==='active');
