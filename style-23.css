@@ -1,0 +1,9 @@
+.siams-banner-carousel{margin:4px 20px 12px;position:relative;border-radius:18px;overflow:hidden;box-shadow:0 9px 24px rgba(18,54,90,.12)}
+.siams-banner-track{display:flex;transition:transform .45s ease}
+.siams-banner-slide{flex:0 0 100%;cursor:pointer}
+.siams-banner-slide img{width:100%;display:block;aspect-ratio:16/7;object-fit:cover;background:#eef3f9}
+.siams-banner-dots{position:absolute;left:0;right:0;bottom:9px;display:flex;justify-content:center;gap:5px}
+.siams-banner-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.55)}
+.siams-banner-dot.active{background:#fff;width:16px;border-radius:4px}
+.v56-link-type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+@media(max-width:380px){.siams-banner-carousel{margin-left:14px;margin-right:14px}}

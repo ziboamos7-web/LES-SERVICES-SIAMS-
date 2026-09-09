@@ -1,0 +1,26 @@
+/* V36 — finition finale du panorama mobile */
+.onboard-merchant-pro{width:100%;max-width:100vw;box-sizing:border-box;}
+.onboard-merchant-slides{overflow:hidden;}
+.merchant-slide{width:100%;max-width:100%;box-sizing:border-box;}
+.merchant-slide-copy{box-sizing:border-box;width:100%;}
+.ams-final-brand{display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;}
+.ams-final-brand strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ams-final-brand .ams-final-divider{flex:0 0 auto;}
+.ams-final-brand img,.ams-final-brand b{flex:0 0 auto;}
+@media(max-width:380px){
+  .onboard-merchant-top{grid-template-columns:auto 1fr auto;}
+  .onboard-merchant-head{min-height:48px!important;}
+  .merchant-slide{padding-left:10px!important;padding-right:10px!important;}
+  .merchant-slide-copy{max-width:calc(100vw - 24px)!important;}
+  .merchant-slide-copy h1{font-size:17.5px!important;line-height:1.1!important;}
+  .merchant-slide-copy p{font-size:11.5px!important;line-height:1.32!important;}
+  .ams-final-brand{max-width:calc(100vw - 24px)!important;gap:4px!important;padding:6px 6px!important;margin-top:7px!important;}
+  .ams-final-brand strong{font-size:7.6px!important;}
+  .ams-final-brand b{font-size:8px!important;}
+  .ams-final-brand img{width:20px!important;height:20px!important;}
+  .ams-final-divider{height:16px!important;}
+}
+@media(min-width:381px) and (max-width:412px){
+  .merchant-slide-copy{max-width:calc(100vw - 30px)!important;}
+  .ams-final-brand{max-width:calc(100vw - 30px)!important;}
+}

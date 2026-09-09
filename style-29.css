@@ -1,0 +1,19 @@
+.siams-id-card{background:#fff;border:1px solid #e3e8ef;border-radius:20px;padding:17px;margin:0 0 13px;box-shadow:0 8px 25px rgba(15,23,42,.05)}
+  .siams-id-hero{background:linear-gradient(135deg,#071a33,#0b67d8);color:#fff;border-radius:20px;padding:19px;margin-bottom:13px}
+  .siams-id-hero h2{margin:5px 0;font-size:19px}.siams-id-hero p{margin:0;opacity:.76;font-size:11.5px;line-height:1.5}
+  .siams-id-doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+  .siams-id-doc{border:1.5px solid #e0e6ee;background:#fff;border-radius:13px;padding:12px 10px;text-align:left;font:inherit;font-size:10.5px;font-weight:800;cursor:pointer}
+  .siams-id-doc.selected{border-color:#0b67d8;background:#edf5ff;color:#0b67d8}
+  .siams-id-upload{border:1.5px dashed #cbd5e1;background:#f8fafc;border-radius:15px;padding:14px;text-align:center;margin-top:10px;cursor:pointer}
+  .siams-id-upload b{display:block;font-size:11.5px;margin-top:5px}.siams-id-upload small{display:block;color:#7b8492;font-size:9.5px;margin-top:3px}
+  .siams-id-preview{margin-top:9px;border-radius:13px;overflow:hidden;border:1px solid #e2e8f0}.siams-id-preview img{width:100%;display:block;max-height:240px;object-fit:cover}
+  .siams-id-status{display:flex;align-items:center;gap:9px;border-radius:14px;padding:12px;margin-top:10px;font-size:10.5px;font-weight:750}
+  .siams-id-status.pending{background:#fff7df;color:#946200}.siams-id-status.verified{background:#e9f8f0;color:#087a4d}.siams-id-status.rejected{background:#fff0f0;color:#b42318}
+  .siams-admin-id-card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:15px;margin:0 0 12px;box-shadow:0 9px 28px rgba(15,23,42,.055)}
+  .siams-admin-id-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.siams-admin-id-type{font-size:8.5px;font-weight:900;letter-spacing:.08em;color:#0b67d8}
+  .siams-admin-id-name{font-size:15px;font-weight:900;margin-top:3px}.siams-admin-id-meta{font-size:10.5px;color:#667085;margin-top:2px}
+  .siams-admin-id-images{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.siams-admin-id-images img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:13px;border:1px solid #e2e8f0}
+  .siams-admin-id-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .siams-admin-id-actions button{min-height:42px;border-radius:12px;font-size:10.5px;font-weight:850;cursor:pointer}
+  .siams-admin-id-actions .ok{border:0;background:#16a36b;color:#fff}.siams-admin-id-actions .no{border:1px solid #f0caca;background:#fff;color:#b42318}
+  .siams-certified-pill{display:inline-flex;align-items:center;gap:5px;background:#e9f8f0;color:#087a4d;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900}

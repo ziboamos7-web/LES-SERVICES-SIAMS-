@@ -1,0 +1,13 @@
+/* V15 — correction accès promos + finition Service SIAMS */
+.v15-promo-form{margin:0 20px 16px;padding:15px;border:1px solid var(--line);border-radius:17px;background:#fff;box-shadow:0 6px 20px rgba(20,40,80,.055)}
+.v15-promo-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:10px}.v15-promo-grid .field{margin:0}
+.v15-promo-form input,.v15-promo-form select{position:relative;z-index:3;pointer-events:auto;width:100%;box-sizing:border-box}
+.v15-promo-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.v15-promo-actions{display:flex;gap:9px;margin-top:12px}.v15-promo-actions .btn{flex:1}
+.v15-promo-hint{font-size:10.5px;color:var(--text-mid);margin-top:7px;line-height:1.4}
+.v15-promo-edit{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.v15-mini{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:7px 9px;font-size:10.5px;font-weight:700;cursor:pointer;color:var(--text)}
+.v15-service-backdrop{margin:28px 20px 18px;padding:14px;border:1px solid var(--line);border-radius:18px;background:rgba(247,249,253,.92);opacity:.94}
+.v15-service-backdrop .v15-service-title{font-size:10px;text-transform:uppercase;letter-spacing:.09em;font-weight:850;color:var(--text-soft);margin-bottom:10px}
+.v15-service-list{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.v15-service-item{width:100%;display:flex;align-items:center;gap:8px;padding:9px;border-radius:11px;background:#fff;border:1px solid var(--line);font-size:10.5px;color:var(--text-mid);font:inherit;text-align:left;cursor:pointer}.v15-service-item i{margin-left:auto;color:var(--text-soft);font-style:normal;font-size:15px}
+.v15-service-item b{color:var(--text);font-size:10.5px}
+@media(max-width:390px){.v15-promo-grid,.v15-promo-row{grid-template-columns:1fr}.v15-service-list{grid-template-columns:1fr}}

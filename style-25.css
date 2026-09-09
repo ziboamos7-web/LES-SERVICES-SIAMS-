@@ -1,0 +1,17 @@
+.v58-mission-hero{background:linear-gradient(135deg,#0b67d8,#16b6ff);padding:24px 22px 20px;border-radius:22px 22px 0 0;color:#fff;text-align:center}
+.v58-mission-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);padding:6px 12px;border-radius:999px;font-size:10.5px;font-weight:850;letter-spacing:.04em;text-transform:uppercase}
+.v58-mission-countdown{display:block;font-family:var(--font-mono);font-size:36px;font-weight:800;margin-top:12px;letter-spacing:.02em;transition:color .2s ease}
+.v58-mission-countdown.low{color:#FFD3D3}
+.v58-mission-bar-track{height:5px;border-radius:999px;background:rgba(255,255,255,.28);margin-top:12px;overflow:hidden}
+.v58-mission-bar-fill{height:100%;background:#fff;border-radius:999px;transition:width 1s linear}
+.v58-mission-body{padding:18px 20px 4px}
+.v58-mission-order{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--text-mid)}
+.v58-mission-client{margin-top:8px}
+.v58-mission-client b{display:block;font-size:16px}
+.v58-mission-client span{display:block;font-size:12.5px;color:var(--text-mid);margin-top:3px;line-height:1.45}
+.v58-mission-amount{margin-top:10px;font-family:var(--font-mono);font-size:14px;font-weight:800;color:var(--indigo)}
+.v58-mission-eta-row{margin-top:14px}
+.v58-mission-eta-row label{display:block;font-size:11px;font-weight:700;color:var(--text-mid);margin-bottom:6px}
+.v58-mission-eta-row select{width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;font-family:var(--font-body)}
+.v58-mission-actions{display:flex;gap:9px;padding:18px 20px calc(18px + env(safe-area-inset-bottom))}
+.v58-mission-actions .btn{flex:1}

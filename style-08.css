@@ -1,0 +1,13 @@
+/* V16.1 — Les centres marchands ne doivent plus encombrer le haut des pages.
+   Ils restent accessibles depuis « Plus » dans le groupe Gestion marchand. */
+.v16-merchant-cleanup{margin:14px 20px 4px;padding:14px 14px 16px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#fff,#f8fbff);box-shadow:var(--shadow-sm)}
+.v16-merchant-cleanup-head{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.v16-merchant-cleanup-head .mi{width:34px;height:34px;border-radius:11px;background:var(--indigo-tint);color:var(--indigo);display:flex;align-items:center;justify-content:center}
+.v16-merchant-cleanup-head b{font-size:13px;display:block}.v16-merchant-cleanup-head span{font-size:10px;color:var(--text-soft);display:block;margin-top:2px}
+.v16-merchant-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.v16-merchant-link{border:1px solid var(--line);background:#fff;border-radius:13px;padding:11px 10px;display:flex;align-items:center;gap:9px;cursor:pointer;text-align:left;font:inherit}
+.v16-merchant-link .li{width:31px;height:31px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.v16-merchant-link b{font-size:11px;display:block}.v16-merchant-link small{font-size:9px;color:var(--text-soft);display:block;margin-top:2px}
+.v16-merchant-link .arr{margin-left:auto;color:var(--text-soft);font-size:16px}
+.v16-plus-section{margin:8px 16px 5px;padding:7px 4px 3px;border-top:1px solid var(--line);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.08em;color:var(--text-soft)}
+@media(max-width:390px){.v16-merchant-grid{grid-template-columns:1fr}}
