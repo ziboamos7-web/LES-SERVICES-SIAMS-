@@ -3632,35 +3632,92 @@ const ICONS = {
    ========================================================= */
 const Views = {};
 
-/* ---------- Écran d'animation au démarrage / après connexion ---------- */
+/* ---------- Écran d'animation SIAMS — ouverture premium du premier écran ---------- */
 if(!document.getElementById('siams-splash-anim-style')){
   const splashStyle=document.createElement('style');
   splashStyle.id='siams-splash-anim-style';
   splashStyle.textContent=`
-    @keyframes siamsSplashLogoIn{0%{opacity:0;transform:scale(.55) translateY(14px);}60%{opacity:1;transform:scale(1.06) translateY(0);}100%{opacity:1;transform:scale(1) translateY(0);}}
-    @keyframes siamsSplashGlow{0%,100%{box-shadow:0 20px 46px -14px rgba(22,200,220,.55),0 0 0 0 rgba(22,200,220,.35);}50%{box-shadow:0 20px 54px -10px rgba(22,200,220,.75),0 0 0 16px rgba(22,200,220,0);}}
-    @keyframes siamsSplashTextIn{0%{opacity:0;transform:translateY(10px);}100%{opacity:1;transform:translateY(0);}}
-    @keyframes siamsSplashBg{0%,100%{opacity:.5;transform:translate(-8%,-6%) scale(1);}50%{opacity:.85;transform:translate(4%,5%) scale(1.16);}}
-    @keyframes siamsSplashBg2{0%,100%{opacity:.35;transform:translate(6%,8%) scale(1);}50%{opacity:.65;transform:translate(-5%,-4%) scale(1.2);}}
-    @keyframes siamsSplashRing{0%{transform:scale(.92);opacity:.5;}100%{transform:scale(1.6);opacity:0;}}
-    @keyframes siamsSplashMsgIn{0%{opacity:0;transform:translateY(8px);}15%{opacity:1;transform:translateY(0);}85%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-8px);}}
-    @keyframes siamsSplashBarLoop{0%{transform:translateX(-110%);}100%{transform:translateX(230%);}}
-    .siams-splash-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;background:var(--paper);}
-    .siams-splash-grid{display:none;}
-    .siams-splash-dot{display:none;}
-    .siams-splash-bg{position:absolute;top:-16%;left:-18%;width:68vw;height:68vw;max-width:420px;max-height:420px;border-radius:50%;background:radial-gradient(circle,rgba(28,126,242,.16),transparent 65%);animation:siamsSplashBg 7s ease-in-out infinite;pointer-events:none;}
-    .siams-splash-bg2{position:absolute;bottom:-14%;right:-16%;width:58vw;height:58vw;max-width:380px;max-height:380px;border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.14),transparent 65%);animation:siamsSplashBg2 8s ease-in-out infinite;pointer-events:none;}
-    .siams-splash-card{position:relative;z-index:1;padding:30px 34px 26px;border-radius:32px;}
-    .siams-splash-logo-wrap{position:relative;width:88px;height:88px;margin:0 auto 20px;}
-    .siams-splash-ring{position:absolute;inset:0;border-radius:24px;border:1.5px solid var(--cyan);animation:siamsSplashRing 2.2s ease-out infinite;pointer-events:none;}
-    .siams-splash-ring.delay{animation-delay:1.1s;}
-    .siams-splash-logo{width:88px;height:88px;border-radius:24px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;overflow:hidden;animation:siamsSplashLogoIn .65s cubic-bezier(.2,.9,.3,1.3) both, siamsSplashGlow 2.4s ease-in-out .65s infinite;}
-    .siams-splash-logo img{width:100%;height:100%;object-fit:cover;}
-    .siams-splash-brand{font-size:20px;font-weight:900;letter-spacing:.5px;position:relative;z-index:1;color:var(--text);opacity:0;animation:siamsSplashTextIn .5s ease-out .45s forwards;}
-    .siams-splash-msg-wrap{height:20px;margin-top:9px;position:relative;z-index:1;overflow:hidden;}
-    .siams-splash-text{font-size:13px;font-weight:600;color:var(--text-mid);position:relative;z-index:1;}
-    .siams-splash-bar-track{width:140px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin:24px auto 0;position:relative;z-index:1;}
-    .siams-splash-bar-fill{position:absolute;top:0;bottom:0;width:40%;border-radius:4px;background:linear-gradient(90deg,transparent,var(--indigo-dark),var(--cyan),transparent);animation:siamsSplashBarLoop 1.3s ease-in-out infinite;}
+    @keyframes siamsSplashReveal{0%{opacity:0;transform:scale(.82) translateY(18px);filter:blur(8px)}55%{opacity:1;transform:scale(1.045) translateY(0);filter:blur(0)}75%{transform:scale(.985)}100%{transform:scale(1)}}
+    @keyframes siamsSplashLogoFloat{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-5px) rotate(.4deg)}}
+    @keyframes siamsSplashSweep{0%{transform:translateX(-150%) skewX(-18deg);opacity:0}25%{opacity:.7}55%{opacity:.15}100%{transform:translateX(180%) skewX(-18deg);opacity:0}}
+    @keyframes siamsSplashGlow{0%,100%{box-shadow:0 22px 48px -18px rgba(0,145,253,.32),0 0 0 0 rgba(0,145,253,.18)}50%{box-shadow:0 26px 58px -15px rgba(0,145,253,.45),0 0 0 13px rgba(0,145,253,0)}}
+    @keyframes siamsSplashBrandIn{0%{opacity:0;transform:translateY(14px);letter-spacing:5px}100%{opacity:1;transform:translateY(0);letter-spacing:.8px}}
+    @keyframes siamsSplashEntityIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+    @keyframes siamsSplashMsgIn{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:translateY(0)}85%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-8px)}}
+    @keyframes siamsSplashBg{0%,100%{opacity:.32;transform:translate(-8%,-6%) scale(1)}50%{opacity:.62;transform:translate(5%,4%) scale(1.14)}}
+    @keyframes siamsSplashBg2{0%,100%{opacity:.20;transform:translate(6%,8%) scale(1)}50%{opacity:.46;transform:translate(-4%,-4%) scale(1.18)}}
+    @keyframes siamsSplashRing{0%{transform:scale(.9);opacity:.55}100%{transform:scale(1.62);opacity:0}}
+    @keyframes siamsSplashBarLoop{0%{transform:translateX(-130%)}100%{transform:translateX(260%)}}
+
+    .siams-splash-wrap{
+      min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:32px 24px;text-align:center;position:relative;overflow:hidden;background:var(--paper);
+      isolation:isolate;
+    }
+    .siams-splash-wrap::before{
+      content:'';position:absolute;inset:0;z-index:-1;
+      background:radial-gradient(420px 260px at 50% 38%,rgba(0,145,253,.075),transparent 68%);
+      pointer-events:none;
+    }
+    .siams-splash-bg{
+      position:absolute;top:-16%;left:-18%;width:68vw;height:68vw;max-width:420px;max-height:420px;
+      border-radius:50%;background:radial-gradient(circle,rgba(0,145,253,.17),transparent 65%);
+      animation:siamsSplashBg 7s ease-in-out infinite;pointer-events:none;z-index:-1;
+    }
+    .siams-splash-bg2{
+      position:absolute;bottom:-14%;right:-16%;width:58vw;height:58vw;max-width:380px;max-height:380px;
+      border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.15),transparent 65%);
+      animation:siamsSplashBg2 8s ease-in-out infinite;pointer-events:none;z-index:-1;
+    }
+    .siams-splash-card{
+      position:relative;z-index:1;padding:26px 24px 24px;border-radius:32px;
+      animation:siamsSplashReveal .8s cubic-bezier(.2,.85,.25,1) both;
+    }
+    .siams-splash-logo-wrap{position:relative;width:104px;height:104px;margin:0 auto 22px;}
+    .siams-splash-ring{
+      position:absolute;inset:0;border-radius:29px;border:1.5px solid var(--accent-1);
+      animation:siamsSplashRing 2.4s ease-out infinite;pointer-events:none;
+    }
+    .siams-splash-ring.delay{animation-delay:1.2s}
+    .siams-splash-logo{
+      width:104px;height:104px;border-radius:29px;
+      background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 52%,var(--accent-1) 100%);
+      display:flex;align-items:center;justify-content:center;position:relative;z-index:1;overflow:hidden;
+      animation:siamsSplashGlow 2.4s ease-in-out .8s infinite,siamsSplashLogoFloat 3.8s ease-in-out 1.2s infinite;
+    }
+    .siams-splash-logo::after{
+      content:'';position:absolute;top:-20%;bottom:-20%;left:0;width:38%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,.48),transparent);
+      animation:siamsSplashSweep 2.8s ease-in-out 1.1s infinite;pointer-events:none;
+    }
+    .siams-splash-logo img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1}
+    .siams-splash-brand{
+      font-family:var(--font-display);font-size:27px;font-weight:900;letter-spacing:.8px;
+      position:relative;z-index:1;color:var(--text);opacity:0;
+      animation:siamsSplashBrandIn .65s cubic-bezier(.2,.9,.3,1) .55s forwards;
+    }
+    .siams-splash-entity{
+      margin-top:6px;font-size:10.5px;line-height:1.4;font-weight:800;letter-spacing:.04em;
+      text-transform:uppercase;color:var(--text-mid);opacity:0;max-width:290px;
+      animation:siamsSplashEntityIn .55s ease-out .95s forwards;
+    }
+    .siams-splash-msg-wrap{height:20px;margin-top:13px;position:relative;z-index:1;overflow:hidden}
+    .siams-splash-text{font-size:13px;font-weight:650;color:var(--text-mid);position:relative;z-index:1}
+    .siams-splash-bar-track{
+      width:156px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;
+      margin:25px auto 0;position:relative;z-index:1
+    }
+    .siams-splash-bar-fill{
+      position:absolute;top:0;bottom:0;width:42%;border-radius:4px;
+      background:linear-gradient(90deg,transparent,var(--accent-1),var(--mango),transparent);
+      animation:siamsSplashBarLoop 1.35s ease-in-out infinite
+    }
+    @media(prefers-reduced-motion:reduce){
+      .siams-splash-card,.siams-splash-logo,.siams-splash-bg,.siams-splash-bg2,
+      .siams-splash-ring,.siams-splash-ring.delay,.siams-splash-logo::after,
+      .siams-splash-brand,.siams-splash-entity,.siams-splash-bar-fill{animation:none!important}
+      .siams-splash-brand,.siams-splash-entity{opacity:1}
+    }
   `;
   document.head.appendChild(splashStyle);
 }
@@ -3745,7 +3802,8 @@ Views.loading = function(){
         </div>
       </div>
       <div class="siams-splash-brand">SIAMS</div>
-      <div class="siams-splash-msg-wrap"><div class="siams-splash-text">Bon retour</div></div>
+      <div class="siams-splash-entity">Société Informatique Agréée Multi-Services</div>
+      <div class="siams-splash-msg-wrap"><div class="siams-splash-text">L’innovation au service de vos ambitions</div></div>
       <div class="siams-splash-bar-track"><div class="siams-splash-bar-fill"></div></div>
     </div>
   </div>`;
@@ -3768,8 +3826,8 @@ async function showWelcomeBackThenDashboard(){
   const root = document.getElementById('page-root');
   const bottomNav = document.getElementById('bottom-nav');
   if(bottomNav) bottomNav.classList.add('hidden');
-  if(root){ root.innerHTML = Views.loading(); siamsRunSplashMessages(root, 1200); }
-  await new Promise(resolve=>setTimeout(resolve, 1200));
+  if(root){ root.innerHTML = Views.loading(); siamsRunSplashMessages(root, 1800); }
+  await new Promise(resolve=>setTimeout(resolve, 1800));
   Router.go('dashboard');
 }
 Views.welcome = function(){
@@ -3939,353 +3997,21 @@ Views['activation-code'] = function(){
 Views.login = function(){
   authMode='login';
   return `
-  <div class="siams-login-preview">
-    <style>
-
-  :root{
-    --ink:#0B0E17;
-    --panel:#F1EFE7;
-    --blue:#0091FD;
-    --blue-tint:#DFF2FF;
-    --mango:#FF7A1A;
-    --mango-dark:#DE5E00;
-    --mango-tint:#FFEADA;
-    --green:#12B76A;
-    --green-tint:#DFF7EB;
-    --red:#F04438;
-    --text:#0B0E17;
-    --text-mid:#5B6479;
-    --text-soft:#9BA3B8;
-    --line:#E7E2D6;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    background:#EDEAE0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    min-height:100vh;
-    padding:40px 16px;
-  }
-  .siams-lp-phone{
-    width:100%;
-    max-width:480px;
-    min-height:100vh;
-    height:auto;
-    background:#fff;
-    border-radius:0;
-    box-shadow:none;
-    overflow:hidden;
-    position:relative;
-    display:flex;
-    flex-direction:column;
-  }
-  .siams-lp-hero{
-    position:relative;
-    height:340px;
-    flex:none;
-    background:
-      radial-gradient(120% 90% at 50% 0%, var(--mango-tint) 0%, #FDE3CC 45%, var(--panel) 100%);
-    overflow:hidden;
-  }
-  .siams-lp-hero::after{
-    content:'';
-    position:absolute;
-    left:0;right:0;bottom:0;
-    height:70px;
-    background:linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 100%);
-    pointer-events:none;
-  }
-  .siams-lp-hero-top{
-    position:relative;
-    z-index:2;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:20px 20px 0;
-  }
-  .siams-lp-back-btn{
-    width:38px;height:38px;border-radius:12px;
-    background:rgba(255,255,255,.75);
-    backdrop-filter:blur(6px);
-    display:flex;align-items:center;justify-content:center;
-    color:var(--ink);
-    box-shadow:0 4px 14px -6px rgba(11,14,23,.25);
-  }
-  .siams-lp-brand{
-    display:flex;align-items:center;gap:8px;
-    font-weight:800;font-size:15px;color:var(--ink);
-    letter-spacing:-.2px;
-  }
-  .siams-lp-brand .siams-lp-dot{width:8px;height:8px;border-radius:50%;background:var(--mango);}
-  .siams-lp-mascot-wrap{
-    position:absolute;
-    left:2px;
-    bottom:0;
-    width:190px;
-    height:250px;
-    pointer-events:none;
-  }
-
-  .siams-lp-mascot-img{
-    position:absolute;
-    z-index:2;
-    left:50%;
-    bottom:0;
-    width:190px;
-    height:auto;
-    max-height:250px;
-    object-fit:contain;
-    transform:translateX(-50%);
-    filter:drop-shadow(0 14px 16px rgba(11,14,23,.16));
-  }
-
-  .siams-lp-msg-board{
-    position:absolute;
-    right:14px;
-    top:56px;
-    width:172px;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    z-index:2;
-  }
-  .siams-lp-msg-card{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    background:#fff;
-    border-radius:16px;
-    padding:10px 12px;
-    box-shadow:0 10px 22px -8px rgba(11,14,23,.25);
-  }
-  .siams-lp-msg-ico{
-    width:32px;height:32px;border-radius:50%;
-    flex:none;
-    display:flex;align-items:center;justify-content:center;
-    font-size:15px;
-  }
-  .siams-lp-msg-ico.mango{background:var(--mango-tint);}
-  .siams-lp-msg-ico.blue{background:var(--blue-tint);}
-  .siams-lp-msg-ico.green{background:var(--green-tint);}
-  .siams-lp-msg-text{font-size:11.5px;line-height:1.3;color:var(--ink);min-width:0;}
-  .siams-lp-msg-text b{display:block;font-size:12px;}
-  .siams-lp-msg-text span{color:var(--text-mid);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
-
-  .siams-lp-card{
-    flex:1;
-    background:#fff;
-    border-radius:28px 28px 0 0;
-    margin-top:-28px;
-    position:relative;
-    z-index:3;
-    padding:26px 24px 28px;
-    overflow-y:auto;
-  }
-  .siams-login-preview h1{
-    font-size:23px;
-    margin:0 0 5px;
-    color:var(--ink);
-    letter-spacing:-.3px;
-  }
-  .siams-lp-sub{
-    color:var(--text-mid);
-    font-size:13.5px;
-    margin:0 0 22px;
-    line-height:1.4;
-  }
-  .siams-lp-field{margin-bottom:14px;}
-  .siams-lp-field label{
-    display:block;
-    font-size:12.5px;
-    font-weight:700;
-    color:var(--text-mid);
-    margin-bottom:6px;
-  }
-  .siams-lp-input-wrap{
-    display:flex;
-    align-items:center;
-    gap:9px;
-    background:var(--blue-tint);
-    border:1.5px solid var(--blue);
-    border-radius:14px;
-    padding:0 14px;
-    height:52px;
-    transition:border-color .15s ease, background .15s ease, box-shadow .15s ease;
-  }
-  .siams-lp-input-wrap:focus-within{
-    border-color:var(--blue);
-    background:#EAF6FF;
-    box-shadow:0 0 0 3px rgba(0,145,253,.12);
-  }
-  .siams-lp-input-wrap svg{flex:none;color:#0B67D8;}
-  .siams-lp-input-wrap input{
-    border:none;outline:none;background:transparent;
-    flex:1;font-size:14.5px;color:#0B67D8;
-    font-family:inherit;height:100%;
-  }
-  .siams-lp-input-wrap input::placeholder{color:#0B67D8;opacity:.82;}
-  .siams-lp-eye-btn{background:none;border:none;padding:2px;color:#0B67D8;display:flex;cursor:pointer;}
-
-  .siams-lp-row-between{
-    display:flex;align-items:center;justify-content:space-between;
-    margin:10px 0 22px;
-    font-size:12.5px;
-  }
-  .siams-lp-remember{display:flex;align-items:center;gap:7px;color:var(--text-mid);}
-  .siams-lp-checkbox{
-    width:17px;height:17px;border-radius:6px;
-    border:1.6px solid var(--blue);
-    display:flex;align-items:center;justify-content:center;
-    background:var(--blue);
-    color:#fff;
-  }
-  .siams-lp-link{color:#0B67D8;font-weight:700;text-decoration:none;}
-
-  .siams-lp-btn-primary{
-    display:block;width:100%;border:none;cursor:pointer;
-    background:linear-gradient(135deg,#0866FF 0%, var(--blue) 100%);
-    color:#fff;font-size:15.5px;font-weight:800;
-    padding:16px;border-radius:16px;
-    box-shadow:0 14px 26px -10px rgba(0,102,255,.35);
-    letter-spacing:.1px;
-    transition:transform .15s ease, box-shadow .15s ease;
-  }
-  .siams-lp-btn-primary:hover{
-    box-shadow:0 16px 30px -10px rgba(0,102,255,.45);
-  }
-  .siams-lp-btn-primary:active{transform:translateY(1px);}
-
-  .siams-lp-id-note{
-    margin-top:16px;
-    padding:12px 13px;
-    border-radius:13px;
-    background:var(--panel);
-    color:var(--text-mid);
-    font-size:11.5px;
-    line-height:1.5;
-  }
-
-  .siams-lp-divider{
-    display:flex;align-items:center;gap:12px;
-    margin:22px 0 16px;
-    color:var(--text-soft);
-    font-size:12px;
-  }
-  .siams-lp-divider::before,.siams-lp-divider::after{content:'';flex:1;height:1px;background:var(--line);}
-
-  .siams-lp-social-row{display:flex;gap:12px;}
-  .siams-lp-social-btn{
-    flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
-    padding:13px;border-radius:14px;
-    background:var(--panel);border:1.5px solid transparent;
-    font-size:13.5px;font-weight:700;color:var(--text);
-    opacity:.85;
-  }
-
-  .siams-lp-id-recover{margin-top:16px;
-    display:flex;align-items:center;justify-content:center;gap:8px;
-    width:100%;padding:14px;border-radius:14px;
-    background:var(--blue-tint);color:#0b67d8;
-    font-size:13.5px;font-weight:700;border:none;
-  }
-
-  .siams-lp-footer-link{
-    text-align:center;
-    margin-top:20px;
-    font-size:13px;
-    color:var(--text-mid);
-  }
-  .siams-lp-footer-link b{color:var(--ink);}
-
-    </style>
-<div class="siams-lp-phone">
-  <div class="siams-lp-hero">
-    <div class="siams-lp-siams-lp-hero-top">
-      <button type="button" class="siams-lp-back-btn" onclick="Router.go('welcome')" aria-label="Retour">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <div style="width:38px;"></div>
-      <div style="width:38px;"></div>
-    </div>
-
-    <div class="siams-lp-mascot-wrap">
-      <img class="siams-lp-mascot-img" src="images/mascot.webp">
-    </div>
-
-    <div class="siams-lp-msg-board">
-      <div class="siams-lp-msg-card">
-        <div class="siams-lp-msg-ico mango">🛍️</div>
-        <div class="siams-lp-msg-text"><b>Nouvelle commande</b><span>Robe wax — 12 000 FCFA</span></div>
-      </div>
-      <div class="siams-lp-msg-card">
-        <div class="siams-lp-msg-ico green">💳</div>
-        <div class="siams-lp-msg-text"><b>Paiement reçu</b><span>Wave — confirmé</span></div>
-      </div>
-      <div class="siams-lp-msg-card">
-        <div class="siams-lp-msg-ico blue">⭐</div>
-        <div class="siams-lp-msg-text"><b>Nouvel avis client</b><span>5 étoiles — merci !</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="siams-lp-card">
-    <h1>Bon retour</h1>
-    <p class="siams-lp-sub">Connectez-vous pour gérer votre boutique.</p>
-
-    <div class="siams-lp-field">
-      <label>E-mail ou ID marchand SIAMS</label>
-      <div class="siams-lp-input-wrap">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 7l9 6 9-6M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-        <input type="text" id="auth-email" placeholder="vous@exemple.com ou SIAMS-XXXXXX">
-      </div>
-    </div>
-
-    <div class="siams-lp-field">
-      <label>Mot de passe</label>
-      <div class="siams-lp-input-wrap">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7"/></svg>
-        <input type="password" id="auth-pass" autocomplete="current-password" placeholder="••••••••">
-        <button type="button" class="siams-lp-eye-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass', this)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>
-        </button>
-      </div>
-    </div>
-
-    <div class="siams-lp-row-between">
-      <div class="siams-lp-remember">
-        <span class="siams-lp-checkbox">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
-        Rester connecté
-      </div>
-      <button type="button" class="siams-lp-link" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button>
-    </div>
-
-    <div id="auth-error" style="font-size:13px;margin:0 0 14px;"></div><button type="button" class="siams-lp-btn-primary" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>
-
-    <div class="siams-lp-divider">Ou continuer avec</div>
-    <div class="siams-lp-social-row">
-      <button type="button" class="siams-lp-social-btn">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47c-.28 1.5-1.13 2.78-2.4 3.63v3.02h3.89c2.28-2.1 3.59-5.19 3.59-8.84z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.89-3.02c-1.08.72-2.45 1.15-4.04 1.15-3.1 0-5.73-2.09-6.67-4.9H1.32v3.09C3.29 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.33 14.33A7.2 7.2 0 0 1 4.94 12c0-.81.14-1.6.39-2.33V6.58H1.32A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.32 5.42l4.01-3.09z"/><path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.94 1.19 15.24 0 12 0 7.31 0 3.29 2.7 1.32 6.58l4.01 3.09C6.27 6.86 8.9 4.77 12 4.77z"/></svg>
-        Google
-      </button>
-      <button type="button" class="siams-lp-social-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="#0B0E17"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.03-.83.87-2.19 1.55-3.34 1.46-.14-1.1.42-2.25 1.19-3.02.83-.87 2.27-1.53 3.36-1.47zM20.5 17.34c-.55 1.27-.81 1.84-1.52 2.96-.99 1.56-2.39 3.5-4.12 3.51-1.53.02-1.92-1-4-1-2.07 0-2.51.98-4.04.99-1.73.02-3.05-1.71-4.04-3.27-2.77-4.32-3.06-9.39-1.35-12.09 1.21-1.92 3.13-3.05 4.94-3.05 1.84 0 3 1.02 4.52 1.02 1.47 0 2.37-1.02 4.5-1.02 1.61 0 3.31.88 4.52 2.4-3.97 2.18-3.33 7.84.59 9.55z"/></svg>
-        Apple
-      </button>
-    </div>
-    <div style="text-align:center;font-size:10.5px;color:var(--text-soft);margin:8px 0 6px;">Bientôt disponible</div>
-
-    <button type="button" class="siams-lp-id-recover" onclick="Router.go('recover-id')">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 15v6m0 0l-3-3m3 3l3-3M4 9V7a2 2 0 0 1 2-2h3m8 0h3a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      ID marchand oublié ?
+  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">
+    <button onclick="Router.go('welcome')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-
-  </div>
-</div>
+    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
+    <h1 style="font-size:24px;margin:0 0 6px;">Connexion</h1>
+    <p style="color:var(--text-mid);font-size:14px;margin:0 0 26px;">Connectez-vous pour gérer votre boutique.</p>
+    <div class="field"><label>E-mail ou ID marchand SIAMS</label><input id="auth-email" type="text" placeholder="vous@exemple.com ou SIAMS-XXXXXX" autocomplete="username"></div>
+    <div class="field"><label>Mot de passe</label>
+      <div class="pass-field-wrap"><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass', this)">${EYE_SVG}</button></div>
+      <div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go('recover-id')">ID marchand oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button></div>
+    </div>
+    <div id="auth-error" style="font-size:13px;margin-bottom:14px;"></div>
+    <button class="btn btn-primary btn-block" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>
+    <div style="margin-top:14px;padding:12px 13px;border-radius:13px;background:var(--panel);color:var(--text-mid);font-size:11.5px;line-height:1.45;">L’accès aux nouvelles inscriptions est réservé aux personnes ayant reçu un code partenaire du service client SIAMS.</div>
   </div>`;
 };
 Views.register = function(){
@@ -11068,7 +10794,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   /* Le chargement réel démarre tout de suite, en parallèle de ce délai minimum
      (juste assez pour que l'animation ne clignote pas) — au lieu d'attendre
      bêtement 3 secondes avant même de commencer à charger quoi que ce soit. */
-  const splashMinDelay = new Promise(resolve=>setTimeout(resolve, 900));
+  const splashMinDelay = new Promise(resolve=>setTimeout(resolve, 1800));
   try{
     /* ---- Vitrine publique : /{slug}[?produit={id}] ---- */
     const path = location.pathname.replace(/^\/+|\/+$/g, '');
