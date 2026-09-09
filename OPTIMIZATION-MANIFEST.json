@@ -1,0 +1,22 @@
+{
+  "source": "/mnt/data/siams-split",
+  "original_split_index_bytes": 24657,
+  "final_index_bytes": 21615,
+  "css_before": 26,
+  "css_after": 1,
+  "js_before": 30,
+  "js_after": 1,
+  "css_bundle_bytes": 188723,
+  "js_bundle_bytes": 975109,
+  "images": {
+    "logo.webp": 4684,
+    "watermark.webp": 29280,
+    "mascot.webp": 133494
+  },
+  "notes": [
+    "CSS concatenated in original reference order.",
+    "Classic JS concatenated in original reference order.",
+    "External CDN scripts preserved.",
+    "No source minification performed yet to reduce risk of behavioral changes."
+  ]
+}

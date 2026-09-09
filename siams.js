@@ -1,0 +1,12773 @@
+
+/* ===== app-01.js ===== */
+/* =========================================================
+   BELOU STORE — architecture: Store / Notify / Router / Views
+   ========================================================= */
+
+/* ---------------- Logo SIAMS ---------------- */
+const LOGO_DATA_URI = "images/logo.webp";
+
+/* ---------------- Supabase ---------------- */
+const SUPABASE_URL = 'https://anlqgkrjiwkeaqikgdcd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_xc3fRNdG_R-CNkeVBseU2w_sIDz-3j4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------------- Chargement paresseux des librairies lourdes ----------------
+   jsPDF (~350 Ko) ne sert que pour l'export PDF. Il est injecté uniquement
+   au premier export afin de garder le démarrage rapide sur mobile. */
+const _scriptCache = {};
+function loadScriptOnce(key, src){
+  if(_scriptCache[key]) return _scriptCache[key];
+  _scriptCache[key] = new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = ()=>{ delete _scriptCache[key]; reject(new Error('load failed: '+src)); };
+    document.head.appendChild(s);
+  });
+  return _scriptCache[key];
+}
+async function ensureJsPDF(){
+  if(window.jspdf) return true;
+  try{ await loadScriptOnce('jspdf', 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'); return true; }
+  catch(e){ console.error(e); return false; }
+}
+/* ---------------- Utils ---------------- */
+const Utils = {
+  fmtFCFA(n){ return Number(n||0).toLocaleString('fr-FR').replace(/[\u202F\u00A0\u2009,]/g,' ') + ' FCFA'; },
+  escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); },
+  /* ---- Transforme un nom de boutique en lien propre et lisible : "Amos Boutique" -> "amos-boutique" ---- */
+  slugify(name){
+    return String(name||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // retire les accents
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/^-+|-+$/g,'')
+      .slice(0, 40) || 'boutique';
+  },
+  /* ---- Référence de contrat d'abonnement : SIGO-<PLAN>-<horodatage base36>-<aléatoire> ---- */
+  genContractRef(planKey){
+    const stamp = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2,6).toUpperCase();
+    return `SIGO-${(planKey||'').toUpperCase()}-${stamp}-${rand}`;
+  },
+  /* ---- Référence du contrat d'utilisation SIAMS (généré à l'inscription) : SIAMS-CTR-<horodatage base36>-<aléatoire> ---- */
+  genAccountContractRef(){
+    const stamp = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2,6).toUpperCase();
+    return `SIAMS-CTR-${stamp}-${rand}`;
+  },
+  uid(){
+    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+      const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+      return v.toString(16);
+    });
+  },
+  /* ---- ID marchand SIAMS utilisateur : SIAMS-XXXXXX ----
+     Remplace l'e-mail pour se reconnecter. Sans caractères ambigus (0/O, 1/I). ---- */
+  genLoginId(){
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let rand = '';
+    for(let i=0;i<6;i++) rand += chars[Math.floor(Math.random()*chars.length)];
+    return `SIAMS-${rand}`;
+  },
+  /* ---- Code de commande lisible : initiales de la boutique + suffixe aléatoire
+     (ex: "SIAMS Boutique" -> "SIA-4K9F2"). Remplace le simple compteur 1001, 1002... ---- */
+  genOrderCode(storeName){
+    const initials = (storeName||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toUpperCase().replace(/[^A-Z0-9\s]/g,'')
+      .split(/\s+/).filter(Boolean)
+      .map(w=>w[0]).join('').slice(0,4) || 'BTQ';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans caractères ambigus (0/O, 1/I)
+    let rand = '';
+    for(let i=0;i<5;i++) rand += chars[Math.floor(Math.random()*chars.length)];
+    return `${initials}-${rand}`;
+  },
+  /* ---- Numéro de reçu officiel SIAMS (distinct du n° de commande) : SIAMS-R-<horodatage base36>-<aléatoire> ---- */
+  genReceiptNumber(){
+    const stamp = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2,6).toUpperCase();
+    return `SIAMS-R-${stamp}-${rand}`;
+  },
+  timeAgo(ts){
+    const s = Math.floor((Date.now()-ts)/1000);
+    if(s<60) return "à l'instant";
+    if(s<3600) return Math.floor(s/60)+' min';
+    if(s<86400) return Math.floor(s/3600)+' h';
+    return Math.floor(s/86400)+' j';
+  },
+  dayLabel(d){ return ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][d.getDay()]; },
+  /* ---- Libellé lisible d'une combinaison de variante (taille/couleur/attributs
+     personnalisés) pour un item de panier ou de commande. ---- */
+  variantLabel(item){
+    const bits = [item.size, item.color].filter(Boolean);
+    if(item.extra){ Object.keys(item.extra).forEach(k=>{ if(item.extra[k]) bits.push(item.extra[k]); }); }
+    return bits.join(' · ');
+  },
+  /* ---- Encodage discret de métadonnées (tailles / couleurs) dans la description ----
+     Permet de conserver ces infos via la colonne "description" existante, sans
+     modification du schéma de la base de données. ---- */
+  encodeMeta(desc, meta){
+    const clean = (desc||'').replace(/\n?<!--SIGO_META:.*?-->\s*$/s, '');
+    const extra = (meta.extra||[]).filter(g=>g.label && g.values && g.values.length);
+    const hasMeta = (meta.sizes && meta.sizes.length) || (meta.colors && meta.colors.length) || extra.length;
+    const payload = {sizes:meta.sizes||[], colors:meta.colors||[], extra};
+    return hasMeta ? `${clean}\n<!--SIGO_META:${JSON.stringify(payload)}-->` : clean;
+  },
+  decodeMeta(desc){
+    const raw = desc || '';
+    const m = raw.match(/<!--SIGO_META:(.*?)-->\s*$/s);
+    let meta = {sizes:[], colors:[], extra:[]};
+    if(m){ try{ meta = {...meta, ...JSON.parse(m[1])}; }catch(e){} }
+    const clean = raw.replace(/\n?<!--SIGO_META:.*?-->\s*$/s, '').trim();
+    return { desc: clean, sizes: meta.sizes||[], colors: meta.colors||[], extra: (meta.extra||[]).filter(g=>g&&g.label&&Array.isArray(g.values)) };
+  },
+  /* ---- Petit stockage local additionnel (retraits, email de contact) ---- */
+  localKey(name){ const slug = (Store.store && Store.store.slug) ? Store.store.slug : 'default'; return `sigo_${name}_${slug}`; },
+  getLocal(name, fallback){ try{ const v = localStorage.getItem(Utils.localKey(name)); return v!=null ? JSON.parse(v) : fallback; }catch(e){ return fallback; } },
+  setLocal(name, value){ try{ localStorage.setItem(Utils.localKey(name), JSON.stringify(value)); }catch(e){} }
+};
+
+/* ---------------- Cloud (Supabase sync layer) ---------------- */
+const Cloud = {
+  storeId: null,
+  loginId: null,
+  publicMode: false,
+  _orderWritePromises: Object.create(null),
+  categories: [], // [{id,name}]
+
+  catId(name){ const c = this.categories.find(x=>x.name===name); return c ? c.id : null; },
+  catName(id){ const c = this.categories.find(x=>x.id===id); return c ? c.name : ''; },
+
+  /* ---- Convertit une data URL base64 (photo/bannière/preuve de paiement générée
+     en local par siamsPrepareImageDataURL) en un vrai fichier hébergé sur Supabase
+     Storage, et renvoie l'URL publique à stocker en base. Ne fait rien si la valeur
+     est déjà une URL (http/https) : évite un ré-upload inutile à chaque sauvegarde. ---- */
+  MEDIA_BUCKET: 'assets',
+  async ensureStoredUrl(value, folder){
+    if(!value || typeof value !== 'string' || !value.startsWith('data:')) return value;
+    const blob = await (await fetch(value)).blob();
+    const ext = ((blob.type.split('/')[1]||'jpg').split('+')[0]||'jpg').replace(/[^a-z0-9]/gi,'') || 'jpg';
+    const path = `${folder}/${this.storeId||'shared'}/${Date.now()}-${Utils.uid().replace(/-/g,'')}.${ext}`;
+    const { error:upErr } = await sb.storage.from(this.MEDIA_BUCKET).upload(path, blob, { contentType: blob.type||undefined, upsert:false, cacheControl:'31536000' });
+    if(upErr){ console.error('Sync error [storage upload '+folder+']', upErr); throw upErr; }
+    const { data:pub } = sb.storage.from(this.MEDIA_BUCKET).getPublicUrl(path);
+    if(!pub || !pub.publicUrl) throw new Error('URL publique indisponible après upload ('+folder+')');
+    return pub.publicUrl;
+  },
+
+  async ensureStore(userId, phone){
+    let { data } = await sb.from('stores').select('*').eq('owner_id', userId).order('created_at', {ascending:true}).limit(1);
+    let store = (data && data[0]) || null;
+    if(!store){
+      const slug = 'boutique-' + userId.slice(0,8) + '-' + Math.random().toString(36).slice(2,6);
+      const loginId = Utils.genLoginId();
+      const ins = await sb.from('stores').insert({ owner_id:userId, name:'Ma boutique', slug, phone: phone || '', login_id: loginId }).select().single();
+      store = ins.data;
+      /* ---- Boutique tout juste créée : on sème les catégories/moyens de paiement
+         par défaut ici, une seule fois, plutôt qu'à chaque connexion (voir
+         ensureDefaults, conservé seulement pour les vieux comptes non semés). ---- */
+      if(store) await this.ensureDefaults(store.id);
+    } else if(!store.login_id){
+      /* Compte créé avant l'ajout de cette fonctionnalité : on génère l'identifiant à la volée. */
+      const loginId = Utils.genLoginId();
+      const upd = await sb.from('stores').update({ login_id: loginId }).eq('id', store.id).select().single();
+      store = upd.data || { ...store, login_id: loginId };
+    }
+    this.storeId = store.id;
+    this.loginId = store.login_id || '';
+    this.publicMode = false;
+    return store;
+  },
+
+  async ensurePublicStore(slug){
+    const { data: store, error } = await sb.from('stores').select('id').eq('slug', slug).maybeSingle();
+    if(error || !store) return null;
+    this.storeId = store.id;
+    this.loginId = null;
+    this.publicMode = true;
+    return store;
+  },
+
+  /* ---- Sème les catégories/moyens de paiement par défaut si absents. Appelée une
+     fois à la création d'une boutique (ensureStore) ; conservée aussi en filet de
+     sécurité pour les comptes créés avant l'ajout de cette fonctionnalité, mais
+     alors lancée en arrière-plan (voir loadStoreData) pour ne jamais ralentir
+     l'écran de connexion des boutiques déjà à jour. ---- */
+  async ensureDefaults(storeId){
+    const sid = storeId || this.storeId;
+    const [catRes, payRes] = await Promise.all([
+      sb.from('categories').select('id').eq('store_id', sid).limit(1),
+      sb.from('payment_methods').select('id').eq('store_id', sid).limit(1)
+    ]);
+    const jobs = [];
+    if(!catRes.data || !catRes.data.length){
+      const defaults = ['Vêtements','Chaussures','Sacs','Montres','Bijoux & Accessoires','Autres'];
+      jobs.push(sb.from('categories').insert(defaults.map(name=>({store_id:sid, name}))));
+    }
+    if(!payRes.data || !payRes.data.length){
+      jobs.push(sb.from('payment_methods').insert([
+        {store_id:sid, method_key:'wave', enabled:false, number:''},
+        {store_id:sid, method_key:'om', enabled:false, number:''},
+        {store_id:sid, method_key:'mtn', enabled:false, number:''},
+        {store_id:sid, method_key:'moov', enabled:false, number:''},
+        {store_id:sid, method_key:'cash', enabled:true, number:null}
+      ]));
+    }
+    if(jobs.length) await Promise.all(jobs);
+  },
+
+  async loadAll(){
+    const sid = this.storeId;
+    const [storeRes, prodRes, ordRes, teamRes, payRes, zoneRes, promoRes, revRes, notifRes, catRes, menuRes] = await Promise.all([
+      sb.from('stores').select('*').eq('id', sid).single(),
+      sb.from('products').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
+      sb.from('orders').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
+      sb.from('team_members').select('*').eq('store_id', sid),
+      sb.from('payment_methods').select('*').eq('store_id', sid),
+      sb.from('delivery_zones').select('*').eq('store_id', sid),
+      sb.from('promos').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
+      sb.from('reviews').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
+      sb.from('notifications').select('*').eq('store_id', sid).order('created_at', {ascending:false}),
+      sb.from('categories').select('*').eq('store_id', sid),
+      sb.from('menu_items').select('*').eq('store_id', sid).order('position', {ascending:true})
+    ]);
+    this.categories = catRes.data || [];
+    const products = prodRes.data || [];
+    const orders = ordRes.data || [];
+    const productIds = products.map(p=>p.id);
+    const orderIds = orders.map(o=>o.id);
+    const [photoRes, itemRes] = await Promise.all([
+      productIds.length ? sb.from('product_photos').select('*').in('product_id', productIds) : Promise.resolve({data:[]}),
+      orderIds.length ? sb.from('order_items').select('*').in('order_id', orderIds) : Promise.resolve({data:[]})
+    ]);
+    const photos = photoRes.data || [];
+    const items = itemRes.data || [];
+    const s = storeRes.data || {};
+
+    _cache.store = { name:s.name||'Ma boutique', phone:s.phone||'', slug:s.slug||'', photo:s.photo_url||null, banner:s.banner_url||null,
+      description:s.description||"Boutique en ligne spécialisée dans la vente d'articles de qualité, avec livraison rapide et paiement sécurisé à la livraison.",
+      address:s.address||'Abidjan, Côte d’Ivoire', email:s.email||'', hours:s.hours||'Lundi – Samedi, 8h – 19h', loginId:s.login_id||'', businessType:s.business_type||'vente-ligne',
+      uiTheme: s.ui_theme==='black' ? 'black' : 'blue',
+      verification: { status:s.verification_status||'none', docType:s.verification_doc_type||'', docUrl:s.verification_doc_url||null, photoUrl:s.verification_photo_url||null,
+        submittedAt:s.verification_submitted_at?new Date(s.verification_submitted_at).getTime():0, verified:!!s.verified,
+        verifiedAt:s.verified_at?new Date(s.verified_at).getTime():0, rejectReason:s.verification_reject_reason||'' } };
+    /* ---- Le thème (bleu/noir) fait foi côté cloud, comme le type d'activité juste au-dessus :
+       on garde une copie locale (localStorage) uniquement pour un affichage instantané avant que
+       ce chargement cloud ne soit terminé, jamais comme source de vérité. ---- */
+    Utils.setLocal('ui_theme', _cache.store.uiTheme);
+    /* ---- Le type d'activité fait foi côté cloud (multi-appareils). On resynchronise
+       le cache local du marchand pour que l'écran de choix ne se réaffiche pas et que
+       la navigation (onglet Produits/Menu) reste cohérente sur cet appareil aussi. ---- */
+    if(s.business_type && !this.publicMode) setBusinessType(s.business_type);
+    _cache.products = products.map(p=>{
+      const pPhotos = photos.filter(ph=>ph.product_id===p.id).sort((a,b)=>a.position-b.position).map(ph=>ph.url);
+      return { id:p.id, name:p.name, price:p.price, oldPrice:p.compare_at_price||null, category:this.catName(p.category_id), photos:pPhotos, photo:pPhotos[0]||null, stockLimited:p.stock_limited, stockQty:p.stock_qty, desc:p.description||'' };
+    });
+    _cache.orders = orders.map(o=>({
+      id:o.id, number:o.number, customer:{name:o.customer_name, phone:o.customer_phone, address:o.customer_address},
+      customerLat:o.customer_latitude!=null?Number(o.customer_latitude):null, customerLng:o.customer_longitude!=null?Number(o.customer_longitude):null,
+      items: items.filter(it=>it.order_id===o.id).map(it=>({productId:it.product_id, name:it.name, price:it.price, qty:it.qty, photo:(photos.filter(ph=>ph.product_id===it.product_id).sort((a,b)=>a.position-b.position)[0]||{}).url||null})),
+      amount:o.amount, discount:o.discount, deliveryZone:o.delivery_zone, deliveryFee:o.delivery_fee,
+      promoCode:o.promo_code, paymentMethod:o.payment_method, status:o.status, createdAt:new Date(o.created_at).getTime(),
+      paymentProof:o.payment_proof_url||null, confirmedAt:o.confirmed_at?new Date(o.confirmed_at).getTime():0,
+      shipped:!!o.shipped, shippedAt:o.shipped_at?new Date(o.shipped_at).getTime():0,
+      deliveryConfirmedAt:o.delivery_confirmed_at?new Date(o.delivery_confirmed_at).getTime():0, deliveryPhoto:o.delivery_photo_url||null,
+      deliveryToken:o.delivery_token||null, courierId:o.courier_id||null, courierLat:o.courier_latitude||null, courierLng:o.courier_longitude||null, courierAccuracy:o.courier_location_accuracy||null, courierLocationAt:o.courier_location_at?new Date(o.courier_location_at).getTime():0, deliveryStatusMessage:o.delivery_status_message||'', courierPayout:Number(o.courier_payout_amount||0)
+    }));
+    _cache.team = (teamRes.data||[]).map(t=>({id:t.id, name:t.name, phone:t.phone, role:t.role, status:t.status}));
+    const payArr = payRes.data || [];
+    const findPay = k => { const r = payArr.find(x=>x.method_key===k); return r ? {enabled:r.enabled, number:r.number||'', link:r.link||'', validated:(!!r.validated || !!r.number), validatedAt:r.validated_at?new Date(r.validated_at).getTime():0} : {enabled:k==='cash', number:'', link:'', validated:false, validatedAt:0}; };
+    _cache.payment = { wave:findPay('wave'), om:findPay('om'), mtn:findPay('mtn'), moov:findPay('moov'), cash:{enabled:findPay('cash').enabled} };
+    _cache.deliveryZones = (zoneRes.data||[]).map(z=>({name:z.name, fee:z.fee}));
+    _cache.promos = (promoRes.data||[]).map(p=>({id:p.id, code:p.code, type:p.type, value:p.value, active:p.active, maxUses:Number(p.max_uses||0), usedCount:Number(p.used_count||0), createdAt:new Date(p.created_at).getTime()}));
+    PromoLocal.load(); _cache.promos = _cache.promos.map(p=>PromoLocal.merge(p));
+    _cache.reviews = (revRes.data||[]).map(r=>({id:r.id, productId:r.product_id, name:r.name, rating:r.rating, comment:r.comment, reply:r.reply, createdAt:new Date(r.created_at).getTime()}));
+    _cache.notifications = (notifRes.data||[]).map(n=>({id:n.id, type:n.type, message:n.message, read:n.read, createdAt:new Date(n.created_at).getTime()}));
+    _cache.categories = this.categories.map(c=>c.name);
+    _cache.categoryPhotos = Object.fromEntries(this.categories.filter(c=>c.photo).map(c=>[c.name, c.photo]));
+    _cache.menuItems = (menuRes.data||[]).map(m=>({ id:m.id, name:m.name, price:m.price, desc:m.description||'', category:m.category||'Plat', photo:m.photo_url||null, available:!!m.available_today }));
+
+    /* ---- Synchronisation de l'abonnement depuis le cloud (multi-appareils) ----
+       Si une formule a déjà été activée/payée (sur ce téléphone ou un autre), la
+       fiche boutique en fait foi : l'abonnement est reconnu automatiquement, sans
+       attendre une nouvelle confirmation locale. On préserve toutefois le compte à
+       rebours local si un paiement vient d'être déclaré sur cet appareil précis. */
+    if(s.subscription_plan){
+      const localSub = Utils.getLocal('subscription', { plan:null, status:'none', renewsAt:0, pendingSince:0, pendingConfirmAt:0, pendingMethod:'' });
+      const serverStatus = s.subscription_status || 'none';
+      /* ---- 'active' et 'expired' sont des statuts définitifs décidés par l'admin :
+         ils écrasent toujours le cache local, même si l'appareil était resté sur
+         'pending' (sinon un appareil qui a déclaré un paiement ne voit jamais la
+         validation admin arriver, et le badge ne s'affiche jamais). ---- */
+      const serverIsFinal = serverStatus==='active' || serverStatus==='expired';
+      if(serverIsFinal || localSub.status!=='pending'){
+        const wasActive = localSub.status==='active';
+        Utils.setLocal('subscription', {
+          plan: s.subscription_plan,
+          status: serverStatus,
+          renewsAt: s.subscription_renews_at ? new Date(s.subscription_renews_at).getTime() : 0,
+          paymentMethod: s.subscription_payment_method || localSub.paymentMethod || '',
+          pendingSince:0, pendingConfirmAt:0, pendingMethod:''
+        });
+        if(serverStatus==='active' && !wasActive){
+          const planLabel = (typeof SUBSCRIPTION_PLANS!=='undefined' && SUBSCRIPTION_PLANS.find(p=>p.key===s.subscription_plan)?.label) || '';
+          Notify.add('order', `Abonnement ${planLabel} activé ✓ Votre formule est maintenant active.`);
+        }
+      }
+    }
+    /* ---- Synchronisation du statut « commission réglée » depuis le cloud, pour que
+       tous les appareils du vendeur voient le même état (une fois validé par SIAMS). ---- */
+    if(typeof s.commission_settled === 'boolean'){
+      Utils.setLocal('commission_settled', s.commission_settled);
+    }
+  },
+
+  /* ---- Écrit le thème choisi par le marchand dans Supabase, pour qu'il s'applique
+     sur tous les appareils (marchand, livreur, et vitrine client) au lieu de rester
+     coincé en localStorage sur le seul appareil où il a été choisi. ---- */
+  async pushTheme(theme){
+    if(!this.storeId) return;
+    const { error } = await sb.from('stores').update({ ui_theme: theme }).eq('id', this.storeId);
+    if(error){ console.error('Sync error [theme update]', error); throw error; }
+  },
+
+  async pushStore(prev, next){
+    next.photo = await this.ensureStoredUrl(next.photo, 'store-photos');
+    next.banner = await this.ensureStoredUrl(next.banner, 'store-banners');
+    const patch = { name:next.name, phone:next.phone, photo_url:next.photo, banner_url:next.banner, description:next.description||null, address:next.address||null, email:next.email||null, hours:next.hours||null };
+    /* ---- Regénère un lien propre (ex: amos-boutique) quand le nom change, plutôt que de garder
+       l'ancien slug aléatoire (boutique-xxxxxxxx-xxxx) généré à la création du compte. ---- */
+    if(next.name && next.name !== prev.name){
+      const base = Utils.slugify(next.name);
+      let candidate = base, i = 1;
+      while(true){
+        const { data } = await sb.from('stores').select('id').eq('slug', candidate).neq('id', this.storeId).limit(1);
+        if(!data || !data.length) break;
+        i++; candidate = base + '-' + i;
+      }
+      patch.slug = candidate;
+      next.slug = candidate;
+      Utils.setLocal('store', next);
+    }
+    const { error:storeErr } = await sb.from('stores').update(patch).eq('id', this.storeId);
+    if(storeErr){ console.error('Sync error [stores update]', storeErr); throw storeErr; }
+  },
+
+  async pushProducts(prev, next){
+    const prevIds = prev.map(p=>p.id), nextIds = next.map(p=>p.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length){
+      const { error:delErr } = await sb.from('products').delete().in('id', removed);
+      if(delErr){ console.error('Sync error [products delete]', delErr); throw delErr; }
+    }
+    for(const p of next){
+      let catId = this.catId(p.category);
+      if(p.category && !catId){
+        const ins = await sb.from('categories').insert({store_id:this.storeId, name:p.category}).select().single();
+        if(ins.error){ console.error('Sync error [categories insert]', ins.error); throw ins.error; }
+        if(ins.data){ this.categories.push(ins.data); catId = ins.data.id; }
+      }
+      const { error:prodErr } = await sb.from('products').upsert({ id:p.id, store_id:this.storeId, category_id:catId||null, name:p.name, price:p.price, compare_at_price:p.oldPrice||null, description:p.desc||null, stock_limited:!!p.stockLimited, stock_qty:p.stockLimited?Number(p.stockQty||0):null });
+      if(prodErr){ console.error('Sync error [products upsert]', prodErr); throw prodErr; }
+      /* ---- On insère d'abord les nouvelles photos, puis on ne supprime que les
+         anciennes lignes restantes : si l'insertion échoue (réseau coupé, photo
+         trop lourde, etc.), les photos déjà en ligne restent intactes au lieu
+         d'être effacées avant que le remplacement ait réussi. ---- */
+      const photos = (p.photos && p.photos.length) ? p.photos : (p.photo?[p.photo]:[]);
+      if(photos.length){
+        const uploadedUrls = await Promise.all(photos.map(url=>this.ensureStoredUrl(url, 'product-photos')));
+        p.photos = uploadedUrls; p.photo = uploadedUrls[0]||null;
+        const { data:inserted, error:photoErr } = await sb.from('product_photos').insert(uploadedUrls.map((url,i)=>({product_id:p.id, url, position:i}))).select('id');
+        if(photoErr){ console.error('Sync error [product_photos insert]', photoErr); throw photoErr; }
+        const newIds = (inserted||[]).map(r=>r.id);
+        if(newIds.length) await sb.from('product_photos').delete().eq('product_id', p.id).not('id','in','('+newIds.join(',')+')');
+      } else {
+        await sb.from('product_photos').delete().eq('product_id', p.id);
+      }
+    }
+  },
+
+  /* ---- Module Restauration : plats du menu du jour (table dédiée menu_items,
+     séparée des produits classiques). Pas de galerie multi-photos ni de stock
+     numérique ici : juste une photo optionnelle et un flag "disponible aujourd'hui"
+     que le marchand bascule en un tap. ---- */
+  async pushMenuItems(prev, next){
+    const prevIds = prev.map(m=>m.id), nextIds = next.map(m=>m.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length){
+      const { error:delErr } = await sb.from('menu_items').delete().in('id', removed);
+      if(delErr){ console.error('Sync error [menu_items delete]', delErr); throw delErr; }
+    }
+    for(let i=0;i<next.length;i++){
+      const m = next[i];
+      m.photo = await this.ensureStoredUrl(m.photo, 'menu-photos');
+      const { error:menuErr } = await sb.from('menu_items').upsert({ id:m.id, store_id:this.storeId, name:m.name, price:m.price, description:m.desc||null, category:m.category||'Plat', photo_url:m.photo||null, available_today:!!m.available, position:i });
+      if(menuErr){ console.error('Sync error [menu_items upsert]', menuErr); throw menuErr; }
+    }
+  },
+
+  async pushOrders(prev, next){
+    const prevIds = prev.map(o=>o.id), nextIds = next.map(o=>o.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length){
+      const del = await sb.from('orders').delete().in('id', removed);
+      if(del.error) throw del.error;
+    }
+
+    const writeOne = async (o)=>{
+      const isNew = !prev.find(x=>x.id===o.id);
+      o.paymentProof = await this.ensureStoredUrl(o.paymentProof, 'payment-proofs');
+      o.deliveryPhoto = await this.ensureStoredUrl(o.deliveryPhoto, 'delivery-photos');
+      const payload = {
+        id:o.id, store_id:this.storeId, number:o.number, customer_name:o.customer.name, customer_phone:o.customer.phone, customer_address:o.customer.address,
+        customer_latitude:o.customerLat!=null?o.customerLat:null, customer_longitude:o.customerLng!=null?o.customerLng:null,
+        subtotal: o.amount + (o.discount||0) - (o.deliveryFee||0), discount:o.discount||0, promo_code:o.promoCode||null,
+        delivery_zone:o.deliveryZone||null, delivery_fee:o.deliveryFee||0, amount:o.amount, payment_method:o.paymentMethod||'cash', status:o.status||'pending',
+        payment_proof_url:o.paymentProof||null, confirmed_at:o.confirmedAt?new Date(o.confirmedAt).toISOString():null,
+        shipped:!!o.shipped, shipped_at:o.shippedAt?new Date(o.shippedAt).toISOString():null,
+        delivery_arrived_at:o.delivery_arrived_at?new Date(o.delivery_arrived_at).toISOString():null,
+        delivery_status:o.delivery_status||null,
+        delivery_confirmed_at:o.deliveryConfirmedAt?new Date(o.deliveryConfirmedAt).toISOString():null, delivery_photo_url:o.deliveryPhoto||null,
+        delivery_token:o.deliveryToken||undefined, courier_id:o.courierId||null
+      };
+
+      let lastError = null;
+      for(let attempt=1; attempt<=3; attempt++){
+        /* CORRECTIF : .select('id') après l'update permet de détecter un échec
+           silencieux (0 ligne modifiée par ex. à cause d'une règle RLS qui bloque
+           l'écriture) — sans ce .select(), Supabase ne renvoie aucune erreur dans
+           ce cas et l'appli croit à tort que l'enregistrement a réussi. */
+        let { data, error } = isNew
+          ? await sb.from('orders').insert(payload).select('id')
+          : await sb.from('orders').update(payload).eq('id', o.id).select('id');
+        if(!error && (!data || data.length===0)){
+          error = new Error(`Écriture refusée pour la commande #${o.number||o.id} (probablement une règle RLS Supabase qui bloque la mise à jour) — 0 ligne modifiée.`);
+        }
+        if(!error){ lastError=null; break; }
+        lastError=error;
+        if(attempt<3) await new Promise(r=>setTimeout(r, 500*attempt));
+      }
+      if(lastError) throw lastError;
+
+      if(isNew && o.items && o.items.length){
+        const {error:itemError} = await sb.from('order_items').insert(
+          o.items.map(it=>({order_id:o.id, product_id:it.productId||null, name:it.name, price:it.price, qty:it.qty}))
+        );
+        if(itemError) throw itemError;
+      }
+      return o;
+    };
+
+    const jobs = next.map(o=>{
+      const promise = writeOne(o);
+      this._orderWritePromises[o.id] = promise;
+      promise.finally(()=>{ if(this._orderWritePromises[o.id]===promise) delete this._orderWritePromises[o.id]; }).catch(()=>{});
+      return promise;
+    });
+    await Promise.all(jobs);
+  },
+
+  async waitForOrderPersisted(orderId){
+    const p = this._orderWritePromises[orderId];
+    if(p) await p;
+    return true;
+  },
+
+  async pushTeam(prev, next){
+    const prevIds = prev.map(t=>t.id), nextIds = next.map(t=>t.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length) await sb.from('team_members').delete().in('id', removed);
+    if(next.length) await sb.from('team_members').upsert(next.map(t=>({id:t.id, store_id:this.storeId, name:t.name, phone:t.phone, role:t.role, status:t.status})));
+  },
+
+  async pushPromos(prev, next){
+    const prevIds = prev.map(p=>p.id), nextIds = next.map(p=>p.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length){
+      const { error:delErr } = await sb.from('promos').delete().in('id', removed);
+      if(delErr){ console.error('Sync error [promos delete]', delErr); throw delErr; }
+    }
+    if(next.length){
+      const { error:promoErr } = await sb.from('promos').upsert(next.map(p=>({id:p.id, store_id:this.storeId, code:p.code, type:p.type, value:p.value, active:p.active, max_uses:Number(p.maxUses||0), used_count:Number(p.usedCount||0)})));
+      if(promoErr){ console.error('Sync error [promos upsert]', promoErr); throw promoErr; }
+    }
+    PromoLocal.save(next);
+  },
+
+  async pushReviews(prev, next){
+    const prevIds = prev.map(r=>r.id), nextIds = next.map(r=>r.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length) await sb.from('reviews').delete().in('id', removed);
+    if(next.length) await sb.from('reviews').upsert(next.map(r=>({id:r.id, store_id:this.storeId, product_id:r.productId, name:r.name, rating:r.rating, comment:r.comment||null, reply:r.reply||null})));
+  },
+
+  async pushNotifications(prev, next){
+    const prevIds = prev.map(n=>n.id), nextIds = next.map(n=>n.id);
+    const removed = prevIds.filter(id=>!nextIds.includes(id));
+    if(removed.length) await sb.from('notifications').delete().in('id', removed);
+    if(next.length) await sb.from('notifications').upsert(next.map(n=>({id:n.id, store_id:this.storeId, type:n.type, message:n.message, read:!!n.read})));
+  },
+
+  async pushCategories(prev, next){
+    const existingNames = this.categories.map(c=>c.name);
+    const toAdd = next.filter(n=>!existingNames.includes(n));
+    const toRemoveRows = this.categories.filter(c=>!next.includes(c.name));
+    if(toRemoveRows.length) await sb.from('categories').delete().in('id', toRemoveRows.map(c=>c.id));
+    let added = [];
+    if(toAdd.length){ const ins = await sb.from('categories').insert(toAdd.map(name=>({store_id:this.storeId, name}))).select(); added = ins.data || []; }
+    this.categories = this.categories.filter(c=>next.includes(c.name)).concat(added);
+  },
+
+  /* ---- Photo dédiée à une catégorie, indépendante des produits qu'elle contient :
+     le marchand peut la définir, la remplacer ou la retirer à tout moment. ---- */
+  async setCategoryPhoto(name, dataUrlOrNull){
+    const catId = this.catId(name);
+    if(!catId) throw new Error('Catégorie introuvable');
+    const photo = dataUrlOrNull ? await this.ensureStoredUrl(dataUrlOrNull, 'categories') : null;
+    const {error} = await sb.from('categories').update({photo}).eq('id', catId);
+    if(error) throw error;
+    const cat = this.categories.find(c=>c.id===catId);
+    if(cat) cat.photo = photo;
+    if(photo) _cache.categoryPhotos[name] = photo; else delete _cache.categoryPhotos[name];
+    return photo;
+  },
+
+  async pushDeliveryZones(prev, next){
+    await sb.from('delivery_zones').delete().eq('store_id', this.storeId);
+    if(next.length) await sb.from('delivery_zones').insert(next.map(z=>({store_id:this.storeId, name:z.name, fee:z.fee})));
+  },
+
+  async pushPayment(prev, next){
+    const rows = ['wave','om','mtn','moov','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null, link:next[k].link||null, validated:!!next[k].validated, validated_at:next[k].validatedAt?new Date(next[k].validatedAt).toISOString():null}));
+    const {error} = await sb.from('payment_methods').upsert(rows, {onConflict:'store_id,method_key'});
+    if(error) throw error;
+  },
+
+  /* ---- SIAMS DELIVERY NETWORK ---- */
+  async loadCourierData(){
+    if(!this.storeId) return;
+    try{
+      const [cRes,aRes,pRes] = await Promise.all([
+        sb.from('couriers').select('*').eq('store_id',this.storeId).order('created_at',{ascending:false}),
+        sb.from('delivery_assignments').select('*').eq('store_id',this.storeId).order('created_at',{ascending:false}),
+        sb.from('courier_payouts').select('*').eq('store_id',this.storeId).order('created_at',{ascending:false})
+      ]);
+      _cache.couriers = cRes.data || [];
+      _cache.courierAssignments = aRes.data || [];
+      _cache.courierPayouts = pRes.data || [];
+    }catch(e){ console.error('Courier load',e); }
+  },
+  async inviteCourier(name, phone){
+    const {data,error}=await sb.rpc('create_courier_invite',{p_store_id:this.storeId,p_name:name,p_phone:phone});
+    if(error) throw error;
+    return data;
+  },
+  async removeCourier(courierId){
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    if(!courierId) throw new Error('Livreur manquant');
+    const {error}=await sb.from('couriers').update({status:'suspended'}).eq('id',courierId).eq('store_id',this.storeId);
+    if(error) throw error;
+    await this.loadCourierData();
+  },
+  async assignCourier(orderId,courierId){
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    if(!orderId || !courierId) throw new Error('Commande ou livreur manquant');
+
+    const {data:existing,error:findError}=await sb.from('delivery_assignments')
+      .select('*').eq('store_id',this.storeId).eq('order_id',orderId)
+      .order('created_at',{ascending:false}).limit(1).maybeSingle();
+    if(findError) throw findError;
+    if(existing && existing.status==='accepted') throw new Error('Cette livraison est déjà acceptée par un livreur');
+
+    let data,error;
+    if(existing){
+      ({data,error}=await sb.from('delivery_assignments')
+        .update({courier_id:courierId,status:'offered'})
+        .eq('id',existing.id).eq('store_id',this.storeId).select().single());
+    }else{
+      ({data,error}=await sb.from('delivery_assignments')
+        .insert({store_id:this.storeId,order_id:orderId,courier_id:courierId,status:'offered'})
+        .select().single());
+    }
+    if(error) throw error;
+
+    const {error:orderError}=await sb.from('orders')
+      .update({courier_id:courierId})
+      .eq('id',orderId).eq('store_id',this.storeId);
+    if(orderError) throw orderError;
+
+    await this.loadCourierData();
+    return data;
+  },
+  async setCourierPayout(orderId,courierId,amount){
+    const {data,error}=await sb.from('courier_payouts').upsert({store_id:this.storeId,order_id:orderId,courier_id:courierId,amount:Number(amount)||0,status:'pending'},{onConflict:'order_id'}).select().single();
+    if(error) throw error;
+    await sb.from('orders').update({courier_payout_amount:Number(amount)||0}).eq('id',orderId).eq('store_id',this.storeId);
+    return data;
+  },
+  async courierInviteAccept(token){
+    const {data,error}=await sb.rpc('accept_courier_invite',{p_token:token});
+    if(error) throw error;
+    return data;
+  },
+  async courierLogin(code){
+    const {data,error}=await sb.rpc('courier_login',{p_access_code:code});
+    if(error) throw error;
+    return data;
+  },
+  async getCourierInviteStatus(token){
+    const {data,error}=await sb.rpc('get_courier_invite_status',{p_token:token});
+    if(error) throw error;
+    return data;
+  },
+  async courierSetPin(sessionToken,pin){
+    const {data,error}=await sb.rpc('courier_set_pin',{p_session_token:sessionToken,p_pin:pin});
+    if(error) throw error;
+    return data;
+  },
+  async courierLoginPin(token,pin){
+    const {data,error}=await sb.rpc('courier_login_pin',{p_token:token,p_pin:pin});
+    if(error) throw error;
+    return data;
+  },
+  async courierAssignments(sessionToken){
+    const {data,error}=await sb.rpc('courier_get_assignments',{p_session_token:sessionToken});
+    if(error) throw error;
+    return data || [];
+  },
+  async courierAcceptAssignment(sessionToken,assignmentId,eta){
+    const {data,error}=await sb.rpc('courier_accept_assignment',{p_session_token:sessionToken,p_assignment_id:assignmentId,p_eta_minutes:Number(eta)});
+    if(error) throw error;
+    return data;
+  },
+  /* ---- Refus (ou expiration du compte à rebours de 10 min) d'une mission proposée :
+     remet la commande "non affectée" côté marchand. Nécessite la fonction SQL
+     courier_decline_assignment (voir migration_mission_popup.sql). ---- */
+  async courierDeclineAssignment(sessionToken,assignmentId){
+    const {data,error}=await sb.rpc('courier_decline_assignment',{p_session_token:sessionToken,p_assignment_id:assignmentId});
+    if(error) throw error;
+    return data;
+  },
+  /* ---- Documents administratifs du livreur (CNI, permis, carte grise, assurance) : chaque
+     pièce est envoyée séparément vers Supabase Storage puis enregistrée sur la fiche livreur
+     (statut 'pending') en vue d'une validation manuelle par un admin SIAMS. Le badge vert
+     certifié s'affiche automatiquement dès que les 4 pièces sont validées (voir
+     courier_recompute_documents_verified côté SQL — migration_courier_documents.sql). ---- */
+  async courierDocuments(sessionToken){
+    const {data,error}=await sb.rpc('courier_get_documents',{p_session_token:sessionToken});
+    if(error) throw error;
+    return data;
+  },
+  async courierSubmitDocument(sessionToken, docKey, docDataUrl){
+    const docUrl = await this.ensureStoredUrl(docDataUrl, 'courier-documents');
+    const {data,error}=await sb.rpc('courier_submit_document',{p_session_token:sessionToken,p_doc_key:docKey,p_doc_url:docUrl});
+    if(error) throw error;
+    return data;
+  },
+  async courierUpdateLocation(sessionToken,assignmentId,lat,lng,accuracy,heading,speed){
+    const {data,error}=await sb.rpc('courier_update_location',{p_session_token:sessionToken,p_assignment_id:assignmentId,p_latitude:lat,p_longitude:lng,p_accuracy:accuracy||null,p_heading:heading||null,p_speed:speed||null});
+    if(error) throw error;
+    return data;
+  },
+  async courierMarkDelivered(sessionToken,assignmentId){
+    const {data,error}=await sb.rpc('courier_mark_delivered',{p_session_token:sessionToken,p_assignment_id:assignmentId});
+    if(error) throw error;
+    return data;
+  },
+  /* ---- Reversement à la boutique des espèces encaissées par le livreur pour des commandes
+     "paiement à la livraison" — nécessite les fonctions SQL courier_get_cash_due et
+     courier_submit_payout_receipt côté livreur, et merchant_confirm_courier_payout côté
+     boutique (voir migration_courier_payouts.sql). Le solde dû par le livreur, la pièce
+     jointe du reçu de virement et la confirmation de réception par le marchand vivent tous
+     dans la table courier_payouts déjà utilisée par Cloud.setCourierPayout. ---- */
+  async courierCashDue(sessionToken){
+    const {data,error}=await sb.rpc('courier_get_cash_due',{p_session_token:sessionToken});
+    if(error) throw error;
+    return data || [];
+  },
+  async courierSubmitPayoutReceipt(sessionToken, orderId, receiptDataUrl){
+    const receiptUrl = await this.ensureStoredUrl(receiptDataUrl, 'courier-payout-receipts');
+    const {data,error}=await sb.rpc('courier_submit_payout_receipt',{p_session_token:sessionToken,p_order_id:orderId,p_receipt_url:receiptUrl});
+    if(error) throw error;
+    return data;
+  },
+  async confirmCourierPayout(orderId){
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    const {data,error}=await sb.rpc('merchant_confirm_courier_payout',{p_store_id:this.storeId,p_order_id:orderId});
+    if(error) throw error;
+    await this.loadCourierData();
+    return data;
+  },
+  /* Écran Gains livreur — nécessite la fonction SQL courier_get_earnings
+     (migration_courier_earnings.sql). Si la fonction n'est pas encore
+     déployée côté Supabase, l'appel échoue et l'écran affiche un état
+     d'attente au lieu d'un montant inventé. */
+  async courierEarnings(sessionToken){
+    const {data,error}=await sb.rpc('courier_get_earnings',{p_session_token:sessionToken});
+    if(error) throw error;
+    return data;
+  },
+
+  /* ---- Synchronisation de l'abonnement : dès qu'une formule est payée/activée, on
+     met à jour la fiche boutique côté serveur pour que l'accès soit reconnu sur tous
+     les appareils, immédiatement et automatiquement (pas seulement en local). ---- */
+  async pushSubscription(sub){
+    if(!this.storeId) return;
+    await sb.from('stores').update({
+      subscription_plan: sub.plan || null,
+      subscription_status: sub.status || 'none',
+      subscription_renews_at: sub.renewsAt ? new Date(sub.renewsAt).toISOString() : null,
+      subscription_payment_method: sub.paymentMethod || null,
+      subscription_payment_number: sub.paymentMethod==='djamo' ? PAYMENT_INFO.djamoNumber : null
+    }).eq('id', this.storeId);
+  },
+
+  /* ---- Consolidation de la commission période d'essai sur la fiche boutique :
+     appelée à chaque paiement (livraison confirmée) pour que le montant dû soit
+     visible côté admin et cohérent sur tous les appareils du vendeur. ---- */
+  async pushCommission(due, settled){
+    if(!this.storeId) return;
+    await sb.from('stores').update({ commission_due: due, commission_settled: !!settled }).eq('id', this.storeId);
+  },
+
+  /* ---- Consolidation de la commission d'abonnement (2%, Article 8 du contrat)
+     sur la fiche boutique : due est recalculé par subCommissionDue(), settledAt
+     est la date du dernier règlement déclaré par le vendeur. ---- */
+  async pushSubCommission(due, settledAt){
+    if(!this.storeId) return;
+    await sb.from('stores').update({ sub_commission_due: due, sub_commission_settled_at: settledAt ? new Date(settledAt).toISOString() : null }).eq('id', this.storeId);
+  },
+
+  /* ---- Certification boutique : envoie la pièce d'identité et la photo prise en
+     temps réel vers Supabase Storage, puis enregistre la demande sur la fiche
+     boutique (statut 'pending') en vue de la validation manuelle par un admin
+     SIAMS (voir Views['siams-admin-verifications']). ---- */
+  async pushVerification(docType, docDataUrl, photoDataUrl){
+    if(!this.storeId) return null;
+    const docUrl = await this.ensureStoredUrl(docDataUrl, 'verification-docs');
+    const photoUrl = await this.ensureStoredUrl(photoDataUrl, 'verification-photos');
+    const patch = { verification_status:'pending', verification_doc_type:docType, verification_doc_url:docUrl, verification_photo_url:photoUrl, verification_submitted_at:new Date().toISOString(), verification_reject_reason:null };
+    const { error } = await sb.from('stores').update(patch).eq('id', this.storeId);
+    if(error){ console.error('Sync error [verification submit]', error); throw error; }
+    return { status:'pending', docType, docUrl, photoUrl, submittedAt:Date.now(), verified:false, verifiedAt:0, rejectReason:'' };
+  }
+};
+
+/* ---------------- In-memory cache (remplace localStorage) ---------------- */
+let _cache = {
+  products:[], orders:[], team:[], couriers:[], courierAssignments:[],
+  payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}},
+  categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[],
+  store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:'',verification:{status:'none',docType:'',docUrl:null,photoUrl:null,submittedAt:0,verified:false,verifiedAt:0,rejectReason:''}}
+};
+function syncFail(label){ return (err)=>{ console.error('Sync error ['+label+']', err); Toast.show('⚠️ Erreur ['+label+'] : '+(err && (err.message||err.code||JSON.stringify(err)))); }; }
+/* CORRECTIF : compteur d'écritures Supabase en cours. Le rafraîchissement automatique
+   (AutoSync) recharge périodiquement toutes les données depuis Supabase et remplace
+   _cache en bloc. Si ce rechargement survenait pendant qu'un envoi (ex. création d'un
+   code promo) était encore en vol, les données fraîchement ajoutées localement étaient
+   écrasées par la version serveur pas encore à jour — d'où leur disparition après
+   quelques secondes. On bloque désormais le rafraîchissement tant qu'une écriture est
+   en cours. */
+let _pendingWrites = 0;
+function trackWrite(promise){ _pendingWrites++; return promise.finally(()=>{ _pendingWrites--; }); }
+
+/* ---------------- Store ---------------- */
+const Store = {
+  get products(){ return _cache.products; },
+  set products(v){ const prev=_cache.products; _cache.products=v; trackWrite(Cloud.pushProducts(prev, v)).catch(syncFail('products')); },
+
+  get menuItems(){ return _cache.menuItems; },
+  set menuItems(v){ const prev=_cache.menuItems; _cache.menuItems=v; trackWrite(Cloud.pushMenuItems(prev, v)).catch(syncFail('menuItems')); },
+
+  /* ---- Vue unifiée produits + plats du menu du jour, utilisée uniquement par le
+     panier/checkout pour résoudre un productId sans se soucier de sa provenance
+     (le moteur de commande ne fait aucune distinction entre les deux). ---- */
+  get sellables(){ return _cache.products.concat(_cache.menuItems); },
+
+  get orders(){ return _cache.orders; },
+  set orders(v){ const prev=_cache.orders; _cache.orders=v; trackWrite(Cloud.pushOrders(prev, v)).catch(syncFail('orders')); },
+
+  get store(){ return _cache.store; },
+  set store(v){ const prev=_cache.store; _cache.store=v; trackWrite(Cloud.pushStore(prev, v)).catch(syncFail('store')); },
+
+  get team(){ return _cache.team; },
+  set team(v){ const prev=_cache.team; _cache.team=v; trackWrite(Cloud.pushTeam(prev, v)).catch(syncFail('team')); },
+  get couriers(){ return _cache.couriers; },
+  get courierAssignments(){ return _cache.courierAssignments; },
+  get courierPayouts(){ return _cache.courierPayouts; },
+  /* ---- Reçus de virement envoyés par les livreurs, en attente de confirmation par la
+     boutique (voir Cloud.confirmCourierPayout). Jointe avec le n° de commande et le nom
+     du livreur pour l'affichage. ---- */
+  pendingCourierReceipts(){
+    return (this.courierPayouts||[]).filter(p=>p.status==='submitted').map(p=>{
+      const order = this.orders.find(o=>o.id===p.order_id);
+      const courier = this.couriers.find(c=>c.id===p.courier_id);
+      return { ...p, orderNumber: order?order.number:'', courierName: courier?courier.name:'Livreur' };
+    });
+  },
+
+  get payment(){ return _cache.payment; },
+  set payment(v){ const prev=_cache.payment; _cache.payment=v; trackWrite(Cloud.pushPayment(prev, v)).catch(syncFail('payment')); },
+
+  get notifications(){ return _cache.notifications; },
+  set notifications(v){ const prev=_cache.notifications; _cache.notifications=v; trackWrite(Cloud.pushNotifications(prev, v)).catch(syncFail('notifications')); },
+
+  get cart(){ return JSON.parse(sessionStorage.getItem('belou_cart')||'[]'); },
+  set cart(v){ sessionStorage.setItem('belou_cart', JSON.stringify(v)); },
+
+  get categories(){ return _cache.categories; },
+  set categories(v){ const prev=_cache.categories; _cache.categories=v; trackWrite(Cloud.pushCategories(prev, v)).catch(syncFail('categories')); },
+  get categoryPhotos(){ return _cache.categoryPhotos || {}; },
+
+  get promos(){ return _cache.promos; },
+  set promos(v){ const prev=_cache.promos; _cache.promos=v; trackWrite(Cloud.pushPromos(prev, v)).catch(syncFail('promos')); },
+
+  get reviews(){ return _cache.reviews; },
+  set reviews(v){ const prev=_cache.reviews; _cache.reviews=v; trackWrite(Cloud.pushReviews(prev, v)).catch(syncFail('reviews')); },
+
+  get deliveryZones(){ return _cache.deliveryZones; },
+  set deliveryZones(v){ const prev=_cache.deliveryZones; _cache.deliveryZones=v; trackWrite(Cloud.pushDeliveryZones(prev, v)).catch(syncFail('deliveryZones')); },
+
+  reviewsFor(productId){ return this.reviews.filter(r=>r.productId===productId); },
+  avgRating(productId){
+    const list = this.reviewsFor(productId);
+    if(!list.length) return null;
+    return { avg: list.reduce((s,r)=>s+r.rating,0)/list.length, count: list.length };
+  },
+  customers(){
+    const map = {};
+    this.orders.forEach(o=>{
+      const key = o.customer.phone;
+      if(!map[key]) map[key] = { phone:key, name:o.customer.name, address:o.customer.address, orders:0, spent:0, lastOrderAt:0 };
+      map[key].orders += 1;
+      map[key].spent += o.amount;
+      map[key].name = o.customer.name;
+      map[key].lastOrderAt = Math.max(map[key].lastOrderAt, o.createdAt);
+    });
+    const list = Object.values(map);
+    const bySpend = list.slice().sort((a,b)=>b.spent-a.spent);
+    bySpend.forEach((c,i)=>{ c.rank = i+1; });
+    const avgSpent = list.length ? list.reduce((s,c)=>s+c.spent,0)/list.length : 0;
+    list.forEach(c=>{
+      c.isTopContributor = list.length>=3 && c.rank<=3 && c.orders>=2 && c.spent > avgSpent*1.3;
+    });
+    return list.sort((a,b)=>b.lastOrderAt-a.lastOrderAt);
+  },
+  ordersForPhone(phone){ return this.orders.filter(o=>o.customer.phone===phone).sort((a,b)=>b.createdAt-a.createdAt); },
+
+  /* computed helpers */
+  revenueDelivered(){ return this.orders.filter(o=>o.status==='delivered').reduce((s,o)=>s+o.amount,0); },
+  get withdrawals(){ return Utils.getLocal('withdrawals', []); },
+  /* ---- Le thème vient du cloud (fiche boutique Supabase) dès que celui-ci est chargé,
+     pour être identique sur tous les appareils et côté client. Avant ce chargement (tout
+     début d'ouverture de l'app), on retombe sur la copie locale pour éviter un flash de
+     thème par défaut. ---- */
+  get uiTheme(){ return (_cache.store && _cache.store.uiTheme) || Utils.getLocal('ui_theme', 'blue'); },
+  set uiTheme(v){
+    if(_cache.store) _cache.store.uiTheme = v;
+    Utils.setLocal('ui_theme', v);
+    Cloud.pushTheme(v).catch(syncFail('theme'));
+  },
+  set withdrawals(v){ Utils.setLocal('withdrawals', v); },
+  totalWithdrawn(){ return this.withdrawals.reduce((s,w)=>s+w.amount,0); },
+  /* ---- Espèces collectées par vos livreurs pour des commandes payées à la livraison ----
+     SIAMS ne reçoit et ne conserve jamais l'argent du marchand : les paiements Wave/OM/MTN
+     tombent directement sur le compte mobile money du marchand, et le cash est encaissé soit
+     par le marchand lui-même, soit par un livreur. Seul ce dernier cas (cash encaissé par un
+     livreur pour une commande livrée) laisse de l'argent du marchand entre des mains tierces
+     en attendant d'être reversé — c'est le seul solde que cet écran doit suivre. */
+  cashPendingFromCouriers(){
+    return this.orders.filter(o=>o.status==='delivered' && o.paymentMethod==='cash' && o.courierId)
+      .reduce((s,o)=>s+Math.max(0, Number(o.amount||0) - Number(o.courierPayout||0)), 0);
+  },
+  availableBalance(){ return Math.max(0, this.cashPendingFromCouriers() - this.totalWithdrawn()); },
+  get contactEmail(){ return Utils.getLocal('contact_email', ''); },
+  set contactEmail(v){ Utils.setLocal('contact_email', v); },
+
+  /* ---- Centre financier : formule d'abonnement ---- */
+  get subscription(){ return Utils.getLocal('subscription', { plan:null, status:'none', renewsAt:0, pendingSince:0, pendingConfirmAt:0, pendingMethod:'' }); },
+  set subscription(v){ Utils.setLocal('subscription', v); },
+
+  /* ---- Pass gratuit de découverte : 20 jours, toutes fonctionnalités, dès la première ouverture ---- */
+  get trialStartedAt(){
+    let v = Utils.getLocal('trial_started_at', null);
+    if(!v){ v = Date.now(); Utils.setLocal('trial_started_at', v); }
+    return v;
+  },
+
+  /* ---- Statut d'accès courant : essai gratuit / abonnement actif / vérification en cours / expiré ---- */
+  access(){
+    const now = Date.now();
+    const sub = this.subscription;
+    const planActiveNow = SUBSCRIPTION_PLANS.find(p=>p.key===sub.plan);
+    /* ---- Un abonnement payant actif prend toujours le dessus sur le pass d'essai
+       gratuit : sinon, tant que les 20 jours d'essai ne sont pas écoulés, un
+       abonnement déjà payé reste invisible pour l'utilisateur (pas de badge, espace
+       paiement qui continue de proposer de s'abonner, etc.). ---- */
+    if(sub.status==='active' && planActiveNow && now < sub.renewsAt){
+      if(typeof ThemeUnlock!=='undefined') ThemeUnlock.unlock(sub.plan);
+      return { status:'active', plan:sub.plan, renewsAt:sub.renewsAt, features:planActiveNow.features, label:planActiveNow.label, badge:planActiveNow.badge, contractRef:sub.contractRef, amount:sub.amount, paymentMethod:sub.paymentMethod, activatedAt:sub.activatedAt };
+    }
+    const trialEnd = this.trialStartedAt + TRIAL_DAYS*86400000;
+    if(now < trialEnd){
+      return { status:'trial', daysLeft: Math.max(1, Math.ceil((trialEnd-now)/86400000)), endsAt:trialEnd, features:TRIAL_FEATURES, label:'Pass gratuit', badge:null };
+    }
+    const plan = sub.plan ? SUBSCRIPTION_PLANS.find(p=>p.key===sub.plan) : null;
+    /* ---- Paiement échelonné journalier : chaque versement déclaré passe par une
+       vérification (capture WhatsApp envoyée à SIAMS, validée dans Supabase). En
+       prototype, cette vérification est simulée par le même délai que le paiement
+       classique ; une fois le délai passé, le versement est comptabilisé et la barre
+       de progression avance jusqu'à atteindre le socle (prix de la formule). ---- */
+    if(sub.status==='building' && plan){
+      let paid = sub.paidAmount||0;
+      let pendingAmt = sub.pendingAmount||0;
+      if(pendingAmt>0 && sub.pendingConfirmAt && now>=sub.pendingConfirmAt){
+        paid += pendingAmt;
+        if(paid >= plan.price){
+          const activated = { plan:sub.plan, status:'active', renewsAt: now+30*86400000, activatedAt: now, pendingSince:0, pendingConfirmAt:0, pendingMethod:'', contractRef: Utils.genContractRef(sub.plan), amount: plan.price, paymentMethod: sub.paymentMethod||'djamo' };
+          this.subscription = activated;
+          Cloud.pushSubscription(activated).catch(e=>console.error('Sync error [subscription]', e));
+          return this.access();
+        }
+        const updated = { ...sub, paidAmount:paid, pendingAmount:0, pendingConfirmAt:0 };
+        this.subscription = updated;
+        return this.access();
+      }
+      return { status:'building', plan:sub.plan, label:plan.label, price:plan.price, dailyRate:plan.dailyRate, mode:sub.mode||'daily', paidAmount:paid, pendingAmount:pendingAmt, msLeft: pendingAmt>0 ? Math.max(0, sub.pendingConfirmAt-now) : 0, features:LOCKED_FEATURES, badge:null };
+    }
+    if(sub.status==='pending'){
+      /* ---- L'activation n'est plus simulée localement : elle n'a lieu que lorsque
+         l'admin SIAMS valide le paiement dans admin.html. En attendant, l'accès
+         reste verrouillé et le statut ne change que via la synchro serveur
+         (voir Bootstrap.loadStoreData). ---- */
+      return { status:'pending', plan:sub.plan, msLeft:0, features: LOCKED_FEATURES, label: plan?plan.label:'', badge:null };
+    }
+    if(sub.status==='active' && plan && now < sub.renewsAt){
+      // Filet de sécurité : normalement déjà couvert par le check tout en haut de access(),
+      // mais gardé ici au cas où planActiveNow n'aurait pas été trouvé plus haut pour une raison quelconque.
+      if(typeof ThemeUnlock!=='undefined') ThemeUnlock.unlock(sub.plan);
+      return { status:'active', plan:sub.plan, renewsAt:sub.renewsAt, features:plan.features, label:plan.label, badge:plan.badge, contractRef:sub.contractRef, amount:sub.amount, paymentMethod:sub.paymentMethod, activatedAt:sub.activatedAt };
+    }
+    return { status:'expired', features:LOCKED_FEATURES, label:'Aucun abonnement actif', badge:null };
+  },
+  hasFeature(key){ return !!this.access().features[key]; },
+
+  /* ---- Commission SIAMS période d'essai (20 jours) : 5% sur le montant total de
+     chaque commande livrée. Calcul 100% en temps réel à partir des commandes
+     livrées (source de vérité déjà synchronisée avec Supabase) : pas d'état séparé à
+     désynchroniser, la valeur consolidée est repoussée vers stores.commission_due à
+     chaque nouveau paiement (voir handleDeliveryPhoto). ---- */
+  commissionDue(){
+    const start = this.trialStartedAt;
+    const end = start + TRIAL_DAYS*86400000;
+    return this.orders
+      .filter(o=>o.status==='delivered' && o.createdAt>=start && o.createdAt<end)
+      .reduce((sum,o)=> sum + Math.round((o.amount||0)*COMMISSION_RATE), 0);
+  },
+  /* ---- Marqueur manuel : le montant a été réglé par le vendeur (avec son abonnement
+     ou séparément). Synchronisé sur la fiche boutique pour rester cohérent multi-appareils. ---- */
+  get commissionSettled(){ return Utils.getLocal('commission_settled', false); },
+  set commissionSettled(v){
+    Utils.setLocal('commission_settled', !!v);
+    Cloud.pushCommission(this.commissionDue(), !!v).catch(e=>console.error('Sync error [commission]', e));
+  },
+
+  /* ---- Commission SIAMS pendant l'abonnement (Pass payant) : 2% sur chaque
+     commande livrée à partir de l'activation du Pass, en plus du prix de
+     l'abonnement (Article 8 du contrat). Se calcule depuis le dernier
+     règlement déclaré (subCommissionSettledAt) ou depuis l'activation si aucun
+     règlement n'a encore eu lieu, comme la commission d'essai (Article 5). ---- */
+  subCommissionDue(){
+    const access = this.access();
+    if(access.status!=='active') return 0;
+    const since = Math.max(this.subCommissionSettledAt||0, access.activatedAt||0);
+    return this.orders
+      .filter(o=>o.status==='delivered' && o.createdAt>=since)
+      .reduce((sum,o)=> sum + Math.round((o.amount||0)*SUBSCRIPTION_COMMISSION_RATE), 0);
+  },
+  get subCommissionSettledAt(){ return Utils.getLocal('sub_commission_settled_at', 0); },
+  markSubCommissionSettled(){
+    const at = Date.now();
+    Utils.setLocal('sub_commission_settled_at', at);
+    Cloud.pushSubCommission(0, at).catch(e=>console.error('Sync error [subCommission]', e));
+  },
+
+  /* ---- Certification boutique : soumet une pièce d'identité (CNI, Passeport,
+     CMU, Certificat de nationalité, Carte scolaire) + une photo prise en temps
+     réel. La mise à jour locale est directe (pas via `Store.store = ...`, qui
+     déclencherait Cloud.pushStore et ses colonnes fixes) pour rester réactive
+     pendant l'upload, puis synchronisée avec Supabase. ---- */
+  async submitVerification(docType, docDataUrl, photoDataUrl){
+    const v = await Cloud.pushVerification(docType, docDataUrl, photoDataUrl);
+    if(v) _cache.store = { ..._cache.store, verification: v };
+    return v;
+  },
+
+  /* ---- Centre financier : revenus par période et statuts de commande ---- */
+  revenueSince(ts){ return this.orders.filter(o=>o.status==='delivered' && o.createdAt>=ts).reduce((s,o)=>s+o.amount,0); },
+  pendingRevenue(){ return this.orders.filter(o=>o.status!=='delivered' && o.status!=='cancelled').reduce((s,o)=>s+o.amount,0); },
+  totalSales(){ return this.orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+o.amount,0); },
+  orderStatusCounts(){
+    const counts = { new:0, preparing:0, shipped:0, done:0, cancelled:0 };
+    this.orders.forEach(o=>{
+      if(o.status==='pending') counts.new++;
+      else if(o.status==='delivered') counts.done++;
+      else if(o.status==='cancelled') counts.cancelled++;
+      else if(o.status==='confirmed'){
+        if(o.shipped) counts.shipped++; else counts.preparing++;
+      }
+    });
+    return counts;
+  },
+  ordersByDay(days){
+    const out = [];
+    const now = new Date();
+    for(let i=days-1;i>=0;i--){
+      const d = new Date(now); d.setDate(now.getDate()-i); d.setHours(0,0,0,0);
+      const next = new Date(d); next.setDate(d.getDate()+1);
+      const dayOrders = this.orders.filter(o=>o.createdAt>=d.getTime() && o.createdAt<next.getTime());
+      out.push({ label:Utils.dayLabel(d), amount:dayOrders.reduce((s,o)=>s+o.amount,0), count:dayOrders.length });
+    }
+    return out;
+  },
+  topProducts(limit){
+    const tally = {};
+    this.orders.forEach(o=>(o.items||[]).forEach(it=>{
+      tally[it.name] = (tally[it.name]||0) + it.qty;
+    }));
+    return Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,limit||3);
+  },
+
+  /* ---- Statistiques avancées : périodes, comparaisons, répartitions ---- */
+  monthRange(offset){
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth()+offset, 1).getTime();
+    const end = new Date(now.getFullYear(), now.getMonth()+offset+1, 1).getTime();
+    return { start, end };
+  },
+  revenueBetween(start,end){ return this.orders.filter(o=>o.status==='delivered' && o.createdAt>=start && o.createdAt<end).reduce((s,o)=>s+o.amount,0); },
+  ordersCountBetween(start,end){ return this.orders.filter(o=>o.createdAt>=start && o.createdAt<end && o.status!=='cancelled').length; },
+  ordersAmountBetween(start,end){ return this.orders.filter(o=>o.createdAt>=start && o.createdAt<end && o.status!=='cancelled').reduce((s,o)=>s+o.amount,0); },
+  newCustomersBetween(start,end){
+    const firsts = {};
+    this.orders.slice().sort((a,b)=>a.createdAt-b.createdAt).forEach(o=>{
+      const k = o.customer.phone;
+      if(!(k in firsts)) firsts[k] = o.createdAt;
+    });
+    return Object.values(firsts).filter(t=>t>=start && t<end).length;
+  },
+  revenueByMonth(months){
+    const out = [];
+    for(let i=months-1;i>=0;i--){
+      const { start, end } = this.monthRange(-i);
+      out.push({ label: new Date(start).toLocaleDateString('fr-FR',{month:'short'}).replace('.',''), amount: this.revenueBetween(start,end) });
+    }
+    return out;
+  },
+  categoryPerformance(){
+    const map = {};
+    this.orders.filter(o=>o.status==='delivered').forEach(o=>{
+      (o.items||[]).forEach(it=>{
+        const prod = this.products.find(p=>p.id===it.productId) || this.products.find(p=>p.name===it.name);
+        const cat = (prod && prod.category) ? prod.category : 'Autres';
+        map[cat] = (map[cat]||0) + ((it.price!=null ? it.price : 0) * it.qty);
+      });
+    });
+    const total = Object.values(map).reduce((s,v)=>s+v,0) || 1;
+    return Object.entries(map).map(([name,amount])=>({ name, amount, pct:Math.round(amount/total*100) })).sort((a,b)=>b.amount-a.amount);
+  }
+};
+
+/* ---- Petit utilitaire d'affichage : variation en % entre deux valeurs ---- */
+function pctDelta(curr, prev){
+  if(!prev){
+    if(curr>0) return { txt:'Nouveau', dir:'up' };
+    return { txt:'—', dir:'flat' };
+  }
+  const d = ((curr-prev)/prev)*100;
+  const dir = d>0.5 ? 'up' : d<-0.5 ? 'down' : 'flat';
+  const txt = (d>0?'+':'') + Math.round(d) + '%';
+  return { txt, dir };
+}
+
+/* ---------------- Notify ---------------- */
+const Notify = {
+  add(type, message){
+    const list = Store.notifications;
+    list.unshift({ id:Utils.uid(), type, message, read:false, createdAt:Date.now() });
+    Store.notifications = list.slice(0,30);
+    Notify.renderBell();
+  },
+  renderBell(){
+    const unread = Store.notifications.filter(n=>!n.read).length;
+    document.querySelectorAll('.bell-dot').forEach(d=>d.classList.toggle('show', unread>0));
+  },
+  openPanel(){
+    const list = Store.notifications;
+    const wrap = document.getElementById('notif-list');
+    wrap.innerHTML = list.length ? list.map(n=>`
+      <div class="notif-item">
+        <div class="ic ${n.type}">
+          ${n.type==='order' ? '<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'}
+        </div>
+        <div class="txt">
+          <p>${Utils.escapeHtml(n.message)}</p>
+          <span>${Utils.timeAgo(n.createdAt)}</span>
+        </div>
+      </div>
+    `).join('') : `<div class="notif-empty">Aucune notification pour le moment.</div>`;
+    document.getElementById('notif-overlay').classList.add('show');
+    document.getElementById('notif-panel').classList.add('show');
+  },
+  closePanel(){
+    document.getElementById('notif-overlay').classList.remove('show');
+    document.getElementById('notif-panel').classList.remove('show');
+  },
+  markAllRead(){
+    Store.notifications = Store.notifications.map(n=>({...n, read:true}));
+    Notify.renderBell();
+    Notify.openPanel();
+  }
+};
+function toggleNotifPanel(){
+  const open = document.getElementById('notif-panel').classList.contains('show');
+  if(open) Notify.closePanel(); else Notify.openPanel();
+}
+
+/* ==================== Popup de célébration réutilisable ==================== */
+const Achievements = {
+  ICONS:{
+    trophy:'<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Z" stroke="{c}" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 4H5.2a1 1 0 0 0-1 1.1c.2 2.4 1.7 3.9 3.7 4.2M16 4h2.8a1 1 0 0 1 1 1.1c-.2 2.4-1.7 3.9-3.7 4.2M9 15.6V19M15 15.6V19M7 21h10" stroke="{c}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    coins:'<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><ellipse cx="9" cy="7" rx="6" ry="3.2" stroke="{c}" stroke-width="1.7"/><path d="M3 7v4c0 1.77 2.69 3.2 6 3.2s6-1.43 6-3.2V7" stroke="{c}" stroke-width="1.7" stroke-linecap="round"/><path d="M3 11v4c0 1.77 2.69 3.2 6 3.2s6-1.43 6-3.2v-4" stroke="{c}" stroke-width="1.7" stroke-linecap="round"/><circle cx="17.5" cy="15.5" r="3.7" fill="{c}" stroke="#fff" stroke-width="1.2"/></svg>',
+    box:'<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M3.5 8 12 4l8.5 4-8.5 4-8.5-4Z" stroke="{c}" stroke-width="1.7" stroke-linejoin="round"/><path d="M3.5 8v8L12 20l8.5-4V8M12 12v8" stroke="{c}" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+    palette:'<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M12 3a9 8 0 1 0 0 16c1.1 0 2-.8 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-.8.7-1.5 1.5-1.5H16c2.2 0 4-1.7 4-4C20 5.5 16.4 3 12 3Z" stroke="{c}" stroke-width="1.6" stroke-linejoin="round"/><circle cx="7.5" cy="10.5" r="1.2" fill="{c}"/><circle cx="9.5" cy="7" r="1.2" fill="{c}"/><circle cx="14.5" cy="7" r="1.2" fill="{c}"/><circle cx="16.5" cy="11" r="1.2" fill="{c}"/></svg>'
+  },
+  celebrate({icon='trophy', color='#1E9E6B', title, subtitle}){
+    const svg = (this.ICONS[icon]||this.ICONS.trophy).split('{c}').join(color);
+    const el = document.createElement('div');
+    el.className = 'delivered-badge-overlay achievement-overlay';
+    el.innerHTML = `<div class="delivered-badge-pop achievement-pop">
+      <div class="achievement-ic" style="background:${color}2b;">${svg}</div>
+      <div style="font-size:15px;font-weight:800;text-align:center;">${Utils.escapeHtml(title||'')}</div>
+      ${subtitle?`<div style="font-size:12.5px;font-weight:500;color:var(--text-mid);text-align:center;">${Utils.escapeHtml(subtitle)}</div>`:''}
+    </div>`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.classList.add('show'), 20);
+    setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 300); }, 2700);
+  }
+};
+
+/* ==================== Paliers de revenus : messages de motivation ==================== */
+const REVENUE_MILESTONES = [
+  { amount:5000,    title:'Bon début ! 🌱',            subtitle:'Vos premiers revenus sont enregistrés.' },
+  { amount:25000,   title:'Ça avance ! 👏',             subtitle:'25 000 FCFA de revenus cumulés.' },
+  { amount:50000,   title:'On avance bien 🚀',          subtitle:'50 000 FCFA de revenus cumulés.' },
+  { amount:100000,  title:'100 000 FCFA franchis ! 💪', subtitle:'Un cap symbolique atteint.' },
+  { amount:250000,  title:'250 000 FCFA — bravo ! 🔥',  subtitle:'Votre activité prend de l\'ampleur.' },
+  { amount:500000,  title:'500 000 FCFA — on y est presque 🎯', subtitle:'Le million n\'est plus très loin.' },
+  { amount:1000000, title:'1 000 000 FCFA — on a un million à se faire, et c\'est fait ! 🏆', subtitle:'Un vrai palier atteint, félicitations.' }
+];
+function checkRevenueMilestones(){
+  const revenue = Store.revenueDelivered();
+  const reached = Utils.getLocal('revenue_milestones_reached', 0);
+  let best = null;
+  REVENUE_MILESTONES.forEach(m=>{ if(revenue>=m.amount && m.amount>reached) best = m; });
+  // Paliers additionnels au-delà d'1 000 000 FCFA, par million
+  if(revenue>=2000000){
+    const millions = Math.floor(revenue/1000000);
+    const lastMillion = Math.floor(reached/1000000);
+    if(millions>lastMillion && reached>=1000000){
+      best = { amount:millions*1000000, title:`${millions} millions de FCFA cumulés ! 🎉`, subtitle:'Votre activité continue de grandir.' };
+    }
+  }
+  if(best){
+    Utils.setLocal('revenue_milestones_reached', best.amount);
+    Achievements.celebrate({ icon:'coins', color:'#C8912F', title:best.title, subtitle:best.subtitle });
+  }
+}
+
+/* ==================== Couleurs d'application déblocables par formule ==================== */
+const TIER_COLORS = { free:'#009688', doyen:'#6D28D9', doya:'#A67C00', all:'#8E1537', platinum:'#D7263D', golden:'#B8860B' };
+const TIER_THEME_LABELS = { free:'BON MOOD', doyen:'DOYEN', doya:'DOYA', all:'TOUTE BOUTIQUE', platinum:'PLATINE', golden:'GOLDEN' };
+function hexToRgb(hex){ const h=hex.replace('#',''); return { r:parseInt(h.substring(0,2),16), g:parseInt(h.substring(2,4),16), b:parseInt(h.substring(4,6),16) }; }
+function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
+function mixColor(hex, target, amount){ const a=hexToRgb(hex), b=hexToRgb(target); return rgbToHex(a.r+(b.r-a.r)*amount, a.g+(b.g-a.g)*amount, a.b+(b.b-a.b)*amount); }
+/* ---- L'application conserve toujours sa couleur d'origine : il n'y a plus
+   d'habillage différent débloqué selon la formule payée. ThemeUnlock reste défini
+   (par compatibilité avec les quelques appels existants) mais ne fait plus rien. ---- */
+const ThemeUnlock = { init(){}, unlock(){}, setActive(){}, applyTier(){}, unlocked:[], active:null };
+
+/* ---------------- Export du rapport de ventes (PDF) ---------------- */
+async function exportSalesReportPDF(){
+  const logoPdf = await loadImageAsDataURL(LOGO_DATA_URI);
+
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  const M=40, store=Store.store||{};
+  const C={navy:[5,42,77],blue:[0,96,217],ink:[22,35,47],muted:[92,107,122],line:[220,228,236],soft:[244,247,250],green:[30,158,107],white:[255,255,255]};
+  const money=v=>Utils.fmtFCFA(Number(v||0));
+  let page=0;
+  function header(){
+    page++;
+    doc.setFillColor(...C.navy); doc.rect(0,0,W,74,'F');
+    try{doc.addImage(logoPdf,'PNG',M,12,50,50);}catch(e){}
+    doc.setTextColor(...C.white); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text(store.name||'Ma boutique',M+64,30);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.text('Rapport de ventes & activité commerciale',M+64,47);
+    doc.setFontSize(8.5); doc.text(`Page ${page} · ${new Date().toLocaleString('fr-FR')}`,W-M,47,{align:'right'});
+    return 98;
+  }
+  function footer(){
+    doc.setDrawColor(...C.line); doc.line(M,H-36,W-M,H-36);
+    doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(...C.muted);
+    doc.text('Rapport généré automatiquement par SIAMS à partir des données de la boutique.',W/2,H-21,{align:'center'});
+  }
+  function ensure(need=30,y){ if(y+need>H-52){footer(); return header();} return y; }
+  let y=header();
+  const orders=(Store.orders||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const revenue=Store.revenueDelivered(), totalSales=Store.totalSales(), pending=Store.pendingRevenue();
+  const avg=orders.length?Math.round(orders.reduce((s,o)=>s+Number(o.amount||0),0)/orders.length):0;
+  const counts=Store.orderStatusCounts(), clients=Store.customers().length, top=Store.topProducts(5);
+  doc.setTextColor(...C.ink); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text('Synthèse',M,y); y+=18;
+  const kpis=[['Ventes livrées',money(revenue)],['Total commandes',money(totalSales)],['En attente',money(pending)],['Panier moyen',money(avg)],['Clients',String(clients)]];
+  kpis.forEach(([l,v])=>{ y=ensure(18,y); doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...C.muted);doc.text(l,M,y);doc.setFont('courier','bold');doc.setTextColor(...C.ink);doc.text(v,W-M,y,{align:'right'});y+=17; });
+  y+=7; doc.setDrawColor(...C.line);doc.line(M,y,W-M,y);y+=22;
+  y=ensure(50,y);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...C.ink);doc.text('Commandes par statut',M,y);y+=18;
+  [['Nouvelles',counts.new],['En préparation',counts.preparing],['Expédiées',counts.shipped],['Terminées / livrées',counts.done],['Annulées',counts.cancelled]].forEach(([l,v])=>{y=ensure(18,y);doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(...C.muted);doc.text(l,M,y);doc.setFont('courier','bold');doc.setTextColor(...C.ink);doc.text(String(v||0),W-M,y,{align:'right'});y+=17;});
+  y+=7;doc.setDrawColor(...C.line);doc.line(M,y,W-M,y);y+=22;
+  y=ensure(50,y);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Produits les plus vendus',M,y);y+=18;
+  if(!top.length){doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text('Aucune vente pour le moment.',M,y);y+=18;}
+  top.forEach(([name,qty])=>{y=ensure(18,y);doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(doc.splitTextToSize(String(name||'Produit'),W-M*2-90)[0],M,y);doc.text(`${qty} vendu(s)`,W-M,y,{align:'right'});y+=17;});
+  y+=8;doc.setDrawColor(...C.line);doc.line(M,y,W-M,y);y+=22;
+  y=ensure(70,y);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Journal des commandes',M,y);y+=18;
+  const xNum=M,xClient=M+72,xStatus=M+235,xDate=M+315,xAmt=W-M;
+  doc.setFillColor(...C.navy);doc.rect(M,y-13,W-M*2,22,'F');doc.setTextColor(...C.white);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  doc.text('COMMANDE',xNum,y);doc.text('CLIENT',xClient,y);doc.text('STATUT',xStatus,y);doc.text('DATE',xDate,y);doc.text('TOTAL',xAmt,y,{align:'right'});y+=17;
+  const status={pending:'En attente',confirmed:'Confirmée',delivered:'Livrée'};
+  if(!orders.length){doc.setTextColor(...C.muted);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text('Aucune commande enregistrée.',M,y);}
+  for(const o of orders){
+    if(y>H-70){footer();y=header();doc.setFillColor(...C.navy);doc.rect(M,y-13,W-M*2,22,'F');doc.setTextColor(...C.white);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('COMMANDE',xNum,y);doc.text('CLIENT',xClient,y);doc.text('STATUT',xStatus,y);doc.text('DATE',xDate,y);doc.text('TOTAL',xAmt,y,{align:'right'});y+=17;}
+    if(orders.indexOf(o)%2===0){doc.setFillColor(...C.soft);doc.rect(M,y-11,W-M*2,19,'F');}
+    doc.setTextColor(...C.ink);doc.setFont('courier','bold');doc.setFontSize(8);doc.text(`#${String(o.number||'—')}`,xNum,y);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(doc.splitTextToSize(String(o.customer?.name||'Client'),150)[0],xClient,y);
+    doc.text(status[o.status]||String(o.status||'—'),xStatus,y);
+    doc.text(o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'—',xDate,y);
+    doc.setFont('courier','bold');doc.text(money(o.amount),xAmt,y,{align:'right'});y+=19;
+  }
+  footer();
+  doc.save(`rapport-${(store.slug||'boutique')}-${new Date().toISOString().slice(0,10)}.pdf`);
+  Toast.show('Rapport PDF téléchargé ✓');
+}
+
+/* ---------- Export CSV/Excel : commandes & catalogue ---------- */
+function csvCell(v){
+  const s = String(v==null?'':v).replace(/\r?\n/g,' ');
+  return /[;"\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function downloadCSV(filename, rows){
+  const content = rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
+  const blob = new Blob(['\ufeff'+content], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function exportOrdersCSV(){
+  const orders = (Store.orders||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const statusLabel = {pending:'En attente',new:'Nouvelle',confirmed:'Confirmée',preparing:'En préparation',shipped:'Expédiée',delivered:'Livrée',cancelled:'Annulée'};
+  const rows = [['N° commande','Client','Téléphone','Statut','Moyen de paiement','Zone de livraison','Date','Montant (FCFA)']];
+  orders.forEach(o=>{
+    rows.push([
+      o.number||o.id||'',
+      o.customer?.name||'',
+      o.customer?.phone||'',
+      statusLabel[o.status]||o.status||'',
+      statsPaymentLabel ? statsPaymentLabel(o.paymentMethod||'unknown') : (o.paymentMethod||''),
+      o.deliveryZone||'',
+      o.createdAt?new Date(o.createdAt).toLocaleString('fr-FR'):'',
+      Number(o.amount)||0
+    ]);
+  });
+  const store=Store.store||{};
+  downloadCSV(`commandes-${(store.slug||'boutique')}-${new Date().toISOString().slice(0,10)}.csv`, rows);
+  Toast.show('Export des commandes téléchargé ✓');
+}
+function exportProductsCSV(){
+  const products = Store.products||[];
+  const rows = [['Nom','Catégorie','Prix (FCFA)','Ancien prix (FCFA)','Stock suivi','Quantité en stock','Description']];
+  products.forEach(p=>{
+    rows.push([
+      p.name||'',
+      p.category||'',
+      Number(p.price)||0,
+      p.oldPrice?Number(p.oldPrice):'',
+      p.stockLimited?'Oui':'Non',
+      p.stockLimited?(Number(p.stockQty)||0):'',
+      p.desc||''
+    ]);
+  });
+  const store=Store.store||{};
+  downloadCSV(`catalogue-${(store.slug||'boutique')}-${new Date().toISOString().slice(0,10)}.csv`, rows);
+  Toast.show('Export du catalogue téléchargé ✓');
+}
+function exportCustomersCSV(){
+  const customers = Store.customers()||[];
+  const rows = [['Nom','Téléphone','Adresse','Nombre de commandes','Total dépensé (FCFA)','Dernière commande','Client fidèle']];
+  customers.forEach(c=>{
+    rows.push([
+      c.name||'',
+      c.phone||'',
+      c.address||'',
+      Number(c.orders)||0,
+      Number(c.spent)||0,
+      c.lastOrderAt?new Date(c.lastOrderAt).toLocaleString('fr-FR'):'',
+      c.isTopContributor?'Oui':'Non'
+    ]);
+  });
+  const store=Store.store||{};
+  downloadCSV(`clients-${(store.slug||'boutique')}-${new Date().toISOString().slice(0,10)}.csv`, rows);
+  Toast.show('Export des clients téléchargé ✓');
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer;
+const Toast = {
+  show(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+};
+
+/* ---------------- Sheet ---------------- */
+const Sheet = {
+  open(){
+    document.getElementById('overlay').classList.add('show');
+    document.getElementById('sheet').classList.add('show');
+    const s = Store.store;
+    const nameEl = document.getElementById('sheet-store-name');
+    if(nameEl) nameEl.innerHTML = `${Utils.escapeHtml(s.name)}${(s.verification && s.verification.verified) ? ' '+CertifiedBadge(15) : ''}`;
+    document.getElementById('sheet-store-phone').textContent = s.phone;
+    document.getElementById('sheet-store-logo').innerHTML = s.photo
+      ? `<img src="${s.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;">`
+      : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="var(--indigo)" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="var(--indigo)" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+  },
+  close(){
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('sheet').classList.remove('show');
+  }
+};
+
+/* ---------------- Charts (hand-rolled SVG) ---------------- */
+const Charts = {
+  bars(data){
+    const max = Math.max(1, ...data.map(d=>d.amount));
+    const w = 40, gap = 14, h = 120;
+    const svgW = data.length*(w+gap);
+    const bars = data.map((d,i)=>{
+      const bh = Math.max(4, Math.round((d.amount/max)*h));
+      const x = i*(w+gap);
+      const y = h-bh;
+      return `<rect x="${x}" y="${y}" width="${w}" height="${bh}" rx="6" fill="${i===data.length-1?'var(--indigo)':'var(--indigo-tint)'}"></rect>
+        <text x="${x+w/2}" y="${h+18}" text-anchor="middle" font-size="10" fill="var(--text-soft)" font-family="var(--font-body)">${d.label}</text>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${svgW} ${h+26}" width="100%" height="150" style="overflow:visible">${bars}</svg>`;
+  },
+  /* ---- Courbe de tendance (aire dégradée) pour la page Statistiques ---- */
+  trend(data){
+    if(!data || !data.length) data = [{label:'',amount:0}];
+    const w = 300, h = 130, pad = 10;
+    const max = Math.max(1, ...data.map(d=>d.amount));
+    const stepX = data.length>1 ? (w-pad*2)/(data.length-1) : 0;
+    const pts = data.map((d,i)=>{
+      const x = pad + i*stepX;
+      const y = pad + (h-pad*2) * (1 - (d.amount/max));
+      return { x, y, d };
+    });
+    const linePath = pts.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
+    const areaPath = pts.length ? `${linePath} L${pts[pts.length-1].x.toFixed(1)},${(h-pad).toFixed(1)} L${pts[0].x.toFixed(1)},${(h-pad).toFixed(1)} Z` : '';
+    const grid = [0,1,2,3].map(i=>{
+      const y = pad + (h-pad*2)*i/3;
+      return `<line x1="${pad}" y1="${y.toFixed(1)}" x2="${w-pad}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"></line>`;
+    }).join('');
+    const showEvery = Math.max(1, Math.ceil(data.length/7));
+    const labels = pts.map((p,i)=> (i%showEvery===0 || i===pts.length-1) ? `<text x="${p.x.toFixed(1)}" y="${h+8}" text-anchor="middle" font-size="9" fill="var(--text-soft)" font-family="var(--font-body)">${p.d.label}</text>` : '').join('');
+    const lastPt = pts[pts.length-1];
+    const dot = lastPt ? `<circle cx="${lastPt.x.toFixed(1)}" cy="${lastPt.y.toFixed(1)}" r="4" fill="var(--indigo)" stroke="#fff" stroke-width="2"></circle>` : '';
+    const gradId = 'trendGrad'+Math.random().toString(36).slice(2,8);
+    return `<svg viewBox="0 0 ${w} ${h+16}" width="100%" height="176" style="overflow:visible">
+      <defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--indigo)" stop-opacity=".28"></stop><stop offset="100%" stop-color="var(--indigo)" stop-opacity="0"></stop></linearGradient></defs>
+      ${grid}
+      <path d="${areaPath}" fill="url(#${gradId})" stroke="none"></path>
+      <path d="${linePath}" fill="none" stroke="var(--indigo)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+      ${dot}
+      ${labels}
+    </svg>`;
+  },
+  /* ---- Graphique en anneau (répartition des commandes par statut, etc.) ---- */
+  donut(segments, bg){
+    bg = bg || '#fff';
+    const total = segments.reduce((s,x)=>s+x.value,0);
+    const r = 40, cx = 52, cy = 52, sw = 15;
+    const circ = 2*Math.PI*r;
+    if(!total){
+      return `<svg viewBox="0 0 104 104" width="118" height="118"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${sw}"></circle></svg>`;
+    }
+    let acc = 0;
+    const arcs = segments.filter(s=>s.value>0).map(s=>{
+      const frac = s.value/total;
+      const dash = Math.max(0, frac*circ - 2);
+      const gap = circ-dash;
+      const rotate = (acc/total)*360 - 90;
+      acc += s.value;
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${dash.toFixed(1)} ${gap.toFixed(1)}" stroke-linecap="round" transform="rotate(${rotate.toFixed(1)} ${cx} ${cy})"></circle>`;
+    }).join('');
+    return `<svg viewBox="0 0 104 104" width="118" height="118">${arcs}<circle cx="${cx}" cy="${cy}" r="${r-sw/2-3}" fill="${bg}"></circle></svg>`;
+  }
+};
+
+/* ---------------- Router ---------------- */
+const PUBLIC_VIEWS = ['welcome','onboarding-public','about-partnership','activation-code','courier-login','courier-invite','courier-dashboard','shop','shop-product','cart','checkout','confirmation','login','register','verify-otp','confirm-email','recover-id','shop-categories','shop-favorites','shop-account','order-track','shop-orders-history','shop-about','shop-help','onboarding-client'];
+const CLIENT_TAB_VIEWS = ['shop','shop-categories','cart','shop-favorites','shop-account'];
+function applyUiTheme(){
+  document.documentElement.setAttribute('data-ui-theme', Store.uiTheme==='black' ? 'black' : 'blue');
+}
+function setUiTheme(v){
+  Store.uiTheme = v;
+  applyUiTheme();
+  Router.go(Router.current, Router.currentOpts);
+}
+const Router = {
+  current:'dashboard',
+  go(name, opts){
+    if(name!=='courier-dashboard' && typeof CourierMission!=='undefined') CourierMission.close();
+    if(name==='register' && !ActivationGate.getStored()){
+      name='activation-code';
+      opts={};
+    }
+    if(!PUBLIC_VIEWS.includes(name) && !Auth.isLoggedIn()){
+      name = 'login';
+      opts = {};
+    }
+    if(!PUBLIC_VIEWS.includes(name) && Auth.isLoggedIn() && OtpGate.pending){
+      name = 'verify-otp';
+      opts = {};
+    }
+    if(name==='dashboard' && !hasSeenOnboarding(ONBOARD_ADMIN_KEY)){
+      name = 'onboarding-admin';
+      opts = {};
+    } else if(name==='dashboard' && !hasChosenBusinessType()){
+      name = 'business-type';
+      opts = {};
+    }
+    /* ---- Boutiques "restauration" : l'onglet Produits pointe vers l'écran dédié
+       "Menu du jour" au lieu du catalogue classique. Redirection centralisée ici
+       pour que tous les points d'entrée (nav, raccourcis dashboard, etc.) en
+       bénéficient sans avoir à changer chaque appel Router.go('products'). ---- */
+    if(name==='products' && getBusinessType()==='restauration'){
+      name = 'menu';
+    }
+    /* ---- Idem côté client : l'onglet "Catégories" est redondant pour une boutique
+       restauration (l'accueil affiche déjà tout le menu groupé par catégorie), et
+       la fiche produit détaillée n'a pas d'équivalent pour un plat. On renvoie donc
+       vers l'accueil plutôt que de dupliquer/adapter des vues déjà redéfinies
+       plusieurs fois plus bas dans le fichier (risque de régression inutile). ---- */
+    if((name==='shop-categories' || name==='shop-product') && Store.store && Store.store.businessType==='restauration'){
+      name = 'shop';
+      opts = {};
+    }
+    /* Aperçu marchand et liens publics : la vitrine doit être directement accessible.
+       L'onboarding client reste affiché uniquement lors d'un accès client normal. */
+    const skipClientOnboarding = !!(opts && opts.skipOnboarding);
+    if(name==='shop' && !skipClientOnboarding && !hasSeenOnboarding(ONBOARD_CLIENT_KEY)){
+      name = 'onboarding-client';
+      opts = {};
+    }
+    Notify.closePanel();
+    Sheet.close();
+    Router.current = name;
+    Router.currentOpts = opts || {};
+    applyUiTheme();
+    /* ---- Un rendu de vue qui plante (exception JS) ne doit jamais laisser le clic
+       « sans rien faire » à l'écran : on affiche l'erreur pour pouvoir la diagnostiquer
+       facilement (capture d'écran), au lieu d'un échec silencieux visible seulement
+       dans la console. ---- */
+    try{
+      document.getElementById('page-root').innerHTML = Views[name] ? Views[name](opts||{}) : '';
+    }catch(renderErr){
+      console.error('Erreur de rendu pour la vue "'+name+'"', renderErr);
+      document.getElementById('page-root').innerHTML = `
+        <div style="padding:60px 24px;text-align:center;">
+          <h2 style="color:var(--text);">Un problème est survenu</h2>
+          <p style="color:var(--text-soft,#888);">L'affichage de cet écran a échoué. Vous pouvez réessayer.</p>
+          <button class="btn btn-primary" style="margin-top:20px;" onclick="Router.go('dashboard')">Retour au tableau de bord</button>
+          <p style="margin-top:24px;font-size:11px;color:#b91c1c;word-break:break-all;">${Utils.escapeHtml(String((renderErr&&(renderErr.message||renderErr.toString&&renderErr.toString()))||renderErr))}</p>
+        </div>`;
+      return;
+    }
+    const isCustomer = PUBLIC_VIEWS.includes(name) && name!=='login' && name!=='welcome';
+    document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='business-type' || name==='onboarding-admin' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice');
+    document.getElementById('client-nav').classList.toggle('hidden', !CLIENT_TAB_VIEWS.includes(name));
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    const navMap = {dashboard:'dashboard', products:'products', 'product-add':'products', 'product-edit':'products', menu:'products', 'menu-add':'products', 'menu-edit':'products', orders:'orders', 'order-detail':'orders',
+      boutique:'plus', 'store-edit':'plus', stats:'plus', team:'plus', payment:'plus', categories:'plus', promos:'plus', reviews:'plus', customers:'plus', 'customer-detail':'plus', delivery:'plus', 'app-theme':'plus', settings:'plus', team:'plus', 'courier-login':'plus', 'courier-dashboard':'plus', 'commissions-apercu':'plus',
+      shop:'home', 'shop-categories':'categories', cart:'cart', 'shop-favorites':'favorites', 'shop-account':'account'};
+    const navKey = navMap[name];
+    if(navKey){ document.querySelectorAll('.nav-item[data-nav="'+navKey+'"]').forEach(el=>el.classList.add('active')); }
+    const prodNavLabel = document.querySelector('.nav-item[data-nav="products"] span');
+    if(prodNavLabel) prodNavLabel.textContent = getBusinessType()==='restauration' ? 'Menu' : 'Produits';
+    window.scrollTo(0,0);
+    Notify.renderBell();
+    ClientNotify.renderBadges();
+    if(Views['_after_'+name.replace(/-/g,'_')]) Views['_after_'+name.replace(/-/g,'_')](opts||{});
+    if(name==='courier-dashboard'){ setTimeout(loadCourierDashboard,0); AutoSync.start(); }
+  }
+};
+
+/* ---------------- Synchronisation automatique multi-interface ----------------
+   Les données ne doivent plus dépendre d'un clic sur un onglet pour être rafraîchies.
+   On actualise immédiatement au retour sur l'application et périodiquement lorsque
+   l'écran reste ouvert. Le rendu est limité aux vues sûres pour ne pas interrompre
+   une saisie (checkout, formulaires, panier, etc.). */
+const AutoSync = {
+  timer:null, busy:false, lastRun:0, started:false, intervalMs:8000,
+  safeViews:new Set(['dashboard','orders','products','order-detail','boutique','store-edit','stats','team','payment','categories','promos','reviews','customers','customer-detail','delivery','app-theme','settings','courier-dashboard']),
+  async refresh(force=false){
+    const isCourier = !!courierSession();
+    if(isCourier && Router.current==='courier-dashboard'){
+      try{ await loadCourierDashboard(); }catch(e){ console.error('AutoSync courier',e); }
+      return;
+    }
+    if(this.busy || !Cloud.storeId) return;
+    if(_pendingWrites>0) return; /* CORRECTIF : une écriture (ex. création de promo) est en vol, on ne rafraîchit pas tant qu'elle n'est pas confirmée par Supabase */
+    const now=Date.now();
+    if(!force && now-this.lastRun<1500) return;
+    this.busy=true; this.lastRun=now;
+    try{
+      const before = JSON.stringify({
+        store:Store.store, products:Store.products, orders:Store.orders, team:Store.team,
+        payment:Store.payment, categories:Store.categories, promos:Store.promos,
+        reviews:Store.reviews, deliveryZones:Store.deliveryZones, notifications:Store.notifications
+      });
+      await Cloud.loadAll();
+      const after = JSON.stringify({
+        store:Store.store, products:Store.products, orders:Store.orders, team:Store.team,
+        payment:Store.payment, categories:Store.categories, promos:Store.promos,
+        reviews:Store.reviews, deliveryZones:Store.deliveryZones, notifications:Store.notifications
+      });
+      if(before!==after) this.renderCurrent();
+      if(Router.current==='courier-dashboard') loadCourierDashboard();
+      Notify.renderBell();
+      ClientNotify.renderBadges();
+    }catch(e){ console.error('AutoSync',e); }
+    finally{ this.busy=false; }
+  },
+  renderCurrent(){
+    const name=Router.current;
+    if(!this.safeViews.has(name)) return;
+    /* Ne pas remplacer une page pendant qu'un champ est en cours d'édition. */
+    const active=document.activeElement;
+    if(active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName)) return;
+    const root=document.getElementById('page-root');
+    if(!root || !Views[name]) return;
+    try{
+      const opts=Object.assign({}, Router.currentOpts||{}, {autoRefresh:true});
+      root.innerHTML=Views[name](opts);
+      const after=Views['_after_'+name.replace(/-/g,'_')];
+      if(after) after(opts);
+      Notify.renderBell(); ClientNotify.renderBadges();
+      if(name==='courier-dashboard') setTimeout(loadCourierDashboard,0);
+    }catch(e){ console.error('AutoSync render',e); }
+  },
+  start(){
+    if(this.started) return;
+    this.started=true;
+    clearInterval(this.timer);
+    this.timer=setInterval(()=>{ if(document.visibilityState==='visible') this.refresh(false); },this.intervalMs);
+    window.addEventListener('focus',()=>this.refresh(true));
+    document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') this.refresh(true); });
+    window.addEventListener('pageshow',()=>this.refresh(true));
+    setTimeout(()=>this.refresh(true),1200);
+  },
+  stop(){ clearInterval(this.timer); this.timer=null; this.started=false; }
+};
+
+/* ---------------- Auth ---------------- */
+const Bootstrap = {
+  async loadStoreData(user){
+    await Cloud.ensureStore(user.id, user.user_metadata?.phone || '');
+    /* ---- loadAll et loadCourierData ne dépendent que du storeId : on les lance
+       en parallèle plutôt qu'à la suite, ça évite d'additionner leurs latences
+       réseau et accélère nettement l'écran de connexion. ensureDefaults ne sert
+       plus qu'aux vieux comptes non semés (les nouveaux le sont déjà via
+       ensureStore) : on la laisse tourner en arrière-plan, sans bloquer
+       l'affichage du tableau de bord. ---- */
+    Cloud.ensureDefaults().catch(e=>console.error('ensureDefaults', e));
+    await Promise.all([ Cloud.loadAll(), Cloud.loadCourierData() ]);
+  }
+};
+const Auth = {
+  loggedIn:false,
+  isLoggedIn(){ return Auth.loggedIn; },
+  /* ---- Traduit l'identifiant saisi (e-mail ou "SIAMS-XXXXXX") en e-mail réel ----
+     Repose sur la fonction Supabase find_email_by_login_id (SECURITY DEFINER),
+     seule autorisée à lire l'association identifiant → e-mail. ---- */
+  async resolveEmail(identifier){
+    if(identifier.includes('@')) return { ok:true, email: identifier };
+    try{
+      const { data, error } = await sb.rpc('find_email_by_login_id', { p_login_id: identifier.toUpperCase() });
+      if(error || !data) return { ok:false };
+      return { ok:true, email:data };
+    }catch(e){ return { ok:false }; }
+  },
+  async login(email, password){
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) return { ok:false, message: error.message==='Invalid login credentials' ? 'E-mail ou mot de passe incorrect' : error.message };
+    Auth.loggedIn = true;
+    try{ await Bootstrap.loadStoreData(data.user); } catch(e){ console.error(e); return { ok:false, message:'Erreur de chargement des données' }; }
+    Store.trialStartedAt; ThemeUnlock.init();
+    return { ok:true, phone: data.user?.user_metadata?.phone || '', email: data.user?.email || email };
+  },
+  async register(email, password, phone){
+    const redirectTo = location.origin + location.pathname;
+    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ phone }, emailRedirectTo: redirectTo } });
+    if(error) return { ok:false, message: error.message };
+    if(!data.session) return { ok:true, needsConfirm:true };
+    Auth.loggedIn = true;
+    try{ await Bootstrap.loadStoreData(data.user); } catch(e){ console.error(e); return { ok:false, message:'Erreur de chargement des données' }; }
+    Store.trialStartedAt; // démarre le pass gratuit de 20 jours pour la nouvelle boutique
+    return { ok:true, phone: data.user?.user_metadata?.phone || phone, email: data.user?.email || email };
+  },
+  async logout(){
+    await sb.auth.signOut();
+    Auth.loggedIn = false;
+    OtpGate.reset();
+    _cache = { products:[], orders:[], team:[], payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:'',verification:{status:'none',docType:'',docUrl:null,photoUrl:null,submittedAt:0,verified:false,verifiedAt:0,rejectReason:''}} };
+    Cloud.storeId = null; Cloud.loginId = null; Cloud.publicMode = false; Cloud._orderWritePromises = Object.create(null);
+    Router.go('login');
+  }
+};
+
+/* ---------------- Onboarding (première utilisation) ----------------
+   NOTE PROTOTYPE : un petit tutoriel en 4 écrans s'affiche une seule fois
+   par appareil, côté marchand (après la première connexion) et côté
+   client (à la première visite de la boutique). Le statut "déjà vu" est
+   stocké en localStorage. */
+const ONBOARD_ADMIN_KEY = 'siams_onboarding_admin_seen_v2';
+const ONBOARD_CLIENT_KEY = 'siams_onboarding_client_seen_v1';
+function hasSeenOnboarding(key){ try{ return localStorage.getItem(key)==='1'; }catch(e){ return true; } }
+function markOnboardingSeen(key){ try{ localStorage.setItem(key,'1'); }catch(e){} }
+
+/* ---------------- Choix du type d'activité (après l'onboarding marchand) ----------------
+   NOTE PROTOTYPE : étape unique demandée après le tutoriel de bienvenue, pour laisser
+   le marchand choisir le type d'activité de sa boutique. Seule « Vente en ligne » est
+   fonctionnelle pour l'instant ; les 5 autres catégories sont prévues pour de futures
+   versions (restauration, services, point de vente, livraison, formations) et
+   affichent un état « Bientôt disponible ». Le choix est mémorisé sur l'appareil. */
+const BUSINESS_TYPE_KEY = 'siams_business_type_v1';
+function getBusinessType(){ try{ return localStorage.getItem(BUSINESS_TYPE_KEY) || ''; }catch(e){ return ''; } }
+function hasChosenBusinessType(){ return !!getBusinessType(); }
+function setBusinessType(id){ try{ localStorage.setItem(BUSINESS_TYPE_KEY, id); }catch(e){} }
+
+const BUSINESS_CATEGORIES = [
+  { id:'vente-ligne', available:true, label:'Vente en ligne',
+    icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 8V6a6 6 0 0 1 12 0v2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M5 8h14l1 12.5a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 20.5L5 8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+    title:'Boutique de vente en ligne',
+    desc:"Créez votre catalogue de produits, recevez des commandes et vendez directement sur WhatsApp — la formule que vous connaissez déjà.",
+    features:['Catalogue produits illimité','Commandes & suivi client','Paiement à la livraison, Wave, Orange Money, MTN'] },
+  { id:'restauration', available:false, label:'Restauration',
+    icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 2v6.5a2.2 2.2 0 0 0 2.2 2.2M7 2v8.7M9.2 2v6.5M11.4 2v6.5a2.2 2.2 0 0 1-2.2 2.2M9.2 10.7V22" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 2c-1.8 0-3.2 1.9-3.2 4.3 0 2.1 1.1 3.9 2.5 4.2L16 22h2l-.3-11.5c1.4-.3 2.5-2.1 2.5-4.2C20.2 3.9 18.8 2 17 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
+    title:'Restauration & street food',
+    desc:"Pensée pour les vendeurs de crêpes, jus, plats et snacks : menu du jour, commandes à emporter et paiement rapide.",
+    features:['Menu du jour par catégorie','Disponibilité activable en un tap','Commandes à distance, comme la boutique classique'] },
+  { id:'services', available:false, label:'Services',
+    icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20.2 5.8a4.2 4.2 0 0 1-5.7 5.7L6 20l-2-2 8.5-8.5a4.2 4.2 0 0 1 5.7-5.7l-3 3 1.5 1.5 3-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m14.5 9.5 4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+    title:'Services à domicile',
+    desc:"Coiffure, couture, réparation, ménage… prenez des rendez-vous et gérez vos prestations au quotidien.",
+    features:[] },
+  { id:'point-vente', available:false, label:'Point de vente',
+    icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-2.2-1.4L14 21l-2-1.4L10 21l-1.8-1.4L6 21V3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 7.5h6M9 11h6M9 14.5h3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+    title:'Point de vente / Kiosque',
+    desc:"Gérez la caisse et le stock de votre commerce physique, même sans connexion internet.",
+    features:[] },
+  { id:'livraison', available:false, label:'Livraison',
+    icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M2 7.5h10.5v9H2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12.5 10.5h4l3.5 3.3v2.7h-7.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.2" cy="18.3" r="1.9" stroke="currentColor" stroke-width="1.5"/><circle cx="17" cy="18.3" r="1.9" stroke="currentColor" stroke-width="1.5"/><path d="M2 10.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+    title:'Livraison & courses',
+    desc:"Proposez un service de livraison locale et suivez vos courses en temps réel.",
+    features:[] },
+  { id:'formations', available:false, label:'Formations',
+    icon:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3 2 8l10 5 10-5-10-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6 10.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-5.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M22 8v6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+    title:'Formations & cours',
+    desc:"Vendez des cours en ligne, du coaching ou des formations à votre communauté.",
+    features:[] }
+];
+let businessTypeActiveTab = 'vente-ligne';
+function selectBusinessTab(id){
+  businessTypeActiveTab = id;
+  document.querySelectorAll('.biz-tab').forEach(el=> el.classList.toggle('active', el.dataset.bid===id));
+  const panel = document.getElementById('biz-panel');
+  if(panel) panel.innerHTML = businessPanelHtml(id);
+}
+function businessPanelHtml(id){
+  const cat = BUSINESS_CATEGORIES.find(c=>c.id===id) || BUSINESS_CATEGORIES[0];
+  if(cat.available){
+    return `
+    <div class="biz-panel-icon">${cat.icon}</div>
+    <h2>${cat.title}</h2>
+    <p>${cat.desc}</p>
+    <ul class="biz-feature-list">${cat.features.map(f=>`<li><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>${Utils.escapeHtml(f)}</li>`).join('')}</ul>
+    <button class="btn btn-primary btn-block" style="margin-top:6px;" onclick="chooseBusinessType('${cat.id}')">Créer ma boutique</button>`;
+  }
+  return `
+    <div class="biz-panel-icon soon">${cat.icon}</div>
+    <span class="biz-soon-badge">Bientôt disponible</span>
+    <h2>${cat.title}</h2>
+    <p>${cat.desc}</p>
+    <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="notifyBusinessType('${cat.id}')">Me prévenir de la disponibilité</button>`;
+}
+async function chooseBusinessType(id){
+  setBusinessType(id);
+  const cat = BUSINESS_CATEGORIES.find(c=>c.id===id);
+  Toast.show((cat?cat.title:'Boutique')+' sélectionnée ✓');
+  Router.go('dashboard');
+  /* ---- Écriture en base après la navigation pour ne pas bloquer l'écran sur un
+     aller-retour réseau : la boutique reste utilisable même si cette requête est
+     lente, et le cache local (déjà mis à jour ci-dessus) garde la vitrine cohérente
+     en attendant. ---- */
+  try{
+    if(Cloud.storeId) await sb.from('stores').update({ business_type:id }).eq('id', Cloud.storeId);
+    _cache.store = { ..._cache.store, businessType:id };
+  }catch(e){ console.error('Erreur sauvegarde type d\u2019activité', e); }
+}
+function notifyBusinessType(id){
+  const cat = BUSINESS_CATEGORIES.find(c=>c.id===id);
+  Toast.show((cat?cat.title:'Cette fonctionnalité')+' — vous serez averti(e) dès la disponibilité ✓');
+}
+
+
+function merchantPhoneScreen(i){
+  const screens=[
+    `<div class="os-top">Tableau de bord</div><div class="os-sub">SIAMS STORE</div><div class="os-card"><div>Ventes livrées</div><strong>150 000 FCFA</strong><div style="display:flex;justify-content:space-between;font-size:6px;"><span>En attente<br><b>25 800 FCFA</b></span><span>Total<br><b>175 800 FCFA</b></span></div></div><div class="os-sub">Raccourcis rapides</div><div class="os-grid"><div class="os-tile">＋<br>Produit</div><div class="os-tile">↗<br>Partager</div><div class="os-tile">◷<br>Attente</div><div class="os-tile">♙<br>Membre</div></div>`,
+    `<div class="os-top">Commandes</div><div class="os-sub">Toutes · En attente · Expédiées · Livrées</div><div class="os-list">${['#SI-1048|25 000 FCFA',' #SI-1047|15 000 FCFA',' #SI-1046|30 000 FCFA',' #SI-1045|20 000 FCFA',' #SI-1044|12 000 FCFA'].map(x=>{let [a,b]=x.trim().split('|');return `<div class="os-row"><b>${a}</b><span>${b}<br><small>En attente</small></span></div>`}).join('')}</div>`,
+    `<div class="os-top">Produits <span style="float:right;color:#0668e3">＋</span></div><div style="background:white;border-radius:8px;padding:8px;margin-bottom:7px;color:#8993a3">⌕ Rechercher un produit</div><div class="os-list">${['T-shirt SIAMS|12 000 FCFA|Stock:45','Casquette SIAMS|8 000 FCFA|Stock:30','Mug SIAMS|6 000 FCFA|Stock:20','Sac SIAMS|15 000 FCFA|Stock:10'].map(x=>{let [a,b,c]=x.split('|');return `<div class="os-row"><span><b>${a}</b><br><small>${c}</small></span><b>${b}</b></div>`}).join('')}</div>`,
+    `<div class="os-top">Ajouter un produit</div><div class="os-list"><div class="os-row"><b>Photo</b><span>＋</span></div><div class="os-row"><b>Nom du produit</b><span>Champ texte</span></div><div class="os-row"><b>Prix</b><span>12 000 FCFA</span></div><div class="os-row"><b>Stock</b><span>45</span></div></div><div class="os-card" style="margin-top:8px;text-align:center">Enregistrer le produit</div>`,
+    `<div class="os-top">Statistiques</div><div class="os-card"><div>Chiffre d'affaires</div><strong>175 800 FCFA</strong><div style="font-size:6px">+18,4% cette semaine</div></div><div class="os-list"><div class="os-row"><b>Commandes</b><span>48</span></div><div class="os-row"><b>Clients</b><span>31</span></div><div class="os-row"><b>Panier moyen</b><span>3 662 FCFA</span></div></div>`,
+    `<div class="os-top">Paiements</div><div class="os-list"><div class="os-row"><b>Vente #SI-1048</b><span>25 000 FCFA<br><small>Confirmé</small></span></div><div class="os-row"><b>Vente #SI-1047</b><span>15 000 FCFA<br><small>En attente</small></span></div><div class="os-row"><b>Total encaissé</b><span><b>150 000 FCFA</b></span></div></div><div class="os-sub" style="margin-top:8px">Wave · Orange Money · MTN</div>`,
+    `<div class="os-top">Livraison</div><div class="os-card" style="background:linear-gradient(135deg,#0b67d8,#16b6ff)">3 livraisons aujourd'hui<br><strong style="font-size:13px">2 en cours</strong></div><div class="os-list"><div class="os-row"><b>#SI-1048</b><span>Yopougon<br><small>En route</small></span></div><div class="os-row"><b>#SI-1046</b><span>Cocody<br><small>À préparer</small></span></div></div>`,
+    `<div class="os-top">Promotions</div><div class="os-list"><div class="os-row"><b>-10% T-shirts</b><span>Actif</span></div><div class="os-row"><b>Livraison offerte</b><span>Actif</span></div><div class="os-row"><b>Créer une promotion</b><span>＋</span></div></div>`,
+    `<div class="os-top">Avis clients</div><div class="os-card" style="background:linear-gradient(135deg,#f6a62c,#ff7a1a)"><strong>4,8 / 5</strong><div>Excellent niveau de satisfaction</div></div><div class="os-list"><div class="os-row"><b>★★★★★</b><span>Très bon service</span></div><div class="os-row"><b>★★★★☆</b><span>Livraison rapide</span></div></div>`,
+    `<div class="os-top">Équipe</div><div class="os-list"><div class="os-row"><b>Amos</b><span>Administrateur</span></div><div class="os-row"><b>Junior</b><span>Vendeur</span></div><div class="os-row"><b>Ajouter un membre</b><span>＋</span></div></div>`,
+    `<div class="os-top">Tous les services</div><div class="os-grid">${['Boutique','Statistiques','Équipe','Paiements','Livraison','Produits','Catégories','Promotions','Avis clients'].map(x=>`<div class="os-tile">▦<br><b>${x}</b></div>`).join('')}</div>`
+  ];
+  return screens[Math.max(0,Math.min(screens.length-1,i))];
+}
+function onboardAdminSlides(){
+  return [
+    {phone:true,phoneIndex:0,title:'Votre boutique peut aller plus loin.',text:'Découvrez votre espace marchand SIAMS et les outils essentiels pour piloter votre commerce.'},
+    {phone:true,phoneIndex:0,title:'Votre tableau de bord',text:'Une vue claire de vos ventes, de vos commandes et de votre activité.'},
+    {phone:true,phoneIndex:1,title:'Vos commandes',text:'Retrouvez vos commandes et leur évolution en un seul endroit.'},
+    {phone:true,phoneIndex:2,title:'Vos produits',text:'Gérez votre catalogue, vos prix et vos stocks simplement.'},
+    {phone:true,phoneIndex:3,title:'Ajoutez vos produits',text:'Créez un article rapidement avec ses informations essentielles.'},
+    {phone:true,phoneIndex:4,title:'Vos statistiques',text:'Suivez vos performances et comprenez l’évolution de votre activité.'},
+    {phone:true,phoneIndex:5,title:'Vos paiements',text:'Gardez une vue claire sur les paiements et les ventes encaissées.'},
+    {phone:true,phoneIndex:6,title:'Votre livraison',text:'Organisez le suivi des livraisons et gardez vos clients informés.'},
+    {phone:true,phoneIndex:7,title:'Vos promotions',text:'Mettez vos offres en avant et animez votre boutique.'},
+    {phone:true,phoneIndex:8,title:'Vos clients',text:'Consultez les avis et améliorez continuellement votre expérience client.'},
+    {phone:true,phoneIndex:9,title:'Votre équipe',text:'Travaillez à plusieurs et attribuez les bons rôles à votre équipe.'},
+    {phone:true,phoneIndex:10,title:'Alors… on se lance maintenant ?',text:'Tout est réuni pour faire grandir votre commerce. Découvrez SIAMS, puis rejoignez-nous.'}
+  ];
+}
+function onboardClientSlides(){
+  const storeName = Utils.escapeHtml((_cache.store && _cache.store.name) || 'la boutique');
+  return [
+    { icon:`<svg width="46" height="46" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+      title:`Bienvenue chez ${storeName}`, text:"Découvrez tous nos articles et trouvez ce qu'il vous faut en quelques clics." },
+    { icon:`<svg width="46" height="46" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      title:'Parcourez et ajoutez à votre panier', text:"Filtrez par catégorie, comparez les prix et enregistrez vos articles favoris." },
+    { icon:`<svg width="46" height="46" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      title:'Commandez en toute simplicité', text:"Payez à la livraison ou via Wave, Orange Money, MTN — comme vous préférez." },
+    { icon:`<svg width="46" height="46" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      title:'Suivez votre commande en temps réel', text:"Retrouvez l'historique et le statut de vos commandes dans « Mon compte »." }
+  ];
+}
+function publicPhoneScreen(i){
+  const screens=[
+    `<div class="os-top">Tableau de bord</div><div class="os-sub">SIAMS STORE</div><div class="os-card"><div>Ventes livrées</div><strong>150 000 FCFA</strong><div style="display:flex;justify-content:space-between;font-size:6px;"><span>En attente<br><b>25 800 FCFA</b></span><span>Total des ventes<br><b>175 800 FCFA</b></span></div></div><div class="os-sub">Raccourcis rapides</div><div class="os-grid"><div class="os-tile">＋<br>Produit</div><div class="os-tile">↗<br>Partager</div><div class="os-tile">◷<br>Attente</div><div class="os-tile">♙<br>Membre</div></div>`,
+    `<div class="os-top">Commandes</div><div class="os-sub">Toutes · En attente · Expédiées · Livrées</div><div class="os-list">${['#SI-1048|25 000 FCFA',' #SI-1047|15 000 FCFA',' #SI-1046|30 000 FCFA',' #SI-1045|20 000 FCFA',' #SI-1044|12 000 FCFA'].map(x=>{let [a,b]=x.trim().split('|');return `<div class="os-row"><b>${a}</b><span>${b}<br><small>En attente</small></span></div>`}).join('')}</div>`,
+    `<div class="os-top">Produits <span style="float:right;color:#0668e3">＋</span></div><div style="background:white;border-radius:8px;padding:8px;margin-bottom:7px;color:#8993a3">⌕ Rechercher un produit</div><div class="os-list">${['T-shirt SIAMS|12 000 FCFA|Stock: 45','Casquette SIAMS|8 000 FCFA|Stock: 30','Mug SIAMS|6 000 FCFA|Stock: 20','Sac SIAMS|15 000 FCFA|Stock: 10','Polo SIAMS|14 000 FCFA|Stock: 25'].map(x=>{let [a,b,c]=x.split('|');return `<div class="os-row"><span><b>${a}</b><br><small>${c}</small></span><b>${b}</b></div>`}).join('')}</div>`,
+    `<div class="os-top">Plus</div><div class="os-list">${['Équipe|Gérez les membres','Paiements|Transactions','Statistiques|Performances','Livraison|Zones et suivi','Promotions|Offres et réductions','Avis clients|Évaluations','Paramètres|Votre boutique'].map(x=>{let [a,b]=x.split('|');return `<div class="os-row"><b>${a}</b><span>›<br><small>${b}</small></span></div>`}).join('')}</div>`,
+    `<div class="os-top">Raccourcis rapides</div><div class="os-list">${['Ajouter un produit|Ajoutez un nouveau produit','Partager ma boutique|Partagez votre lien','Commandes en attente|Voir les commandes','Ajouter un membre|Invitez un membre'].map(x=>{let [a,b]=x.split('|');return `<div class="os-row"><b>${a}</b><span><small>${b}</small></span></div>`}).join('')}</div><div class="os-card" style="margin-top:8px;text-align:center;background:linear-gradient(135deg,#e8f1ff,#d7edff);color:#0758c9">SIAMS STORE<br><small>Votre boutique en ligne</small></div>`,
+    `<div class="os-top">Services</div><div class="os-grid">${['Boutique','Statistiques','Équipe','Paiements','Livraison','Produits','Catégories','Promotions','Avis clients'].map(x=>`<div class="os-tile">▦<br><b>${x}</b></div>`).join('')}</div>`
+  ];
+  return screens[i%6];
+}
+function onboardPublicSlides(){
+  // Les visiteurs découvrent le même panorama produit que les marchands,
+  // avec 12 étapes visuelles et sans personnage intermédiaire.
+  return onboardAdminSlides().map((s,i)=>({ ...s,
+    text: i===0 ? 'Découvrez comment SIAMS peut vous accompagner, puis rejoignez une plateforme pensée pour faire grandir votre commerce.' : s.text
+  }));
+}
+/* V45 : musique de présentation supprimée à la demande. */
+
+const Onboarding = {
+  index:0, slides:[], key:'', finishRoute:'dashboard', touchStartX:0, type:'',
+  init(type){
+    this.index = 0;
+    this.type = type;
+    if(type==='admin'){ this.slides = onboardAdminSlides(); this.key = ONBOARD_ADMIN_KEY; this.finishRoute = 'dashboard'; }
+    else if(type==='public'){ this.slides = onboardPublicSlides(); this.key = 'siams_public_onboarding_v2'; this.finishRoute = 'about-partnership'; }
+    else { this.slides = onboardClientSlides(); this.key = ONBOARD_CLIENT_KEY; this.finishRoute = 'shop'; }
+  },
+  render(){
+    const isAdmin = this.type==='admin';
+    const isPublic = this.type==='public';
+    if(isAdmin){
+      return `
+      <div class="onboard-wrap onboard-merchant-pro">
+        <div class="onboard-merchant-top">
+          <div class="onboard-progress-line"><span id="onboard-progress-bar"></span></div>
+          <button class="onboard-skip" onclick="Onboarding.finish()">Passer</button>
+        </div>
+        <div class="onboard-merchant-head">
+          <div class="onboard-brand"><img src="${LOGO_DATA_URI}" alt="SIAMS"><span>ESPACE MARCHAND</span></div>
+          <div class="onboard-kicker">LES SERVICES SIAMS</div>
+        </div>
+        <div class="onboard-slides onboard-merchant-slides" id="onboard-touch-zone">
+          <div class="onboard-track" id="onboard-track">
+            ${this.slides.map((s,i)=>`
+              <div class="onboard-slide merchant-slide ${i===0?'active':''}" data-oi="${i}">
+                <div class="merchant-phone-stage">
+                  ${i>0?`<div class="onboard-side-phone left"><div class="onboard-screen dark">${merchantPhoneScreen(Math.max(0,s.phoneIndex-1))}</div></div>`:''}
+                  <div class="onboard-phone merchant-main-phone"><div class="onboard-screen">${merchantPhoneScreen(s.phoneIndex)}</div></div>
+                  ${i<this.slides.length-1?`<div class="onboard-side-phone right"><div class="onboard-screen dark">${merchantPhoneScreen(Math.min(10,s.phoneIndex+1))}</div></div>`:''}
+                </div>
+                <div class="merchant-slide-copy">
+                  <h1>${s.title}</h1>
+                  <p>${s.text}</p>
+                </div>
+              </div>`).join('')}
+          </div>
+          <div class="onboard-arrows merchant-arrows">
+            <button class="onboard-arrow" onclick="Onboarding.go(Onboarding.index-1)" aria-label="Précédent">‹</button>
+            <button class="onboard-arrow" onclick="Onboarding.next()" aria-label="Suivant">›</button>
+          </div>
+        </div>
+        <div class="onboard-footer merchant-footer">
+          <button class="btn btn-primary btn-block" id="onboard-next-btn" onclick="Onboarding.next()">Suivant <span style="float:right;font-size:20px;line-height:16px;">→</span></button>
+        </div>
+      </div>`;
+    }
+    if(isPublic){
+      return `
+      <div class="onboard-wrap onboard-merchant-pro onboard-public-panorama">
+        <div class="onboard-merchant-top">
+          <div class="onboard-progress-line"><span id="onboard-progress-bar__v46_2"></span></div>
+          <button class="onboard-skip" onclick="Onboarding.finish()">Passer</button>
+        </div>
+        <div class="onboard-merchant-head">
+          <div class="onboard-brand"><img src="${LOGO_DATA_URI}" alt="SIAMS"><span>BIENVENUE CHEZ SIAMS</span></div>
+          <div class="onboard-kicker">DÉCOUVRIR SIAMS</div>
+        </div>
+        <div class="onboard-slides onboard-merchant-slides" id="onboard-touch-zone__v46_2">
+          <div class="onboard-track" id="onboard-track__v46_2">
+            ${this.slides.map((s,i)=>`
+              <div class="onboard-slide merchant-slide ${i===0?'active':''}" data-oi="${i}">
+                <div class="merchant-phone-stage">
+                  ${i>0?`<div class="onboard-side-phone left"><div class="onboard-screen dark">${merchantPhoneScreen(Math.max(0,s.phoneIndex-1))}</div></div>`:''}
+                  <div class="onboard-phone merchant-main-phone"><div class="onboard-screen">${merchantPhoneScreen(s.phoneIndex)}</div></div>
+                  ${i<this.slides.length-1?`<div class="onboard-side-phone right"><div class="onboard-screen dark">${merchantPhoneScreen(Math.min(10,s.phoneIndex+1))}</div></div>`:''}
+                </div>
+                <div class="merchant-slide-copy">
+                  <h1>${s.title}</h1>
+                  <p>${s.text}</p>
+                </div>
+              </div>`).join('')}
+          </div>
+          <div class="onboard-arrows merchant-arrows">
+            <button class="onboard-arrow" onclick="Onboarding.go(Onboarding.index-1)" aria-label="Précédent">‹</button>
+            <button class="onboard-arrow" onclick="Onboarding.next()" aria-label="Suivant">›</button>
+          </div>
+        </div>
+        <div class="onboard-footer merchant-footer">
+          <button class="btn btn-primary btn-block" id="onboard-next-btn__v46_2" onclick="Onboarding.next()">Suivant <span style="float:right;font-size:20px;line-height:16px;">→</span></button>
+        </div>
+      </div>`;
+    }
+    return `
+    <div class="onboard-wrap">
+      <button class="onboard-skip" onclick="Onboarding.finish()">Passer</button>
+      <div class="onboard-slides"><div class="onboard-track" id="onboard-track__v46_3">
+        ${this.slides.map((s,i)=>`
+          <div class="onboard-slide ${i===0?'active':''}" data-oi="${i}">
+            ${s.vision ? `<div style="width:88px;height:88px;border-radius:26px;margin-bottom:24px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(17,17,17,.5);overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div><div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;">${s.tagline||''}</div><h2>${s.title}</h2><p>${s.text}</p>` : `<div class="onboard-icon">${s.icon}</div><h2>${s.title}</h2><p>${s.text}</p>`}
+          </div>`).join('')}
+      </div></div>
+      <div class="onboard-footer"><div class="onboard-dots">${this.slides.map((s,i)=>`<div class="onboard-dot ${i===0?'active':''}"></div>`).join('')}</div><button class="btn btn-primary btn-block" id="onboard-next-btn__v46_3" onclick="Onboarding.next()">Suivant</button></div>
+    </div>`;
+  },
+  attach(){
+    const el = document.querySelector('.onboard-slides');
+    if(!el) return;
+    let startX=0, startY=0, dragging=false;
+    const begin=(x,y)=>{ startX=x; startY=y; dragging=true; this.touchStartX=x; };
+    const end=(x,y)=>{
+      if(!dragging) return;
+      dragging=false;
+      const dx=x-startX, dy=y-startY;
+      if(Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)*1.15){ dx<0 ? this.next() : this.go(this.index-1); }
+    };
+    el.addEventListener('touchstart',e=>begin(e.touches[0].clientX,e.touches[0].clientY),{passive:true});
+    el.addEventListener('touchend',e=>end(e.changedTouches[0].clientX,e.changedTouches[0].clientY),{passive:true});
+    el.addEventListener('pointerdown',e=>{ if(e.pointerType!=='touch') begin(e.clientX,e.clientY); });
+    el.addEventListener('pointerup',e=>{ if(e.pointerType!=='touch') end(e.clientX,e.clientY); });
+    el.addEventListener('keydown',e=>{ if(e.key==='ArrowRight') this.next(); if(e.key==='ArrowLeft') this.go(this.index-1); });
+  },
+  go(i){
+    if(i<0 || i>=this.slides.length) return;
+    this.index=i;
+    const track=document.getElementById('onboard-track') || document.getElementById('onboard-track__v46_2') || document.getElementById('onboard-track__v46_3');
+    if(track) track.style.transform=`translate3d(-${i*100}%,0,0)`;
+    document.querySelectorAll('.onboard-slide').forEach(el=>el.classList.toggle('active',Number(el.dataset.oi)===i));
+    document.querySelectorAll('.onboard-dot').forEach((el,di)=>el.classList.toggle('active',di===i));
+    const btn=document.getElementById('onboard-next-btn');
+    if(btn) btn.innerHTML=(i===this.slides.length-1)?'Commencer <span style="float:right;font-size:20px;line-height:16px;">✦</span>':'Suivant <span style="float:right;font-size:20px;line-height:16px;">→</span>';
+    const current=document.getElementById('onboard-progress-current');
+    if(current) current.textContent=String(i+1);
+    const bar=document.getElementById('onboard-progress-bar');
+    if(bar) bar.style.width=((i+1)/this.slides.length*100)+'%';
+  },
+  next(){
+    if(this.index < this.slides.length-1) this.go(this.index+1);
+    else this.finish();
+  },
+  finish(){
+    markOnboardingSeen(this.key);
+    Router.go(this.finishRoute);
+  }
+};
+
+/* ---------------- Vérification par code (E-MAIL) ----------------
+   Le code est désormais envoyé automatiquement par e-mail, via le
+   système OTP natif de Supabase Auth (sb.auth.signInWithOtp /
+   sb.auth.verifyOtp). Aucune fonction RPC personnalisée n'est requise
+   côté serveur pour l'envoi/la vérification : Supabase s'en charge.
+   ⚠️ Pré-requis côté Supabase : dans Authentication > Email Templates,
+   le template "Magic Link" (utilisé par signInWithOtp) doit contenir
+   {{ .Token }} afin d'envoyer un code à 8 chiffres (et non un simple
+   lien de connexion). */
+const OTP_RESEND_SECONDS = 60;
+const OtpGate = {
+  pending:false,
+  mode:'login',
+  email:'',
+  secondsLeft:0,
+  timerId:null,
+  sending:false,
+  start(mode, email){
+    OtpGate.pending = true;
+    OtpGate.mode = mode;
+    OtpGate.email = email || '';
+    Router.go('verify-otp');
+    OtpGate.sendCode(true);
+  },
+  reset(){
+    OtpGate.pending = false;
+    clearInterval(OtpGate.timerId);
+    OtpGate.timerId = null;
+  },
+  async sendCode(silent){
+    if(OtpGate.sending) return;
+    OtpGate.sending = true;
+    try{
+      const {error} = await sb.auth.signInWithOtp({ email: OtpGate.email, options:{ shouldCreateUser:false } });
+      if(error) throw error;
+      Toast.show(silent ? 'Code envoyé par e-mail ✓' : 'Nouveau code envoyé par e-mail ✓');
+      OtpGate.secondsLeft = OTP_RESEND_SECONDS;
+      clearInterval(OtpGate.timerId);
+      OtpGate.timerId = setInterval(()=>{
+        OtpGate.secondsLeft--;
+        OtpGate.tickUI();
+        if(OtpGate.secondsLeft<=0) clearInterval(OtpGate.timerId);
+      }, 1000);
+      OtpGate.tickUI();
+    }catch(e){
+      console.error(e);
+      const detail = (e && (e.message || e.details || e.hint)) ? `${e.message||''}\n${e.details||''}\n${e.hint||''}\n(code: ${e.code||'?'})` : JSON.stringify(e);
+      alert('Erreur lors de l’envoi du code par e-mail :\n\n'+detail);
+      Toast.show('⚠️ Impossible d’envoyer le code par e-mail');
+    }finally{
+      OtpGate.sending = false;
+    }
+  },
+  tickUI(){
+    const lbl = document.getElementById('otp-timer-label');
+    if(!lbl) return;
+    const ready = OtpGate.secondsLeft<=0;
+    const m = String(Math.floor(Math.max(0,OtpGate.secondsLeft)/60)).padStart(2,'0');
+    const s = String(Math.max(0,OtpGate.secondsLeft)%60).padStart(2,'0');
+    lbl.innerHTML = ready ? 'Vous n\'avez rien reçu ?' : 'Renvoyer le code dans <b>'+m+':'+s+'</b> :';
+    const resendBtn = document.getElementById('otp-resend-btn');
+    if(resendBtn) resendBtn.disabled = !ready;
+  },
+  resend(){
+    if(OtpGate.secondsLeft>0){
+      const secs = OtpGate.secondsLeft;
+      Toast.show('Merci de patienter '+secs+'s avant de renvoyer le code');
+      return;
+    }
+    OtpGate.sendCode(false);
+  },
+  async verify(){
+    const boxes = [...document.querySelectorAll('.otp-box')];
+    const entered = boxes.map(b=>b.value).join('');
+    const err = document.getElementById('otp-error');
+    if(entered.length<8){ err.textContent = 'Merci de saisir les 8 chiffres du code'; return; }
+    try{
+      const {error} = await sb.auth.verifyOtp({ email: OtpGate.email, token: entered, type:'email' });
+      if(error){
+        err.textContent = 'Code incorrect, merci de réessayer';
+        boxes.forEach(b=>{ b.value=''; b.classList.remove('filled'); });
+        boxes[0].focus();
+        return;
+      }
+    }catch(e){
+      console.error(e);
+      err.textContent = 'Erreur de vérification, réessayez';
+      return;
+    }
+    err.textContent = '';
+    const wasRegister = OtpGate.mode === 'register';
+    OtpGate.pending = false;
+    clearInterval(OtpGate.timerId);
+    Toast.show('E-mail vérifié ✓');
+    const pendingActivationEmail = (()=>{ try{return sessionStorage.getItem('siams_activation_email')||'';}catch(e){return '';} })();
+    const shouldRedeem = !!ActivationGate.getStored() && pendingActivationEmail && pendingActivationEmail === String(OtpGate.email||'').toLowerCase();
+    if(wasRegister || shouldRedeem){
+      try{
+        const code = ActivationGate.getStored();
+        if(!code) throw new Error('missing_activation_code');
+        const {data,error}=await sb.rpc('redeem_activation_key',{p_code:code});
+        if(error) throw error;
+        if(!data || !data.success){
+          const messages={invalid_code:'Code d’activation invalide.',code_already_used:'Ce code a déjà été utilisé.',store_not_found:'Boutique introuvable pour activer le code.'};
+          throw new Error(messages[data&&data.error] || 'Activation impossible');
+        }
+        ActivationGate.clear();
+        try{ sessionStorage.removeItem('siams_activation_email'); localStorage.removeItem('siams_partner_request'); }catch(e){}
+        const currentUser=(await sb.auth.getUser()).data.user;
+        if(currentUser) await Bootstrap.loadStoreData(currentUser);
+        Toast.show('Partenariat SIAMS activé ✓');
+        ContractGate.show();
+      }catch(e){
+        console.error(e);
+        err.textContent = e.message && e.message!=='missing_activation_code' ? e.message : 'Impossible d’activer votre partenariat. Contactez le service client SIAMS.';
+      }
+    } else { await showWelcomeBackThenDashboard(); }
+  },
+  changeAccount(){
+    OtpGate.reset();
+    Auth.logout();
+  }
+};
+function otpBoxHandle(el, idx){
+  const boxes = [...document.querySelectorAll('.otp-box')];
+  el.value = el.value.replace(/[^0-9]/g,'').slice(0,1);
+  el.classList.toggle('filled', el.value.length>0);
+  document.getElementById('otp-error').textContent = '';
+  if(el.value && idx<boxes.length-1){ boxes[idx+1].focus(); }
+  if(boxes.every(b=>b.value.length===1)) OtpGate.verify();
+}
+function otpBoxKeydown(e, idx){
+  const boxes = [...document.querySelectorAll('.otp-box')];
+  if(e.key==='Backspace' && !e.target.value && idx>0){ boxes[idx-1].focus(); boxes[idx-1].value=''; boxes[idx-1].classList.remove('filled'); }
+}
+function otpBoxPaste(e){
+  const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,8);
+  if(!text) return;
+  e.preventDefault();
+  const boxes = [...document.querySelectorAll('.otp-box')];
+  text.split('').forEach((ch,i)=>{ if(boxes[i]){ boxes[i].value = ch; boxes[i].classList.add('filled'); } });
+  const next = boxes[text.length] || boxes[boxes.length-1];
+  next.focus();
+  if(text.length===8) OtpGate.verify();
+}
+
+/* ---------------- Shared partials ---------------- */
+function TopBarPlanBadge(){
+  const access = Store.access();
+  const badge = (access.status==='active' && access.badge) ? access.badge : null;
+  if(!badge) return '';
+  const isGolden = badge==='GOLDEN';
+  const isPlatinum = badge==='PLATINE';
+  const isAll = badge==='TOUTE BOUTIQUE';
+  const isDoya = badge==='DOYA';
+  const style = isGolden
+    ? 'background:linear-gradient(135deg,#8A6410,#F5CB5C);color:#241900;box-shadow:0 3px 10px -2px rgba(240,194,75,.55),inset 0 0 0 1px rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);'
+    : isPlatinum
+    ? 'background:linear-gradient(135deg,#9C1128,#FF4766);color:#fff;box-shadow:0 3px 10px -2px rgba(255,59,92,.5),inset 0 0 0 1px rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.45);'
+    : isAll
+    ? 'background:linear-gradient(135deg,#A81C45,var(--ruby-dark));color:#fff;box-shadow:0 3px 10px -2px rgba(142,21,55,.5),inset 0 0 0 1px rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.45);'
+    : isDoya
+    ? 'background:linear-gradient(135deg,#0091FD,#0B67D8);color:#fff;box-shadow:0 3px 10px -2px rgba(11,103,216,.45),inset 0 0 0 1px rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.45);'
+    : 'background:var(--indigo-tint);color:var(--indigo);border:1px solid rgba(17,17,17,.08);';
+  const starIcon = '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="flex:none;"><path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.6l-6.1 3.4 1.5-6.8-5.2-4.7 6.9-.7L12 2.5Z"/></svg>';
+  return `<span class="${isGolden?'tier-badge-golden':isPlatinum?'tier-badge-platinum':isAll?'tier-badge-all':isDoya?'tier-badge-doya':''}" style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;letter-spacing:.45px;padding:5px 10px;border-radius:999px;margin-left:8px;vertical-align:middle;${style}">${(isGolden||isPlatinum||isAll||isDoya)?starIcon:''}${badge}</span>`;
+}
+function dashboardServiceGo(route){
+  try{ Sheet.close(); }catch(e){}
+  requestAnimationFrame(()=>Router.go(route));
+}
+function TopBar(title, sub){
+  return `
+  <div class="topbar">
+    <div>
+      <h1>${title}</h1>
+      ${sub ? `<div class="page-sub">${sub}</div>` : ''}
+    </div>
+    <button class="bell-btn" onclick="toggleNotifPanel()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div class="bell-dot" id="bell-dot"></div>
+    </button>
+  </div>`;
+}
+function EmptyState(icon, title, text, cta){
+  return `
+  <div class="empty-card">
+    <div class="empty-icon">${icon}</div>
+    <h3>${title}</h3>
+    <p>${text}</p>
+    ${cta||''}
+  </div>`;
+}
+const ICONS = {
+  box:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 8h16M4 8l1.5 11a2 2 0 0 0 2 1.7h9a2 2 0 0 0 2-1.7L20 8M4 8l2-4h12l2 4M9 12v3M15 12v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  team:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 20c.6-3.4 3-5.5 5.5-5.5s4.9 2.1 5.5 5.5M16 9.5c1.6.2 2.8 1.6 2.8 3.2M16 5.3a3 3 0 0 1 0 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  chart:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  cart:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+
+/* =========================================================
+   VIEWS
+   ========================================================= */
+const Views = {};
+
+/* ---------- Écran d'animation au démarrage / après connexion ---------- */
+if(!document.getElementById('siams-splash-anim-style')){
+  const splashStyle=document.createElement('style');
+  splashStyle.id='siams-splash-anim-style';
+  splashStyle.textContent=`
+    @keyframes siamsSplashLogoIn{0%{opacity:0;transform:scale(.55) translateY(14px);}60%{opacity:1;transform:scale(1.06) translateY(0);}100%{opacity:1;transform:scale(1) translateY(0);}}
+    @keyframes siamsSplashGlow{0%,100%{box-shadow:0 20px 46px -14px rgba(22,200,220,.55),0 0 0 0 rgba(22,200,220,.35);}50%{box-shadow:0 20px 54px -10px rgba(22,200,220,.75),0 0 0 16px rgba(22,200,220,0);}}
+    @keyframes siamsSplashTextIn{0%{opacity:0;transform:translateY(10px);}100%{opacity:1;transform:translateY(0);}}
+    @keyframes siamsSplashBg{0%,100%{opacity:.5;transform:translate(-8%,-6%) scale(1);}50%{opacity:.85;transform:translate(4%,5%) scale(1.16);}}
+    @keyframes siamsSplashBg2{0%,100%{opacity:.35;transform:translate(6%,8%) scale(1);}50%{opacity:.65;transform:translate(-5%,-4%) scale(1.2);}}
+    @keyframes siamsSplashRing{0%{transform:scale(.92);opacity:.5;}100%{transform:scale(1.6);opacity:0;}}
+    @keyframes siamsSplashMsgIn{0%{opacity:0;transform:translateY(8px);}15%{opacity:1;transform:translateY(0);}85%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-8px);}}
+    @keyframes siamsSplashBarLoop{0%{transform:translateX(-110%);}100%{transform:translateX(230%);}}
+    .siams-splash-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;background:var(--paper);}
+    .siams-splash-grid{display:none;}
+    .siams-splash-dot{display:none;}
+    .siams-splash-bg{position:absolute;top:-16%;left:-18%;width:68vw;height:68vw;max-width:420px;max-height:420px;border-radius:50%;background:radial-gradient(circle,rgba(28,126,242,.16),transparent 65%);animation:siamsSplashBg 7s ease-in-out infinite;pointer-events:none;}
+    .siams-splash-bg2{position:absolute;bottom:-14%;right:-16%;width:58vw;height:58vw;max-width:380px;max-height:380px;border-radius:50%;background:radial-gradient(circle,rgba(255,122,26,.14),transparent 65%);animation:siamsSplashBg2 8s ease-in-out infinite;pointer-events:none;}
+    .siams-splash-card{position:relative;z-index:1;padding:30px 34px 26px;border-radius:32px;}
+    .siams-splash-logo-wrap{position:relative;width:88px;height:88px;margin:0 auto 20px;}
+    .siams-splash-ring{position:absolute;inset:0;border-radius:24px;border:1.5px solid var(--cyan);animation:siamsSplashRing 2.2s ease-out infinite;pointer-events:none;}
+    .siams-splash-ring.delay{animation-delay:1.1s;}
+    .siams-splash-logo{width:88px;height:88px;border-radius:24px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;overflow:hidden;animation:siamsSplashLogoIn .65s cubic-bezier(.2,.9,.3,1.3) both, siamsSplashGlow 2.4s ease-in-out .65s infinite;}
+    .siams-splash-logo img{width:100%;height:100%;object-fit:cover;}
+    .siams-splash-brand{font-size:20px;font-weight:900;letter-spacing:.5px;position:relative;z-index:1;color:var(--text);opacity:0;animation:siamsSplashTextIn .5s ease-out .45s forwards;}
+    .siams-splash-msg-wrap{height:20px;margin-top:9px;position:relative;z-index:1;overflow:hidden;}
+    .siams-splash-text{font-size:13px;font-weight:600;color:var(--text-mid);position:relative;z-index:1;}
+    .siams-splash-bar-track{width:140px;height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin:24px auto 0;position:relative;z-index:1;}
+    .siams-splash-bar-fill{position:absolute;top:0;bottom:0;width:40%;border-radius:4px;background:linear-gradient(90deg,transparent,var(--indigo-dark),var(--cyan),transparent);animation:siamsSplashBarLoop 1.3s ease-in-out infinite;}
+  `;
+  document.head.appendChild(splashStyle);
+}
+/* ---------- Connexion ---------- */
+let authMode = 'login';
+const SIAMS_SPLASH_MESSAGES = ['Bon retour','Préparation de votre espace…','Synchronisation des données…','Presque prêt…'];
+function siamsRunSplashMessages(root, duration){
+  const el = root && root.querySelector('.siams-splash-text');
+  if(!el) return;
+  const msgs = SIAMS_SPLASH_MESSAGES;
+  const step = Math.max(700, Math.floor(duration / msgs.length));
+  let i = 0;
+  el.textContent = msgs[0];
+  el.style.animation = `siamsSplashMsgIn ${step}ms ease-in-out both`;
+  const timer = setInterval(()=>{
+    i = (i + 1) % msgs.length;
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.textContent = msgs[i];
+    el.style.animation = `siamsSplashMsgIn ${step}ms ease-in-out both`;
+  }, step);
+  setTimeout(()=>clearInterval(timer), duration + step);
+}
+/* ---------- Compression d'images avant envoi (limite : 5 Mo) ---------- */
+const SIAMS_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+function siamsCompressImageFile(file, maxBytes = SIAMS_IMAGE_MAX_BYTES, maxDim = 1600){
+  return new Promise((resolve)=>{
+    if(!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/gif'){
+      resolve(file); return; // on ne touche pas aux PDF/vidéos/GIF animés
+    }
+    if(file.size <= maxBytes){ resolve(file); return; } // déjà assez léger
+    const objUrl = URL.createObjectURL(file);
+    const imgEl = new Image();
+    imgEl.onload = async ()=>{
+      URL.revokeObjectURL(objUrl);
+      const fit = (w,h,max)=>{ if(w<=max && h<=max) return {w,h}; const s=max/Math.max(w,h); return {w:Math.round(w*s),h:Math.round(h*s)}; };
+      let dims = fit(imgEl.naturalWidth||imgEl.width, imgEl.naturalHeight||imgEl.height, maxDim);
+      let quality = 0.88;
+      let blob = null;
+      for(let attempt=0; attempt<7; attempt++){
+        const canvas = document.createElement('canvas');
+        canvas.width = dims.w; canvas.height = dims.h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0,0,dims.w,dims.h); // fond blanc si transparence (PNG->JPEG)
+        ctx.drawImage(imgEl, 0, 0, dims.w, dims.h);
+        blob = await new Promise(res=>canvas.toBlob(res,'image/jpeg',quality));
+        if(!blob){ break; }
+        if(blob.size <= maxBytes) break;
+        if(quality > 0.5){ quality -= 0.12; }
+        else { dims = fit(Math.round(dims.w*0.82), Math.round(dims.h*0.82), maxDim); quality = 0.75; }
+      }
+      resolve(blob || file);
+    };
+    imgEl.onerror = ()=>{ URL.revokeObjectURL(objUrl); resolve(file); };
+    imgEl.src = objUrl;
+  });
+}
+function siamsBlobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+/* Compresse un fichier image puis renvoie directement un dataURL, prêt à l'emploi. */
+async function siamsPrepareImageDataURL(file, opts){
+  const compressed = await siamsCompressImageFile(file, opts && opts.maxBytes, opts && opts.maxDim);
+  return siamsBlobToDataURL(compressed);
+}
+
+Views.loading = function(){
+  return `<div class="siams-splash-wrap">
+    <div class="siams-splash-bg"></div>
+    <div class="siams-splash-bg2"></div>
+    <div class="siams-splash-card">
+      <div class="siams-splash-logo-wrap">
+        <span class="siams-splash-ring"></span>
+        <span class="siams-splash-ring delay"></span>
+        <div class="siams-splash-logo">
+          <img src="${LOGO_DATA_URI}" alt="SIAMS">
+        </div>
+      </div>
+      <div class="siams-splash-brand">SIAMS</div>
+      <div class="siams-splash-msg-wrap"><div class="siams-splash-text">Bon retour</div></div>
+      <div class="siams-splash-bar-track"><div class="siams-splash-bar-fill"></div></div>
+    </div>
+  </div>`;
+};
+/* Boucle de messages sans durée fixe : tourne tant que le démarrage réel n'est
+   pas terminé, puis s'arrête via la fonction retournée (stop()). */
+function siamsStartSplashLoop(root){
+  const el = root && root.querySelector('.siams-splash-text');
+  if(!el) return ()=>{};
+  const msgs = SIAMS_SPLASH_MESSAGES;
+  const step = 900;
+  let i = 0;
+  const show = ()=>{ el.style.animation='none'; void el.offsetWidth; el.textContent=msgs[i]; el.style.animation = `siamsSplashMsgIn ${step}ms ease-in-out both`; };
+  show();
+  const timer = setInterval(()=>{ i = (i+1) % msgs.length; show(); }, step);
+  return ()=>clearInterval(timer);
+}
+/* ---- Écran dédié logo + « Bon retour » affiché après connexion, avant le tableau de bord ---- */
+async function showWelcomeBackThenDashboard(){
+  const root = document.getElementById('page-root');
+  const bottomNav = document.getElementById('bottom-nav');
+  if(bottomNav) bottomNav.classList.add('hidden');
+  if(root){ root.innerHTML = Views.loading(); siamsRunSplashMessages(root, 1200); }
+  await new Promise(resolve=>setTimeout(resolve, 1200));
+  Router.go('dashboard');
+}
+Views.welcome = function(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(480px 320px at 50% -10%, rgba(17,17,17,.16), transparent 60%);pointer-events:none;"></div>
+    <img src="${SIAMS_WATERMARK_DATA_URI}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,92vw);height:auto;opacity:.09;pointer-events:none;z-index:0;">
+    <div style="width:88px;height:88px;border-radius:26px;margin-bottom:26px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(17,17,17,.5);position:relative;z-index:1;overflow:hidden;">
+      <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
+    </div>
+    <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;position:relative;z-index:1;">SIAMS</div>
+    <h1 style="font-size:25px;line-height:1.3;margin:0 0 10px;letter-spacing:-.5px;position:relative;z-index:1;">Votre boutique mérite mieux.</h1>
+    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.55;margin:0 0 26px;max-width:320px;position:relative;z-index:1;">Découvrez l'application SIAMS et comment nous accompagnons les commerçants dans leur activité en ligne.</p>
+    <button class="btn btn-primary btn-block" style="max-width:320px;position:relative;z-index:1;" onclick="Router.go('onboarding-public')">Découvrir SIAMS</button>
+    <button class="btn btn-outline btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:10px;" onclick="authMode='login';Router.go('login')">Déjà partenaire ? Se connecter</button>
+    <button class="btn btn-ghost btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:8px;" onclick="Router.go('shop')">Accéder à l’espace client</button>
+  </div>`;
+};
+
+Views['onboarding-public'] = function(){ Onboarding.init('public'); return Onboarding.render(); };
+Views._after_onboarding_public = function(){ Onboarding.attach(); };
+
+Views['about-partnership'] = function(){
+  const q=ActivationGate.getRequest();
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:28px 22px;">
+    <button onclick="Router.go('onboarding-public')" style="border:none;background:var(--panel);color:var(--text);width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:18px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
+    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--indigo);text-transform:uppercase;margin-bottom:5px;">PARTENARIAT SIAMS</div>
+    <h1 style="font-size:25px;line-height:1.15;margin:0 0 8px;">Devenir partenaire SIAMS</h1>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 16px;">Envoyez votre demande au service client. Votre message sera personnalisé pour permettre à SIAMS de traiter votre requête plus rapidement.</p>
+    <div style="display:grid;gap:9px;margin-bottom:16px;">
+      <div class="field"><label>Nom / responsable</label><input id="partner-name" value="${Utils.escapeHtml(q.name||'')}" placeholder="Votre nom complet"></div>
+      <div class="field"><label>Nom de la boutique</label><input id="partner-shop" value="${Utils.escapeHtml(q.shop||'')}" placeholder="Nom de votre commerce"></div>
+      <div class="field"><label>Téléphone / WhatsApp</label><input id="partner-phone" value="${Utils.escapeHtml(q.phone||'')}" inputmode="tel" placeholder="07 00 00 00 00"></div>
+      <div class="field"><label>Votre requête</label><textarea id="partner-request" rows="4" placeholder="Expliquez brièvement votre besoin ou votre projet…">${Utils.escapeHtml(q.request||'')}</textarea></div>
+    </div>
+    <div style="margin-top:auto;">
+      <button class="btn btn-primary btn-block" onclick="ActivationGate.sendPartnerRequest()">Envoyer ma demande au service client</button>
+      <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Quitter</button>
+    </div>
+  </div>`;
+};
+
+const ActivationGate = {
+  code:'',
+  busy:false,
+  normalize(v){ return String(v||'').trim().toUpperCase().replace(/\s+/g,''); },
+  getRequest(){ try{return JSON.parse(localStorage.getItem('siams_partner_request')||'{}')||{};}catch(e){return {};} },
+  saveRequest(data){ try{localStorage.setItem('siams_partner_request',JSON.stringify(data||{}));}catch(e){} },
+  hasPendingRequest(){ const q=this.getRequest(); return !!(q.pending); },
+  sendPartnerRequest(){
+    const name=(document.getElementById('partner-name')?.value||'').trim();
+    const shop=(document.getElementById('partner-shop')?.value||'').trim();
+    const phone=(document.getElementById('partner-phone')?.value||'').trim();
+    const request=(document.getElementById('partner-request')?.value||'').trim();
+    if(!name||!phone||!request){ Toast.show('Renseignez votre nom, votre téléphone et votre requête.'); return; }
+    const q={name,shop,phone,request,pending:true,createdAt:Date.now()};
+    this.saveRequest(q);
+    const msg=[
+      'Bonjour Service Client SIAMS,',
+      '',
+      'Je souhaite devenir partenaire SIAMS et obtenir mon code d’activation.',
+      '',
+      `Nom / responsable : ${name}`,
+      `Boutique : ${shop||'À préciser'}`,
+      `Téléphone / WhatsApp : ${phone}`,
+      '',
+      'Ma requête :',
+      request,
+      '',
+      'Merci de traiter ma demande et de me transmettre mon code partenaire.',
+      '',
+      'Message envoyé depuis l’application SIAMS.'
+    ].join('\n');
+    window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg),'_blank');
+    Toast.show('Demande envoyée au service client ✓');
+    Router.go('activation-code');
+  },
+  openWhatsApp(){ Router.go('about-partnership'); },
+  back(){ Router.go('about-partnership'); },
+  async checkStatus(){
+    const q=this.getRequest();
+    const id=q.requestId;
+    const btn=document.getElementById('activation-check-btn');
+    if(!id){ Toast.show('Aucune demande en cours à vérifier.'); return; }
+    if(btn){ btn.disabled=true; btn.textContent='Vérification...'; }
+    try{
+      const {data,error}=await sb.from('registration_requests').select('status,activation_code').eq('id',id).single();
+      if(error) throw error;
+      if(data && data.status==='approved' && data.activation_code){
+        try{ localStorage.setItem('siams_activation_code',data.activation_code); sessionStorage.setItem('siams_activation_code',data.activation_code); }catch(e){}
+        this.code=data.activation_code;
+        Toast.show('Code d’activation reçu ✓');
+        Router.go('activation-code');
+      }else if(data && data.status==='rejected'){
+        Toast.show('Votre demande a été refusée. Contactez le service client SIAMS.');
+      }else{
+        Toast.show('Activation en cours — pas encore de code disponible.');
+      }
+    }catch(e){
+      console.error(e);
+      Toast.show('Impossible de vérifier le statut pour le moment.');
+    }finally{
+      if(btn){ btn.disabled=false; btn.textContent='Vérifier si mon code est arrivé'; }
+    }
+  },
+  quit(){
+    this.clear();
+    try{localStorage.removeItem('siams_partner_request');}catch(e){}
+    Router.go('welcome');
+  },
+  async validate(){
+    const input=document.getElementById('activation-code-input');
+    const err=document.getElementById('activation-code-error');
+    const btn=document.getElementById('activation-code-btn');
+    const code=this.normalize(input&&input.value);
+    if(!code){ err.textContent='Entrez votre code d’activation'; return; }
+    if(this.busy) return;
+    this.busy=true; err.textContent=''; btn.disabled=true; btn.textContent='Vérification...';
+    try{
+      const {data,error}=await sb.rpc('check_activation_key',{p_code:code});
+      if(error) throw error;
+      if(!data || !data.success){
+        const messages={invalid_code:'Code invalide.',code_already_used:'Ce code a déjà été utilisé.',code_expired:'Ce code a expiré.'};
+        err.textContent=messages[data&&data.error] || 'Code d’activation invalide.';
+        return;
+      }
+      this.code=code;
+      try{ localStorage.setItem('siams_activation_code',code); sessionStorage.setItem('siams_activation_code',code); }catch(e){}
+      Toast.show('Code d’activation validé ✓');
+      Router.go('register');
+    }catch(e){
+      console.error(e);
+      err.textContent='Impossible de vérifier le code pour le moment.';
+    }finally{
+      this.busy=false; btn.disabled=false; btn.textContent='Valider le code';
+    }
+  },
+  getStored(){
+    if(this.code) return this.code;
+    try{ return localStorage.getItem('siams_activation_code') || sessionStorage.getItem('siams_activation_code') || ''; }catch(e){ return ''; }
+  },
+  clear(){ this.code=''; try{localStorage.removeItem('siams_activation_code');sessionStorage.removeItem('siams_activation_code');}catch(e){} }
+};
+
+Views['activation-code'] = function(){
+  const q=ActivationGate.getRequest();
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
+    <div style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
+    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--indigo);text-transform:uppercase;margin-bottom:5px;">ACCÈS PARTENAIRE</div>
+    <h1 style="font-size:25px;margin:0 0 8px;">Votre code partenaire</h1>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 22px;">${q.pending?'Votre demande a bien été enregistrée. Vous recevrez automatiquement un e-mail de serviceclientsiams.ci@gmail.com contenant votre code d’activation dès que le service client SIAMS aura approuvé votre compte.':'Saisissez le code personnel transmis par le service client SIAMS pour commencer votre inscription.'}</p>
+    ${q.pending?`<div id="activation-pending-panel" style="padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);margin-bottom:16px;display:flex;align-items:center;gap:12px;"><div class="spinner" style="width:20px;height:20px;border:2.5px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:siams-spin .8s linear infinite;flex:none;"></div><div><b style="font-size:12.5px;">Activation en cours…</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px;">Votre demande est en cours d’examen par le service client SIAMS.</div></div></div><link rel="stylesheet" href="css/style-02.css">`:''}
+    <div class="field"><label>Code d’activation</label><input id="activation-code-input" type="text" autocomplete="off" autocapitalize="characters" placeholder="SIAMS-XXXXXX" value="${Utils.escapeHtml(ActivationGate.getStored())}" oninput="document.getElementById('activation-code-error').textContent=''"></div>
+    <div id="activation-code-error" style="color:var(--red);font-size:12.5px;min-height:20px;margin:-6px 0 14px;"></div>
+    <button id="activation-code-btn" class="btn btn-primary btn-block" onclick="ActivationGate.validate()">Valider le code</button>
+    ${q.pending?'<button id="activation-check-btn" class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ActivationGate.checkStatus()">Vérifier si mon code est arrivé</button>':''}
+    <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ActivationGate.openWhatsApp()">${q.pending?'Modifier ma demande':'Demander un code au service client'}</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="ActivationGate.quit()">Quitter</button>
+  </div>`;
+};
+
+Views.login = function(){
+  authMode='login';
+  return `
+  <div class="siams-login-preview">
+    <link rel="stylesheet" href="css/style-03.css">
+<div class="siams-lp-phone">
+  <div class="siams-lp-hero">
+    <div class="siams-lp-siams-lp-hero-top">
+      <button type="button" class="siams-lp-back-btn" onclick="Router.go('welcome')" aria-label="Retour">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div style="width:38px;"></div>
+      <div style="width:38px;"></div>
+    </div>
+
+    <div class="siams-lp-mascot-wrap">
+      <img class="siams-lp-mascot-img" src="images/mascot.webp">
+    </div>
+
+    <div class="siams-lp-msg-board">
+      <div class="siams-lp-msg-card">
+        <div class="siams-lp-msg-ico mango">🛍️</div>
+        <div class="siams-lp-msg-text"><b>Nouvelle commande</b><span>Robe wax — 12 000 FCFA</span></div>
+      </div>
+      <div class="siams-lp-msg-card">
+        <div class="siams-lp-msg-ico green">💳</div>
+        <div class="siams-lp-msg-text"><b>Paiement reçu</b><span>Wave — confirmé</span></div>
+      </div>
+      <div class="siams-lp-msg-card">
+        <div class="siams-lp-msg-ico blue">⭐</div>
+        <div class="siams-lp-msg-text"><b>Nouvel avis client</b><span>5 étoiles — merci !</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="siams-lp-card">
+    <h1>Bon retour</h1>
+    <p class="siams-lp-sub">Connectez-vous pour gérer votre boutique.</p>
+
+    <div class="siams-lp-field">
+      <label>E-mail ou ID marchand SIAMS</label>
+      <div class="siams-lp-input-wrap">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 7l9 6 9-6M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <input type="text" id="auth-email" placeholder="vous@exemple.com ou SIAMS-XXXXXX">
+      </div>
+    </div>
+
+    <div class="siams-lp-field">
+      <label>Mot de passe</label>
+      <div class="siams-lp-input-wrap">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7"/></svg>
+        <input type="password" id="auth-pass" autocomplete="current-password" placeholder="••••••••">
+        <button type="button" class="siams-lp-eye-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass', this)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="siams-lp-row-between">
+      <div class="siams-lp-remember">
+        <span class="siams-lp-checkbox">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        Rester connecté
+      </div>
+      <button type="button" class="siams-lp-link" style="background:none;border:0;padding:0;cursor:pointer;font:inherit;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button>
+    </div>
+
+    <div id="auth-error" style="font-size:13px;margin:0 0 14px;"></div><button type="button" class="siams-lp-btn-primary" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>
+
+    <div class="siams-lp-divider">Ou continuer avec</div>
+    <div class="siams-lp-social-row">
+      <button type="button" class="siams-lp-social-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47c-.28 1.5-1.13 2.78-2.4 3.63v3.02h3.89c2.28-2.1 3.59-5.19 3.59-8.84z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.9l-3.89-3.02c-1.08.72-2.45 1.15-4.04 1.15-3.1 0-5.73-2.09-6.67-4.9H1.32v3.09C3.29 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.33 14.33A7.2 7.2 0 0 1 4.94 12c0-.81.14-1.6.39-2.33V6.58H1.32A11.98 11.98 0 0 0 0 12c0 1.93.46 3.76 1.32 5.42l4.01-3.09z"/><path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.94 1.19 15.24 0 12 0 7.31 0 3.29 2.7 1.32 6.58l4.01 3.09C6.27 6.86 8.9 4.77 12 4.77z"/></svg>
+        Google
+      </button>
+      <button type="button" class="siams-lp-social-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#0B0E17"><path d="M16.365 1.43c0 1.14-.46 2.23-1.21 3.03-.83.87-2.19 1.55-3.34 1.46-.14-1.1.42-2.25 1.19-3.02.83-.87 2.27-1.53 3.36-1.47zM20.5 17.34c-.55 1.27-.81 1.84-1.52 2.96-.99 1.56-2.39 3.5-4.12 3.51-1.53.02-1.92-1-4-1-2.07 0-2.51.98-4.04.99-1.73.02-3.05-1.71-4.04-3.27-2.77-4.32-3.06-9.39-1.35-12.09 1.21-1.92 3.13-3.05 4.94-3.05 1.84 0 3 1.02 4.52 1.02 1.47 0 2.37-1.02 4.5-1.02 1.61 0 3.31.88 4.52 2.4-3.97 2.18-3.33 7.84.59 9.55z"/></svg>
+        Apple
+      </button>
+    </div>
+    <div style="text-align:center;font-size:10.5px;color:var(--text-soft);margin:8px 0 6px;">Bientôt disponible</div>
+
+    <button type="button" class="siams-lp-id-recover" onclick="Router.go('recover-id')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 15v6m0 0l-3-3m3 3l3-3M4 9V7a2 2 0 0 1 2-2h3m8 0h3a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ID marchand oublié ?
+    </button>
+
+  </div>
+</div>
+  </div>`;
+};
+Views.register = function(){
+  if(!ActivationGate.getStored()) return Views['activation-code']();
+  authMode='register';
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">
+    <button onclick="Router.go('activation-code')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">←</button>
+    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
+    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--green);text-transform:uppercase;margin-bottom:5px;">CODE PARTENAIRE VALIDÉ</div>
+    <h1 style="font-size:24px;margin:0 0 6px;">Créer votre compte</h1>
+    <p style="color:var(--text-mid);font-size:14px;margin:0 0 22px;">Votre inscription est autorisée par le code SIAMS validé.</p>
+    <div class="field"><label>Adresse e-mail</label><input id="auth-email__v46_2" type="email" placeholder="vous@exemple.com" autocomplete="email"></div>
+    <div class="field"><label>Numéro de téléphone</label><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"></div>
+    <div class="field"><label>Mot de passe</label><div class="pass-field-wrap"><input id="auth-pass__v46_2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass__v46_2', this)">${EYE_SVG}</button></div><div style="font-size:12px;color:var(--text-mid);margin-top:5px;">Au moins 6 caractères</div></div>
+    <div class="field"><label>Confirmer le mot de passe</label><div class="pass-field-wrap"><input id="auth-pass2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass2', this)">${EYE_SVG}</button></div></div>
+    <div id="auth-error__v46_2" style="font-size:13px;margin-bottom:14px;"></div>
+    <button class="btn btn-primary btn-block" id="auth-submit-btn__v46_2" onclick="doRegister()">Créer mon compte</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go('activation-code')">Retour au code partenaire</button>
+  </div>`;
+};
+
+/* ---------- Vérification par code (E-MAIL) ---------- */
+Views['verify-otp'] = function(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;">
+    <div class="otp-topbar">
+      <button class="otp-back" onclick="OtpGate.changeAccount()" aria-label="Retour">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="otp-help" onclick="Toast.show('Contactez le support pour être aidé')">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 13a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+        Besoin d'aide ?
+      </button>
+    </div>
+
+    <h1 class="otp-title">Entrez le code reçu par e-mail</h1>
+    <div class="otp-resend-label" style="margin:0 20px 8px;text-align:left;">Un code a été envoyé à <b>${OtpGate.email}</b></div>
+
+    <div class="otp-boxes">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" autofocus oninput="otpBoxHandle(this,0)" onkeydown="otpBoxKeydown(event,0)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,1)" onkeydown="otpBoxKeydown(event,1)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,2)" onkeydown="otpBoxKeydown(event,2)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,3)" onkeydown="otpBoxKeydown(event,3)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,4)" onkeydown="otpBoxKeydown(event,4)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,5)" onkeydown="otpBoxKeydown(event,5)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,6)" onkeydown="otpBoxKeydown(event,6)" onpaste="otpBoxPaste(event)">
+      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,7)" onkeydown="otpBoxKeydown(event,7)" onpaste="otpBoxPaste(event)">
+    </div>
+
+    <div class="otp-resend-label" id="otp-timer-label">Renvoyer le code dans <b>00:${String(OTP_RESEND_SECONDS).padStart(2,'0')}</b></div>
+
+    <div class="otp-channels">
+      <button class="otp-channel active" id="otp-resend-btn" disabled onclick="OtpGate.resend()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 1 3 6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 17v-4h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Renvoyer le code par e-mail
+      </button>
+    </div>
+
+    <div class="otp-error" id="otp-error"></div>
+
+    <button class="otp-changenum" onclick="OtpGate.changeAccount()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M11 18.5h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Utiliser un autre compte
+    </button>
+  </div>`;
+};
+Views._after_verify_otp = function(){
+  OtpGate.tickUI();
+  const first = document.querySelector('.otp-box');
+  if(first) first.focus();
+};
+
+/* ---------- Onboarding (tutoriel de bienvenue) ---------- */
+Views['onboarding-admin'] = function(){ Onboarding.init('admin'); return Onboarding.render(); };
+Views._after_onboarding_admin = function(){ Onboarding.attach(); };
+Views['onboarding-client'] = function(){ Onboarding.init('client'); return Onboarding.render(); };
+Views._after_onboarding_client = function(){ Onboarding.attach(); };
+
+/* ---------- Choix du type d'activité ---------- */
+Views['business-type'] = function(){
+  businessTypeActiveTab = 'vente-ligne';
+  return `
+  <div style="padding:26px 20px 4px;text-align:center;">
+    <div style="width:52px;height:52px;border-radius:15px;margin:0 auto 16px;overflow:hidden;box-shadow:0 10px 22px -10px rgba(17,17,17,.4);">
+      <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
+    </div>
+    <h1 style="font-size:21px;margin:0 0 6px;letter-spacing:-.3px;">SIAMS à vos côtés</h1>
+    <p style="color:var(--text-mid);font-size:13.5px;margin:0 0 4px;line-height:1.5;">Pour la création de toutes vos boutiques, quelle que soit votre activité.</p>
+  </div>
+  <div class="biz-tabs">
+    ${BUSINESS_CATEGORIES.map(c=>`
+      <button class="biz-tab ${c.id==='vente-ligne'?'active':''}" data-bid="${c.id}" onclick="selectBusinessTab('${c.id}')">
+        <span class="biz-tab-icon">${c.icon}</span>
+        <span>${Utils.escapeHtml(c.label)}</span>
+        ${!c.available?'<span class="biz-tab-dot"></span>':''}
+      </button>`).join('')}
+  </div>
+  <div class="biz-panel" id="biz-panel">${businessPanelHtml('vente-ligne')}</div>
+  `;
+};
+
+function toggleAuthMode(){ Router.go(ActivationGate.getStored() ? 'register' : 'activation-code'); }
+/* ---------- Badge « vérifié » façon Meta, affiché quand l'abonnement est payé et actif
+   ET que l'identité de la boutique a été validée par SIAMS (pièce officielle + photo en
+   temps réel, cf. store.verification.verified). Sans identification validée, le badge de
+   formule reste verrouillé même si le Pass est payé. ---- */
+function isPaidSubscriptionActive(){
+  const store = Store.store;
+  const identityVerified = !!(store && store.verification && store.verification.verified);
+  return Store.access().status==='active' && Store.hasFeature('badgeVisibility') && identityVerified;
+}
+function VerifiedBadge(size, plan){
+  size = size || 16;
+  /* ---- Récapitulatif des badges par formule (façon Meta) :
+     BON MOOD → aucun badge · DOYEN → badge noir · DOYA → badge bleu ·
+     TOUTE BOUTIQUE → badge bordeaux · PLATINE → badge rouge · GOLDEN → badge doré exclusif ---- */
+  const color = plan==='golden' ? '#F0C24B' : plan==='platinum' ? '#D7263D' : plan==='all' ? '#8E1537' : plan==='doya' ? '#0091FD' : '#0B0E17';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" style="flex:none;vertical-align:middle;">
+    <path d="M12 1.3 14.7 3.8 18.3 3.1 19.1 6.7 22.3 8.5 20.7 12 22.3 15.5 19.1 17.3 18.3 20.9 14.7 20.2 12 22.7 9.3 20.2 5.7 20.9 4.9 17.3 1.7 15.5 3.3 12 1.7 8.5 4.9 6.7 5.7 3.1 9.3 3.8 12 1.3Z" fill="${color}"/>
+    <path d="m7.7 12.2 2.8 2.8 5.8-6" stroke="${plan==='golden'?'#1a1300':'#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+/* ---- Badge « boutique certifiée » (vert) : identité vérifiée par SIAMS
+   (pièce officielle + photo en temps réel), indépendant du badge de formule
+   d'abonnement ci-dessus. Affiché dès que store.verification.verified est vrai. ---- */
+function CertifiedBadge(size){
+  size = size || 16;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" style="flex:none;vertical-align:middle;" aria-label="Boutique certifiée SIAMS">
+    <circle cx="12" cy="12" r="10.5" fill="#1FAA59"/>
+    <path d="m7.7 12.2 2.8 2.8 5.8-6" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+const EYE_SVG = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>';
+const EYE_OFF_SVG = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M3 3l18 18M9.9 9.9a3 3 0 0 0 4.2 4.2M6.2 6.6C3.9 8.1 2 12 2 12s3.6 7 10 7c1.8 0 3.4-.5 4.7-1.2M10.7 5.2A9.9 9.9 0 0 1 12 5c6.4 0 10 7 10 7-.5.9-1.2 2-2.2 3.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function togglePasswordVisibility(inputId, btn){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  const willShow = input.type === 'password';
+  input.type = willShow ? 'text' : 'password';
+  btn.innerHTML = willShow ? EYE_OFF_SVG : EYE_SVG;
+  btn.setAttribute('aria-label', willShow ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+}
+function contactSupportForgotPassword(){
+  const identifier = (document.getElementById('auth-email')?.value || '').trim();
+  const cleanIdentifier = identifier || 'Non renseigné';
+  const isMerchantId = /^SIAMS-[A-Z0-9_-]+$/i.test(cleanIdentifier);
+  const merchantIdLine = isMerchantId
+    ? `ID marchand SIAMS : ${cleanIdentifier.toUpperCase()}`
+    : `ID marchand SIAMS : Non renseigné (à confirmer par SIAMS)`;
+  const emailLine = !isMerchantId && cleanIdentifier.includes('@')
+    ? `E-mail du compte : ${cleanIdentifier}`
+    : `E-mail du compte : À confirmer`;
+  const msg = [
+    'Bonjour Service Client SIAMS,',
+    '',
+    "Je suis un marchand SIAMS et j'ai oublié mon mot de passe.",
+    'Je souhaite récupérer l’accès à mon compte.',
+    '',
+    merchantIdLine,
+    emailLine,
+    `Boutique : À confirmer par SIAMS`,
+    `Téléphone marchand : À confirmer par SIAMS`,
+    '',
+    'Merci de vérifier mon compte et de m’aider à réinitialiser mon mot de passe.',
+    '',
+    'Message envoyé depuis l’espace de connexion SIAMS.'
+  ].join('\n');
+  window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg), '_blank');
+}
+async function doLogin(){
+  const identifier = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const err = document.getElementById('auth-error');
+  const btn = document.getElementById('auth-submit-btn');
+  err.style.color = 'var(--red)';
+  if(!identifier || !pass){ err.textContent = 'Merci de remplir tous les champs'; return; }
+  err.textContent = ''; btn.disabled = true; btn.textContent = 'Connexion...';
+  const resolved = await Auth.resolveEmail(identifier);
+  if(!resolved.ok){
+    btn.disabled = false; btn.textContent = 'Se connecter';
+    err.textContent = 'E-mail ou ID marchand SIAMS introuvable';
+    return;
+  }
+  const res = await Auth.login(resolved.email, pass);
+  if(res.ok){ OtpGate.start('login', res.email); return; }
+  btn.disabled = false; btn.textContent = 'Se connecter';
+  err.textContent = res.message || 'Connexion impossible';
+}
+/* ---------- Partnership post-inscription supprimé : le partenariat est désormais traité avant l'inscription. ---------- */
+
+/* ---------- Confirmation e-mail (lien de vérification Supabase) ---------- */
+const ConfirmEmail = {
+  email:'',
+  show(email){
+    this.email = email || '';
+    Router.go('confirm-email');
+  },
+  async resend(){
+    if(!this.email) return;
+    try{
+      const { error } = await sb.auth.resend({ type:'signup', email:this.email });
+      if(error) throw error;
+      Toast.show("E-mail de confirmation renvoyé ✓");
+    }catch(e){
+      Toast.show("Impossible de renvoyer l'e-mail pour le moment");
+    }
+  },
+  openMail(){
+    const domain = (this.email.split('@')[1]||'').toLowerCase();
+    const inboxUrls = {
+      'gmail.com':'https://mail.google.com/mail/u/0/#inbox',
+      'googlemail.com':'https://mail.google.com/mail/u/0/#inbox',
+      'outlook.com':'https://outlook.live.com/mail/0/inbox',
+      'hotmail.com':'https://outlook.live.com/mail/0/inbox',
+      'live.com':'https://outlook.live.com/mail/0/inbox',
+      'yahoo.com':'https://mail.yahoo.com/',
+      'yahoo.fr':'https://mail.yahoo.com/',
+      'icloud.com':'https://www.icloud.com/mail',
+      'me.com':'https://www.icloud.com/mail'
+    };
+    const url = inboxUrls[domain];
+    if(url){ window.open(url,'_blank'); }
+    else{ window.location.href = 'mailto:'; }
+  },
+  goLogin(){
+    authMode = 'login';
+    Router.go('login');
+  }
+};
+
+/* ---------- ID marchand SIAMS (affiché juste après la validation du contrat / vérification OTP) ----------
+   NOTE PROTOTYPE : nécessite côté Supabase une colonne stores.login_id ainsi que les
+   fonctions RPC find_email_by_login_id / find_login_id_by_email (SECURITY DEFINER). ---- */
+/* ---------- Carte d'identifiants SIAMS (PDF format carte, style badge) ---------- */
+async function downloadAccountIdCardPDF(){
+  const logoPdf = await loadImageAsDataURL(LOGO_DATA_URI);
+
+  const id = AccountId.current;
+  if(!id){ Toast.show('ID marchand indisponible'); return; }
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  const { jsPDF } = window.jspdf;
+  const store = Store.store;
+  const navy = [5,42,77], blueDeep = [0,96,217], cyan = [0,214,238], white = [255,255,255];
+  const cardW = 340, cardH = 214; // format carte bancaire, en points
+  const doc = new jsPDF({ unit:'pt', format:[cardW+40, cardH+40] });
+  const ox = 20, oy = 20;
+
+  // Fond dégradé simulé (bandes) + panneau navy
+  doc.setFillColor(...navy);
+  doc.roundedRect(ox, oy, cardW, cardH, 14, 14, 'F');
+  doc.setFillColor(...blueDeep);
+  doc.roundedRect(ox, oy, cardW, 64, 14, 14, 'F');
+  doc.setFillColor(...navy);
+  doc.rect(ox, oy+40, cardW, 24, 'F');
+  doc.setFillColor(...cyan);
+  doc.rect(ox, oy+62, cardW, 2.4, 'F');
+
+  // En-tête : logo + nom SIAMS
+  try{ doc.addImage(logoPdf, 'PNG', ox+16, oy+14, 34, 34, undefined, 'FAST'); }catch(e){}
+  doc.setTextColor(...white);
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('SIAMS', ox+58, oy+30);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.text('Carte d\'identifiant vendeur', ox+58, oy+42);
+
+  // Nom de la boutique
+  doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text(String(store.name||'Ma boutique'), ox+16, oy+92, {maxWidth:cardW-32});
+
+  // Identifiant, en évidence
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.setTextColor(200,215,235);
+  doc.text('ID MARCHAND SIAMS', ox+16, oy+118);
+  doc.setFont('courier','bold'); doc.setFontSize(20);
+  doc.setTextColor(...white);
+  doc.text(id, ox+16, oy+142, {charSpace:1.2});
+
+  // Pied de carte
+  doc.setDrawColor(...cyan); doc.setLineWidth(0.8);
+  doc.line(ox+16, oy+cardH-38, ox+cardW-16, oy+cardH-38);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.setTextColor(190,205,225);
+  doc.text('Utilisez cet identifiant pour vous reconnecter sans ressaisir votre e-mail.', ox+16, oy+cardH-24, {maxWidth:cardW-32});
+  doc.text('siams.ci — serviceclientsiams.ci@gmail.com', ox+16, oy+cardH-12);
+
+  doc.save(`carte-identifiant-siams-${id}.pdf`);
+  Toast.show('Carte d\'identifiant téléchargée ✓');
+}
+const AccountId = {
+  current:'',
+  showAfterRegister(){
+    this.current = Cloud.loginId || (_cache.store && _cache.store.loginId) || '';
+    Router.go('account-id');
+  },
+  open(){
+    this.current = Cloud.loginId || (_cache.store && _cache.store.loginId) || '';
+    Router.go('account-id');
+  },
+  copy(){
+    if(!this.current) return;
+    (navigator.clipboard ? navigator.clipboard.writeText(this.current) : Promise.reject())
+      .then(()=> Toast.show('Identifiant copié ✓'))
+      .catch(()=> Toast.show("Impossible de copier l'identifiant"));
+  },
+  save(){ downloadAccountIdCardPDF(); },
+  continueToApp(){ Router.go('dashboard'); }
+};
+Views['account-id'] = function(){
+  const id = AccountId.current || '';
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
+    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;">
+      <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
+    </div>
+    <h1 style="font-size:23px;margin:0 0 8px;">Votre ID marchand SIAMS</h1>
+    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.6;margin:0 0 22px;">Utilisez-le pour vous reconnecter à votre compte, sans ressaisir votre e-mail à chaque fois. Conservez-le en lieu sûr.</p>
+    <div style="border:1.5px solid var(--indigo);border-radius:var(--radius-md);padding:20px 16px;background:var(--indigo-tint);text-align:center;margin-bottom:16px;">
+      <div style="font-size:11px;color:var(--indigo);font-weight:700;letter-spacing:.4px;margin-bottom:8px;">ID MARCHAND SIAMS</div>
+      <div class="mono" style="font-size:22px;font-weight:800;letter-spacing:1px;color:var(--text);">${Utils.escapeHtml(id)}</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:22px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="AccountId.copy()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.7"/></svg>
+        Copier
+      </button>
+      <button class="btn btn-outline" style="flex:1;" onclick="AccountId.save()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Enregistrer
+      </button>
+    </div>
+    <p style="font-size:12px;color:var(--text-soft);margin:0 0 26px;">En cas d'oubli, l'option « ID marchand oublié ? » sur l'écran de connexion vous permet de le récupérer via votre e-mail ou WhatsApp.</p>
+    <div style="margin-top:auto;">
+      <button class="btn btn-primary btn-block" onclick="AccountId.continueToApp()">Continuer vers mon tableau de bord</button>
+    </div>
+  </div>`;
+};
+
+/* ---------- Contrat d'utilisation SIAMS (affiché après la création du compte, avant validation finale) ----------
+   NOTE PROTOTYPE : le contrat reprend le contenu officiel du fichier contrat-siams.html. Les
+   informations complémentaires (référence, date, boutique, téléphone, e-mail) sont renseignées
+   automatiquement à partir des données de l'utilisateur avant l'affichage. L'Utilisateur peut le
+   télécharger (PDF) ou le lire à l'écran, puis doit valider avant de poursuivre. Un message
+   obligatoire lui rappelle ensuite d'imprimer, signer et renvoyer le contrat par e-mail/WhatsApp. ---- */
+function getContractArticles(){
+  const allPlan = SUBSCRIPTION_PLANS.find(p=>p.key==='all') || {price:6000};
+  const half = Math.round(allPlan.price/2);
+  return [
+    { num:1, title:'Définitions', blocks:[
+      { type:'p', text:"Dans le présent contrat, les termes suivants ont la signification indiquée ci-après :" },
+      { type:'ul', items:[
+        "« Application » désigne la plateforme logicielle de gestion de boutique en ligne éditée et exploitée par SIAMS ;",
+        "« Utilisateur » ou « Client » désigne toute personne physique ou morale ayant créé un compte sur l'Application pour y exploiter une boutique ;",
+        "« Pass » désigne la formule d'abonnement payante donnant accès à l'ensemble ou à une partie des fonctionnalités de l'Application ;",
+        "« Période d'essai » désigne la période de vingt (20) jours durant laquelle l'accès à l'Application est offert gratuitement à l'Utilisateur ;",
+        "« Commission » désigne le pourcentage prélevé par SIAMS sur les ventes réalisées par l'Utilisateur via l'Application, dans les conditions fixées au présent contrat."
+      ]}
+    ]},
+    { num:2, title:'Objet du contrat', blocks:[
+      { type:'p', text:"Le présent contrat a pour objet de définir les conditions dans lesquelles SIAMS met à la disposition de l'Utilisateur l'Application, ainsi que les modalités d'essai, d'accompagnement, de commission et d'abonnement applicables à leur relation." }
+    ]},
+    { num:3, title:'Inscription et création de compte', blocks:[
+      { type:'p', text:"L'accès à l'Application est subordonné à la création d'un compte par l'Utilisateur, lequel doit renseigner des informations exactes, complètes et à jour (identité, coordonnées, informations relatives à la boutique)." },
+      { type:'p', text:"L'Utilisateur est seul responsable de la confidentialité de ses identifiants de connexion et de toute activité réalisée depuis son compte. Il s'engage à informer SIAMS sans délai en cas de suspicion d'utilisation non autorisée de son compte." }
+    ]},
+    { num:4, title:"Période d'essai gratuite de 20 jours", blocks:[
+      { type:'p', text:"SIAMS offre à l'Utilisateur un accès complet et gratuit à l'Application pendant une période d'essai de vingt (20) jours calendaires à compter de la date de création du compte, incluant l'ensemble des fonctionnalités disponibles sur la plateforme." },
+      { type:'p', text:"Durant cette période, l'Utilisateur gère librement sa boutique (produits, commandes, clients, promotions) et bénéficie de l'accompagnement et de l'assistance de l'équipe SIAMS pour la prise en main et le bon fonctionnement de son activité." },
+      { type:'p', text:"SIAMS se réjouit de cette collaboration et s'engage à accompagner l'Utilisateur dans le développement de son activité tout au long de la relation contractuelle." }
+    ]},
+    { num:5, title:"Commission applicable durant la période d'essai", blocks:[
+      { type:'p', text:"Pendant toute la durée de la période d'essai, SIAMS prélève une commission sur chaque commande vendue par l'Utilisateur, selon le barème suivant :" },
+      { type:'ul', items:[
+        "Taux de commission : 5% (cinq pour cent) du montant total de chaque commande, prélevés par SIAMS sur chaque transaction."
+      ]},
+      { type:'p', text:"Cette commission s'applique sans seuil minimum, sur toute commande livrée durant la période d'essai. Ce barème pourra être révisé par SIAMS dans les conditions prévues à l'Article 17, moyennant information préalable de l'Utilisateur." }
+    ]},
+    { num:6, title:"Délai de régularisation à l'expiration de la période d'essai", blocks:[
+      { type:'p', text:"À l'expiration des 20 jours d'essai, l'Utilisateur dispose d'un délai supplémentaire de trois (3) jours maximum pour entamer le paiement de son abonnement (« Pass ») afin de conserver l'accès à l'Application." },
+      { type:'p', text:"Passé ce délai de 3 jours sans début de paiement, SIAMS se réserve le droit de suspendre ou restreindre l'accès de l'Utilisateur à l'Application, sans préjudice des sommes déjà dues au titre des commissions perçues pendant la période d'essai." }
+    ]},
+    { num:7, title:"Conditions tarifaires à l'issue du délai", blocks:[
+      { type:'p', text:`À l'issue de la période d'essai de 20 jours et du délai de régularisation de 3 jours, l'Utilisateur qui souhaite poursuivre l'utilisation de l'Application s'engage à régler la moitié (50%) du montant du Pass « Toute Boutique », dont le tarif plein est fixé à ${Utils.fmtFCFA(allPlan.price)}, soit un montant de ${Utils.fmtFCFA(half)}.` },
+      { type:'p', text:"Pendant cette phase de paiement à moitié tarif, SIAMS prélève, en plus de ce montant, une commission de 10% (dix pour cent) du montant total de chaque commande vendue par l'Utilisateur via l'Application, en remplacement du taux de 5% applicable pendant la période d'essai (Article 5)." }
+    ]},
+    { num:8, title:"Absence de commission pendant l'abonnement (Pass payant)", blocks:[
+      { type:'p', text:"À compter de l'activation d'un Pass payant (formule d'abonnement souscrite conformément à l'Article 7), SIAMS ne prélève plus aucune commission sur les commandes vendues par l'Utilisateur via l'Application. Seul le montant de l'abonnement reste dû." },
+      { type:'p', text:"Cette absence de commission s'applique à compter de l'activation du Pass et pendant toute la durée de l'abonnement, en remplacement des taux applicables pendant la période d'essai (Article 5) et, le cas échéant, pendant la phase de régularisation à moitié tarif (Article 7)." }
+    ]},
+    { num:9, title:'Modalités de paiement', blocks:[
+      { type:'p', text:"Le paiement du Pass et des commissions dues s'effectue selon les modalités communiquées par SIAMS (Wave, Orange Money, MTN Money ou virement bancaire). La preuve de paiement est transmise à SIAMS par e-mail ou WhatsApp, en vue de l'activation ou du renouvellement de l'accès." },
+      { type:'p', text:"Toute somme non réglée à son échéance pourra entraîner la suspension temporaire de l'accès de l'Utilisateur à l'Application, après notification préalable." }
+    ]},
+    { num:10, title:"Obligations de l'Utilisateur", blocks:[
+      { type:'ul', items:[
+        "Fournir des informations exactes et à jour lors de son inscription et tout au long de la relation contractuelle ;",
+        "Utiliser l'Application conformément à sa destination et à la réglementation en vigueur ;",
+        "S'acquitter des commissions et montants dus dans les délais convenus ;",
+        "Ne pas contourner le dispositif de commission en dissimulant ou en sous-évaluant le prix réel des articles vendus ;",
+        "Informer SIAMS de toute difficulté rencontrée dans l'utilisation de la plateforme."
+      ]}
+    ]},
+    { num:11, title:'Obligations de SIAMS', blocks:[
+      { type:'ul', items:[
+        "Assurer, dans la mesure du possible, la disponibilité et le bon fonctionnement de l'Application ;",
+        "Accompagner l'Utilisateur durant la période d'essai et après son passage à l'abonnement ;",
+        "Assurer un support raisonnable en cas de difficulté technique signalée par l'Utilisateur ;",
+        "Informer l'Utilisateur de toute évolution des présentes conditions avant leur application, conformément à l'Article 17."
+      ]}
+    ]},
+    { num:12, title:'Propriété intellectuelle', blocks:[
+      { type:'p', text:"L'Application, son code source, ses interfaces, sa charte graphique, sa marque et l'ensemble des éléments qui la composent demeurent la propriété exclusive de SIAMS. Le présent contrat n'emporte aucune cession de droits de propriété intellectuelle au profit de l'Utilisateur." },
+      { type:'p', text:"L'Utilisateur conserve l'entière propriété des contenus qu'il publie sur sa boutique (photos, descriptions, données de son catalogue), et garantit disposer des droits nécessaires à leur diffusion." }
+    ]},
+    { num:13, title:'Confidentialité et protection des données personnelles', blocks:[
+      { type:'p', text:"Chaque Partie s'engage à préserver la confidentialité des informations non publiques dont elle aurait connaissance à l'occasion de l'exécution du présent contrat, et à ne les utiliser qu'aux fins de celui-ci." },
+      { type:'p', text:"SIAMS s'engage à traiter les données personnelles de l'Utilisateur et de ses clients dans le respect de la réglementation applicable en Côte d'Ivoire, aux seules fins de fourniture et d'amélioration de l'Application." }
+    ]},
+    { num:14, title:'Responsabilité', blocks:[
+      { type:'p', text:"SIAMS met en œuvre les moyens raisonnables pour assurer le bon fonctionnement de l'Application, sans garantir une disponibilité continue et sans faille. SIAMS ne saurait être tenue responsable des pertes indirectes (perte de chiffre d'affaires, de clientèle ou d'opportunité) subies par l'Utilisateur." },
+      { type:'p', text:"L'Utilisateur demeure seul responsable des produits et services qu'il propose à la vente, de leur conformité et de leur livraison à ses propres clients." }
+    ]},
+    { num:15, title:'Force majeure', blocks:[
+      { type:'p', text:"Aucune des Parties ne pourra être tenue responsable de l'inexécution de ses obligations si celle-ci résulte d'un cas de force majeure, tel que reconnu par la jurisprudence et la loi ivoiriennes (notamment coupures prolongées de réseau, catastrophes naturelles, décisions des pouvoirs publics)." }
+    ]},
+    { num:16, title:'Durée, suspension et résiliation', blocks:[
+      { type:'p', text:"Le présent contrat prend effet à la date d'inscription de l'Utilisateur sur l'Application et se poursuit tant que l'Utilisateur maintient son abonnement actif." },
+      { type:'p', text:"Chacune des Parties peut résilier le présent contrat à tout moment, sous réserve du règlement des sommes dues à la date de résiliation. SIAMS peut suspendre ou clôturer un compte en cas de manquement grave de l'Utilisateur à ses obligations, après mise en demeure restée sans effet, sauf urgence dûment justifiée." }
+    ]},
+    { num:17, title:'Modification du contrat', blocks:[
+      { type:'p', text:"SIAMS se réserve le droit de faire évoluer les présentes conditions, notamment les tarifs et taux de commission, sous réserve d'en informer l'Utilisateur au moins sept (7) jours avant leur entrée en vigueur. La poursuite de l'utilisation de l'Application après ce délai vaut acceptation des nouvelles conditions." }
+    ]},
+    { num:18, title:'Cession', blocks:[
+      { type:'p', text:"L'Utilisateur ne peut céder ou transférer à un tiers les droits et obligations résultant du présent contrat sans l'accord écrit préalable de SIAMS." }
+    ]},
+    { num:19, title:'Divisibilité des clauses', blocks:[
+      { type:'p', text:"Si l'une des clauses du présent contrat venait à être déclarée nulle ou inapplicable, les autres clauses demeureraient pleinement en vigueur, les Parties s'efforçant de remplacer la clause concernée par une disposition d'effet équivalent." }
+    ]},
+    { num:20, title:'Notifications', blocks:[
+      { type:'p', text:"Toute notification entre les Parties au titre du présent contrat est valablement effectuée par e-mail ou WhatsApp aux coordonnées renseignées lors de l'inscription, ou à celles de SIAMS mentionnées en en-tête du présent contrat." }
+    ]},
+    { num:21, title:'Règlement des litiges et droit applicable', blocks:[
+      { type:'p', text:"Le présent contrat est régi par le droit ivoirien. En cas de litige relatif à son interprétation ou à son exécution, les Parties s'efforceront de trouver une solution amiable avant tout recours contentieux. À défaut d'accord amiable, le litige sera porté devant les juridictions compétentes de Côte d'Ivoire." }
+    ]}
+  ];
+}
+
+/* ---------- Aperçu des commissions (onglet Plus) ----------
+   NOTE PROTOTYPE : le contrat signé n'étant pas consultable dans l'App, cet écran
+   reprend uniquement les articles du contrat qui portent sur les commissions
+   (les plus importants à connaître au quotidien), pour que le marchand puisse s'y
+   référer rapidement sans télécharger le PDF complet. ---- */
+function getCommissionApercuItems(){
+  const allPlan = SUBSCRIPTION_PLANS.find(p=>p.key==='all') || {price:6000};
+  const half = Math.round(allPlan.price/2);
+  return [
+    { badge:'Très important', title:"Pendant l'essai gratuit de 20 jours", rate:'5%',
+      text:"SIAMS prélève une commission de 5% (cinq pour cent) sur le montant total de chaque commande vendue via l'Application, sans seuil minimum, pendant toute la période d'essai de 20 jours (Article 5 du contrat)." },
+    { badge:'Très important', title:'Après activation de votre Pass (abonnement)', rate:'0%',
+      text:"À compter de l'activation d'un Pass payant, SIAMS ne prélève plus aucune commission sur vos ventes. Seul le montant de l'abonnement reste dû (Article 8 du contrat)." },
+    { badge:'Très important', title:`Si vous choisissez de régler la moitié du Pass « Toute Boutique »`, rate:'10%',
+      text:`Si, à l'issue du délai de régularisation, vous réglez la moitié (50%) du montant du Pass « Toute Boutique » (soit ${Utils.fmtFCFA(half)} sur un tarif plein de ${Utils.fmtFCFA(allPlan.price)}), SIAMS prélève alors une commission de 10% (dix pour cent) sur chaque commande, en remplacement du taux de 5% de la période d'essai (Article 7 du contrat).` }
+  ];
+}
+Views['commissions-apercu'] = function(){
+  const items = getCommissionApercuItems();
+  return `${TopBar('Aperçu de mon contrat','Commissions applicables — les points importants')}
+  <div style="padding:16px 20px 28px;">
+    <div class="stats-card" style="margin-bottom:14px;background:var(--indigo-tint);border:1px solid var(--indigo);">
+      <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des principales clauses de commission de votre contrat SIAMS, pour vous permettre de vous y référer rapidement. Il ne remplace pas le contrat complet, que vous pouvez télécharger en PDF ci-dessous.</div>
+    </div>
+    ${items.map(it=>`
+      <div class="stats-card" style="margin-bottom:14px;border-left:4px solid var(--mango);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+          <span style="background:var(--mango);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:999px;text-transform:uppercase;">${it.badge}</span>
+          <span class="mono" style="font-size:20px;font-weight:800;color:var(--indigo);">${it.rate}</span>
+        </div>
+        <h4 style="margin:0 0 6px;font-size:14.5px;">${Utils.escapeHtml(it.title)}</h4>
+        <p style="margin:0;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
+      </div>`).join('')}
+    <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
+  </div>`;
+};
+
+const ContractGate = {
+  ref:'',
+  createdAt:0,
+  show(){
+    if(!this.ref){ this.ref = Utils.genAccountContractRef(); this.createdAt = Date.now(); }
+    Router.go('account-contract');
+  },
+  openRead(){ Router.go('account-contract-read'); },
+  backToSummary(){ Router.go('account-contract'); },
+  async download(){ await downloadAccountContractPDF(); },
+  goToNotice(){ Router.go('account-contract-notice'); },
+  acknowledge(){ AccountId.showAfterRegister(); },
+  contactSupportWhatsapp(){
+    const msg = `Bonjour, je viens de créer ma boutique sur SIAMS. Voici la capture de mon contrat signé (réf. ${this.ref}).`;
+    window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg), '_blank');
+  },
+  contactSupportEmail(){
+    window.location.href = `mailto:serviceclientsiams.ci@gmail.com?subject=${encodeURIComponent('Contrat signé — Réf. '+this.ref)}`;
+  }
+};
+
+function contractSummaryRows(){
+  const store = Store.store;
+  const dateStr = new Date(ContractGate.createdAt || Date.now()).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
+  return [
+    ['Référence du contrat', ContractGate.ref],
+    ['Date', dateStr],
+    ['Boutique / Utilisateur', store.name || 'Ma boutique'],
+    ['Téléphone', store.phone || '—'],
+    ['E-mail', store.email || '—']
+  ];
+}
+
+Views['account-contract'] = function(){
+  const rows = contractSummaryRows();
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
+    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;">
+      <img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;">
+    </div>
+    <h1 style="font-size:23px;margin:0 0 8px;">Votre contrat SIAMS</h1>
+    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.6;margin:0 0 20px;">Avant de continuer, prenez connaissance du contrat d'utilisation et d'abonnement qui vous lie désormais à SIAMS. Il porte les références ci-dessous, propres à votre compte.</p>
+    <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px 16px 6px;background:var(--panel);margin-bottom:18px;">
+      ${rows.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;padding-bottom:10px;"><span style="color:var(--text-soft);">${Utils.escapeHtml(k)}</span><span style="font-weight:700;text-align:right;" class="${k.startsWith('Référence')?'mono':''}">${Utils.escapeHtml(String(v))}</span></div>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="ContractGate.download()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Télécharger (PDF)
+      </button>
+      <button class="btn btn-outline" style="flex:1;" onclick="ContractGate.openRead()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V4a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 4.5v15Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        Lire
+      </button>
+    </div>
+    <p style="font-size:12px;color:var(--text-soft);margin:0 0 26px;">Le contrat officiel complet reste disponible à tout moment en PDF. La suite de l'inscription requiert que vous ayez consulté ce document.</p>
+    <div style="margin-top:auto;">
+      <button class="btn btn-primary btn-block" onclick="ContractGate.goToNotice()">Continuer</button>
+    </div>
+  </div>`;
+};
+
+Views['account-contract-read'] = function(){
+  const rows = contractSummaryRows();
+  const articles = getContractArticles();
+  const articlesHtml = articles.map(a=>{
+    const blocksHtml = a.blocks.map(b=>{
+      if(b.type==='ul'){
+        return `<ul style="margin:0 0 10px;padding-left:20px;">${b.items.map(it=>`<li style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:5px;">${Utils.escapeHtml(it)}</li>`).join('')}</ul>`;
+      }
+      return `<p style="font-size:13px;color:var(--text-mid);line-height:1.7;margin:0 0 10px;text-align:justify;">${Utils.escapeHtml(b.text)}</p>`;
+    }).join('');
+    return `
+    <div style="margin-bottom:18px;">
+      <h3 style="font-size:14px;margin:0 0 8px;padding-bottom:6px;border-bottom:2px solid var(--indigo-tint);color:var(--text);">Article ${a.num} — ${Utils.escapeHtml(a.title)}</h3>
+      ${blocksHtml}
+    </div>`;
+  }).join('');
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;">
+    <div style="padding:18px 20px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--bg);z-index:2;">
+      <button onclick="ContractGate.backToSummary()" style="background:none;border:none;cursor:pointer;padding:4px;display:flex;color:var(--text);" aria-label="Retour">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div style="font-weight:800;font-size:15px;">Contrat d'utilisation SIAMS</div>
+    </div>
+    <div style="padding:20px 22px 100px;">
+      <p style="font-size:12.5px;color:var(--text-soft);margin:0 0 16px;">Entre SIAMS — Société Informatique Agréée Multi-Services, Yopougon, Abidjan, Côte d'Ivoire (0748964690 — serviceclientsiams.ci@gmail.com), ci-après « SIAMS », et l'utilisateur inscrit sur la plateforme, désigné ci-après par ses références :</p>
+      <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 14px 4px;background:var(--panel);margin-bottom:20px;">
+        ${rows.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding-bottom:9px;"><span style="color:var(--text-soft);">${Utils.escapeHtml(k)}</span><span style="font-weight:700;text-align:right;" class="${k.startsWith('Référence')?'mono':''}">${Utils.escapeHtml(String(v))}</span></div>`).join('')}
+      </div>
+      ${articlesHtml}
+      <div style="background:var(--indigo-tint);border-radius:var(--radius-md);padding:14px 16px;font-size:11.5px;color:var(--text-mid);line-height:1.6;font-style:italic;margin-bottom:24px;">
+        Le présent contrat constitue un engagement officiel entre SIAMS et l'Utilisateur. Il fait foi entre les parties et peut être produit à toute fin utile, notamment auprès des autorités compétentes, conformément à la réglementation en vigueur en République de Côte d'Ivoire.
+      </div>
+    </div>
+    <div style="position:fixed;left:0;right:0;bottom:0;padding:14px 20px calc(14px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);display:flex;gap:10px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="ContractGate.download()">Télécharger (PDF)</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="ContractGate.backToSummary()">J'ai terminé la lecture</button>
+    </div>
+  </div>`;
+};
+
+Views['account-contract-notice'] = function(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
+    <div style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;background:var(--indigo-tint);display:flex;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z" stroke="var(--indigo)" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    </div>
+    <h1 style="font-size:22px;margin:0 0 10px;">Étape importante avant de continuer</h1>
+    <p style="color:var(--text);font-size:15px;line-height:1.65;margin:0 0 18px;font-weight:600;">Vous devez imprimer le contrat et le signer, puis envoyer la capture par e-mail ou WhatsApp au support client.</p>
+    <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0 0 22px;">Réf. contrat : <span class="mono" style="font-weight:700;color:var(--text);">${Utils.escapeHtml(ContractGate.ref)}</span>. Vous pouvez retélécharger le PDF à tout moment depuis votre tableau de bord.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:26px;">
+      <button class="btn btn-soft-green btn-block" onclick="ContractGate.contactSupportWhatsapp()">
+        <svg width="16" height="16" viewBox="0 0 448 512" fill="var(--green)" style="vertical-align:-3px;margin-right:6px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>
+        Envoyer via WhatsApp
+      </button>
+      <button class="btn btn-outline btn-block" onclick="ContractGate.contactSupportEmail()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:6px;"><path d="M4 6h16v12H4V6Zm0 0 8 7 8-7" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        Envoyer par e-mail
+      </button>
+    </div>
+    <div style="margin-top:auto;">
+      <button class="btn btn-primary btn-block" onclick="ContractGate.acknowledge()">J'ai compris, continuer</button>
+    </div>
+  </div>`;
+};
+
+/* ---------- Génération du PDF officiel du contrat d'utilisation SIAMS ---------- */
+async function downloadAccountContractPDF(){
+  const logoPdf = await loadImageAsDataURL(LOGO_DATA_URI);
+
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  if(!ContractGate.ref){ ContractGate.ref = Utils.genAccountContractRef(); ContractGate.createdAt = Date.now(); }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 46;
+  const contentW = W - margin*2;
+  const navy = [5,42,77], blueDeep = [0,96,217], cyan = [0,214,238], ink = [22,35,47], mid = [92,107,122], line = [220,228,236];
+  let y = 0, pageNum = 1;
+
+  function addHeader(first){
+    if(first){
+      try{ doc.addImage(logoPdf, 'PNG', W-margin-40, 34, 40, 40); }catch(e){}
+      doc.setTextColor(blueDeep[0],blueDeep[1],blueDeep[2]);
+      doc.setFont('helvetica','bold'); doc.setFontSize(19);
+      doc.text("Contrat d'utilisation et d'abonnement", margin, 56);
+      doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+      doc.setTextColor(mid[0],mid[1],mid[2]);
+      doc.text('Plateforme de boutique en ligne SIAMS', margin, 72);
+      doc.setDrawColor(cyan[0],cyan[1],cyan[2]); doc.setLineWidth(2);
+      doc.line(margin, 88, W-margin, 88);
+      doc.setLineWidth(1);
+      y = 108;
+    } else {
+      doc.setFont('helvetica','bold'); doc.setFontSize(9);
+      doc.setTextColor(mid[0],mid[1],mid[2]);
+      doc.text('Contrat SIAMS — Réf. '+ContractGate.ref, margin, 30);
+      doc.setDrawColor(line[0],line[1],line[2]);
+      doc.line(margin, 38, W-margin, 38);
+      y = 56;
+    }
+  }
+  function addFooter(){
+    doc.setDrawColor(line[0],line[1],line[2]);
+    doc.line(margin, pageH-38, W-margin, pageH-38);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.setTextColor(mid[0],mid[1],mid[2]);
+    doc.text("SIAMS — Yopougon, Abidjan, Côte d'Ivoire  •  0748964690  •  serviceclientsiams.ci@gmail.com", margin, pageH-24);
+    doc.text(`Page ${pageNum}`, W-margin, pageH-24, {align:'right'});
+  }
+  function ensureSpace(needed){
+    if(y + needed > pageH - 50){
+      addFooter();
+      doc.addPage();
+      pageNum++;
+      addHeader(false);
+    }
+  }
+  function h2(text){
+    ensureSpace(26);
+    doc.setFont('helvetica','bold'); doc.setFontSize(11.5);
+    doc.setTextColor(navy[0],navy[1],navy[2]);
+    doc.text(text, margin, y);
+    doc.setDrawColor(cyan[0],cyan[1],cyan[2]);
+    doc.line(margin, y+4, W-margin, y+4);
+    y += 20;
+  }
+  function p(text){
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.6);
+    doc.setTextColor(ink[0],ink[1],ink[2]);
+    const lines = doc.splitTextToSize(text, contentW);
+    lines.forEach(ln=>{ ensureSpace(13.5); doc.text(ln, margin, y); y += 13; });
+    y += 6;
+  }
+  function ul(items){
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.6);
+    doc.setTextColor(ink[0],ink[1],ink[2]);
+    items.forEach(it=>{
+      const lines = doc.splitTextToSize(it, contentW-16);
+      lines.forEach((ln,i)=>{
+        ensureSpace(13.5);
+        doc.text((i===0?'•  ':'   ')+ln, margin, y);
+        y += 13;
+      });
+    });
+    y += 6;
+  }
+  function kvRow(k, v){
+    ensureSpace(15);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.6);
+    doc.setTextColor(mid[0],mid[1],mid[2]);
+    doc.text(k, margin, y);
+    doc.setFont('helvetica','bold'); doc.setTextColor(ink[0],ink[1],ink[2]);
+    doc.text(String(v), W-margin, y, {align:'right'});
+    y += 15;
+  }
+
+  addHeader(true);
+  p("Entre les soussignés :");
+  ul([
+    "SIAMS — Société Informatique Agréée Multi-Services, dont le siège est situé à Yopougon, Abidjan, Côte d'Ivoire, joignable au 0748964690 et à l'adresse serviceclientsiams.ci@gmail.com, ci-après désignée « SIAMS » ou « l'Entreprise »,",
+    "Et l'utilisateur inscrit sur la plateforme, identifié par les références ci-dessous, ci-après désigné « l'Utilisateur » ou « le Client »,"
+  ]);
+  p("ci-après désignées ensemble « les Parties », il a été convenu ce qui suit :");
+
+  ensureSpace(20);
+  doc.setDrawColor(line[0],line[1],line[2]); doc.setFillColor(247,249,252);
+  const boxH = 5*15 + 14;
+  ensureSpace(boxH+10);
+  doc.roundedRect(margin, y, contentW, boxH, 6, 6, 'FD');
+  y += 12;
+  contractSummaryRows().forEach(([k,v])=> kvRow(k, v));
+  y += 14;
+
+  getContractArticles().forEach(a=>{
+    h2(`Article ${a.num} — ${a.title}`);
+    a.blocks.forEach(b=>{ if(b.type==='ul') ul(b.items); else p(b.text); });
+  });
+
+  ensureSpace(50);
+  doc.setDrawColor(cyan[0],cyan[1],cyan[2]); doc.setFillColor(247,249,252);
+  doc.roundedRect(margin, y, contentW, 42, 6, 6, 'FD');
+  doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(mid[0],mid[1],mid[2]);
+  const legal = "Le présent contrat constitue un engagement officiel entre SIAMS et l'Utilisateur. Il fait foi entre les parties et peut être produit à toute fin utile, notamment auprès des autorités compétentes, conformément à la réglementation en vigueur en République de Côte d'Ivoire.";
+  doc.text(doc.splitTextToSize(legal, contentW-16), margin+8, y+14);
+  y += 58;
+
+  ensureSpace(90);
+  const colW = (contentW-24)/2;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(blueDeep[0],blueDeep[1],blueDeep[2]);
+  doc.text('POUR SIAMS', margin, y);
+  doc.text("POUR L'UTILISATEUR", margin+colW+24, y);
+  y += 22;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.3); doc.setTextColor(mid[0],mid[1],mid[2]);
+  ['Nom : ', 'Date : ', 'Signature : '].forEach((lbl)=>{
+    doc.text(lbl, margin, y);
+    doc.setDrawColor(line[0],line[1],line[2]); doc.line(margin+42, y+2, margin+colW, y+2);
+    doc.text(lbl, margin+colW+24, y);
+    doc.line(margin+colW+24+42, y+2, margin+colW+24+colW, y+2);
+    y += 26;
+  });
+
+  addFooter();
+  doc.save(`contrat-siams-${ContractGate.ref}.pdf`);
+  Toast.show('Contrat PDF téléchargé ✓');
+}
+
+/* ---------- ID marchand oublié ---------- */
+const RecoverId = {
+  method:'email',
+  setMethod(m){
+    this.method = m;
+    document.querySelectorAll('.recover-method').forEach(el=>{
+      const on = el.dataset.rm===m;
+      el.style.borderColor = on ? 'var(--indigo)' : 'var(--line)';
+      el.style.background = on ? 'var(--indigo-tint)' : 'var(--panel)';
+      el.style.color = on ? 'var(--indigo)' : 'var(--text)';
+    });
+    const panel = document.getElementById('recover-panel');
+    if(panel) panel.innerHTML = this.panelHtml();
+  },
+  panelHtml(){
+    return `
+      <div class="field"><label>Adresse e-mail du compte marchand</label><input id="recover-value" type="email" placeholder="vous@exemple.com" autocomplete="email"></div>
+      <div style="font-size:12.5px;color:var(--text-mid);line-height:1.5;margin:-4px 0 12px;">Nous allons retrouver votre ID marchand et vous l'envoyer automatiquement par e-mail depuis SIAMS.</div>
+      <div id="recover-error" style="font-size:13px;color:var(--red);margin-bottom:10px;"></div>
+      <button class="btn btn-primary btn-block" id="recover-submit-btn" onclick="RecoverId.submitEmail()">Recevoir mon ID par e-mail</button>`;
+  },
+  async submitEmail(){
+    const email = document.getElementById('recover-value').value.trim();
+    const err = document.getElementById('recover-error');
+    const btn = document.getElementById('recover-submit-btn');
+    if(!email){ err.textContent = 'Merci de renseigner votre e-mail'; return; }
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Préparation...';
+    try{
+      const { data, error } = await sb.rpc('find_login_id_by_email', { p_email: email });
+      if(error || !data){
+        btn.disabled = false; btn.textContent = 'Préparer ma demande par e-mail';
+        err.textContent = 'Aucun compte trouvé pour cet e-mail';
+        return;
+      }
+      const merchantId = typeof data === 'string' ? data : (data.login_id || data.id || data.loginId || 'À confirmer par SIAMS');
+      const subject = 'Demande de récupération de mon ID marchand SIAMS';
+      const body = `Bonjour Service Client SIAMS,\n\nJe suis un marchand SIAMS et je souhaite récupérer mon ID marchand SIAMS.\n\nID marchand SIAMS : ${merchantId}\nE-mail du compte : ${email}\nTéléphone marchand : À confirmer par SIAMS\nBoutique : À confirmer par SIAMS\n\nMerci de vérifier mon compte et de m’indiquer mon ID marchand SIAMS.\n\nCordialement.`;
+      const mailTo = PAYMENT_INFO.supportClientEmail ? `mailto:${PAYMENT_INFO.supportClientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : '';
+      if(mailTo) window.location.href = mailTo;
+      else Toast.show('Votre demande est prête. Contactez le service client SIAMS.');
+      btn.disabled = false; btn.textContent = 'Préparer ma demande par e-mail';
+    }catch(e){
+      console.error(e);
+      btn.disabled = false; btn.textContent = 'Préparer ma demande par e-mail';
+      err.textContent = 'Erreur, merci de réessayer';
+    }
+  },
+  submitWhatsapp(){
+    const phone = document.getElementById('recover-value').value.trim();
+    const err = document.getElementById('recover-error');
+    if(!phone){ err.textContent = 'Merci de renseigner votre numéro WhatsApp'; return; }
+    err.textContent = '';
+    const msg = `Bonjour Service Client SIAMS,\n\nJe suis un marchand SIAMS et je souhaite récupérer mon ID marchand SIAMS.\n\nNuméro WhatsApp marchand : ${phone}\nID marchand SIAMS : À retrouver par SIAMS\nE-mail du compte : À confirmer par SIAMS\nBoutique : À confirmer par SIAMS\n\nMerci de vérifier mon compte à partir de ces informations et de me communiquer mon ID marchand SIAMS.\n\nCordialement.`;
+    window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent(msg), '_blank');
+  }
+};
+Views['recover-id'] = function(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
+    <button onclick="Router.go('login')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1 style="font-size:22px;margin:0 0 6px;">ID marchand oublié</h1>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.5;margin:0 0 20px;">Renseignez l’e-mail associé à votre compte. SIAMS vous enverra automatiquement votre ID marchand par e-mail.</p>
+    <div style="display:flex;align-items:center;gap:10px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:var(--indigo-tint);margin-bottom:18px;">
+      <div style="width:34px;height:34px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;color:var(--indigo);font-weight:800;">✉</div>
+      <div style="font-size:12.5px;color:var(--text);line-height:1.4;"><b>Récupération automatique</b><br>Votre ID est envoyé directement à l’adresse du compte.</div>
+    </div>
+    <div id="recover-panel">${RecoverId.panelHtml()}</div>
+  </div>`;
+};
+
+Views['confirm-email'] = function(){
+  return `
+  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;text-align:center;">
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--indigo-tint);color:var(--indigo);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M3 7l9 6 9-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>
+    </div>
+    <h1 style="font-size:22px;margin:0 0 10px;">Confirmez votre e-mail</h1>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.6;margin:0 0 4px;">Nous avons envoyé un lien de confirmation à</p>
+    <p style="font-weight:800;font-size:15px;margin:0 0 22px;">${Utils.escapeHtml(ConfirmEmail.email)}</p>
+    <p style="color:var(--text-mid);font-size:13px;line-height:1.6;margin:0 0 28px;">Ouvrez cet e-mail depuis votre messagerie et cliquez sur le lien de vérification Supabase pour activer votre compte, puis revenez vous connecter ici.</p>
+    <button class="btn btn-primary btn-block" onclick="ConfirmEmail.openMail()">Ouvrir ma boîte mail</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="ConfirmEmail.resend()">Renvoyer l'e-mail de confirmation</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="ConfirmEmail.goLogin()">J'ai confirmé mon e-mail, me connecter</button>
+  </div>`;
+};
+
+/* ---------- Centre financier : configuration ---------- */
+/* Commission SIAMS pendant les 20 premiers jours (période d'essai) : 5% sur le
+   montant total de chaque commande livrée (voir Article 5 du contrat). */
+const TRIAL_DAYS = 20;
+const COMMISSION_RATE = 0.05; // 5%
+/* ---- Commission SIAMS pendant l'abonnement (Pass payant) : retirée (Article 8) —
+   depuis l'activation d'un Pass payant, seul le montant de l'abonnement est dû,
+   sans commission additionnelle. Le taux est conservé à 0 (plutôt que de retirer
+   toute l'infrastructure) pour que subCommissionDue() reste sûr si des soldes
+   historiques existent déjà côté serveur. ---- */
+const SUBSCRIPTION_COMMISSION_RATE = 0; // commission d'abonnement retirée
+const PAYMENT_CONFIRM_DELAY_MS = 5*60*1000; // délai de vérification manuelle du paiement : 5 minutes
+/* ---- Identité SIAMS pour tout reçu officiel émis par l'application (voir renderSIAMSReceiptPDF) ---- */
+const SIAMS_WATERMARK_DATA_URI = "images/watermark.webp";
+const SIAMS_RECEIPT_IDENTITY = {
+  name: 'SIAMS',
+  fullName: 'Société Informatique Agréée Multi-Services',
+  address: "Yopougon, Abidjan — Côte d'Ivoire",
+  phone: '0748964690',
+  email: 'serviceclientsiams.ci@gmail.com'
+};
+const PAYMENT_INFO = {
+  djamoNumber: '0748964690',
+  waveNumber: '0748964690',
+  waveUrl: 'https://pay.wave.com/m/REMPLACER_PAR_VOTRE_LIEN/c/ci/',
+  bankName: 'SIAMS BANQUE',
+  cardNumber: '5273 7568 7418 6188',
+  /* ---- Lien WhatsApp « contact client » SIAMS : c'est ici que le vendeur envoie
+     la capture d'écran de chaque paiement (mensuel ou journalier) pour validation. ---- */
+  contactClientWaLink: 'https://wa.me/qr/CP2FDOBXXD74G1',
+  /* ---- Lien WhatsApp « support client » SIAMS : partenariat, contrat, identifiant oublié, etc. ---- */
+  supportClientWaLink: 'https://wa.me/message/G7UPF2ZGMLPLG1'
+};
+/* ---- GOLDEN : formule exclusive, réservée à la boutique officielle SIAMS. ---- */
+const SIAMS_GOLDEN_STORE_NAME = 'SIAMS STORE OFFICIEL';
+function isSiamsGoldenStore(){
+  return ((Store.store && Store.store.name) || '').trim().toUpperCase() === SIAMS_GOLDEN_STORE_NAME;
+}
+const LOCKED_FEATURES = { maxProducts:0, stats:false, promos:false, reviews:false, customers:false, team:false, delivery:false, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
+const TRIAL_FEATURES = { maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
+const SUBSCRIPTION_PLANS = [
+  { key:'free', label:'BON MOOD', price:1000, dailyRate:34, tagline:"Boutique en ligne, commandes illimitées, jusqu'à 10 produits, livraison & suivi clients inclus", badge:null,
+    features:{ maxProducts:10, stats:false, promos:false, reviews:false, customers:true, team:false, delivery:true, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
+  { key:'doyen', label:'DOYEN', price:2000, dailyRate:67, tagline:"Jusqu'à 20 produits + statistiques, promotions et avis clients", badge:'DOYEN',
+    features:{ maxProducts:20, stats:true, promos:true, reviews:true, customers:true, team:false, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
+  { key:'doya', label:'DOYA', price:3500, dailyRate:117, tagline:'Jusqu\u2019à 35 produits + équipe, zones de livraison & badge visibilité', badge:'DOYA',
+    features:{ maxProducts:35, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
+  { key:'all', label:'TOUTE BOUTIQUE', price:5000, dailyRate:167, tagline:'Catalogue illimité, tout DOYA + support prioritaire dédié & mise en avant renforcée', badge:'TOUTE BOUTIQUE',
+    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
+  { key:'platinum', label:'PLATINE', price:15000, dailyRate:500, tagline:'Le tout premium, ouvert à toutes les boutiques : support VIP 24/7, mise en avant permanente à l’accueil, vitrine entièrement personnalisable et badge Platine rouge', badge:'PLATINE',
+    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:false, vipSupport:true, homepageSpotlight:true, customStorefront:true } },
+  { key:'golden', label:'GOLDEN', price:15000, dailyRate:500, tagline:'Formule exclusive réservée à SIAMS STORE OFFICIEL : badge Doré, vitrine personnalisée, mise en avant permanente & support VIP 24/7', badge:'GOLDEN', exclusive:true,
+    features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:true, vipSupport:true, homepageSpotlight:true, customStorefront:true } }
+];
+function getPeriodStarts(){
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const dow = (now.getDay()+6)%7; // semaine démarre le lundi
+  const week = today - dow*86400000;
+  const month = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const year = new Date(now.getFullYear(), 0, 1).getTime();
+  return { today, week, month, year };
+}
+
+/* ---------- Paiement échelonné journalier ----------
+   Le vendeur choisit de payer sa formule en un seul versement (mensuel) ou en
+   plusieurs petits versements journaliers avant l'échéance. Après chaque versement,
+   il envoie sa capture de paiement via WhatsApp au service client SIAMS, qui
+   valide manuellement dans Supabase. Une fois le total confirmé atteint le prix
+   de la formule (le « socle »), l'abonnement s'active automatiquement. */
+const Installments = {
+  start(planKey, mode){
+    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===planKey);
+    if(!plan) return;
+    Store.subscription = { plan:planKey, status:'building', mode, paidAmount:0, pendingAmount:0, pendingConfirmAt:0, renewsAt:0, pendingSince:0, pendingMethod:'', contractRef:'', amount:plan.price, paymentMethod:'djamo' };
+  },
+  declare(amount){
+    const sub = Store.subscription;
+    if(sub.status!=='building' || !amount || amount<=0) return;
+    const updated = { ...sub, pendingAmount:(sub.pendingAmount||0)+amount, pendingConfirmAt: Date.now()+PAYMENT_CONFIRM_DELAY_MS };
+    Store.subscription = updated;
+    /* Trace du versement côté Supabase, pour la validation manuelle SIAMS. */
+    if(Cloud.storeId){
+      sb.from('subscription_payments').insert({ store_id:Cloud.storeId, plan:sub.plan, amount, status:'pending' }).catch(e=>console.error('Sync error [installment]', e));
+    }
+  },
+  waLink(plan, amount, mode){
+    const store = Store.store;
+    const due = Store.commissionDue();
+    const commissionNote = (due>0 && !Store.commissionSettled) ? ` + commission période d'essai de ${Utils.fmtFCFA(due)}` : '';
+    const msg = `Bonjour SIAMS, voici ma preuve de paiement pour l'abonnement ${plan.label} (${mode==='daily'?'versement journalier':'paiement mensuel'} de ${Utils.fmtFCFA(amount)}${commissionNote}). Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}.`;
+    return PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
+  }
+};
+/* ---------- Dashboard ---------- */
+const DASHBOARD_SERVICES = [
+  { route:'boutique', label:'Boutique', tint:'var(--indigo-tint)', color:'var(--indigo)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' },
+  { route:'stats', label:'Statistiques', tint:'var(--green-tint)', color:'var(--green)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
+  { route:'team', label:'Équipe', tint:'var(--blue-tint)', color:'var(--blue)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 20c.6-3.4 3-5.5 5.5-5.5s4.9 2.1 5.5 5.5M16 9.5c1.6.2 2.8 1.6 2.8 3.2M16 5.3a3 3 0 0 1 0 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' },
+  { route:'payment', label:'Paiement', tint:'var(--mango-tint)', color:'var(--mango-dark)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.8"/></svg>' },
+  { route:'categories', label:'Catégories', tint:'var(--indigo-tint)', color:'var(--indigo)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>' },
+  { route:'promos', label:'Codes promo', tint:'var(--green-tint)', color:'var(--green)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 12 12 20l-8-8V5a1 1 0 0 1 1-1h7l8 8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></svg>' },
+  { route:'reviews', label:'Avis clients', tint:'var(--mango-tint)', color:'var(--mango-dark)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>' },
+  { route:'customers', label:'Clients', tint:'var(--blue-tint)', color:'var(--blue)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.8-4 3.6-6.2 7.5-6.2s6.7 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' },
+  { route:'delivery', label:'Livraison', tint:'var(--indigo-tint)', color:'var(--indigo)', icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/></svg>' }
+];
+Views.dashboard = function(){
+  const orders = Store.orders;
+  const pending = Store.pendingRevenue();
+  const totalSales = Store.totalSales();
+  const store = Store.store;
+  const periods = getPeriodStarts();
+  const revToday = Store.revenueSince(periods.today);
+  const revWeek = Store.revenueSince(periods.week);
+  const counts = Store.orderStatusCounts();
+  const deliveredRevenue = Store.revenueDelivered();
+  const access = Store.access();
+  const avgBasket = orders.length ? Math.round(orders.reduce((s,o)=>s+o.amount,0)/orders.length) : 0;
+  const clientsCount = Store.customers().length;
+  const lowStockProducts = (Store.products||[]).filter(p=>p.stockLimited && Number(p.stockQty||0)<=3);
+  const cmdRow = (label,count,color,sub)=>`
+    <div class="dashboard-v2-command-row" onclick="Router.go('orders')">
+      <span class="dashboard-v2-command-dot" style="background:${color};"></span>
+      <div class="dashboard-v2-command-main">${label}<small>${sub}</small></div>
+      <span class="dashboard-v2-command-count">${count}</span>
+      <span style="color:var(--text-soft);font-size:16px;">›</span>
+    </div>`;
+  const quick=[
+    {route:'product-add',label:'Produit',tint:'rgba(92,72,214,.10)',color:'#5C48D6',icon:'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>'},
+    {route:'boutique',label:'Boutique',tint:'rgba(18,163,111,.10)',color:'#12A36F',icon:'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10.5V20h16v-9.5M3 10.5 5.2 4h13.6l2.2 6.5M3 10.5c.8 1.1 1.9 1.7 3.2 1.7s2.5-.6 3.2-1.7c.8 1.1 1.9 1.7 3.2 1.7s2.5-.6 3.2-1.7c.8 1.1 1.9 1.7 3.2 1.7s2.4-.6 3.2-1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+    {route:'orders',label:'Commandes',tint:'rgba(239,155,27,.12)',color:'#D88A00',icon:'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'},
+    {route:'team',label:'Équipe',tint:'rgba(31,116,220,.10)',color:'#1F74DC',icon:'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 20c.7-3.4 2.9-5.4 5.5-5.4s4.8 2 5.5 5.4M16 9.5c1.6.2 2.8 1.4 2.8 3.1M16 5.3a3 3 0 0 1 0 5.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'}
+  ];
+  return `
+    <div class="dashboard-v2-head dashboard-v5-head">
+      <div class="dashboard-v5-heading"><h1 class="dashboard-v2-title">${Utils.escapeHtml(store.name||'Ma boutique')}${TopBarPlanBadge()}</h1></div>
+      <div style="display:flex;align-items:center;gap:9px;flex:none;">
+        <button class="bell-btn" onclick="toggleNotifPanel()" aria-label="Notifications">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <div class="bell-dot" id="bell-dot"></div>
+        </button>
+        <button class="dashboard-v2-profile" onclick="Router.go('settings')" aria-label="Paramètres">
+          ${store.photo ? `<img src="${store.photo}" alt="">` : `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.9-4 3.7-6.2 7.5-6.2s6.6 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`}
+        </button>
+      </div>
+    </div>
+    <section class="dashboard-v18-finance" aria-label="Tableau de bord financier">
+      <div class="finance-main">
+        <div class="finance-main-label">Ventes livrées</div>
+        <div class="finance-total" id="finance-total-val" data-target="${deliveredRevenue}">0 FCFA</div>
+      </div>
+      <div class="finance-two-col">
+        <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
+        <div class="finance-two-col-item right"><span>Total des ventes</span><b>${Utils.fmtFCFA(totalSales)}</b></div>
+      </div>
+      <div class="finance-trust-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Chaque paiement client va directement sur votre compte Wave/OM/MTN</span></div>
+    </section>
+    </section>
+    <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
+    <div class="dashboard-v2-quick">${quick.map(q=>`<button class="quick-nav-card" onclick="dashboardQuickGo('${q.route}')" aria-label="${q.label}"><div class="qicon" style="background:${q.tint};color:${q.color};">${q.icon}</div><span>${q.label}</span></button>`).join('')}</div>
+    <div class="dashboard-v2-section"><h3>Services SIAMS</h3><button onclick="Sheet.open()">Voir tout ›</button></div>
+    <div class="dashboard-v2-service-grid">${DASHBOARD_SERVICES.slice(0,9).map(s=>`<button type="button" class="dashboard-v2-service" onclick="dashboardServiceGo('${s.route}')" aria-label="Ouvrir ${s.label}"><div class="sicon" style="background:${s.tint};color:${s.color};">${s.icon}</div><span>${s.label}</span></button>`).join('')}</div>
+    <div class="dashboard-v2-section"><h3>Suivi des commandes</h3><button onclick="Router.go('orders')">Détails ›</button></div>
+    <div class="dashboard-v2-command-card">
+      ${cmdRow('Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant')}
+      ${cmdRow('En préparation',counts.preparing,'var(--blue)','Commandes en cours')}
+      ${cmdRow('Expédiées',counts.shipped,'var(--indigo)','En cours de livraison')}
+      ${cmdRow('Terminées',counts.done,'var(--green)','Livrées avec succès')}
+      ${cmdRow('Annulées',counts.cancelled,'var(--red)','À vérifier')}
+    </div>
+    <div class="dashboard-v2-section"><h3>Votre activité</h3><button onclick="Router.go('stats')">Voir les stats ›</button></div>
+    <div class="stat-grid" style="padding-top:0;">
+      <div class="stat-card"><div class="lbl">Aujourd'hui</div><div class="val">${Utils.fmtFCFA(revToday)}</div></div>
+      <div class="stat-card"><div class="lbl">Cette semaine</div><div class="val">${Utils.fmtFCFA(revWeek)}</div></div>
+      <div class="stat-card"><div class="lbl">Panier moyen</div><div class="val">${Utils.fmtFCFA(avgBasket)}</div></div>
+      <div class="stat-card"><div class="lbl">Clients</div><div class="val">${clientsCount}</div></div>
+    </div>
+    ${lowStockProducts.length ? `
+    <div class="dashboard-v2-section"><h3>Alerte stock</h3><button onclick="Router.go('products')">Voir le catalogue ›</button></div>
+    <div style="margin:0 20px 6px;border:1.5px solid var(--mango);border-radius:var(--radius-md);background:var(--mango-tint);overflow:hidden;">
+      ${lowStockProducts.slice(0,5).map(p=>{
+        const out = Number(p.stockQty||0)===0;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid rgba(0,0,0,.05);cursor:pointer;" onclick="Router.go('product-edit',{id:'${p.id}'})">
+          <span style="width:8px;height:8px;border-radius:50%;background:${out?'var(--red)':'var(--mango-dark)'};flex:none;"></span>
+          <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${Utils.escapeHtml(p.name||'Produit')}</div></div>
+          <span style="font-size:11.5px;font-weight:800;color:${out?'var(--red)':'var(--mango-dark)'};flex:none;">${out?'Épuisé':`${p.stockQty} restant${Number(p.stockQty)>1?'s':''}`}</span>
+        </div>`;
+      }).join('')}
+      ${lowStockProducts.length>5?`<div style="padding:9px 14px;font-size:11.5px;color:var(--mango-dark);text-align:center;">+ ${lowStockProducts.length-5} autre${lowStockProducts.length-5>1?'s':''} produit${lowStockProducts.length-5>1?'s':''} en alerte</div>`:''}
+    </div>` : ''}
+    
+    ${CommissionCard()}
+    ${SubCommissionCard()}
+    <div class="section-title">Abonnement</div>
+    ${SubscriptionCard(access)}
+    <div style="height:16px;"></div>`;
+};
+Views._after_dashboard = function(){
+  const el=document.getElementById('finance-total-val');
+  if(!el) return;
+  const target=Number(el.getAttribute('data-target'))||0;
+  const dur=700; const start=performance.now();
+  function step(now){
+    const p=Math.min(1,(now-start)/dur);
+    const eased=1-Math.pow(1-p,3);
+    el.textContent=Utils.fmtFCFA(Math.round(target*eased));
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+};
+
+/* ---------- Récapitulatif des badges débloqués par formule d'abonnement :
+   BON MOOD → aucun badge · DOYEN → badge noir · DOYA → badge bleu ·
+   TOUTE BOUTIQUE → badge bordeaux · PLATINE → badge rouge (GOLDEN, exclusif, non repris ici). ---- */
+const COMMISSION_BADGE_RECAP = [
+  { label:'BON MOOD',       color:null,      note:'Aucun badge' },
+  { label:'DOYEN',          color:'#0B0E17', note:'Badge noir' },
+  { label:'DOYA',           color:'#0091FD', note:'Badge bleu' },
+  { label:'TOUTE BOUTIQUE', color:'#8E1537', note:'Badge bordeaux' },
+  { label:'PLATINE',        color:'#D7263D', note:'Badge rouge' }
+];
+function CommissionBadgeRecap(){
+  return `
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+    ${COMMISSION_BADGE_RECAP.map(t=>`
+      <div style="display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 10px 5px 6px;">
+        ${t.color
+          ? `<span style="width:14px;height:14px;border-radius:50%;flex:none;background:${t.color};box-shadow:0 0 0 2px #fff, 0 0 0 3px ${t.color}33;"></span>`
+          : `<span style="width:14px;height:14px;border-radius:50%;flex:none;border:1.5px dashed var(--text-soft);"></span>`}
+        <span style="font-size:10.5px;font-weight:800;letter-spacing:.02em;">${t.label}</span>
+        <span style="font-size:10px;color:var(--text-mid);">· ${t.note}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+/* ---------- Carte « Commission » (dashboard) — période d'essai de 20 jours ---------- */
+function CommissionCard(){
+  const due = Store.commissionDue();
+  const settled = Store.commissionSettled;
+  const trialEnd = Store.trialStartedAt + TRIAL_DAYS*86400000;
+  const inTrial = Date.now() < trialEnd;
+  const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
+  if(settled || (due<=0 && !inTrial)) return '';
+  return `
+  <div class="section-title">Commission (période d'essai)</div>
+  <div style="margin:8px 20px 0;border:1.5px solid ${inTrial?'var(--gold)':'var(--ruby)'};border-radius:var(--radius-md);overflow:hidden;background:#fff;box-shadow:var(--shadow-sm);">
+    <div style="padding:16px 16px 14px;background:${inTrial?'var(--gold-tint)':'var(--ruby-tint)'};">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span style="width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:${inTrial?'var(--gold)':'var(--ruby)'};flex:none;">💰</span>
+          <span style="font-size:12.5px;font-weight:800;color:${inTrial?'var(--gold-dark)':'var(--ruby-dark)'};">Commission SIAMS</span>
+        </div>
+        <span style="font-size:10.5px;font-weight:800;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:${inTrial?'var(--gold)':'var(--ruby)'};color:#fff;">${inTrial?'ESSAI · 5%':'ESSAI TERMINÉ'}</span>
+      </div>
+      <div style="font-size:24px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-top:6px;line-height:1.5;">${inTrial
+        ? `Calculée en temps réel sur le montant total de vos commandes livrées, pendant vos 20 jours d'essai (encore ${daysLeft} jour${daysLeft>1?'s':''}). Elle augmente à chaque commande livrée. Elle disparaît dès l'activation de votre Pass.`
+        : `Vos 20 jours d'essai sont terminés. Ce montant reste dû et doit être réglé avec votre abonnement pour continuer à vendre sans interruption.`}</div>
+    </div>
+    ${!inTrial ? `
+    <div style="padding:14px 16px 16px;border-top:1px solid var(--line);">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">Gérer ma commission</div>
+      <p style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;line-height:1.5;">Réglez uniquement ce montant, ou activez un Pass pour que la commission d'essai disparaisse définitivement.</p>
+      <button type="button" class="btn btn-primary btn-block" onclick="SubscriptionSheet.openCommissionOnly()">Gérer ma commission</button>
+      <button type="button" class="btn btn-outline btn-block" style="margin-top:8px;" onclick="SubscriptionSheet.open()">Voir les formules d'abonnement</button>
+      ${(()=>{ const verified = !!(Store.store && Store.store.verification && Store.store.verification.verified);
+        return !verified ? `
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;border:1px solid var(--mango);background:var(--mango-tint);border-radius:var(--radius-sm);padding:9px 11px;">
+        <span style="flex:none;">🛡️</span>
+        <div style="font-size:11px;color:var(--text-mid);line-height:1.5;">Le badge de votre formule ne se débloque qu'une fois votre <a href="#" onclick="Router.go('verification');return false;" style="color:var(--mango-dark);font-weight:700;">identification validée</a> par SIAMS — même avec un Pass payé et actif.</div>
+      </div>` : ''; })()}
+      ${CommissionBadgeRecap()}
+    </div>` : ''}
+  </div>`;
+}
+
+/* ---------- Carte « Commission » (dashboard) — pendant l'abonnement (Pass payant), 2% ---------- */
+function SubCommissionCard(){
+  const access = Store.access();
+  if(access.status!=='active') return '';
+  const due = Store.subCommissionDue();
+  if(due<=0) return '';
+  return `
+  <div class="section-title">Commission (abonnement)</div>
+  <div style="margin:8px 20px 0;border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:16px;background:var(--gold-tint);box-shadow:var(--shadow-sm);">
+    <div style="font-size:12px;color:var(--gold-dark);font-weight:700;margin-bottom:2px;">💰 COMMISSION SIAMS — 2% SUR CHAQUE VENTE</div>
+    <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
+    <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Calculée en temps réel sur vos commandes livrées depuis votre dernier règlement, en plus du prix de votre Pass (Article 8 du contrat).</div>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="SubscriptionSheet.markSubCommissionSettled()">J'ai réglé la commission, envoyer le reçu</button>
+  </div>`;
+}
+
+/* ---------- Carte d'état de l'abonnement (dashboard) ---------- */
+function fmtMsLeft(ms){
+  const totalSec = Math.max(0, Math.ceil(ms/1000));
+  const m = Math.floor(totalSec/60), s = totalSec%60;
+  return m+':'+String(s).padStart(2,'0');
+}
+function fmtRenewCountdown(ms){
+  const total = Math.max(0, ms);
+  const d = Math.floor(total/86400000);
+  const h = Math.floor((total%86400000)/3600000);
+  const m = Math.floor((total%3600000)/60000);
+  const s = Math.floor((total%60000)/1000);
+  if(d>0) return `${d}j ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m`;
+  if(h>0) return `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+  return `${m}m ${String(s).padStart(2,'0')}s`;
+}
+setInterval(()=>{
+  const el = document.getElementById('sub-renew-countdown');
+  const val = document.getElementById('sub-renew-countdown-val');
+  if(el && val){
+    const renewsAt = Number(el.dataset.renewsAt);
+    val.textContent = fmtRenewCountdown(renewsAt - Date.now());
+  }
+}, 1000);
+function SubscriptionCard(access){
+  if(access.status==='trial'){
+    return `
+    <div style="margin:8px 20px 0;border:1.5px solid var(--mango);border-radius:var(--radius-md);padding:16px;background:var(--mango-tint);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:12px;color:var(--mango-dark);font-weight:700;margin-bottom:2px;">🎁 PASS GRATUIT DE DÉCOUVERTE</div>
+          <div style="font-size:16px;font-weight:700;">${access.daysLeft} jour${access.daysLeft>1?'s':''} restant${access.daysLeft>1?'s':''}</div>
+          <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Toutes les fonctionnalités sont débloquées. Choisissez votre formule avant la fin de l'essai.</div>
+        </div>
+        <button class="btn btn-mango" style="padding:9px 14px;font-size:12.5px;flex:none;" onclick="SubscriptionSheet.open()">Voir les formules</button>
+      </div>
+    </div>`;
+  }
+  if(access.status==='pending'){
+    return `
+    <div style="margin:8px 20px 0;border:1.5px solid var(--blue);border-radius:var(--radius-md);padding:16px;background:var(--blue-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:2px;">⏳ VÉRIFICATION DU PAIEMENT</div>
+      <div style="font-size:15px;font-weight:700;">Formule ${access.label} en cours d'activation</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Votre preuve de paiement a été transmise. Le déblocage se fait dès que SIAMS valide votre paiement — vous recevrez une notification.</div>
+    </div>`;
+  }
+  if(access.status==='building'){
+    const totalConfirmed = access.paidAmount||0;
+    const pct = Math.min(100, Math.round((totalConfirmed/access.price)*100));
+    const remaining = Math.max(0, access.price - totalConfirmed - (access.pendingAmount||0));
+    return `
+    <div style="margin:8px 20px 0;border:1.5px solid var(--blue);border-radius:var(--radius-md);padding:16px;background:var(--blue-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:2px;">💳 PAIEMENT ${access.mode==='daily'?'JOURNALIER':'MENSUEL'} EN COURS</div>
+      <div style="font-size:15px;font-weight:700;">Formule ${access.label} — ${Utils.fmtFCFA(access.price)}</div>
+      <div class="installment-bar-track" style="margin-top:10px;"><div class="installment-bar-fill" style="width:${pct}%;"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <span style="font-size:11.5px;color:var(--text-mid);">${Utils.fmtFCFA(totalConfirmed)} confirmé sur ${Utils.fmtFCFA(access.price)}</span>
+        <span class="mono" style="font-size:11.5px;font-weight:700;color:var(--blue);">${pct}%</span>
+      </div>
+      ${access.pendingAmount ? `<div style="font-size:11.5px;color:var(--text-mid);margin-top:6px;">⏳ ${Utils.fmtFCFA(access.pendingAmount)} en attente de validation SIAMS (<span class="mono" id="sub-pending-countdown">${fmtMsLeft(access.msLeft)}</span>)</div>` : ''}
+      ${remaining>0 ? `<div style="font-size:11.5px;color:var(--text-mid);margin-top:2px;">Reste à payer avant le socle : <strong>${Utils.fmtFCFA(remaining)}</strong></div>` : ''}
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="SubscriptionSheet.openBuilding()">${access.mode==='daily'?'Déclarer un versement du jour':'Envoyer ma preuve de paiement'}</button>
+    </div>`;
+  }
+  if(access.status==='active'){
+    const renewDate = new Date(access.renewsAt).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
+    const isAll = access.plan==='all';
+    const isDoya = access.plan==='doya';
+    const isDoyen = access.plan==='doyen';
+    const isPremiumTier = isAll || isDoya;
+    const crown = isAll ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2 3 9l9 13 9-13-9-7Z" fill="#F4D98A" stroke="#F4D98A" stroke-width="1.6" stroke-linejoin="round"/></svg>'
+      : isDoya ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 8l4 3 5-6 5 6 4-3-2 10H5L3 8Z" fill="#F4D98A" stroke="#F4D98A" stroke-width="1.6" stroke-linejoin="round"/></svg>'
+      : isDoyen ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.6 6.6L21 9l-5 4.4L17.5 20 12 16.6 6.5 20 8 13.4 3 9l6.4-.4L12 2Z" fill="var(--indigo)"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--mango)" stroke-width="1.8"/><path d="M8 13.5c1 1.3 2.4 2 4 2s3-.7 4-2" stroke="var(--mango)" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="9.5" r="1.1" fill="var(--mango)"/><circle cx="15" cy="9.5" r="1.1" fill="var(--mango)"/></svg>';
+    const periods = getPeriodStarts();
+    const productsCount = Store.products.length;
+    const maxP = access.features.maxProducts;
+    const ordersMonth = Store.orders.filter(o=>o.createdAt>=periods.month).length;
+    const revMonth = Store.revenueSince(periods.month);
+    return `
+    <div class="plan-card ${isAll?'tier-all':isDoya?'tier-doya':isDoyen?'tier-doyen':'tier-free'}" style="margin:8px 20px 0;cursor:default;">
+      ${isAll ? '<div class="plan-ribbon" style="background:#EA580C;">TOUT INCLUS</div>' : isDoya ? '<div class="plan-ribbon" style="background:var(--gold);">PREMIUM</div>' : ''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-size:12px;color:${isPremiumTier?'rgba(255,255,255,.75)':'var(--text-mid)'};margin-bottom:2px;">✓ Abonnement en cours</div>
+          <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px;color:${isPremiumTier?'#fff':'var(--text)'};">${crown}${access.label}</div>
+          ${access.contractRef ? `<div style="font-size:10.5px;color:${isPremiumTier?'rgba(255,255,255,.6)':'var(--text-soft)'};margin-top:4px;" class="mono">Réf. ${access.contractRef}</div>` : ''}
+        </div>
+      </div>
+      <div data-renews-at="${access.renewsAt}" id="sub-renew-countdown" style="margin-top:14px;padding:10px 12px;border-radius:10px;background:${isPremiumTier?'rgba(255,255,255,.14)':'var(--indigo-tint)'};display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11.5px;color:${isPremiumTier?'rgba(255,255,255,.85)':'var(--text-mid)'};">Renouvellement le ${renewDate}</span>
+        <span class="mono" style="font-size:12.5px;font-weight:800;color:${isPremiumTier?'#fff':'var(--indigo)'};" id="sub-renew-countdown-val">${fmtRenewCountdown(access.renewsAt-Date.now())}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <div style="flex:1;padding:9px 10px;border-radius:10px;background:${isPremiumTier?'rgba(255,255,255,.1)':'var(--panel)'};">
+          <div style="font-size:10px;color:${isPremiumTier?'rgba(255,255,255,.7)':'var(--text-soft)'};">Produits</div>
+          <div style="font-size:13px;font-weight:800;color:${isPremiumTier?'#fff':'var(--text)'};" class="mono">${productsCount}${maxP===Infinity?'':' / '+maxP}</div>
+        </div>
+        <div style="flex:1;padding:9px 10px;border-radius:10px;background:${isPremiumTier?'rgba(255,255,255,.1)':'var(--panel)'};">
+          <div style="font-size:10px;color:${isPremiumTier?'rgba(255,255,255,.7)':'var(--text-soft)'};">Commandes (mois)</div>
+          <div style="font-size:13px;font-weight:800;color:${isPremiumTier?'#fff':'var(--text)'};" class="mono">${ordersMonth}</div>
+        </div>
+        <div style="flex:1;padding:9px 10px;border-radius:10px;background:${isPremiumTier?'rgba(255,255,255,.1)':'var(--panel)'};">
+          <div style="font-size:10px;color:${isPremiumTier?'rgba(255,255,255,.7)':'var(--text-soft)'};">Ventes (mois)</div>
+          <div style="font-size:12.5px;font-weight:800;color:${isPremiumTier?'#fff':'var(--text)'};" class="mono">${Utils.fmtFCFA(revMonth)}</div>
+        </div>
+      </div>
+      ${access.contractRef ? `<button class="btn ${isPremiumTier?'btn-ghost':'btn-outline'} btn-block" style="margin-top:12px;padding:9px 14px;font-size:12px;${isPremiumTier?'background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3);':''}" onclick="downloadSubscriptionReceiptPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Télécharger le reçu (PDF)</button>` : ''}
+    </div>`;
+  }
+  return `
+    <div style="margin:8px 20px 0;border:1.5px solid var(--red);border-radius:var(--radius-md);padding:16px;background:var(--red-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--red);font-weight:700;margin-bottom:2px;">🔒 AUCUN ABONNEMENT ACTIF</div>
+      <div style="font-size:13.5px;color:var(--text);margin:4px 0 12px;">Les fonctionnalités boutique (produits illimités, statistiques, promos...) sont verrouillées.</div>
+      <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.open()">S'abonner maintenant</button>
+    </div>`;
+}
+
+/* ---------- Écran de verrouillage pour les fonctionnalités non incluses dans la formule ---------- */
+function FeatureLock(title, desc, tier){
+  const isDoya = tier==='doya';
+  const iconBg = isDoya ? 'var(--gold-tint)' : 'var(--indigo-tint)';
+  const iconColor = isDoya ? 'var(--gold-dark)' : 'var(--indigo)';
+  const pillBg = isDoya ? 'var(--gold-tint)' : 'var(--indigo-tint)';
+  const pillColor = isDoya ? 'var(--gold-dark)' : 'var(--indigo)';
+  const pillLabel = isDoya ? 'RÉSERVÉ À DOYA' : 'DÈS DOYEN';
+  return `
+  ${TopBar(title)}
+  <div style="padding:40px 24px;text-align:center;">
+    <div style="width:64px;height:64px;border-radius:18px;background:${iconBg};display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="${iconColor}" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="${iconColor}" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </div>
+    <div style="display:inline-block;background:${pillBg};color:${pillColor};font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:5px 12px;border-radius:999px;margin-bottom:12px;">${pillLabel}</div>
+    <h3 style="margin:0 0 8px;">Fonctionnalité verrouillée</h3>
+    <p style="color:var(--text-mid);font-size:13.5px;margin:0 0 22px;">${desc}</p>
+    <button class="btn btn-primary" style="padding:12px 22px;" onclick="SubscriptionSheet.open()">Voir les formules</button>
+  </div>`;
+}
+
+/* ---------- Sélecteur de formule d'abonnement + aperçu démo + paiement ---------- */
+let subPaymentStep = null; // {plan} quand l'utilisateur a choisi une formule
+let subDemoSeen = false; // true une fois l'aperçu démo consulté, pour passer au choix du mode de paiement
+let subPaymentMode = null; // 'monthly' ou 'daily', une fois choisi sur l'écran d'explication
+let subCommissionOnlyMode = false; // true : raccourci « Gérer ma commission » sans passer par le choix de formule
+const subPaymentMethod = 'djamo'; // moyen de paiement (Djamo uniquement)
+const SUB_PAY_LABELS = { djamo:'Djamo', wave:'Wave', card:'Carte bancaire (virement SIAMS BANQUE)' };
+const FEATURE_LABELS = [
+  { key:'maxProducts', label:p=> p===Infinity ? 'Catalogue de produits illimité' : `Jusqu'à ${p} produits au catalogue` },
+  { key:'stats', label:'Statistiques avancées & tableaux de bord' },
+  { key:'promos', label:'Codes promo & réductions' },
+  { key:'reviews', label:'Avis clients' },
+  { key:'customers', label:'Fiches clients & historique des ventes' },
+  { key:'banner', label:'Bannière boutique personnalisée' },
+  { key:'badgeVisibility', label:'Badge de visibilité boutique' },
+  { key:'team', label:"Gestion d'équipe (gérants, vendeurs)" },
+  { key:'delivery', label:'Zones de livraison personnalisées' },
+  { key:'prioritySupport', label:'Support prioritaire dédié' },
+  { key:'featuredBoost', label:'Mise en avant renforcée dans les résultats' },
+  { key:'goldenBadge', label:'Badge Doré exclusif' },
+  { key:'vipSupport', label:'Ligne support VIP 24/7 dédiée' },
+  { key:'homepageSpotlight', label:"Mise en avant permanente à l'accueil" },
+  { key:'customStorefront', label:'Vitrine boutique entièrement personnalisable' }
+];
+const SubscriptionSheet = {
+  open(){
+    if(Store.access().status==='active'){ Toast.show('Abonnement déjà actif — voir la carte "Abonnement en cours"'); return; }
+    subPaymentStep = null; subDemoSeen = false; subPaymentMode = null; subCommissionOnlyMode = false; this.mount();
+  },
+  /* ---- Raccourci « Gérer ma commission » : règle uniquement la commission d'essai due,
+     sans passer par le choix d'une formule d'abonnement. ---- */
+  openCommissionOnly(){
+    const due = Store.commissionDue();
+    if(due<=0 || Store.commissionSettled){ Toast.show('Aucune commission à régler pour le moment'); return; }
+    subPaymentStep = null; subDemoSeen = false; subPaymentMode = null; subCommissionOnlyMode = true; this.mount();
+  },
+  /* ---- Ouvre directement l'écran de paiement pour la formule en cours d'accumulation (paiement échelonné) ---- */
+  openBuilding(){
+    const sub = Store.subscription;
+    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===sub.plan);
+    if(!plan) return;
+    subPaymentStep = plan;
+    subDemoSeen = true;
+    subPaymentMode = sub.mode || 'daily';
+    this.mount();
+  },
+  mount(){
+    const existing = document.getElementById('sub-wrap');
+    if(existing) existing.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'sub-wrap';
+    document.body.appendChild(wrap);
+    this.render();
+  },
+  close(){
+    const ov = document.getElementById('sub-overlay'), sh = document.getElementById('sub-sheet');
+    if(ov) ov.classList.remove('show');
+    if(sh) sh.classList.remove('show');
+    subCommissionOnlyMode = false;
+    setTimeout(()=>{ const w = document.getElementById('sub-wrap'); if(w) w.remove(); }, 220);
+  },
+  render(){
+    const wrap = document.getElementById('sub-wrap');
+    if(!wrap) return;
+    const access = Store.access();
+    if(subCommissionOnlyMode){
+      wrap.innerHTML = this.commissionOnlyScreen();
+      this._show();
+      return;
+    }
+    if(subPaymentStep && subDemoSeen && subPaymentMode){
+      wrap.innerHTML = this.paymentScreen(subPaymentStep, subPaymentMode);
+      this._show();
+      return;
+    }
+    if(subPaymentStep && subDemoSeen && !subPaymentMode){
+      wrap.innerHTML = this.explainScreen(subPaymentStep);
+      this._show();
+      return;
+    }
+    if(subPaymentStep && !subDemoSeen){
+      wrap.innerHTML = this.previewScreen(subPaymentStep);
+      this._show();
+      return;
+    }
+    wrap.innerHTML = `
+      <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet" style="max-height:88vh;">
+        <div class="sheet-handle"></div>
+        <h3 style="margin:2px 0 4px;">Choisir une formule</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;">Abonnement mensuel + commission SIAMS de 2% sur chaque vente réalisée pendant l'abonnement. Changez de formule à tout moment.</p>
+        ${SUBSCRIPTION_PLANS.filter(p=>!p.exclusive || isSiamsGoldenStore()).map(p=>{
+          const tierClass = p.key==='golden' ? 'tier-golden' : p.key==='platinum' ? 'tier-platinum' : p.key==='all' ? 'tier-all' : p.key==='doya' ? 'tier-doya' : p.key==='doyen' ? 'tier-doyen' : 'tier-free';
+          const isCurrent = access.status==='active' && access.plan===p.key;
+          const crownBg = p.key==='golden' ? 'rgba(240,194,75,.22)' : p.key==='platinum' ? 'rgba(255,59,92,.22)' : p.key==='all' ? 'rgba(255,255,255,.18)' : p.key==='doya' ? 'rgba(255,255,255,.18)' : p.key==='doyen' ? 'var(--indigo-tint)' : 'var(--mango-tint)';
+          const crownIcon = p.key==='golden'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 18h16l1.4-9-5.4 3.5L12 5l-4 7.5L2.6 9 4 18Z" stroke="#F0C24B" stroke-width="1.8" stroke-linejoin="round" fill="#F0C24B"/></svg>'
+            : p.key==='platinum'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 3h12l3 5-9 13L3 8l3-5Z" stroke="#FF8FA3" stroke-width="1.8" stroke-linejoin="round" fill="#FF8FA3"/></svg>'
+            : p.key==='all'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2 3 9l9 13 9-13-9-7Z" stroke="#F4D98A" stroke-width="1.8" stroke-linejoin="round" fill="#F4D98A"/></svg>'
+            : p.key==='doya'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 8l4 3 5-6 5 6 4-3-2 10H5L3 8Z" stroke="#F4D98A" stroke-width="1.8" stroke-linejoin="round" fill="#F4D98A"/></svg>'
+            : p.key==='doyen'
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.6 6.6L21 9l-5 4.4L17.5 20 12 16.6 6.5 20 8 13.4 3 9l6.4-.4L12 2Z" fill="var(--indigo)"/></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--mango)" stroke-width="1.8"/><path d="M8 13.5c1 1.3 2.4 2 4 2s3-.7 4-2" stroke="var(--mango)" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="9.5" r="1.1" fill="var(--mango)"/><circle cx="15" cy="9.5" r="1.1" fill="var(--mango)"/></svg>';
+          const mid = `<div class="plan-crown" style="background:${crownBg};">${crownIcon}</div>`;
+          const priceColor = (p.key==='doya'||p.key==='all'||p.key==='platinum'||p.key==='golden') ? '#fff' : 'var(--text)';
+          const taglineColor = (p.key==='doya'||p.key==='all'||p.key==='platinum'||p.key==='golden') ? 'rgba(255,255,255,.82)' : 'var(--text-mid)';
+          const ctaColor = (p.key==='golden'||p.key==='platinum'||p.key==='all'||p.key==='doya') ? '#F4D98A' : 'var(--indigo)';
+          return `
+          <div class="plan-card ${tierClass} ${isCurrent?'selected':''}" onclick="SubscriptionSheet.choose('${p.key}')">
+            ${p.key==='doyen' ? '<div class="plan-ribbon">POPULAIRE</div>' : ''}
+            ${p.key==='doya' ? '<div class="plan-ribbon" style="background:var(--gold);">PREMIUM</div>' : ''}
+            ${p.key==='all' ? '<div class="plan-ribbon" style="background:var(--ruby);">TOUT INCLUS</div>' : ''}
+            ${p.key==='platinum' ? '<div class="plan-ribbon" style="background:linear-gradient(90deg,#8A0E22,#FF3B5C);">PLATINE</div>' : ''}
+            ${p.key==='golden' ? '<div class="plan-ribbon" style="background:linear-gradient(90deg,#B8860B,#F0C24B);color:#1a1300;">EXCLUSIF</div>' : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+              <span style="display:flex;align-items:center;gap:8px;color:${priceColor};" class="plan-name">${mid}${p.label}</span>
+              <span style="color:${priceColor};" class="plan-price">${Utils.fmtFCFA(p.price)}<span class="plan-price-per">/mois</span></span>
+            </div>
+            <p style="font-size:12px;color:${taglineColor};margin:8px 0 0;line-height:1.45;">${p.tagline}</p>
+            <div class="plan-cta" style="color:${ctaColor};">${isCurrent?'✓ Formule actuelle':"Voir l'aperçu ›"}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    this._show();
+  },
+  _show(){
+    requestAnimationFrame(()=>{
+      const ov = document.getElementById('sub-overlay'), sh = document.getElementById('sub-sheet');
+      if(ov) ov.classList.add('show');
+      if(sh) sh.classList.add('show');
+    });
+  },
+  choose(key){
+    try{
+      const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
+      if(!plan){ console.warn('SubscriptionSheet.choose: formule introuvable pour', key); return; }
+      if(plan.exclusive && !isSiamsGoldenStore()){ Toast.show('Cette formule est réservée à la boutique officielle SIAMS.'); return; }
+      subPaymentStep = plan;
+      subDemoSeen = false;
+      subPaymentMode = null;
+      this.render();
+    }catch(e){
+      console.error('SubscriptionSheet.choose error:', e);
+      Toast.show('Impossible d’ouvrir l’aperçu pour le moment.');
+    }
+  },
+  /* ---- Aperçu démo de la formule : à consulter avant de finaliser le paiement ---- */
+  previewScreen(plan){
+    const tierClass = plan.key==='golden' ? 'tier-golden' : plan.key==='platinum' ? 'tier-platinum' : plan.key==='all' ? 'tier-all' : plan.key==='doya' ? 'tier-doya' : plan.key==='doyen' ? 'tier-doyen' : 'tier-free';
+    const sortedFeatures = [...FEATURE_LABELS].sort((a,b)=> (plan.features[b.key]?1:0) - (plan.features[a.key]?1:0));
+    let dividerPlaced = false;
+    const rows = sortedFeatures.map(f=>{
+      const on = !!plan.features[f.key];
+      const label = typeof f.label==='function' ? f.label(plan.features[f.key]) : f.label;
+      const checkIcon = on
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+      let divider = '';
+      if(!on && !dividerPlaced){ divider = '<div class="demo-feature-divider"></div>'; dividerPlaced = true; }
+      return `${divider}
+        <div class="demo-feature-item ${on?'':'locked'}">
+          <span class="demo-feature-check ${on?'':'locked'}">${checkIcon}</span>
+          ${label}
+        </div>`;
+    }).join('');
+    return `
+      <div class="shop-sheet-overlay" id="sub-overlay__v46_2" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet__v46_2" style="max-height:92vh;">
+        <div class="sheet-handle"></div>
+        <button onclick="subPaymentStep=null;SubscriptionSheet.render();" style="background:none;border:none;color:var(--text-mid);font-size:13px;padding:0 0 10px;cursor:pointer;">‹ Retour aux formules</button>
+        <h3 style="margin:0 0 4px;">Aperçu de la formule ${plan.label}</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Voici précisément ce qui sera débloqué dans votre boutique. Vérifiez avant de finaliser le paiement.</p>
+        <div class="demo-preview">
+          <div class="demo-preview-bar"><span class="demo-preview-dot"></span><span class="demo-preview-dot"></span><span class="demo-preview-dot"></span><span class="demo-preview-label">APERÇU · ${plan.label}</span></div>
+          <div class="demo-preview-body">
+            <div class="demo-feature-list">${rows}</div>
+          </div>
+        </div>
+        <div class="plan-card ${tierClass}" style="margin-bottom:16px;cursor:default;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="plan-name">Formule ${plan.label}</span>
+            <span class="plan-price">${Utils.fmtFCFA(plan.price)}<span class="plan-price-per">/mois</span></span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.proceedToPayment('${plan.key}')">Continuer vers le paiement</button>
+      </div>`;
+  },
+  proceedToPayment(key){
+    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
+    if(!plan) return;
+    subDemoSeen = true;
+    subPaymentMode = null;
+    this.render();
+  },
+  /* ---- Explique les deux façons de régler l'abonnement avant de laisser choisir ---- */
+  explainScreen(plan){
+    return `
+      <div class="shop-sheet-overlay" id="sub-overlay__v46_3" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet__v46_3" style="max-height:92vh;">
+        <div class="sheet-handle"></div>
+        <button onclick="subDemoSeen=false;SubscriptionSheet.render();" style="background:none;border:none;color:var(--text-mid);font-size:13px;padding:0 0 10px;cursor:pointer;">‹ Retour à l'aperçu</button>
+        <h3 style="margin:0 0 4px;">Comment souhaitez-vous payer ?</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 18px;line-height:1.55;">
+          La formule <strong style="color:var(--text);">${plan.label}</strong> coûte <strong class="mono" style="color:var(--text);">${Utils.fmtFCFA(plan.price)}</strong>. Vous pouvez régler ce montant en une seule fois (paiement mensuel), ou le fractionner en plusieurs petits versements journaliers avant l'échéance (paiement échelonné). Après chaque paiement, envoyez la capture d'écran de votre transaction via le bouton WhatsApp ci-dessous. Une fois le versement validé par SIAMS, une barre de progression avance jusqu'à atteindre le montant total (le « socle »), puis l'abonnement est activé.
+        </p>
+        <button class="btn btn-primary btn-block" style="margin-bottom:10px;padding:16px;" onclick="SubscriptionSheet.chooseMode('${plan.key}','monthly')">
+          Payer mon abonnement mensuel<br><span style="font-weight:600;font-size:12px;opacity:.85;">${Utils.fmtFCFA(plan.price)} en une seule fois</span>
+        </button>
+        <button class="btn btn-outline btn-block" style="padding:16px;" onclick="SubscriptionSheet.chooseMode('${plan.key}','daily')">
+          Paiement journalier échelonné<br><span style="font-weight:600;font-size:12px;color:var(--text-mid);">dès ${Utils.fmtFCFA(plan.dailyRate)} / jour</span>
+        </button>
+      </div>`;
+  },
+  chooseMode(key, mode){
+    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
+    if(!plan) return;
+    const sub = Store.subscription;
+    if(sub.status==='building' && sub.plan===key){
+      Store.subscription = { ...sub, mode };
+    } else {
+      Installments.start(key, mode);
+    }
+    subPaymentMode = mode;
+    this.render();
+  },
+  paymentScreen(plan, mode){
+    mode = mode || subPaymentMode || 'monthly';
+    const sub = Store.subscription;
+    const inProgress = sub.status==='building' && sub.plan===plan.key;
+    const paid = inProgress ? (sub.paidAmount||0) : 0;
+    const pendingAmt = inProgress ? (sub.pendingAmount||0) : 0;
+    const remaining = Math.max(0, plan.price - paid - pendingAmt);
+    const suggested = mode==='daily' ? Math.max(1, Math.min(plan.dailyRate, remaining||plan.dailyRate)) : (remaining||plan.price);
+    const pct = Math.min(100, Math.round((paid/plan.price)*100));
+    return `
+      <div class="shop-sheet-overlay" id="sub-overlay__v46_4" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet__v46_4" style="max-height:92vh;">
+        <div class="sheet-handle"></div>
+        <button onclick="subPaymentMode=null;SubscriptionSheet.render();" style="background:none;border:none;color:var(--text-mid);font-size:13px;padding:0 0 10px;cursor:pointer;">‹ Choisir un autre mode de paiement</button>
+        <h3 style="margin:0 0 4px;">${mode==='daily'?'Paiement journalier':'Paiement mensuel'} — ${plan.label}</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Montant total de la formule : <strong class="mono" style="color:var(--text);">${Utils.fmtFCFA(plan.price)}</strong></p>
+        ${(()=>{ const due=Store.commissionDue(); const settled=Store.commissionSettled;
+          if(due<=0 || settled) return '';
+          return `
+        <div style="border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;background:var(--gold-tint);">
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">💰 Commission période d'essai à régler</div>
+          <div style="font-size:17px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
+          <p style="font-size:11.5px;color:var(--text-mid);margin:6px 0 10px;">5% sur toutes vos commandes livrées pendant les 20 jours d'essai (Article 5 du contrat). Ajoutez ce montant à votre virement Djamo, en plus de l'abonnement.</p>
+          <button type="button" class="btn btn-outline btn-sm" onclick="SubscriptionSheet.markCommissionSettled()">J'ai réglé la commission, envoyer le reçu</button>
+        </div>`;
+        })()}
+        ${(paid>0||pendingAmt>0) ? `
+        <div style="margin-bottom:16px;">
+          <div class="installment-bar-track"><div class="installment-bar-fill" style="width:${pct}%;"></div></div>
+          <div style="font-size:11.5px;color:var(--text-mid);margin-top:5px;">${Utils.fmtFCFA(paid)} confirmé sur ${Utils.fmtFCFA(plan.price)}${pendingAmt?` · ${Utils.fmtFCFA(pendingAmt)} en attente de validation`:''}</div>
+        </div>` : ''}
+        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez avec Djamo ou Wave</div>
+          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Djamo</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.djamoNumber}</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.djamoNumber}');Toast.show('Numéro Djamo copié ✓')">Copier</button>
+            </div>
+          </div>
+          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);">
+            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Wave</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.waveNumber}</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.waveNumber}');Toast.show('Numéro Wave copié ✓')">Copier</button>
+            </div>
+          </div>
+          ${mode==='daily' ? `
+          <div class="field" style="margin-top:12px;margin-bottom:0;"><label>Montant payé aujourd'hui</label><input id="sub-daily-amount" type="number" min="1" value="${suggested}" placeholder="Ex : ${plan.dailyRate}"></div>
+          <p style="font-size:11px;color:var(--text-mid);margin:8px 0 0;">Suggestion : ${Utils.fmtFCFA(plan.dailyRate)}/jour. Vous pouvez ajuster le montant, tant que le total atteint ${Utils.fmtFCFA(plan.price)} avant l'échéance.</p>` : `
+          <p style="font-size:11.5px;color:var(--text-mid);margin:10px 0 0;">Envoyez le montant exact (${Utils.fmtFCFA(remaining||plan.price)}) via Djamo ou Wave vers l'un de ces numéros.</p>`}
+        </div>
+        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;">
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">2. Envoyez votre preuve à SIAMS</div>
+          <p style="font-size:12px;color:var(--text-mid);margin:0;">${Store.store.name?`${Utils.escapeHtml(Store.store.name)}, une`:'Une'} fois votre paiement effectué, appuyez sur le bouton ci-dessous : nous ouvrons directement votre galerie pour choisir la capture, puis votre conversation WhatsApp avec l'assistant SIAMS pour l'envoyer. Dès validation par SIAMS, la barre de progression avance jusqu'au socle.</p>
+        </div>
+        <input type="file" id="sub-proof-input" accept="image/*,application/pdf" class="hidden" onchange="SubscriptionSheet.handleProofFile(event)">
+        <div id="sub-proof-status" style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;min-height:14px;"></div>
+        <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.startProofUpload('${plan.key}','${mode}')">
+          <svg width="16" height="16" viewBox="0 0 448 512" fill="#fff" style="margin-right:6px;vertical-align:-3px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>
+          J'ai payé, envoyer le reçu de paiement
+        </button>
+      </div>`;
+  },
+  /* ---- Écran raccourci « Gérer ma commission » : règle uniquement la commission
+     d'essai due, sans passer par le choix ni le paiement d'une formule d'abonnement.
+     Réutilise les ids de base sub-overlay/sub-sheet pour que close()/_show() fonctionnent. ---- */
+  commissionOnlyScreen(){
+    const due = Store.commissionDue();
+    const settled = Store.commissionSettled;
+    if(due<=0 || settled){
+      return `
+      <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet" style="max-height:60vh;">
+        <div class="sheet-handle"></div>
+        <h3 style="margin:2px 0 4px;">Commission déjà réglée</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;">Il n'y a aucune commission en attente pour le moment.</p>
+        <button class="btn btn-outline btn-block" onclick="SubscriptionSheet.close()">Fermer</button>
+      </div>`;
+    }
+    return `
+      <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet" style="max-height:88vh;">
+        <div class="sheet-handle"></div>
+        <h3 style="margin:2px 0 4px;">Gérer ma commission</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Réglez uniquement la commission de la période d'essai, sans souscrire à un Pass.</p>
+        <div style="border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;background:var(--gold-tint);">
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">💰 Commission période d'essai due</div>
+          <div style="font-size:20px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
+          <p style="font-size:11.5px;color:var(--text-mid);margin:6px 0 0;">5% sur toutes vos commandes livrées pendant les 20 jours d'essai (Article 5 du contrat).</p>
+        </div>
+        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez avec Djamo ou Wave</div>
+          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);margin-bottom:8px;">
+            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Djamo</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.djamoNumber}</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.djamoNumber}');Toast.show('Numéro Djamo copié ✓')">Copier</button>
+            </div>
+          </div>
+          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);">
+            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Wave</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.waveNumber}</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.waveNumber}');Toast.show('Numéro Wave copié ✓')">Copier</button>
+            </div>
+          </div>
+          <p style="font-size:11.5px;color:var(--text-mid);margin:10px 0 0;">Envoyez le montant exact (${Utils.fmtFCFA(due)}) via Djamo ou Wave vers l'un de ces numéros.</p>
+        </div>
+        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;">
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">2. Envoyez votre preuve à SIAMS</div>
+          <p style="font-size:12px;color:var(--text-mid);margin:0;">${Store.store.name?`${Utils.escapeHtml(Store.store.name)}, une`:'Une'} fois votre paiement effectué, appuyez sur le bouton ci-dessous : nous ouvrons directement votre galerie pour choisir la capture, puis votre conversation WhatsApp avec l'assistant SIAMS pour l'envoyer.</p>
+        </div>
+        <input type="file" id="sub-proof-input" accept="image/*,application/pdf" class="hidden" onchange="SubscriptionSheet.handleProofFile(event)">
+        <div id="sub-proof-status" style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;min-height:14px;"></div>
+        <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.startCommissionProof()">
+          <svg width="16" height="16" viewBox="0 0 448 512" fill="#fff" style="margin-right:6px;vertical-align:-3px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>
+          J'ai payé, envoyer le reçu de paiement
+        </button>
+        <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="subCommissionOnlyMode=false;SubscriptionSheet.render();">Voir aussi les formules d'abonnement</button>
+      </div>`;
+  },
+  /* ---- Reçu de preuve : sélection immédiate de la photo/document dans la galerie,
+     puis redirection automatique vers l'assistant client SIAMS sur WhatsApp avec un
+     message prêt à envoyer. La pièce jointe doit être ajoutée manuellement dans
+     WhatsApp (aucune API web ne permet de joindre un fichier à un lien wa.me). ---- */
+  _pendingProof: null,
+  startProofUpload(key, mode){
+    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
+    if(!plan) return;
+    let sub = Store.subscription;
+    if(!(sub.status==='building' && sub.plan===key)){
+      Installments.start(key, mode);
+      sub = Store.subscription;
+    }
+    const paid = sub.paidAmount||0;
+    const pendingAmt = sub.pendingAmount||0;
+    const remaining = Math.max(0, plan.price - paid - pendingAmt);
+    let amount = remaining;
+    if(mode==='daily'){
+      const input = document.getElementById('sub-daily-amount');
+      const raw = input ? String(input.value).replace(',', '.') : '0';
+      amount = Math.round(Number(raw)||0);
+      if(amount<=0){ Toast.show('Indiquez le montant payé aujourd’hui'); return; }
+      amount = Math.min(amount, remaining);
+    }
+    if(amount<=0){ Toast.show('Ce montant a déjà été réglé.'); return; }
+    this._pendingProof = { type:'installment', key, mode, amount };
+    const input = document.getElementById('sub-proof-input');
+    if(input){ input.value=''; input.click(); }
+  },
+  startCommissionProof(){
+    const due = Store.commissionDue();
+    if(due<=0){ Toast.show('Aucune commission à régler pour le moment'); return; }
+    this._pendingProof = { type:'commission', amount:due };
+    const input = document.getElementById('sub-proof-input');
+    if(input){ input.value=''; input.click(); }
+  },
+  startSubCommissionProof(){
+    const due = Store.subCommissionDue();
+    if(due<=0){ Toast.show('Aucune commission à régler pour le moment'); return; }
+    this._pendingProof = { type:'subCommission', amount:due };
+    const input = document.getElementById('sub-proof-input');
+    if(input){ input.value=''; input.click(); }
+  },
+  handleProofFile(evt){
+    const file = evt.target.files && evt.target.files[0];
+    const pending = this._pendingProof;
+    if(!file || !pending){ return; }
+    const statusEl = document.getElementById('sub-proof-status');
+    const store = Store.store;
+    let msg, waLink;
+    if(pending.type==='commission'){
+      Store.commissionSettled = true;
+      msg = `Bonjour SIAMS, je viens de régler ma commission période d'essai de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
+      waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
+      Toast.show(`📎 « ${file.name} » sélectionné — ouverture de WhatsApp pour l'envoi`);
+      if(statusEl) statusEl.textContent = `Requête en cours : je viens de régler ma commission — joignez « ${file.name} » dans WhatsApp puis envoyez.`;
+      this.render();
+    } else if(pending.type==='subCommission'){
+      Store.markSubCommissionSettled();
+      msg = `Bonjour SIAMS, je viens de régler ma commission d'abonnement (2%) de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
+      waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
+      Toast.show(`📎 « ${file.name} » sélectionné — ouverture de WhatsApp pour l'envoi`);
+      if(statusEl) statusEl.textContent = `Requête en cours : je viens de régler ma commission d'abonnement — joignez « ${file.name} » dans WhatsApp puis envoyez.`;
+      this.render();
+    } else {
+      const plan = SUBSCRIPTION_PLANS.find(p=>p.key===pending.key);
+      if(!plan) return;
+      Installments.declare(pending.amount);
+      msg = `Bonjour SIAMS, je viens d'effectuer mon paiement d'abonnement ${plan.label} (${pending.mode==='daily'?'versement journalier':'paiement mensuel'} de ${Utils.fmtFCFA(pending.amount)}). Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
+      waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
+      if(statusEl) statusEl.textContent = `Requête en cours : je viens d'effectuer mon abonnement — joignez « ${file.name} » dans WhatsApp puis envoyez.`;
+      Toast.show(`📎 « ${file.name} » sélectionné — ouverture de WhatsApp pour l'envoi`);
+    }
+    window.open(waLink, '_blank');
+    this._pendingProof = null;
+    subPaymentStep = null;
+    subDemoSeen = false;
+    subPaymentMode = null;
+    subCommissionOnlyMode = false;
+    setTimeout(()=>{ this.close(); if(Router.current) Router.go(Router.current); }, 1200);
+  },
+  /* ---- Le vendeur confirme avoir viré la commission (en plus de l'abonnement) ---- */
+  markCommissionSettled(){
+    this.startCommissionProof();
+  },
+  markSubCommissionSettled(){
+    this.startSubCommissionProof();
+  },
+  submitInstallment(key, mode){
+    const plan = SUBSCRIPTION_PLANS.find(p=>p.key===key);
+    if(!plan) return;
+    /* ---- Garde-fou : si le versement échelonné n'a pas (encore) démarré côté Store
+       (état perdu/désynchronisé), on l'amorce ici pour que le bouton ne reste jamais
+       sans effet. ---- */
+    let sub = Store.subscription;
+    if(!(sub.status==='building' && sub.plan===key)){
+      Installments.start(key, mode);
+      sub = Store.subscription;
+    }
+    const paid = sub.paidAmount||0;
+    const pendingAmt = sub.pendingAmount||0;
+    const remaining = Math.max(0, plan.price - paid - pendingAmt);
+    let amount = remaining;
+    if(mode==='daily'){
+      const input = document.getElementById('sub-daily-amount');
+      const raw = input ? String(input.value).replace(',', '.') : '0';
+      amount = Math.round(Number(raw)||0);
+      if(amount<=0){ Toast.show('Indiquez le montant payé aujourd’hui'); return; }
+      amount = Math.min(amount, remaining);
+    }
+    if(amount<=0){ Toast.show('Ce montant a déjà été réglé.'); return; }
+    Installments.declare(amount);
+    window.open(Installments.waLink(plan, amount, mode), '_blank');
+    Toast.show('✅ Versement déclaré, envoyez votre capture sur WhatsApp');
+    subPaymentStep = null;
+    subDemoSeen = false;
+    subPaymentMode = null;
+    subCommissionOnlyMode = false;
+    this.close();
+    if(Router.current) Router.go(Router.current);
+  }
+};
+
+
+
+/* ---------- Retrait de solde (analyse, rapport, paiement, reçu) ---------- */
+const Withdraw = {
+  step: 'idle',
+  amount: 0,
+  recommended: 0,
+  reserve: 0,
+  method: '',
+  restockSuggestions: [],
+  lastRecord: null,
+
+  open(){
+    const balance = Store.availableBalance();
+    if(balance <= 0){ Toast.show('Aucune espèce en attente de reversement pour le moment'); return; }
+    this.step = 'analyzing';
+    this.mount();
+    setTimeout(()=>{ this.buildReport(); this.step = 'report'; this.render(); }, 1900);
+  },
+
+  buildReport(){
+    const balance = Store.availableBalance();
+    this.reserve = Math.round(balance * 0.15);
+    this.recommended = Math.max(0, balance - this.reserve);
+    this.amount = this.recommended;
+    this.restockSuggestions = this.computeRestockSuggestions();
+    const pay = Store.payment;
+    const methods = ['wave','om','mtn','moov'].filter(k=>pay[k].enabled && pay[k].number);
+    this.method = methods[0] || '';
+  },
+
+  computeRestockSuggestions(){
+    const tally = {};
+    Store.orders.forEach(o=>(o.items||[]).forEach(it=>{
+      if(!it.productId) return;
+      tally[it.productId] = (tally[it.productId]||0) + it.qty;
+    }));
+    return Store.products.map(p=>{
+      const sold = tally[p.id] || 0;
+      const rating = Store.avgRating(p.id);
+      const lowStock = !!(p.stockLimited && Number(p.stockQty||0) <= 3);
+      const score = sold*2 + (rating ? rating.avg*rating.count*0.5 : 0) + (lowStock?5:0);
+      const reasons = [];
+      if(sold>0) reasons.push(`${sold} vendu${sold>1?'s':''}`);
+      if(rating && rating.avg>=4) reasons.push(`★ ${rating.avg.toFixed(1)}`);
+      if(lowStock) reasons.push('Stock bas');
+      return {product:p, score, reasons};
+    }).filter(x=>x.score>0)
+      .sort((a,b)=>b.score-a.score)
+      .slice(0,4);
+  },
+
+  /* ---- Reçus de virement livreur en attente de confirmation : affichés en tête du
+     rapport pour que la boutique les traite avant même de calculer son propre retrait. ---- */
+  renderPendingCourierReceipts(){
+    const pending = Store.pendingCourierReceipts();
+    if(!pending.length) return '';
+    return `<div class="sub-label">Reçus de virement livreurs à confirmer</div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:14px;">
+      ${pending.map(p=>`
+        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:11px 13px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+            <div><b style="font-size:12.5px;">${Utils.escapeHtml(p.courierName)}</b><div style="font-size:11px;color:var(--text-mid);margin-top:1px;">Commande #${Utils.escapeHtml(p.orderNumber)} · ${Utils.fmtFCFA(p.amount)}</div></div>
+          </div>
+          ${p.receipt_url?`<a href="${Utils.escapeHtml(p.receipt_url)}" target="_blank"><img src="${Utils.escapeHtml(p.receipt_url)}" style="width:100%;max-width:220px;border-radius:10px;border:1px solid var(--line);display:block;margin-bottom:9px;"></a>`:''}
+          <button class="btn btn-primary btn-sm btn-block" onclick="Withdraw.confirmCourierReceipt('${Utils.escapeHtml(p.order_id)}')">✓ Confirmer la réception</button>
+        </div>`).join('')}
+    </div>`;
+  },
+  async confirmCourierReceipt(orderId){
+    try{
+      await Cloud.confirmCourierPayout(orderId);
+      Toast.show('Réception confirmée ✓ Solde du livreur remis à zéro');
+      this.buildReport();
+      this.render();
+    }catch(e){
+      console.error('Confirmation reçu livreur',e);
+      Toast.show('⚠️ '+((e&&e.message)||'Impossible de confirmer la réception'));
+    }
+  },
+
+  mount(){
+    const existing = document.getElementById('withdraw-wrap');
+    if(existing) existing.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'withdraw-wrap';
+    document.body.appendChild(wrap);
+    this.render();
+    requestAnimationFrame(()=>{
+      const ov = document.getElementById('withdraw-overlay'), sh = document.getElementById('withdraw-sheet');
+      if(ov) ov.classList.add('show');
+      if(sh) sh.classList.add('show');
+    });
+  },
+
+  close(){
+    const ov = document.getElementById('withdraw-overlay'), sh = document.getElementById('withdraw-sheet');
+    if(ov) ov.classList.remove('show');
+    if(sh) sh.classList.remove('show');
+    setTimeout(()=>{ const w = document.getElementById('withdraw-wrap'); if(w) w.remove(); if(Router.current==='dashboard') Router.go('dashboard'); }, 220);
+  },
+
+  render(){
+    const wrap = document.getElementById('withdraw-wrap');
+    if(!wrap) return;
+    wrap.innerHTML = `
+      <div class="shop-sheet-overlay" id="withdraw-overlay" onclick="${this.step==='processing'?'':'Withdraw.close()'}"></div>
+      <div class="shop-sheet" id="withdraw-sheet" style="max-height:88vh;">
+        <div class="sheet-handle"></div>
+        ${this['_render_'+this.step] ? this['_render_'+this.step]() : ''}
+      </div>`;
+    if(this.step==='report') this.recalc();
+  },
+
+  _render_analyzing(){
+    return `
+      <div style="padding:30px 4px 10px;text-align:center;">
+        <div class="wd-spinner"></div>
+        <h3 style="margin:18px 0 6px;">Analyse en cours</h3>
+        <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0;">
+          Nous calculons les espèces encaissées par vos livreurs sur vos commandes payées à<br>la livraison, pour préparer un rapport de reversement fiable et précis.
+        </p>
+      </div>`;
+  },
+
+  _render_report(){
+    const balance = Store.availableBalance();
+    const pay = Store.payment;
+    const methods = [
+      pay.wave.enabled && pay.wave.number ? {key:'wave', label:'Wave', number:pay.wave.number} : null,
+      pay.om.enabled && pay.om.number ? {key:'om', label:'Orange Money', number:pay.om.number} : null,
+      pay.mtn.enabled && pay.mtn.number ? {key:'mtn', label:'MTN Money', number:pay.mtn.number} : null,
+      pay.moov.enabled && pay.moov.number ? {key:'moov', label:'Moov Money', number:pay.moov.number} : null,
+    ].filter(Boolean);
+    return `
+      <h3 style="margin:2px 0 4px;">Rapport de reversement</h3>
+      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Espèces encaissées par vos livreurs à la livraison, en attente de vous être reversées</p>
+
+      <div style="background:var(--indigo-tint);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>Espèces en attente de reversement</span><span class="mono" style="font-weight:700;">${Utils.fmtFCFA(balance)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--text-mid);"><span>Réserve conseillée (réapprovisionnement)</span><span class="mono">${Utils.fmtFCFA(this.reserve)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--indigo);"><span>Montant recommandé</span><span class="mono">${Utils.fmtFCFA(this.recommended)}</span></div>
+      </div>
+      ${this.renderPendingCourierReceipts()}
+
+      ${this.restockSuggestions.length ? `
+      <div class="sub-label">Articles conseillés à précommander</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+        ${this.restockSuggestions.map(s=>`
+          <div style="display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;">
+            <div class="product-thumb" style="width:36px;height:36px;">${s.product.photo?`<img src="${s.product.photo}">`:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`}</div>
+            <div style="flex:1;min-width:0;"><div style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${Utils.escapeHtml(s.product.name)}</div><div style="font-size:11px;color:var(--text-mid);">${s.reasons.join(' · ')}</div></div>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <div class="sub-label">Montant à faire reverser</div>
+      <div class="field" style="margin-bottom:2px;">
+        <div class="price-field"><input id="wd-amount" type="number" inputmode="numeric" value="${this.amount}" oninput="Withdraw.onAmountInput(this.value)"><div class="price-suffix">FCFA</div></div>
+      </div>
+      <div id="wd-amount-msg" style="font-size:12px;color:var(--text-mid);margin-bottom:14px;">Maximum disponible : ${Utils.fmtFCFA(balance)}</div>
+
+      <div class="sub-label">Comment le livreur vous reverse cet argent</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;">
+        ${methods.length===0 ? `<div style="font-size:13px;color:var(--text-mid);">Aucun moyen de paiement mobile configuré. <a href="javascript:void(0)" onclick="Withdraw.close();Router.go('payment');" style="color:var(--indigo);font-weight:700;">Ajouter un moyen de paiement</a></div>` :
+          methods.map(m=>`
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:12px 14px;cursor:pointer;">
+            <span style="display:flex;align-items:center;gap:10px;"><input type="radio" name="wd-method" value="${m.key}" ${this.method===m.key?'checked':''} onchange="Withdraw.method='${m.key}'" style="width:18px;height:18px;accent-color:var(--indigo);"><span style="font-size:14px;font-weight:700;">${m.label}</span></span>
+            <span class="mono" style="font-size:12px;color:var(--text-mid);">${Utils.escapeHtml(m.number)}</span>
+          </label>`).join('')}
+      </div>
+      <div style="font-size:11.5px;color:var(--text-soft);margin-bottom:8px;">Le livreur vous transfère lui-même ce montant sur le numéro choisi, ou vous le remet en cash. SIAMS ne fait que garder la trace de ce reversement.</div>
+
+      <button class="btn btn-mango btn-block" style="margin-top:14px;" onclick="Withdraw.confirm()" ${methods.length===0?'disabled':''}>Confirmer le reversement</button>
+    `;
+  },
+
+  onAmountInput(v){
+    this.amount = Number(v)||0;
+    this.recalc();
+  },
+  recalc(){
+    const el = document.getElementById('wd-amount-msg');
+    if(!el) return;
+    const balance = Store.availableBalance();
+    if(this.amount > balance) el.innerHTML = `<span style="color:var(--red);">Le montant dépasse votre solde disponible (${Utils.fmtFCFA(balance)})</span>`;
+    else if(this.amount <= 0) el.innerHTML = `<span style="color:var(--red);">Indiquez un montant supérieur à 0</span>`;
+    else el.textContent = `Maximum disponible : ${Utils.fmtFCFA(balance)}`;
+  },
+
+  confirm(){
+    const balance = Store.availableBalance();
+    if(!this.amount || this.amount <= 0){ Toast.show('Indiquez un montant valide'); return; }
+    if(this.amount > balance){ Toast.show('Montant supérieur au solde disponible'); return; }
+    if(!this.method){ Toast.show('Choisissez une modalité de paiement'); return; }
+    this.step = 'processing';
+    this.render();
+    setTimeout(()=>this.finish(), 1800);
+  },
+
+  finish(){
+    const pay = Store.payment;
+    const number = pay[this.method] ? pay[this.method].number : '';
+    const record = {
+      id: 'REV-' + Date.now().toString(36).toUpperCase(),
+      amount: this.amount,
+      method: this.method,
+      methodLabel: {wave:'Wave', om:'Orange Money', mtn:'MTN Money'}[this.method] || this.method,
+      number,
+      date: Date.now()
+    };
+    const list = Store.withdrawals;
+    list.unshift(record);
+    Store.withdrawals = list;
+    Notify.add('order', `Reversement de ${Utils.fmtFCFA(record.amount)} enregistré ✓`);
+    this.lastRecord = record;
+    this.step = 'success';
+    this.render();
+  },
+
+  _render_processing(){
+    return `
+      <div style="padding:30px 4px 10px;text-align:center;">
+        <div class="wd-spinner"></div>
+        <h3 style="margin:18px 0 6px;">Enregistrement en cours</h3>
+        <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0;">Enregistrement du reversement...<br>Merci de patienter, ne fermez pas cette fenêtre.</p>
+      </div>`;
+  },
+
+  _render_success(){
+    const r = this.lastRecord;
+    const store = Store.store;
+    const email = Store.contactEmail;
+    return `
+      <div style="text-align:center;padding:6px 2px 2px;">
+        <div style="width:64px;height:64px;border-radius:18px;background:var(--green-tint);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 style="margin:0 0 4px;">Reversement enregistré ✓</h3>
+        <p style="color:var(--text-mid);font-size:13px;margin:0 0 16px;">Ce reversement a bien été enregistré dans votre suivi.</p>
+      </div>
+
+      <div id="wd-receipt" style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px 18px;margin-bottom:14px;">
+        <div style="text-align:center;margin-bottom:10px;">
+          <div style="font-family:var(--font-display);font-weight:700;font-size:13px;letter-spacing:.5px;color:var(--indigo);">SIAMS PROTOTYPE</div>
+          <div style="font-size:11px;color:var(--text-mid);">Reçu de reversement — ${Utils.escapeHtml(store.name)}</div>
+        </div>
+        <div style="border-top:1px dashed var(--line);margin:10px 0;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">N° reversement</span><span class="mono">${r.id}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Date</span><span class="mono">${new Date(r.date).toLocaleString('fr-FR')}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Modalité</span><span>${r.methodLabel}${r.number?' · '+Utils.escapeHtml(r.number):''}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Statut</span><span style="color:var(--green);font-weight:700;">Enregistré</span></div>
+        <div style="border-top:1px dashed var(--line);margin:10px 0;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;"><span>Montant reversé</span><span class="mono">${Utils.fmtFCFA(r.amount)}</span></div>
+      </div>
+
+      ${email ? `<div style="font-size:12.5px;color:var(--text-mid);margin-bottom:14px;">Un reçu a été envoyé à <strong>${Utils.escapeHtml(email)}</strong>${store.phone?` et sur WhatsApp <strong>${Utils.escapeHtml(store.phone)}</strong>`:''}.</div>` : `
+      <div class="field" style="margin-bottom:14px;">
+        <label>Email pour recevoir vos reçus (facultatif)</label>
+        <div style="display:flex;gap:8px;">
+          <input id="wd-email" type="email" placeholder="votre@email.com" style="flex:1;">
+          <button class="btn btn-outline btn-sm" onclick="Withdraw.saveEmail()" style="flex:none;">Ajouter</button>
+        </div>
+      </div>`}
+
+      <button class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="Withdraw.printReceipt()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-2M6 14h12v7H6z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg>Imprimer / Enregistrer le reçu</button>
+      <button class="btn btn-ghost btn-block" onclick="Withdraw.close()">Fermer</button>
+    `;
+  },
+
+  saveEmail(){
+    const el = document.getElementById('wd-email');
+    const val = el ? el.value.trim() : '';
+    if(!val || !val.includes('@')){ Toast.show('Indiquez un email valide'); return; }
+    Store.contactEmail = val;
+    Toast.show('Email enregistré ✓');
+    this.render();
+  },
+
+  printReceipt(){
+    const r = this.lastRecord;
+    if(!r) return;
+    const store = Store.store;
+    const w = window.open('', '_blank', 'width=420,height=640');
+    if(!w){ Toast.show('Autorisez les pop-ups pour imprimer le reçu'); return; }
+    w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Reçu ${r.id}</title>
+      <link rel="stylesheet" href="css/style-04.css"></head><body>
+      <div class="h"><div class="co">SIAMS PROTOTYPE</div><div class="sub">Reçu de transaction — \${Utils.escapeHtml(store.name)}</div></div>
+      <hr>
+      <div class="row"><span class="lbl">N° transaction</span><span>\${r.id}</span></div>
+      <div class="row"><span class="lbl">Date</span><span>\${new Date(r.date).toLocaleString('fr-FR')}</span></div>
+      <div class="row"><span class="lbl">Boutique</span><span>\${Utils.escapeHtml(store.name)}</span></div>
+      <div class="row"><span class="lbl">Modalité</span><span>\${r.methodLabel}\${r.number?' · '+Utils.escapeHtml(r.number):''}</span></div>
+      <div class="row"><span class="lbl">Statut</span><span class="status">Effectué</span></div>
+      <hr>
+      <div class="total"><span>Montant retiré</span><span>\${Utils.fmtFCFA(r.amount)}</span></div>
+</body>
+</html>`);
+    w.document.close();
+    setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 350);
+  }
+};
+
+
+<!-- ================= SIAMS V51 — son notifications livreur renforcé ================= -->
+
+
+/* ===== app-02.js ===== */
+(function(){
+  let courierNotifTimer=null;
+  let courierNotifBusy=false;
+  let courierSeenAssignments=new Set();
+
+  function courierSignature(a){
+    return [a.id,a.status,a.order_number||'',a.updated_at||''].join('|');
+  }
+
+  async function pollCourierNotifications(){
+    if(courierNotifBusy || Router.current!=='courier-dashboard') return;
+    const sess=typeof courierSession==='function'?courierSession():null;
+    if(!sess) return;
+    courierNotifBusy=true;
+    try{
+      const rows=await Cloud.courierAssignments(sess.session_token);
+      CourierNotify.load();
+      const existing=CourierNotify._list||[];
+      const existingIds=new Set(existing.map(n=>n.assignmentId).filter(Boolean));
+      rows.filter(a=>a.status==='accepted'||a.status==='arrived'||a.status==='delivered').forEach(a=>{
+        const sig=courierSignature(a);
+        const oldKey='siams_courier_last_state_'+a.id;
+        let old='';
+        try{old=sessionStorage.getItem(oldKey)||'';}catch(e){}
+        if(old && old!==sig){
+          if(a.status==='arrived'){
+            CourierNotify.add('delivery',`📍 Vous êtes arrivé pour la commande #${a.order_number||''}. En attente de la confirmation du client.`);
+            if(typeof nativePush==='function') nativePush('Livreur arrivé',`Commande #${a.order_number||''} : attendez la confirmation du client.`);
+          }else if(a.status==='delivered'){
+            CourierNotify.add('delivery',`✓ Commande #${a.order_number||''} livrée. Le client a confirmé la réception.`);
+            if(typeof nativePush==='function') nativePush('Commande livrée',`Commande #${a.order_number||''} confirmée par le client.`);
+          }
+        }
+        try{sessionStorage.setItem(oldKey,sig);}catch(e){}
+      });
+      rows.filter(a=>a.status==='offered').forEach(a=>{
+        const sig=courierSignature(a);
+        const isNew=!courierSeenAssignments.has(sig) && !existingIds.has(a.id);
+        if(isNew){
+          CourierNotify._list.unshift({
+            id:Utils.uid(), assignmentId:a.id, type:'order',
+            message:`Nouvelle livraison proposée pour la commande #${a.order_number||''}.`,
+            read:false, createdAt:Date.now()
+          });
+          courierSeenAssignments.add(sig);
+          CourierNotify.save();
+          CourierNotify.badge();
+          /* Son SIAMS + notification système : même comportement que client. */
+          if(typeof nativePush==='function') nativePush('Nouvelle livraison',`Commande #${a.order_number||''} proposée.`);
+          else if(typeof SiamsV44TestNotificationSound==='function') SiamsV44TestNotificationSound();
+          if(typeof Toast!=='undefined' && Toast.show) Toast.show(`🔔 Nouvelle livraison · #${a.order_number||''}`);
+        } else if(!courierSeenAssignments.has(sig)) {
+          courierSeenAssignments.add(sig);
+        }
+      });
+    }catch(e){console.error('V51 courier notifications',e)}
+    finally{courierNotifBusy=false;}
+  }
+
+  function startCourierNotificationPolling(){
+    if(courierNotifTimer) clearInterval(courierNotifTimer);
+    courierSeenAssignments=new Set();
+    /* Premier passage immédiat, puis contrôle régulier sans attendre un clic. */
+    setTimeout(pollCourierNotifications,500);
+    courierNotifTimer=setInterval(pollCourierNotifications,8000);
+  }
+  function stopCourierNotificationPolling(){
+    if(courierNotifTimer){clearInterval(courierNotifTimer);courierNotifTimer=null;}
+    courierSeenAssignments=new Set();
+  }
+
+  const oldLogin=window.loginCourier;
+  if(typeof oldLogin==='function'){
+    window.loginCourier=async function(){
+      const r=await oldLogin.apply(this,arguments);
+      if(courierSession()) startCourierNotificationPolling();
+      return r;
+    };
+  }
+
+  const oldLogout=window.setCourierSession;
+  if(typeof oldLogout==='function'){
+    window.setCourierSession=function(v){
+      const r=oldLogout.apply(this,arguments);
+      if(!v) stopCourierNotificationPolling();
+      return r;
+    };
+  }
+
+  const oldGo=Router.go;
+  if(typeof oldGo==='function'){
+    Router.go=function(name,opts){
+      const r=oldGo.apply(this,arguments);
+      if(name==='courier-dashboard' && courierSession()) startCourierNotificationPolling();
+      else if(name!=='courier-dashboard') stopCourierNotificationPolling();
+      return r;
+    };
+  }
+
+  /* Le bouton de test du son est aussi disponible depuis l'espace livreur. */
+  window.SiamsV51TestCourierSound=function(){
+    if(typeof unlockNotifAudio==='function') unlockNotifAudio();
+    setTimeout(function(){ if(typeof playNotifSound==='function') playNotifSound(); },80);
+  };
+
+  setTimeout(function(){if(courierSession() && Router.current==='courier-dashboard')startCourierNotificationPolling();},900);
+})();
+
+
+/* ===== app-03.js ===== */
+/* ---------- Produits ---------- */
+Views.products = function(){
+  const products = Store.products;
+  const cats = Store.categories;
+  const access = Store.access();
+  const maxProducts = access.features.maxProducts;
+  const limited = Number.isFinite(maxProducts);
+  const currentPlanObj = SUBSCRIPTION_PLANS.find(p=>p.key===access.plan);
+  const currentPlanLabel = currentPlanObj ? currentPlanObj.label : access.label;
+  const nextPlanIdx = SUBSCRIPTION_PLANS.findIndex(p=>p.key===access.plan) + 1;
+  const nextPlan = SUBSCRIPTION_PLANS[nextPlanIdx];
+  return `
+  ${TopBar('Produits')}
+  <div class="products-v3-head">
+    <div><div class="products-v3-kicker">Catalogue marchand</div><h1 class="products-v3-title">Mes produits</h1></div>
+    <div class="products-v3-count"><span id="product-count">${products.length}</span> produits</div>
+  </div>
+  <div class="products-v3-toolbar">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="product-search" type="text" placeholder="Rechercher un produit..." oninput="renderProductList()">
+    </div>
+    <button class="products-v3-filter-btn" onclick="document.getElementById('product-search').focus()" aria-label="Rechercher"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+  </div>
+  ${cats.length>0 ? `<div class="products-v3-chips">
+    <button class="products-v3-chip active" data-cat="" onclick="setProductCatFilter('')">Tous</button>
+    ${cats.map(c=>`<button class="products-v3-chip" data-cat="${Utils.escapeHtml(c)}" onclick="setProductCatFilter('${Utils.escapeHtml(c)}')">${Utils.escapeHtml(c)}</button>`).join('')}
+  </div>` : ''}
+  <div class="products-v3-summary"><strong>Votre catalogue</strong><span>${limited?`Limite : ${maxProducts} · ${currentPlanLabel}`:'Catalogue illimité'}</span></div>
+  <div style="margin:10px 20px 0;"><button class="btn btn-outline btn-block" onclick="exportProductsCSV()">Exporter le catalogue (Excel / CSV)</button></div>
+  ${limited && products.length>=maxProducts ? `<div style="margin:8px 20px 0;border:1.5px solid var(--mango);border-radius:var(--radius-md);padding:12px 14px;background:var(--mango-tint);font-size:12.5px;">Limite de ${maxProducts} produits atteinte.${nextPlan ? ` <a href="#" onclick="SubscriptionSheet.open();return false;" style="color:var(--mango-dark);font-weight:700;">Passez à ${nextPlan.label}</a> pour ${Number.isFinite(nextPlan.features.maxProducts) ? `jusqu'à ${nextPlan.features.maxProducts} produits` : 'un catalogue illimité'}.` : ''}</div>` : ''}
+  <div id="products-empty" class="hidden product-v3-empty">${EmptyState(ICONS.box,'Aucun produit trouvé',"Ajoutez vos premiers produits pour commencer à recevoir des commandes.")}</div>
+  <div id="products-list" class="products-v3-list"></div>
+  <div class="fab"><button class="btn btn-primary" onclick="goAddProduct()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>Nouveau produit</button></div>
+  `;
+};
+function goAddProduct(){
+  const maxProducts = Store.access().features.maxProducts;
+  if(Number.isFinite(maxProducts) && Store.products.length>=maxProducts){
+    Toast.show(`Limite de ${maxProducts} produits atteinte`);
+    SubscriptionSheet.open();
+    return;
+  }
+  Router.go('product-add');
+}
+Views._after_products = function(){ productCatFilter=''; renderProductList(); };
+
+function renderProductList(){
+  const list = Store.products;
+  const searchEl = document.getElementById('product-search');
+  const q = searchEl ? searchEl.value.toLowerCase() : '';
+  let filtered = q ? list.filter(p=>p.name.toLowerCase().includes(q)) : list;
+  if(productCatFilter) filtered = filtered.filter(p=>p.category===productCatFilter);
+  const countEl = document.getElementById('product-count');
+  if(countEl) countEl.textContent = list.length;
+  const empty = document.getElementById('products-empty');
+  const container = document.getElementById('products-list');
+  if(!container) return;
+  if(filtered.length===0){ empty.classList.remove('hidden'); container.innerHTML=''; return; }
+  empty.classList.add('hidden');
+  container.innerHTML = filtered.map(p=>{
+    const low = p.stockLimited && Number(p.stockQty) <= 3;
+    const rating = Store.avgRating(p.id);
+    return `
+    <div class="product-v3-card">
+      <div class="product-v3-media">${p.photo?`<img src="${p.photo}" alt="">`:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8v8l9 5 9-5V8M12 13v8" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`}${p.stockLimited?`<span class="product-v3-stock-dot ${low?'low':''}"></span>`:''}</div>
+      <div class="product-v3-body">
+        ${p.category ? `<div class="product-v3-cat">${Utils.escapeHtml(p.category)}</div>` : '<div class="product-v3-cat">Produit</div>'}
+        <h4 class="product-v3-name">${Utils.escapeHtml(p.name)}</h4>
+        <div class="product-v3-price">${Utils.fmtFCFA(p.price)}</div>
+        <div class="product-v3-meta">
+          ${p.stockLimited ? `<span class="product-v3-pill ${low?'low':''}">${low?'⚠ ':''}${p.stockQty} en stock</span>` : '<span class="product-v3-pill">Stock disponible</span>'}
+          ${rating ? `<span class="product-v3-pill rating">★ ${rating.avg.toFixed(1)} · ${rating.count}</span>` : ''}
+        </div>
+      </div>
+      <div class="product-v3-actions">
+        <button class="product-v3-action" onclick="shareProduct('${p.id}')" aria-label="Partager l'article" title="Partager l'article"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="19" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m8.2 10.7 7.4-4.2M8.2 13.3l7.4 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <button class="product-v3-action" onclick="Router.go('product-edit',{id:'${p.id}'})" aria-label="Modifier" title="Modifier"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+        <button class="product-v3-action" onclick="deleteProduct('${p.id}')" aria-label="Supprimer" title="Supprimer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+let productCatFilter = '';
+function setProductCatFilter(cat){
+  productCatFilter = cat;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active', c.dataset.cat===cat));
+  renderProductList();
+}
+function deleteProduct(id){
+  Store.products = Store.products.filter(p=>p.id!==id);
+  renderProductList();
+  Toast.show('Produit supprimé');
+}
+
+/* ---------- Ajout / modification produit ---------- */
+let formPhotos = [];
+let editingProductId = null;
+function productForm(existing){
+  const cats = Store.categories;
+  const meta = existing ? Utils.decodeMeta(existing.desc) : {desc:'', sizes:[], colors:[], extra:[]};
+  formExtraGroups = (meta.extra||[]).map(g=>({label:g.label, values:(g.values||[]).join(', ')}));
+  return `
+  <div class="form-wrap">
+    <div class="field"><label>Nom du produit</label><input id="f-name" type="text" placeholder="Ex : Robe wax imprimée" value="${existing?Utils.escapeHtml(existing.name):''}"></div>
+    <div class="field"><label>Catégorie</label>
+      <select id="f-category">
+        <option value="">Sans catégorie</option>
+        ${cats.map(c=>`<option value="${Utils.escapeHtml(c)}" ${existing&&existing.category===c?'selected':''}>${Utils.escapeHtml(c)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Prix (FCFA)</label>
+      <div class="price-field"><input id="f-price" type="number" inputmode="numeric" placeholder="0" value="${existing?existing.price:''}"><div class="price-suffix">FCFA</div></div>
+    </div>
+    <div class="field"><label>Prix barré avant réduction (facultatif)</label>
+      <div class="price-field"><input id="f-old-price" type="number" inputmode="numeric" placeholder="0" value="${existing&&existing.oldPrice?existing.oldPrice:''}"><div class="price-suffix">FCFA</div></div>
+      <div class="hint" style="margin-top:6px;color:var(--text-mid);font-size:12px;">Affiche un badge de réduction sur la boutique s'il est supérieur au prix de vente.</div>
+    </div>
+    <div class="field"><label>Photos du produit (facultatif)</label>
+      <div id="photo-gallery" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;"></div>
+      <div class="upload-box" id="upload-box" onclick="document.getElementById('f-photo').click()">
+        <input type="file" id="f-photo" accept="image/png,image/jpeg,image/webp" multiple class="hidden" onchange="handlePhoto(event)">
+        <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <strong>Ajouter des photos du produit</strong><div class="sub">Appuyez pour choisir un ou plusieurs fichiers</div><div class="hint">PNG, JPG, WEBP — max 5 Mo chacune</div>
+      </div>
+    </div>
+    <div class="field"><label>Quantité en stock</label>
+      <div class="toggle-row"><span>J'ai un stock limité pour ce produit</span><label class="switch"><input type="checkbox" id="f-stock-toggle" ${existing&&existing.stockLimited?'checked':''} onchange="toggleStockQty()"><span class="slider"></span></label></div>
+      <div class="stock-qty ${existing&&existing.stockLimited?'show':''}" id="stock-qty-wrap"><input id="f-stock-qty" type="number" inputmode="numeric" placeholder="Quantité disponible" value="${existing&&existing.stockQty!=null?existing.stockQty:''}"></div>
+    </div>
+    <div class="field"><label>Description</label><textarea id="f-desc" rows="3" placeholder="Décrivez le produit : matière, coupe, particularités...">${Utils.escapeHtml(meta.desc||'')}</textarea></div>
+    <div class="field"><label>Tailles disponibles (facultatif)</label>
+      <input id="f-sizes" type="text" placeholder="Ex : S, M, L, XL" value="${Utils.escapeHtml(meta.sizes.join(', '))}">
+      <div class="hint" style="margin-top:6px;color:var(--text-mid);font-size:12px;">Séparez chaque taille par une virgule. Le client pourra choisir avant d'ajouter au panier.</div>
+    </div>
+    <div class="field"><label>Couleurs disponibles (facultatif)</label>
+      <input id="f-colors" type="text" placeholder="Ex : Rouge, Bleu, Noir" value="${Utils.escapeHtml(meta.colors.join(', '))}">
+      <div class="hint" style="margin-top:6px;color:var(--text-mid);font-size:12px;">Séparez chaque couleur par une virgule.</div>
+    </div>
+    <div class="field">
+      <label>Autres options (séries, numéros, pointures, matières…)</label>
+      <div class="hint" style="margin-bottom:8px;color:var(--text-mid);font-size:12px;">Ajoutez d'autres choix que le client sélectionnera avant d'ajouter au panier, en plus de la taille et de la couleur.</div>
+      <div id="extra-groups-wrap">${renderExtraGroups()}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Série')">+ Série</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Numéro')">+ Numéro</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Pointure')">+ Pointure</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('Matière')">+ Matière</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addExtraGroup('')">+ Attribut personnalisé</button>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-bottom:24px;" onclick="saveProduct('${existing?existing.id:''}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>${existing?'Enregistrer les modifications':'Ajouter le produit'}</button>
+  </div>`;
+}
+/* ---- Attributs de variante personnalisés (séries, numéros, pointures, etc.) ----
+   Complète les champs fixes Taille/Couleur par une liste extensible de groupes
+   {label, values} que le vendeur construit via les boutons "+ ...". Persisté
+   dans meta.extra (voir Utils.encodeMeta/decodeMeta) sans changer le schéma DB. */
+let formExtraGroups = [];
+function renderExtraGroups(){
+  if(!formExtraGroups.length) return '';
+  return formExtraGroups.map((g,i)=>`
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;">
+      <input type="text" placeholder="Nom (ex : Série)" value="${Utils.escapeHtml(g.label)}" oninput="updateExtraGroup(${i},'label',this.value)" style="flex:0 0 34%;padding:11px;border:1.5px solid var(--line);border-radius:10px;">
+      <input type="text" placeholder="Valeurs séparées par une virgule" value="${Utils.escapeHtml(g.values)}" oninput="updateExtraGroup(${i},'values',this.value)" style="flex:1;padding:11px;border:1.5px solid var(--line);border-radius:10px;">
+      <button type="button" class="btn btn-ghost btn-sm" style="padding:11px 12px;" onclick="removeExtraGroup(${i})">✕</button>
+    </div>`).join('');
+}
+function refreshExtraGroupsUI(){
+  const el = document.getElementById('extra-groups-wrap');
+  if(el) el.innerHTML = renderExtraGroups();
+}
+function addExtraGroup(defaultLabel){
+  formExtraGroups.push({label:defaultLabel||'', values:''});
+  refreshExtraGroupsUI();
+}
+function updateExtraGroup(i, field, val){
+  if(formExtraGroups[i]) formExtraGroups[i][field] = val;
+}
+function removeExtraGroup(i){
+  formExtraGroups.splice(i,1);
+  refreshExtraGroupsUI();
+}
+Views['product-add'] = function(){ return `${TopBar('Nouveau produit')}${productForm(null)}`; };
+Views['product-edit'] = function(opts){
+  const p = Store.products.find(x=>x.id===opts.id);
+  if(!p) return `${TopBar('Produit introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Produit introuvable','Ce produit a peut-être été supprimé.')}</div>`;
+  return `${TopBar('Modifier le produit')}${productForm(p)}`;
+};
+Views._after_product_add = function(){ formPhotos = []; editingProductId = null; renderPhotoGallery(); };
+Views._after_product_edit = function(opts){
+  const p = Store.products.find(x=>x.id===opts.id);
+  formPhotos = p ? (p.photos || (p.photo ? [p.photo] : [])).slice() : [];
+  editingProductId = opts.id;
+  renderPhotoGallery();
+};
+function renderPhotoGallery(){
+  const wrap = document.getElementById('photo-gallery');
+  if(!wrap) return;
+  wrap.innerHTML = formPhotos.map((src,i)=>`
+    <div style="position:relative;width:64px;height:64px;">
+      <img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);">
+      <button onclick="removeFormPhoto(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);border:2px solid #fff;color:#fff;font-size:12px;line-height:1;cursor:pointer;">✕</button>
+    </div>`).join('');
+}
+function removeFormPhoto(i){ formPhotos.splice(i,1); renderPhotoGallery(); }
+function toggleStockQty(){
+  const on = document.getElementById('f-stock-toggle').checked;
+  document.getElementById('stock-qty-wrap').classList.toggle('show', on);
+}
+function handlePhoto(e){
+  const files = Array.from(e.target.files || []);
+  files.forEach(async file=>{
+    try{
+      const dataUrl = await siamsPrepareImageDataURL(file);
+      formPhotos.push(dataUrl);
+      renderPhotoGallery();
+    }catch(err){ Toast.show('Impossible de traiter cette photo'); }
+  });
+}
+async function saveProduct(id){
+  const name = document.getElementById('f-name').value.trim();
+  const price = document.getElementById('f-price').value;
+  if(!name){ Toast.show('Indiquez le nom du produit'); return; }
+  if(!price || Number(price) <= 0){ Toast.show('Indiquez un prix valide'); return; }
+  const oldPriceRaw = document.getElementById('f-old-price').value;
+  const oldPrice = oldPriceRaw ? Number(oldPriceRaw) : null;
+  const stockLimited = document.getElementById('f-stock-toggle').checked;
+  const stockQty = stockLimited ? (document.getElementById('f-stock-qty').value || 0) : null;
+  const descRaw = document.getElementById('f-desc').value.trim();
+  const sizes = document.getElementById('f-sizes').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const colors = document.getElementById('f-colors').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const extra = formExtraGroups.map(g=>({label:(g.label||'').trim(), values:(g.values||'').split(',').map(v=>v.trim()).filter(Boolean)})).filter(g=>g.label && g.values.length);
+  const desc = Utils.encodeMeta(descRaw, {sizes, colors, extra});
+  const category = document.getElementById('f-category').value;
+  const photos = formPhotos.slice();
+  const products = Store.products;
+
+  let newProducts;
+  if(id){
+    newProducts = products.map(p=>p.id===id ? { ...p, name, price:Number(price), oldPrice, category, photos, photo:photos[0]||null, stockLimited, stockQty, desc } : p);
+  } else {
+    const maxProducts = Store.access().features.maxProducts;
+    if(Number.isFinite(maxProducts) && products.length>=maxProducts){
+      Toast.show(`Limite de ${maxProducts} produits atteinte`);
+      SubscriptionSheet.open();
+      return;
+    }
+    newProducts = [{ id:Utils.uid(), name, price:Number(price), oldPrice, category, photos, photo:photos[0]||null, stockLimited, stockQty, desc }, ...products];
+  }
+
+  const saveBtn = document.querySelector('.btn.btn-primary.btn-block[onclick^="saveProduct"]');
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; }
+
+  try {
+    await Cloud.pushProducts(products, newProducts); // on ATTEND la vraie confirmation Supabase
+    _cache.products = newProducts;
+    Toast.show(id ? 'Produit modifié ✓' : 'Produit ajouté ✓');
+    if(stockLimited && Number(stockQty)===0) Notify.add('stock', `⚠️ Stock épuisé : ${name} — pensez à réapprovisionner`);
+    else if(stockLimited && Number(stockQty) <= 3) Notify.add('stock', `Stock presque épuisé : ${name} (${stockQty} restant${Number(stockQty)>1?'s':''})`);
+    formPhotos = [];
+    Router.go('products');
+  } catch(e) {
+    console.error('Erreur enregistrement produit', e);
+    Toast.show('⚠️ Échec : '+(e && (e.message||e.code||JSON.stringify(e))));
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+  }
+}
+
+/* ==========================================================
+   Module Restauration & street food — Menu du jour
+   Écran dédié, données dans Store.menuItems (table menu_items).
+   Le panier/commande/paiement/livraison réutilise le moteur
+   existant (addToCart, checkout, orders) sans modification.
+   ========================================================== */
+const MENU_CATEGORIES = ['Entrée','Plat','Boisson','Dessert','Snack'];
+let menuCatFilter = '';
+
+Views.menu = function(){
+  const items = Store.menuItems;
+  const availableCount = items.filter(m=>m.available).length;
+  return `
+  ${TopBar('Menu du jour')}
+  <div class="products-v3-head">
+    <div><div class="products-v3-kicker">Restauration & street food</div><h1 class="products-v3-title">Mon menu du jour</h1></div>
+    <div class="products-v3-count"><span id="menu-count">${items.length}</span> plats</div>
+  </div>
+  <div class="products-v3-toolbar">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="menu-search" type="text" placeholder="Rechercher un plat..." oninput="renderMenuList()">
+    </div>
+  </div>
+  <div class="products-v3-chips">
+    <button class="products-v3-chip active" data-cat="" onclick="setMenuCatFilter('')">Tous</button>
+    ${MENU_CATEGORIES.map(c=>`<button class="products-v3-chip" data-cat="${c}" onclick="setMenuCatFilter('${c}')">${c}</button>`).join('')}
+  </div>
+  <div class="products-v3-summary"><strong>Disponibles aujourd'hui</strong><span>${availableCount} / ${items.length} plats</span></div>
+  ${items.length ? `<div style="margin:10px 20px 0;display:flex;gap:8px;">
+    <button class="btn btn-outline btn-block" onclick="markAllMenuUnavailable()">🌙 Tout marquer indisponible</button>
+  </div>` : ''}
+  <div id="menu-empty" class="hidden product-v3-empty">${EmptyState(ICONS.box,'Aucun plat trouvé',"Ajoutez les plats de votre menu du jour pour commencer à recevoir des commandes.")}</div>
+  <div id="menu-list" class="products-v3-list"></div>
+  <div class="fab"><button class="btn btn-primary" onclick="Router.go('menu-add')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>Nouveau plat</button></div>
+  `;
+};
+Views._after_menu = function(){ menuCatFilter=''; renderMenuList(); };
+
+function setMenuCatFilter(cat){
+  menuCatFilter = cat;
+  document.querySelectorAll('.products-v3-chip').forEach(c=>c.classList.toggle('active', c.dataset.cat===cat));
+  renderMenuList();
+}
+
+function renderMenuList(){
+  const list = Store.menuItems;
+  const searchEl = document.getElementById('menu-search');
+  const q = searchEl ? searchEl.value.toLowerCase() : '';
+  let filtered = q ? list.filter(m=>m.name.toLowerCase().includes(q)) : list;
+  if(menuCatFilter) filtered = filtered.filter(m=>m.category===menuCatFilter);
+  const countEl = document.getElementById('menu-count');
+  if(countEl) countEl.textContent = list.length;
+  const empty = document.getElementById('menu-empty');
+  const container = document.getElementById('menu-list');
+  if(!container) return;
+  if(filtered.length===0){ empty.classList.remove('hidden'); container.innerHTML=''; return; }
+  empty.classList.add('hidden');
+  container.innerHTML = filtered.map(m=>`
+    <div class="product-v3-card">
+      <div class="product-v3-media">${m.photo?`<img src="${m.photo}" alt="">`:`<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M7 2v6.5a2.2 2.2 0 0 0 2.2 2.2M7 2v8.7M9.2 2v6.5M11.4 2v6.5a2.2 2.2 0 0 1-2.2 2.2M9.2 10.7V22" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`}</div>
+      <div class="product-v3-body">
+        <div class="product-v3-cat">${Utils.escapeHtml(m.category||'Plat')}</div>
+        <h4 class="product-v3-name">${Utils.escapeHtml(m.name)}</h4>
+        <div class="product-v3-price">${Utils.fmtFCFA(m.price)}</div>
+        <div class="product-v3-meta">
+          <label class="toggle-row" style="gap:8px;margin:0;" onclick="event.stopPropagation()">
+            <span style="font-size:12px;">${m.available?"Disponible aujourd'hui":'Indisponible'}</span>
+            <label class="switch"><input type="checkbox" ${m.available?'checked':''} onchange="toggleMenuAvailability('${m.id}', this.checked)"><span class="slider"></span></label>
+          </label>
+        </div>
+      </div>
+      <div class="product-v3-actions">
+        <button class="product-v3-action" onclick="duplicateMenuItem('${m.id}')" aria-label="Dupliquer" title="Dupliquer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="product-v3-action" onclick="Router.go('menu-edit',{id:'${m.id}'})" aria-label="Modifier" title="Modifier"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+        <button class="product-v3-action" onclick="deleteMenuItem('${m.id}')" aria-label="Supprimer" title="Supprimer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>`).join('');
+}
+
+/* ---- Bascule rapide de la disponibilité, directement depuis la liste (sans
+   passer par le formulaire) : c'est l'action la plus fréquente au quotidien
+   pour un vendeur de rue dont le menu change chaque jour. ---- */
+async function toggleMenuAvailability(id, checked){
+  const items = Store.menuItems;
+  const prev = items;
+  const next = items.map(m=>m.id===id ? {...m, available:checked} : m);
+  try{
+    await Cloud.pushMenuItems(prev, next);
+    _cache.menuItems = next;
+    Toast.show(checked ? 'Plat marqué disponible ✓' : 'Plat marqué indisponible');
+  }catch(e){
+    console.error('Erreur disponibilité plat', e);
+    Toast.show('⚠️ Échec de la mise à jour, réessayez');
+    renderMenuList();
+  }
+}
+
+/* ---- Fin de journée : bascule tous les plats en indisponible en un seul geste,
+   plutôt que de décocher chaque plat un par un. Le menu reste enregistré (rien
+   n'est supprimé) — le vendeur n'a qu'à recocher demain matin ce qu'il propose. ---- */
+async function markAllMenuUnavailable(){
+  const items = Store.menuItems;
+  const availableItems = items.filter(m=>m.available);
+  if(availableItems.length===0){ Toast.show('Aucun plat disponible à désactiver'); return; }
+  if(!confirm(`Marquer les ${availableItems.length} plat(s) disponible(s) comme indisponibles ?`)) return;
+  const next = items.map(m=>({...m, available:false}));
+  const btn = document.querySelector('.products-v3-summary + div .btn-outline');
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; }
+  try{
+    await Cloud.pushMenuItems(items, next);
+    _cache.menuItems = next;
+    Toast.show('Menu du jour clôturé ✓ Tous les plats sont indisponibles');
+    Router.go('menu');
+  }catch(e){
+    console.error('Erreur clôture menu', e);
+    Toast.show('⚠️ Échec de la mise à jour, réessayez');
+    if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+  }
+}
+
+/* ---- Duplique un plat (même nom/prix/catégorie/photo), marqué disponible par
+   défaut. Utile pour reconstituer rapidement le menu type du jour, ou pour créer
+   une variante proche (ex : "Attiéké poisson" -> dupliqué puis renommé "Attiéké
+   poulet"). Ouvre directement l'écran d'édition de la copie pour ajuster. ---- */
+async function duplicateMenuItem(id){
+  const items = Store.menuItems;
+  const source = items.find(m=>m.id===id);
+  if(!source) return;
+  const copy = { ...source, id:Utils.uid(), name: source.name + ' (copie)', available:true };
+  const next = [copy, ...items];
+  try{
+    await Cloud.pushMenuItems(items, next);
+    _cache.menuItems = next;
+    Toast.show('Plat dupliqué ✓');
+    Router.go('menu-edit', {id:copy.id});
+  }catch(e){
+    console.error('Erreur duplication plat', e);
+    Toast.show('⚠️ Échec de la duplication, réessayez');
+  }
+}
+
+function deleteMenuItem(id){
+  Store.menuItems = Store.menuItems.filter(m=>m.id!==id);
+  renderMenuList();
+  Toast.show('Plat supprimé');
+}
+
+/* ---------- Ajout / modification d'un plat ---------- */
+let menuFormPhoto = null;
+function menuForm(existing){
+  return `
+  <div class="form-wrap">
+    <div class="field"><label>Nom du plat</label><input id="mf-name" type="text" placeholder="Ex : Attiéké poisson braisé" value="${existing?Utils.escapeHtml(existing.name):''}"></div>
+    <div class="field"><label>Catégorie</label>
+      <select id="mf-category">
+        ${MENU_CATEGORIES.map(c=>`<option value="${c}" ${existing&&existing.category===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Prix (FCFA)</label>
+      <div class="price-field"><input id="mf-price" type="number" inputmode="numeric" placeholder="0" value="${existing?existing.price:''}"><div class="price-suffix">FCFA</div></div>
+    </div>
+    <div class="field"><label>Photo du plat (facultatif)</label>
+      <div id="menu-photo-gallery" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;"></div>
+      <div class="upload-box" id="menu-upload-box" onclick="document.getElementById('mf-photo').click()">
+        <input type="file" id="mf-photo" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleMenuPhoto(event)">
+        <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <strong>Ajouter une photo du plat</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 5 Mo</div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="toggle-row"><span>Disponible aujourd'hui</span><label class="switch"><input type="checkbox" id="mf-available" ${!existing || existing.available?'checked':''}><span class="slider"></span></label></div>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-bottom:24px;" onclick="saveMenuItem('${existing?existing.id:''}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>${existing?'Enregistrer les modifications':'Ajouter le plat'}</button>
+  </div>`;
+}
+function renderMenuPhotoGallery(){
+  const wrap = document.getElementById('menu-photo-gallery');
+  if(!wrap) return;
+  wrap.innerHTML = menuFormPhoto ? `
+    <div style="position:relative;width:64px;height:64px;">
+      <img src="${menuFormPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);">
+      <button onclick="removeMenuFormPhoto()" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);border:2px solid #fff;color:#fff;font-size:12px;line-height:1;cursor:pointer;">✕</button>
+    </div>` : '';
+}
+function removeMenuFormPhoto(){ menuFormPhoto = null; renderMenuPhotoGallery(); }
+function handleMenuPhoto(e){
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  siamsPrepareImageDataURL(file).then(dataUrl=>{
+    menuFormPhoto = dataUrl;
+    renderMenuPhotoGallery();
+  }).catch(()=>Toast.show('Impossible de traiter cette photo'));
+}
+Views['menu-add'] = function(){ return `${TopBar('Nouveau plat')}${menuForm(null)}`; };
+Views['menu-edit'] = function(opts){
+  const m = Store.menuItems.find(x=>x.id===opts.id);
+  if(!m) return `${TopBar('Plat introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Plat introuvable','Ce plat a peut-être été supprimé.')}</div>`;
+  return `${TopBar('Modifier le plat')}${menuForm(m)}`;
+};
+Views._after_menu_add = function(){ menuFormPhoto = null; renderMenuPhotoGallery(); };
+Views._after_menu_edit = function(opts){
+  const m = Store.menuItems.find(x=>x.id===opts.id);
+  menuFormPhoto = m ? (m.photo || null) : null;
+  renderMenuPhotoGallery();
+};
+async function saveMenuItem(id){
+  const name = document.getElementById('mf-name').value.trim();
+  const price = document.getElementById('mf-price').value;
+  if(!name){ Toast.show('Indiquez le nom du plat'); return; }
+  if(!price || Number(price) <= 0){ Toast.show('Indiquez un prix valide'); return; }
+  const category = document.getElementById('mf-category').value;
+  const available = document.getElementById('mf-available').checked;
+  const photo = menuFormPhoto;
+  const items = Store.menuItems;
+
+  let newItems;
+  if(id){
+    newItems = items.map(m=>m.id===id ? { ...m, name, price:Number(price), category, photo, available } : m);
+  } else {
+    newItems = [{ id:Utils.uid(), name, price:Number(price), category, photo, available, desc:'' }, ...items];
+  }
+
+  const saveBtn = document.querySelector('.btn.btn-primary.btn-block[onclick^="saveMenuItem"]');
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; }
+
+  try{
+    await Cloud.pushMenuItems(items, newItems);
+    _cache.menuItems = newItems;
+    Toast.show(id ? 'Plat modifié ✓' : 'Plat ajouté ✓');
+    menuFormPhoto = null;
+    Router.go('menu');
+  }catch(e){
+    console.error('Erreur enregistrement plat', e);
+    Toast.show('⚠️ Échec : '+(e && (e.message||e.code||JSON.stringify(e))));
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+  }
+}
+
+/* ---------- Commandes ---------- */
+let currentOrderFilter = 'all';
+Views.orders = function(){
+  const all = Store.orders || [];
+  const pending = all.filter(o=>o.status==='pending').length;
+  const delivered = all.filter(o=>o.status==='delivered').length;
+  return `
+  ${TopBar('Commandes')}
+  <div class="orders-premium-head">
+    <div class="eyebrow">Gestion commerciale</div>
+    <h2>Vos commandes</h2>
+    <p>Suivez chaque vente, de la réception à la livraison.</p>
+  </div>
+  <div class="orders-kpis">
+    <div class="orders-kpi"><div class="v">${all.length}</div><div class="l">Total</div></div>
+    <div class="orders-kpi pending"><div class="v">${pending}</div><div class="l">En attente</div></div>
+    <div class="orders-kpi done"><div class="v">${delivered}</div><div class="l">Livrées</div></div>
+  </div>
+  <div class="orders-filter-card">
+    <div class="search-box" style="margin-bottom:10px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="order-search" type="text" placeholder="Rechercher une commande, un client..." oninput="renderOrderList()">
+    </div>
+    <div class="filter-row"><div class="chips">
+      <button class="chip active" data-f="all" onclick="setOrderFilter('all')">Toutes</button>
+      <button class="chip" data-f="pending" onclick="setOrderFilter('pending')">En attente</button>
+      <button class="chip" data-f="confirmed" onclick="setOrderFilter('confirmed')">Confirmées</button>
+      <button class="chip" data-f="delivered" onclick="setOrderFilter('delivered')">Livrées</button>
+    </div></div>
+  </div>
+  <div class="section-title" style="padding-top:4px;">${all.length ? 'Activité récente' : 'Commandes'}</div>
+  <div id="orders-empty" class="hidden">${EmptyState(ICONS.box,'Aucune commande',"Les commandes de vos clients apparaîtront ici.",
+    `<button class="btn btn-primary" onclick="Router.go('product-add')">Ajouter un produit</button>`)}</div>
+  <div id="orders-list" class="orders-list-premium"></div>
+  `;
+};
+Views._after_orders = function(){ currentOrderFilter='all'; renderOrderList(); };
+function setOrderFilter(f){
+  currentOrderFilter = f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active', c.dataset.f===f));
+  renderOrderList();
+}
+function renderOrderList(){
+  const all = Store.orders || [];
+  let list = all;
+  if(currentOrderFilter!=='all') list = all.filter(o=>o.status===currentOrderFilter);
+  const searchEl = document.getElementById('order-search');
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  if(q) list = list.filter(o=> String(o.number).includes(q) || (o.customer?.name||'').toLowerCase().includes(q) || (o.customer?.phone||'').toLowerCase().includes(q));
+  const empty = document.getElementById('orders-empty');
+  const container = document.getElementById('orders-list');
+  if(!container) return;
+  if(list.length===0){ if(empty) empty.classList.remove('hidden'); container.innerHTML=''; return; }
+  if(empty) empty.classList.add('hidden');
+  const badgeLabel = {pending:'En attente', confirmed:'Confirmée', delivered:'Livrée'};
+  container.innerHTML = list.map(o=>`
+    <div class="order-card-premium" onclick="Router.go('order-detail',{id:'${o.id}'})">
+      <div class="status-dot ${o.status}"></div>
+      <div class="order-card-main">
+        <div class="order-card-top"><h4>Commande #${o.number}</h4><span class="badge ${o.status}">${badgeLabel[o.status]||o.status}</span></div>
+        <div class="meta">${Utils.escapeHtml(o.customer?.name||'Client')} · ${o.items?.length||0} article(s)</div>
+      </div>
+      <div class="order-card-side"><div class="amount">${Utils.fmtFCFA(o.amount)}</div><div class="order-card-arrow">›</div></div>
+    </div>
+  `).join('');
+}
+
+/* ---------- Détail commande ---------- */
+const PAY_LABELS = {wave:'Wave', om:'Orange Money', mtn:'MTN Money', moov:'Moov Money', cash:'Paiement à la livraison'};
+Views['order-detail'] = function(opts){
+  const order=Store.orders.find(o=>o.id===opts.id);
+  if(!order)return `${TopBar('Commande introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Commande introuvable','Cette commande a peut-être été supprimée.')}</div>`;
+  const labels={pending:'En attente',confirmed:'Confirmée',delivered:'Livrée'}; const shipped=!!order.shipped||order.status==='delivered';
+  const steps=[['pending','Commande reçue',true],['confirmed','Commande confirmée',order.status==='confirmed'||order.status==='delivered'],['shipped','Commande en livraison',shipped],['delivered','Commande livrée',order.status==='delivered']];
+  return `
+  <div class="topbar" style="padding-top:18px;"><div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('orders')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>Commande</h1></div></div>
+  <div class="order-detail-hero">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+      <div><div class="eyebrow">Détail de la vente</div><h2>#${order.number}</h2><p>${Utils.timeAgo(order.createdAt)} · ${order.items?.length||0} article(s)</p></div>
+      <div style="text-align:right;flex:none;"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Total</div><div class="mono" style="font-size:19px;font-weight:800;color:var(--indigo);margin-top:2px;">${Utils.fmtFCFA(order.amount)}</div></div>
+    </div>
+    <div class="order-detail-status ${order.status}"><span class="dot"></span>${labels[order.status]||order.status}</div>
+  </div>
+  <div class="order-section"><div class="order-section-title"><span class="ico blue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.8-4 3.4-6.2 7-6.2s6.2 2.2 7 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>Client</div><div class="order-client-name">${Utils.escapeHtml(order.customer.name)}</div><div class="order-client-meta">${Utils.escapeHtml(order.customer.phone)}<br>${Utils.escapeHtml(order.customer.address)}</div><div class="order-actions"><button class="btn btn-soft-green btn-sm" onclick="window.open('https://wa.me/225${(order.customer.phone||'').replace(/\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" style="vertical-align:-2px;margin-right:5px;"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter</button><button class="btn btn-soft-indigo btn-sm" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent('${Utils.escapeHtml(order.customer.address||'')}'),'_blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.6"/></svg>Itinéraire</button></div></div>
+  <div class="order-section"><div class="order-section-title"><span class="ico indigo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8h16M4 8l1.5 11a2 2 0 0 0 2 1.7h9a2 2 0 0 0 2-1.7L20 8M4 8l2-4h12l2 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Articles</div>${(order.items||[]).map(it=>`<div class="order-item"><div class="order-item-thumb">${it.photo?`<img src="${it.photo}">`:'◫'}</div><div class="order-item-main"><b>${Utils.escapeHtml(it.name)}</b><span>Quantité ×${it.qty}</span></div><div class="order-item-price">${Utils.fmtFCFA(it.price*it.qty)}</div></div>`).join('')}${order.discount?`<div style="display:flex;justify-content:space-between;padding-top:10px;font-size:12px;color:var(--green);"><span>Réduction</span><span class="mono">−${Utils.fmtFCFA(order.discount)}</span></div>`:''}${order.deliveryFee?`<div style="display:flex;justify-content:space-between;padding-top:8px;font-size:12px;color:var(--text-mid);"><span>Livraison</span><span class="mono">${Utils.fmtFCFA(order.deliveryFee)}</span></div>`:''}<div class="order-total"><b>Total</b><strong>${Utils.fmtFCFA(order.amount)}</strong></div></div>
+  <div class="order-section"><div class="order-section-title"><span class="ico green"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Suivi de la commande</div><div class="order-timeline">${steps.map(x=>`<div class="timeline-step ${x[2]?'done':''} ${x[0]==='delivered'&&x[2]?'delivered':''}"><span class="point"></span><b>${x[1]}</b><span>${x[2]?'Étape validée':'À venir'}</span></div>`).join('')}</div></div>
+  <div class="order-section"><div class="order-section-title"><span class="ico gold"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.7"/></svg></span>Paiement</div><div style="font-size:13px;font-weight:700;">${PAY_LABELS[order.paymentMethod]||order.paymentMethod}</div>${order.paymentProof?`<div style="font-size:11.5px;color:var(--text-mid);margin-top:6px;">Preuve de paiement reçue</div>`:(order.paymentMethod!=='cash'?`<div style="font-size:11.5px;color:var(--red);margin-top:6px;">Aucune preuve fournie.</div>`:'')}</div>
+  <div class="order-section"><div class="order-section-title"><span class="ico mango"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 8h11v9H4zM15 11h3l3 3v3h-6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.5"/><circle cx="17.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.5"/></svg></span>Livraison</div><div style="font-size:12px;color:var(--text-mid);">${order.courierId?'Livreur affecté · suivi GPS disponible.':shipped?'Commande en cours de livraison ou livrée.':order.status==='confirmed'?'Affectez un livreur pour cette commande.':'Affectation disponible après confirmation.'}</div>${(()=>{
+    if(order.courierId||shipped||order.status!=='confirmed') return '';
+    const activeCouriers = Store.couriers.filter(c=>c.status==='active');
+    if(!activeCouriers.length){
+      return `<div style="margin-top:10px;padding:12px 14px;border-radius:10px;background:var(--mango-tint,#fff7df);font-size:12px;color:var(--text-mid);line-height:1.5;">Aucun livreur actif pour l'instant. Invitez un livreur pour pouvoir affecter vos livraisons.<br><button class="btn btn-soft-indigo btn-sm" style="margin-top:8px;" onclick="Router.go('team')">Inviter un livreur</button></div>`;
+    }
+    return `<select id="assign-courier-select" style="width:100%;margin-top:10px;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:14px;"><option value="">Choisir un livreur</option>${activeCouriers.map(c=>`<option value="${c.id}">${Utils.escapeHtml(c.name)} · ${Utils.escapeHtml(c.phone||'')}</option>`).join('')}</select><button class="btn btn-soft-green btn-block" style="margin-top:9px;" onclick="assignOrderToCourier('${order.id}')">Affecter le livreur</button>`;
+  })()}</div>
+  <div class="order-main-action">${order.status==='pending'?`<button class="btn btn-primary btn-block" onclick="adminConfirmOrder('${order.id}')">Confirmer la commande</button>`:''}${order.status==='confirmed'&&!shipped?`<button class="btn btn-primary btn-block" onclick="adminMarkShipped('${order.id}')">Marquer « en livraison »</button>`:''}${order.status==='confirmed'&&shipped?`<div style="padding:12px 14px;border-radius:12px;background:var(--mango-tint,#fff7df);color:var(--text-mid);font-size:12.5px;line-height:1.45;text-align:center;">📷 Le client confirme la réception en prenant simplement une photo de l'article reçu. La commande sera automatiquement marquée <strong>Livrée</strong>.</div>`:''}${order.status==='delivered'?`<div style="text-align:center;color:var(--green);font-size:13px;font-weight:800;">✓ Livraison confirmée</div>`:''}</div>`;
+};
+/* ---------- Suivi GPS du livreur côté boutique (itinéraire temps réel) ----------
+   La boutique est propriétaire de la commande : lecture directe des colonnes
+   courier_latitude / courier_longitude de la table orders, protégée par RLS. */
+let storeCourierPoll=null;
+async function startStoreCourierRealtime(orderId){
+  const wrap=document.getElementById('store-courier-live-'+orderId);
+  if(!wrap) return;
+  if(storeCourierPoll) clearInterval(storeCourierPoll);
+  const refresh=async()=>{
+    if(Router.current!=='order-detail'){ clearInterval(storeCourierPoll); storeCourierPoll=null; return; }
+    const coordsEl=document.getElementById('store-courier-coords-'+orderId);
+    const itinBtn=document.getElementById('store-courier-itin-'+orderId);
+    if(!coordsEl){ clearInterval(storeCourierPoll); storeCourierPoll=null; return; }
+    try{
+      const { data, error } = await sb.from('orders').select('courier_latitude,courier_longitude,courier_location_at,delivery_status_message').eq('id', orderId).single();
+      if(error || !data || data.courier_latitude==null || data.courier_longitude==null){
+        coordsEl.textContent = 'Position du livreur : en attente de la prochaine mise à jour…';
+        if(itinBtn) itinBtn.style.display = 'none';
+        return;
+      }
+      const o = Store.orders.find(x=>x.id===orderId);
+      if(o){ o.courierLat=Number(data.courier_latitude); o.courierLng=Number(data.courier_longitude); }
+      const when = data.courier_location_at ? new Date(data.courier_location_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+      coordsEl.textContent = `📍 Dernière position du livreur : ${when}${data.delivery_status_message?' — '+data.delivery_status_message:''}`;
+      if(itinBtn) itinBtn.style.display = 'inline-flex';
+    }catch(e){ console.error('store courier location', e); }
+  };
+  await refresh();
+  storeCourierPoll = setInterval(refresh, 5000);
+}
+function openStoreCourierItinerary(orderId){
+  const o = Store.orders.find(x=>x.id===orderId);
+  if(!o || o.courierLat==null || o.courierLng==null){ Toast.show('Position du livreur pas encore disponible'); return; }
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${o.courierLat},${o.courierLng}`;
+  if(o.customerLat!=null && o.customerLng!=null) url += `&destination=${o.customerLat},${o.customerLng}`;
+  else url += `&destination=${encodeURIComponent(o.customer.address||'')}`;
+  window.open(url, '_blank');
+}
+Views._after_order_detail = function(opts){
+  if(!opts || !opts.id) return;
+  const order = Store.orders.find(o=>o.id===opts.id);
+  if(order && order.courierId) setTimeout(()=>startStoreCourierRealtime(opts.id), 0);
+  else if(storeCourierPoll){ clearInterval(storeCourierPoll); storeCourierPoll=null; }
+};
+
+/* ---------- Actions marchand sur une commande (confirmer / marquer en livraison / affecter un livreur) ----------
+   Ces trois fonctions étaient appelées depuis les boutons du détail de commande mais n'étaient
+   jamais définies : les clics ne faisaient rien (ReferenceError silencieuse en console). */
+async function adminConfirmOrder(id){
+  const order = Store.orders.find(o=>o.id===id);
+  if(!order || order.status!=='pending') return;
+  /* CORRECTIF : on attend désormais la fin réelle de l'écriture Supabase avant
+     d'afficher « Confirmée ✓ ». Avant, Store.orders=... déclenchait l'écriture
+     en arrière-plan (fire-and-forget) : le toast de succès s'affichait tout de
+     suite quoi qu'il arrive, donc un échec silencieux (ex. RLS) passait
+     inaperçu — la commande restait « pending » côté client alors que tout
+     semblait fonctionner côté marchand. */
+  const prev = Store.orders;
+  const next = prev.map(o=>o.id===id?{...o,status:'confirmed',confirmedAt:Date.now()}:o);
+  const btn = document.querySelector(`[onclick="adminConfirmOrder('${id}')"]`);
+  if(btn){ btn.disabled=true; btn.textContent='Confirmation…'; }
+  try{
+    await Cloud.pushOrders(prev, next);
+    _cache.orders = next;
+    Toast.show('Commande confirmée ✓');
+    Router.go('order-detail',{id});
+  }catch(e){
+    console.error('adminConfirmOrder', e);
+    Toast.show('⚠️ Échec de la confirmation : '+(e&&e.message?e.message:'erreur inconnue'));
+    if(btn){ btn.disabled=false; btn.textContent='Confirmer la commande'; }
+  }
+}
+async function adminMarkShipped(id){
+  const order = Store.orders.find(o=>o.id===id);
+  if(!order || order.status!=='confirmed' || order.shipped) return;
+  /* CORRECTIF : même principe que adminConfirmOrder ci-dessus — on attend la
+     confirmation réelle de Supabase avant d'afficher le succès. */
+  const prev = Store.orders;
+  const next = prev.map(o=>o.id===id?{...o,shipped:true,shippedAt:Date.now()}:o);
+  const btn = document.querySelector(`[onclick="adminMarkShipped('${id}')"]`);
+  if(btn){ btn.disabled=true; btn.textContent='Mise à jour…'; }
+  try{
+    await Cloud.pushOrders(prev, next);
+    _cache.orders = next;
+    Toast.show('Commande marquée « en livraison » ✓');
+    Router.go('order-detail',{id});
+  }catch(e){
+    console.error('adminMarkShipped', e);
+    Toast.show('⚠️ Échec de la mise en livraison : '+(e&&e.message?e.message:'erreur inconnue'));
+    if(btn){ btn.disabled=false; btn.textContent='Marquer « en livraison »'; }
+  }
+}
+async function assignOrderToCourier(id){
+  const sel = document.getElementById('assign-courier-select');
+  const courierId = sel ? String(sel.value||'').trim() : '';
+  if(!courierId){ Toast.show('Choisissez un livreur dans la liste.'); return; }
+
+  const order = Store.orders.find(o=>String(o.id)===String(id));
+  if(!order || order.status!=='confirmed' || order.shipped){
+    Toast.show('Affectation disponible uniquement après confirmation et avant la mise en livraison.');
+    return;
+  }
+
+  const btn = document.querySelector(`[onclick="assignOrderToCourier('${id}')"]`);
+  if(btn){ btn.disabled=true; btn.textContent='Affectation…'; }
+
+  try{
+    await Cloud.assignCourier(id, courierId);
+    _cache.orders = (_cache.orders||[]).map(o=>String(o.id)===String(id)?{...o,courierId}:o);
+    const assignedCourier = Store.couriers.find(c=>String(c.id)===String(courierId));
+    Toast.show(assignedCourier ? `Livreur ${assignedCourier.name} affecté ✓` : 'Livreur affecté ✓');
+    Router.go('order-detail',{id});
+  }catch(e){
+    console.error('Affectation livreur',e);
+    Toast.show(e && e.message==='Cette livraison est déjà acceptée par un livreur'
+      ? '⚠️ Cette livraison est déjà prise en charge.'
+      : (e && e.message ? `⚠️ ${e.message}` : '⚠️ Impossible d’affecter le livreur, réessayez'));
+    if(btn){ btn.disabled=false; btn.textContent='Affecter le livreur'; }
+  }
+}
+
+/* ---------- Confirmation de livraison par photo ----------
+   Aucun QR code n'est nécessaire : le client prend une photo de l'article reçu.
+   Le jeton de livraison reste interne et sert uniquement à sécuriser la confirmation
+   côté serveur via confirm_order_delivery. Il n'est jamais affiché au client.
+*/
+async function ensureDeliverySecurityToken(order){
+  if(!order) return null;
+  if(order.deliveryToken) return order.deliveryToken;
+  const token = (typeof crypto!=='undefined' && crypto.randomUUID) ? crypto.randomUUID() : Utils.uid();
+  order.deliveryToken = token;
+  _cache.orders = (_cache.orders||[]).map(o=>String(o.id)===String(order.id)?{...o,deliveryToken:token}:o);
+  try{
+    if(Cloud.storeId){
+      const {error}=await sb.from('orders').update({delivery_token:token})
+        .eq('id',order.id).eq('store_id',Cloud.storeId);
+      if(error) throw error;
+    }
+  }catch(e){
+    console.error('delivery security token',e);
+    order.deliveryToken = null;
+    return null;
+  }
+  ClientOrderCache.save(order);
+  return token;
+}
+
+/* ---------- Statistiques ---------- */
+let statsPeriod = 7;
+
+function statsMoney(v){ return Utils.fmtFCFA(Math.round(Number(v)||0)); }
+function statsPct(n,d){ return d ? Math.round((n/d)*100) : 0; }
+function statsPaymentLabel(k){ return ({wave:'Wave',om:'Orange Money',mtn:'MTN Mobile Money',moov:'Moov Money',cash:'Paiement à la livraison'})[k] || k; }
+function statsOrderStatusLabel(k){ return ({new:'Nouvelles',preparing:'En préparation',shipped:'Expédiées',delivered:'Terminées',cancelled:'Annulées'})[k] || k; }
+
+Views.stats = function(){
+  if(!Store.hasFeature('stats')) return FeatureLock('Statistiques', "Les statistiques avancées (revenus, panier moyen, produits les plus vendus) sont incluses à partir de la formule DOYEN.", 'doyen');
+  statsPeriod = 7;
+  const orders = Store.orders || [];
+  const delivered = orders.filter(o=>o.status==='delivered');
+  const validOrders = orders.filter(o=>o.status!=='cancelled');
+  const revenue = delivered.reduce((s,o)=>s+(Number(o.amount)||0),0);
+  const validAmount = validOrders.reduce((s,o)=>s+(Number(o.amount)||0),0);
+  const avgBasket = validOrders.length ? Math.round(validAmount/validOrders.length) : 0;
+  const top = Store.topProducts(8);
+  const catPerf = Store.categoryPerformance();
+  const counts = Store.orderStatusCounts();
+  const clients = Store.customers();
+  const clientsCount = clients.length;
+
+  const mCur = Store.monthRange(0), mPrev = Store.monthRange(-1);
+  const revCur = Store.revenueBetween(mCur.start, mCur.end);
+  const revPrev = Store.revenueBetween(mPrev.start, mPrev.end);
+  const ordCur = Store.ordersCountBetween(mCur.start, mCur.end);
+  const ordPrev = Store.ordersCountBetween(mPrev.start, mPrev.end);
+  const amtCur = Store.ordersAmountBetween(mCur.start, mCur.end);
+  const amtPrev = Store.ordersAmountBetween(mPrev.start, mPrev.end);
+  const basketCur = ordCur ? Math.round(amtCur/ordCur) : 0;
+  const basketPrev = ordPrev ? Math.round(amtPrev/ordPrev) : 0;
+  const newCustCur = Store.newCustomersBetween(mCur.start, mCur.end);
+  const returningCustomers = clients.filter(c=>c.orders>=2).length;
+  const deliveredRate = statsPct(delivered.length, orders.length);
+  const cancellationRate = statsPct(counts.cancelled, orders.length);
+  const deliveryAvg = delivered.length ? Math.round(delivered.reduce((s,o)=>{
+    const a=Number(o.createdAt)||0, b=Number(o.deliveryConfirmedAt)||0;
+    return s + (b>a ? (b-a) : 0);
+  },0)/delivered.length/60000) : 0;
+
+  const revD = pctDelta(revCur, revPrev);
+  const ordD = pctDelta(ordCur, ordPrev);
+  const basketD = pctDelta(basketCur, basketPrev);
+  const kpiCard = (lbl, val, delta) => `
+    <div class="kpi-card">
+      <div class="lbl">${lbl}</div>
+      <div class="val">${val}</div>
+      ${delta ? `<div class="kpi-delta ${delta.dir}">${delta.dir==='up'?'▲':delta.dir==='down'?'▼':'•'} ${delta.txt} vs mois dernier</div>` : ''}
+    </div>`;
+
+  const statusSegments = [
+    { key:'new', label:'Nouvelles', color:'var(--mango)', value:counts.new },
+    { key:'preparing', label:'En préparation', color:'var(--blue)', value:counts.preparing },
+    { key:'shipped', label:'Expédiées', color:'var(--indigo)', value:counts.shipped },
+    { key:'delivered', label:'Terminées', color:'var(--green)', value:counts.delivered ?? counts.done ?? 0 },
+    { key:'cancelled', label:'Annulées', color:'var(--red)', value:counts.cancelled }
+  ];
+  const statusTotal = statusSegments.reduce((s,x)=>s+x.value,0);
+  const maxTop = Math.max(1, ...top.map(t=>t[1]));
+
+  const paymentMap = {};
+  validOrders.forEach(o=>{
+    const key=o.paymentMethod||'unknown';
+    if(!paymentMap[key]) paymentMap[key]={count:0,amount:0};
+    paymentMap[key].count += 1;
+    paymentMap[key].amount += Number(o.amount)||0;
+  });
+  const payments = Object.entries(paymentMap).sort((a,b)=>b[1].amount-a[1].amount);
+  const maxPayment = Math.max(1,...payments.map(x=>x[1].amount));
+
+  const zonesMap={};
+  orders.forEach(o=>{
+    const z=o.deliveryZone||'Non précisée';
+    if(!zonesMap[z]) zonesMap[z]={count:0,amount:0};
+    zonesMap[z].count++; zonesMap[z].amount += Number(o.amount)||0;
+  });
+  const zones=Object.entries(zonesMap).sort((a,b)=>b[1].count-a[1].count).slice(0,6);
+
+  return `
+  ${TopBar('Statistiques', "Pilotez votre activité avec les données réelles de votre boutique")}
+  <div class="stats-premium-intro">
+    <div class="eyebrow">Performance commerciale</div>
+    <h2>Vos statistiques</h2>
+    <p>Comprenez vos ventes, vos clients et les performances de votre boutique.</p>
+  </div>
+  <div class="stats-export"><button class="btn btn-outline btn-block" onclick="exportSalesReportPDF()">Exporter le rapport PDF</button></div>
+  <div class="stats-export" style="margin-top:8px;"><button class="btn btn-outline btn-block" onclick="exportOrdersCSV()">Exporter les commandes (Excel / CSV)</button></div>
+
+  <div class="stats-kpis">
+    <div class="stats-kpi primary"><div class="lbl">CA livré ce mois</div><div class="val">${statsMoney(revCur)}</div>${revD?`<div style="font-size:10.5px;margin-top:5px;opacity:.9">${revD.dir==='up'?'▲':revD.dir==='down'?'▼':'•'} ${revD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl">Commandes</div><div class="val">${ordCur}</div>${ordD?`<div style="font-size:10.5px;color:${ordD.dir==='up'?'var(--green)':ordD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${ordD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl">Panier moyen</div><div class="val">${statsMoney(basketCur)}</div>${basketD?`<div style="font-size:10.5px;color:${basketD.dir==='up'?'var(--green)':basketD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${basketD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl">Clients</div><div class="val">${clientsCount}</div><div style="font-size:10.5px;color:var(--text-mid);margin-top:5px">${newCustCur} nouveau${newCustCur>1?'x':''} ce mois</div></div>
+  </div>
+
+  <div class="stats-section">
+    <div class="section-head"><h4>Performance globale</h4><span>Depuis le début</span></div>
+    <div class="stats-insights">
+      <div class="stats-insight"><div class="n">${deliveredRate}%</div><div class="t">Commandes terminées</div></div>
+      <div class="stats-insight"><div class="n">${cancellationRate}%</div><div class="t">Annulations</div></div>
+      <div class="stats-insight"><div class="n">${statsMoney(revenue)}</div><div class="t">CA livré total</div></div>
+    </div>
+    <div style="margin-top:11px;font-size:11.5px;color:var(--text-mid)">${deliveryAvg?`Temps moyen de traitement : <b style="color:var(--ink)">${deliveryAvg>=60?Math.floor(deliveryAvg/60)+' h '+deliveryAvg%60+' min':deliveryAvg+' min'}</b>`:'Le temps moyen apparaîtra après les premières livraisons confirmées.'}</div>
+  </div>
+
+  <div class="stats-section">
+    <div class="section-head"><h4>Évolution du chiffre d’affaires</h4><span id="stats-trend-title">7 derniers jours</span></div>
+    <div class="seg-control" style="margin-bottom:12px;">
+      <button class="seg-btn active" data-period="7" onclick="setStatsPeriod(7)">7 jours</button>
+      <button class="seg-btn" data-period="30" onclick="setStatsPeriod(30)">30 jours</button>
+      <button class="seg-btn" data-period="365" onclick="setStatsPeriod(365)">12 mois</button>
+    </div>
+    <div id="stats-trend-chart" class="stats-chart-wrap">${Charts.trend(Store.ordersByDay(7))}</div>
+  </div>
+
+  <div class="stats-section">
+    <div class="section-head"><h4>Répartition des commandes</h4><span>${statusTotal} au total</span></div>
+    <div class="donut-row">
+      ${Charts.donut(statusSegments.map(s=>({value:s.value,color:s.color})))}
+      <div class="donut-legend">${statusSegments.map(s=>`<div class="donut-legend-item"><span class="donut-legend-name"><span class="donut-legend-dot" style="background:${s.color}"></span>${s.label}</span><span class="donut-legend-val">${s.value}${statusTotal?' · '+statsPct(s.value,statusTotal)+'%':''}</span></div>`).join('')}</div>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <div class="section-head"><h4>Produits les plus vendus</h4><span>Quantités</span></div>
+    ${top.length===0?`<div style="color:var(--text-mid);font-size:13px">Pas encore de ventes enregistrées.</div>`:top.map((t,i)=>`<div class="perf-row"><div class="perf-row-head"><span class="name">#${i+1} · ${Utils.escapeHtml(t[0])}</span><span class="val">${t[1]} vendu${t[1]>1?'s':''}</span></div><div class="perf-bar-track"><div class="perf-bar-fill" style="width:${Math.round(t[1]/maxTop*100)}%;background:${i===0?'var(--mango)':'var(--indigo)'}"></div></div></div>`).join('')}
+  </div>
+
+  ${catPerf.length?`<div class="stats-section"><div class="section-head"><h4>CA par catégorie</h4></div>${catPerf.slice(0,8).map(c=>`<div class="perf-row"><div class="perf-row-head"><span class="name">${Utils.escapeHtml(c.name)}</span><span class="val">${statsMoney(c.amount)} · ${c.pct}%</span></div><div class="perf-bar-track"><div class="perf-bar-fill" style="background:var(--green);width:${c.pct}%"></div></div></div>`).join('')}</div>`:''}
+
+  <div class="stats-section">
+    <div class="section-head"><h4>Moyens de paiement</h4><span>Commandes valides</span></div>
+    ${payments.length?payments.map(([k,v])=>`<div class="perf-row"><div class="perf-row-head"><span class="name">${Utils.escapeHtml(statsPaymentLabel(k))}</span><span class="val">${statsMoney(v.amount)} · ${v.count} commande${v.count>1?'s':''}</span></div><div class="perf-bar-track"><div class="perf-bar-fill" style="width:${Math.round(v.amount/maxPayment*100)}%;background:var(--indigo)"></div></div></div>`).join(''):`<div style="color:var(--text-mid);font-size:13px">Aucun paiement enregistré.</div>`}
+  </div>
+
+  <div class="stats-section">
+    <div class="section-head"><h4>Clientèle</h4><span>Ce mois</span></div>
+    <div class="stats-insights">
+      <div class="stats-insight"><div class="n">${clientsCount}</div><div class="t">Clients</div></div>
+      <div class="stats-insight"><div class="n">${newCustCur}</div><div class="t">Nouveaux</div></div>
+      <div class="stats-insight"><div class="n">${returningCustomers}</div><div class="t">Récurrents</div></div>
+    </div>
+  </div>
+
+  ${zones.length?`<div class="stats-section"><div class="section-head"><h4>Zones de livraison</h4><span>Activité</span></div>${zones.map(([z,v])=>`<div class="perf-row"><div class="perf-row-head"><span class="name">${Utils.escapeHtml(z)}</span><span class="val">${v.count} commande${v.count>1?'s':''} · ${statsMoney(v.amount)}</span></div></div>`).join('')}</div>`:''}
+  <div class="stats-bottom"></div>`;
+};
+
+Views._after_stats = function(){ statsPeriod = 7; };
+function setStatsPeriod(days){
+  statsPeriod = days;
+  document.querySelectorAll('.seg-btn[data-period]').forEach(b=>b.classList.toggle('active', Number(b.dataset.period)===days));
+  const chartWrap = document.getElementById('stats-trend-chart');
+  const titleEl = document.getElementById('stats-trend-title');
+  if(!chartWrap) return;
+  let data, label;
+  if(days===365){ data = Store.revenueByMonth(12); label = '12 derniers mois'; }
+  else { data = Store.ordersByDay(days); label = days+' derniers jours'; }
+  chartWrap.innerHTML = Charts.trend(data);
+  if(titleEl) titleEl.textContent = 'Revenu — '+label;
+}
+
+/* ---------- Équipe ---------- */
+Views.team = function(){
+  if(!Store.hasFeature('team')) return FeatureLock('Équipe', "L'ajout de membres d'équipe (gérants, vendeurs) est réservé à la formule DOYA.", 'doya');
+  const team = Store.team;
+  return `
+  ${TopBar('Équipe', team.length+' membre(s)')}
+  <div style="padding:16px 20px 0;">${team.map(m=>`
+    <div class="order-row" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:10px;padding:14px 16px;background:#fff;">
+      <div class="store-logo" style="width:42px;height:42px;border-radius:12px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="var(--indigo)" stroke-width="1.7"/><path d="M4.5 20c.8-4 3.6-6.2 7.5-6.2s6.7 2.2 7.5 6.2" stroke="var(--indigo)" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </div>
+      <div class="order-info"><h4>${Utils.escapeHtml(m.name)}</h4><div class="meta mono">${m.phone}</div></div>
+      <div style="display:flex;align-items:center;gap:7px;flex:none;">
+        <span class="badge ${m.role==='Admin'?'delivered':m.status==='invited'?'pending':'confirmed'}">${m.role}${m.status==='invited'?' · invité':''}</span>
+        <button type="button" onclick="removeTeamMember('${m.id}')" aria-label="Retirer ${Utils.escapeHtml(m.name)}" style="width:34px;height:34px;border:1px solid var(--red-tint);background:var(--red-tint);color:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('')}</div>
+  <div style="padding:8px 20px 10px;">
+    <button class="btn btn-soft-indigo btn-block" onclick="openAddMember()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="var(--indigo)" stroke-width="2.2" stroke-linecap="round"/></svg>Ajouter un membre</button>
+  </div>
+  <div style="padding:0 20px 24px;">
+    <div class="section-title" style="padding-left:0;">Livreurs SIAMS</div>
+    ${Store.couriers.length ? Store.couriers.map(c=>`<div class="order-row" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:10px;padding:14px 16px;background:#fff;">
+      <div class="store-logo" style="width:42px;height:42px;border-radius:12px;background:var(--green-tint);color:var(--green);">🚚</div>
+      <div class="order-info"><h4>${Utils.escapeHtml(c.name||'Livreur')}</h4><div class="meta">${Utils.escapeHtml(c.phone||'')} · ${c.status==='active'?'Actif':c.status==='invited'?'Invitation envoyée':'Suspendu'}</div></div>
+      <div style="display:flex;align-items:center;gap:7px;flex:none;">
+        <span class="badge ${c.status==='active'?'delivered':'pending'}">${c.status==='active'?'Actif':c.status==='invited'?'En attente':'Suspendu'}</span>
+        ${c.status!=='suspended' ? `<button type="button" onclick="removeCourier('${c.id}')" aria-label="Retirer ${Utils.escapeHtml(c.name||'livreur')}" style="width:34px;height:34px;border:1px solid var(--red-tint);background:var(--red-tint);color:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>` : ''}
+      </div>
+    </div>`).join('') : `<div style="border:1.5px dashed var(--line);border-radius:var(--radius-md);padding:16px;text-align:center;color:var(--text-mid);font-size:13px;">Aucun livreur connecté.</div>`}
+    <button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button>
+    <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="Router.go('courier-login')">Ouvrir l'espace livreur</button>
+    <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="shareCourierSpaceLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v10m0-10 4 4m-4-4-4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Partager le lien de l'espace livreur</button>
+  </div>
+  `;
+};
+function removeTeamMember(id){
+  const member = (Store.team||[]).find(m=>m.id===id);
+  if(!member) return;
+  if(!confirm(`Retirer ${member.name||'ce membre'} de l'équipe ?`)) return;
+  Store.team = (Store.team||[]).filter(m=>m.id!==id);
+  Toast.show('Membre retiré de l’équipe');
+  Router.go('team');
+}
+async function removeCourier(id){
+  const courier = (Store.couriers||[]).find(c=>c.id===id);
+  if(!courier) return;
+  if(!confirm(`Retirer ${courier.name||'ce livreur'} de votre équipe de livraison ? Il devra être réinvité pour reprendre du service.`)) return;
+  const btn = document.querySelector(`[onclick="removeCourier('${id}')"]`);
+  if(btn){ btn.disabled=true; }
+  try{
+    await Cloud.removeCourier(id);
+    Toast.show('Livreur retiré');
+    Router.go('team');
+  }catch(e){
+    console.error('Retrait livreur',e);
+    Toast.show(e && e.message ? `⚠️ ${e.message}` : '⚠️ Impossible de retirer ce livreur, réessayez');
+    if(btn){ btn.disabled=false; }
+  }
+}
+function openAddMember(){
+  const name = prompt("Nom du membre");
+  if(!name || !name.trim()) return;
+  const phone = prompt("Numéro WhatsApp (ex: 07 00 00 00 00)");
+  if(!phone || !phone.trim()) return;
+  const role = prompt("Rôle : Admin, Gérant ou Vendeur", "Vendeur");
+  const team = Store.team;
+  team.push({ id:Utils.uid(), name:name.trim(), phone:phone.trim(), role: role && role.trim() ? role.trim() : 'Vendeur', status:'invited' });
+  Store.team = team;
+  Toast.show('Invitation envoyée ✓');
+  Router.go('team');
+}
+function inviteCourierFromMerchant(){
+  const wrap=document.createElement('div');
+  wrap.id='courier-invite-overlay';
+  wrap.className='overlay show';
+  wrap.style.zIndex='95';
+  wrap.onclick=function(e){ if(e.target===wrap) closeCourierInviteSheet(); };
+  const sheet=document.createElement('div');
+  sheet.id='courier-invite-sheet';
+  sheet.className='sheet show';
+  sheet.style.zIndex='96';
+  sheet.innerHTML=`
+    <div id="courier-invite-step-form">
+      <h3 style="margin:0 0 4px;font-size:17px;">Inviter un livreur</h3>
+      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;">Renseignez ses informations pour générer son lien d'invitation.</p>
+      <div class="field" style="margin-bottom:10px;"><label>Nom complet</label><input id="courier-invite-name" placeholder="Ex. Jean Kouassi" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;"></div>
+      <div class="field" style="margin-bottom:16px;"><label>Numéro WhatsApp</label><input id="courier-invite-phone" inputmode="tel" placeholder="Ex. 07 00 00 00 00" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;"></div>
+      <button class="btn btn-primary btn-block" id="courier-invite-submit-btn" onclick="submitCourierInvite()">Générer le code</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="closeCourierInviteSheet()">Annuler</button>
+    </div>
+    <div id="courier-invite-step-result" style="display:none;">
+      <h3 style="margin:0 0 4px;font-size:17px;">Invitation générée ✓</h3>
+      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Envoyez ce lien au livreur, ou copiez-le pour le partager vous-même.</p>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Lien d'invitation</label>
+        <div style="display:flex;gap:8px;">
+          <input id="courier-invite-link" readonly style="flex:1;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg,#f7f7f9);font-size:12.5px;">
+          <button class="btn btn-outline btn-sm" onclick="copyCourierInviteLink()">Copier</button>
+        </div>
+      </div>
+      <button class="btn btn-soft-green btn-block" style="margin-top:6px;" onclick="openCourierInviteWhatsApp()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.7-1.2A9 9 0 1 0 12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Envoyer via WhatsApp</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="closeCourierInviteSheet()">Fermer</button>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+  document.body.appendChild(sheet);
+  setTimeout(()=>document.getElementById('courier-invite-name').focus(),50);
+}
+function closeCourierInviteSheet(){
+  const wrap=document.getElementById('courier-invite-overlay');
+  const sheet=document.getElementById('courier-invite-sheet');
+  if(wrap) wrap.remove();
+  if(sheet) sheet.remove();
+}
+let _courierInviteWaUrl='';
+function submitCourierInvite(){
+  const name=document.getElementById('courier-invite-name').value.trim();
+  const phone=document.getElementById('courier-invite-phone').value.trim();
+  if(!name){ Toast.show('⚠️ Indiquez le nom du livreur'); return; }
+  if(!phone){ Toast.show('⚠️ Indiquez le numéro WhatsApp'); return; }
+  const btn=document.getElementById('courier-invite-submit-btn');
+  btn.disabled=true; btn.textContent='Génération…';
+  Cloud.inviteCourier(name,phone).then(r=>{
+    const x=Array.isArray(r)?r[0]:r;
+    const link=location.origin+location.pathname.replace(/\/?$/,'')+'?courier_invite='+encodeURIComponent(x.invite_token);
+    const msg=`Bonjour ${name}, vous êtes invité à rejoindre ${Store.store.name} comme livreur SIAMS.\n\nAcceptez votre invitation ici : ${link}\n\nAprès acceptation, un code d'accès personnel vous sera généré pour votre espace livreur.`;
+    _courierInviteWaUrl='https://wa.me/225'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg);
+    document.getElementById('courier-invite-link').value=link;
+    document.getElementById('courier-invite-step-form').style.display='none';
+    document.getElementById('courier-invite-step-result').style.display='block';
+    Toast.show('Invitation créée ✓');
+    Router.go('team');
+  }).catch(e=>{
+    console.error(e);
+    const detail = (e && (e.message || e.error_description || e.details || e.hint)) ? `${e.message||''}\n${e.details||''}\n${e.hint||''}\n(code: ${e.code||'?'})` : JSON.stringify(e);
+    alert('Erreur lors de la création de l’invitation :\n\n'+detail);
+    Toast.show('⚠️ Impossible de créer l’invitation');
+    btn.disabled=false; btn.textContent='Générer le code';
+  });
+}
+function copyCourierInviteLink(){
+  const input=document.getElementById('courier-invite-link');
+  const done=()=>Toast.show('Lien copié ✓');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(input.value).then(done).catch(()=>{ input.select(); document.execCommand('copy'); done(); });
+  } else {
+    input.select(); document.execCommand('copy'); done();
+  }
+}
+function openCourierInviteWhatsApp(){
+  if(_courierInviteWaUrl) window.open(_courierInviteWaUrl,'_blank');
+}
+function shareCourierSpaceLink(){
+  const s=Store.store;
+  const link=location.origin+'/livreur';
+  const text=`Espace livreur ${s.name||'SIAMS'} : connectez-vous avec votre code d'accès personnel.`;
+  if(navigator.share){
+    navigator.share({title:'Espace livreur',text,url:link}).catch(()=>{});
+  } else {
+    window.open('https://wa.me/?text='+encodeURIComponent(text+' '+link),'_blank');
+  }
+}
+
+/* ---------- Paramètres ---------- */
+Views.settings = function(){
+  const s=Store.store;
+  return `${TopBar('Paramètres','Préférences et sécurité SIAMS')}
+  <div style="padding:16px 20px 24px;">
+    <div class="stats-card" style="margin-bottom:12px;"><div class="stats-card-head"><h4>Compte</h4></div>
+      <div style="font-size:13px;color:var(--text-mid);line-height:1.6;">Boutique : <b style="color:var(--text);">${Utils.escapeHtml(s.name)}</b><br>ID marchand SIAMS : <b class="mono">${Utils.escapeHtml(s.loginId||'—')}</b></div>
+    </div>
+    <div class="stats-card" style="margin-bottom:12px;"><div class="stats-card-head"><h4>Livraison</h4></div>
+      <button class="btn btn-soft-green btn-block" onclick="Router.go('delivery')">Zones, tarifs et délais</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="Router.go('team')">Livreurs et équipe</button>
+    </div>
+    <div class="stats-card"><div class="stats-card-head"><h4>Assistance SIAMS</h4></div>
+      <button class="btn btn-soft-green btn-block" onclick="window.open('https://wa.me/qr/CP2FDOBXXD74G1?text='+encodeURIComponent('Bonjour SIAMS, j’ai besoin d’assistance depuis les paramètres de ma boutique '+Store.store.name+'.'),'_blank')">Contacter l’assistant client</button>
+    </div>
+  </div>`;
+};
+
+/* ---------- Espace livreur ---------- */
+function courierSession(){ try{return JSON.parse(sessionStorage.getItem('siams_courier_session')||'null');}catch(e){return null;} }
+function setCourierSession(v){ if(v) sessionStorage.setItem('siams_courier_session',JSON.stringify(v)); else sessionStorage.removeItem('siams_courier_session'); }
+
+function renderCourierCodeForm(opts){
+  opts=opts||{};
+  return `<h1>Espace livreur</h1><p>${opts.forgot?'Entrez le code à 6 chiffres remis par la boutique pour redéfinir votre PIN.':'Connectez-vous avec le code personnel remis par la boutique.'}</p>
+    <div class="field"><label>Code d'accès livreur</label><input id="courier-code" class="courier-code-input" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code"></div>
+    <div id="courier-login-error" style="font-size:13px;color:var(--red);margin:4px 0 10px;"></div>
+    <button class="btn btn-primary btn-courier-primary btn-block" onclick="loginCourier(${opts.forgot?'true':'false'})">Se connecter</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Retour à SIAMS</button>`;
+}
+function renderCourierInviteAcceptScreen(name,token){
+  return `<h1>Espace livreur</h1><p>Bienvenue ${Utils.escapeHtml(name||'')}. Acceptez l’invitation pour créer votre accès livreur.</p>
+    <button class="btn btn-primary btn-courier-primary btn-block" onclick="acceptCourierInvite('${Utils.escapeHtml(token)}')">Accepter l’invitation</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Retour à SIAMS</button>`;
+}
+function renderCourierSetPinScreen(name){
+  return `<h1 style="font-size:23px;">Créez votre code PIN</h1><p>Bonjour ${Utils.escapeHtml(name||'')}. Choisissez un code à 4 chiffres pour protéger l’accès à votre espace livreur — il vous sera redemandé à chaque ouverture du lien.</p>
+    <div class="field"><label>Code PIN (4 chiffres)</label><input id="courier-pin-new" class="courier-pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"></div>
+    <div class="field"><label>Confirmez le PIN</label><input id="courier-pin-new-confirm" class="courier-pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"></div>
+    <div id="courier-pin-error" style="font-size:13px;color:var(--red);margin:4px 0 10px;"></div>
+    <button class="btn btn-primary btn-courier-primary btn-block" onclick="submitCourierSetPin()">Valider</button>`;
+}
+function renderCourierPinScreen(token,name){
+  return `<h1>Espace livreur</h1><p>Bonjour ${Utils.escapeHtml(name||'')}. Entrez votre code PIN pour accéder à votre espace.</p>
+    <div class="field"><label>Code PIN (4 chiffres)</label><input id="courier-pin-login" class="courier-pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off"></div>
+    <div id="courier-pin-login-error" style="font-size:13px;color:var(--red);margin:4px 0 10px;"></div>
+    <button class="btn btn-primary btn-courier-primary btn-block" onclick="submitCourierPinLogin('${Utils.escapeHtml(token)}')">Se connecter</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="forgotCourierPin()">PIN oublié ?</button>`;
+}
+Views['courier-login']=function(){
+  const invite=new URLSearchParams(location.search).get('courier_invite');
+  return `<div class="courier-auth-wrap">
+    <div class="courier-auth-badge"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5L12 3Z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/><path d="M12 12v9"/></svg></div>
+    <div id="courier-login-body">
+      ${invite?`<div style="text-align:center;padding:30px 0;"><div class="wd-spinner"></div></div>`:renderCourierCodeForm()}
+    </div>
+  </div>`;
+};
+Views['courier-invite']=Views['courier-login'];
+Views._after_courier_login=function(){
+  const invite=new URLSearchParams(location.search).get('courier_invite');
+  if(invite) initCourierInviteFlow(invite);
+};
+async function initCourierInviteFlow(token){
+  const body=document.getElementById('courier-login-body'); if(!body)return;
+  try{
+    const r=await Cloud.getCourierInviteStatus(token); const st=Array.isArray(r)?r[0]:r;
+    if(st.status==='pending') body.innerHTML=renderCourierInviteAcceptScreen(st.name,token);
+    else if(st.pin_required) body.innerHTML=renderCourierPinScreen(token,st.name);
+    else body.innerHTML=renderCourierCodeForm();
+  }catch(e){
+    console.error(e);
+    body.innerHTML=`<div style="text-align:center;color:var(--red);padding:20px 0;">Invitation invalide. Contactez la boutique.</div><button class="btn btn-soft-green btn-block" style="margin-top:14px;" onclick="window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent('Bonjour SIAMS, mon invitation de livreur semble invalide ou expirée. Pouvez-vous m’aider ?'),'_blank')">Contacter la boutique</button>`;
+  }
+}
+Views['courier-dashboard']=function(){
+  const sess=courierSession(); if(!sess) return Views['courier-login']();
+  const name=Utils.escapeHtml(sess.name||'Livreur');
+  const initials=((sess.name||'L').trim().split(/\s+/).map(w=>w[0]).filter(Boolean).slice(0,2).join('')||'L').toUpperCase();
+  const online=CourierApp.isOnline();
+  return `<div class="courier-dash-hero">
+    <div class="courier-dash-top">
+      <div class="courier-dash-id">
+        <div class="courier-avatar">${initials}</div>
+        <div style="min-width:0;"><div class="courier-dash-name" style="display:flex;align-items:center;gap:6px;">${name}<span id="courier-cert-badge-hero"></span></div><div class="courier-dash-sub">Espace livreur</div></div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="setCourierSession(null);Router.go('courier-login')">Déconnexion</button>
+    </div>
+    <div class="courier-status-row">
+      <span class="courier-status-label">Statut de disponibilité</span>
+      <button id="courier-online-btn" class="courier-online-toggle ${online?'online':'offline'}" onclick="CourierApp.toggleOnline()"><span class="dot"></span>${online?'En ligne':'Hors ligne'}</button>
+    </div>
+  </div>
+  <div id="courier-page-body" style="padding:16px 20px 88px;">
+    <div class="courier-tab-panel active" data-tab="dashboard">
+      <div id="courier-stats-mount"><div class="courier-stats-row"><div class="courier-stat"><b>—</b><span>À traiter</span></div><div class="courier-stat"><b>—</b><span>En cours</span></div></div></div>
+      <div class="section-title" style="padding:0;margin:2px 0 10px;">Missions à traiter</div>
+      <div id="courier-dashboard-list"><div class="wd-spinner"></div></div>
+    </div>
+    <div class="courier-tab-panel" data-tab="missions">
+      <div class="section-title" style="padding:0;margin:0 0 10px;">Toutes mes missions</div>
+      <div id="courier-missions-list"><div class="wd-spinner"></div></div>
+    </div>
+    <div class="courier-tab-panel" data-tab="gains">
+      <div id="courier-earnings-mount"><div class="wd-spinner"></div></div>
+    </div>
+    <div class="courier-tab-panel" data-tab="profil">
+      <div style="text-align:center;padding:20px 10px 6px;">
+        <div class="courier-avatar" style="width:64px;height:64px;border-radius:20px;background:var(--blue-tint);color:#0b67d8;font-size:20px;margin:0 auto 10px;">${initials}</div>
+        <div style="font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;gap:6px;">${name}<span id="courier-cert-badge"></span></div>
+        <div style="font-size:12px;color:var(--text-mid);margin-top:2px;">Espace livreur SIAMS</div>
+      </div>
+      <div id="courier-profile-stats" style="margin-top:16px;"><div class="courier-stats-row"><div class="courier-stat"><b>—</b><span>Acceptation</span></div><div class="courier-stat"><b>—</b><span>Missions</span></div><div class="courier-stat"><b>—</b><span>Ce mois-ci</span></div></div></div>
+      <div class="section-title" style="padding:0;margin:20px 0 10px;">💰 Solde à verser à la boutique</div>
+      <div id="courier-payout-list"><div class="wd-spinner"></div></div>
+      <div class="section-title" style="padding:0;margin:20px 0 10px;">📋 Documents vérifiés</div>
+      <div id="courier-docs-list"><div class="wd-spinner"></div></div>
+      <div class="section-title" style="padding:0;margin:20px 0 10px;">⚙️ Paramètres</div>
+      <div id="courier-settings-list"></div>
+      <button class="btn btn-outline btn-block" style="margin-top:18px;" onclick="setCourierSession(null);Router.go('courier-login')">Se déconnecter</button>
+    </div>
+  </div>
+  <nav class="courier-nav">
+    <button class="courier-nav-btn active" data-tab="dashboard" onclick="CourierApp.setTab('dashboard')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-5.5h4V20h3a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span>Accueil</span></button>
+    <button class="courier-nav-btn" data-tab="missions" onclick="CourierApp.setTab('missions')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 8h16M4 8l1.5 11a2 2 0 0 0 2 1.7h9a2 2 0 0 0 2-1.7L20 8M4 8l2-4h12l2 4M9 12v3M15 12v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Missions</span></button>
+    <button class="courier-nav-btn" data-tab="gains" onclick="CourierApp.setTab('gains')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="6" width="19" height="12" rx="2.4" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Gains</span></button>
+    <button class="courier-nav-btn" data-tab="profil" onclick="CourierApp.setTab('profil')"><span class="courier-nav-ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c.8-4 3.4-6.2 7-6.2s6.2 2.2 7 6.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span>Profil</span></button>
+  </nav>`;
+};
+/* ---------- État de l'app livreur (onglet actif + statut en ligne/hors ligne) ----------
+   Le statut en ligne/hors ligne est pour l'instant enregistré uniquement en local sur
+   l'appareil (pas encore synchronisé côté serveur) — il sert à filtrer visuellement
+   l'affichage des missions proposées au livreur. */
+const CourierApp = {
+  tab: 'dashboard',
+  _assignments: [],
+  setTab(tab){
+    this.tab = tab;
+    document.querySelectorAll('.courier-tab-panel').forEach(el=>el.classList.toggle('active', el.dataset.tab===tab));
+    document.querySelectorAll('.courier-nav-btn').forEach(el=>el.classList.toggle('active', el.dataset.tab===tab));
+    if(tab==='gains') loadCourierEarnings();
+    if(tab==='profil') loadCourierProfileExtras();
+  },
+  _key(){ const sess=courierSession(); return 'siams_courier_online_'+((sess&&sess.session_token)||'x'); },
+  isOnline(){ const v=localStorage.getItem(this._key()); return v===null ? true : v==='1'; },
+  toggleOnline(){
+    const next=!this.isOnline();
+    localStorage.setItem(this._key(), next?'1':'0');
+    const btn=document.getElementById('courier-online-btn');
+    if(btn){ btn.className='courier-online-toggle '+(next?'online':'offline'); btn.innerHTML='<span class="dot"></span>'+(next?'En ligne':'Hors ligne'); }
+    Toast.show(next?'Vous êtes en ligne ✓':'Vous êtes hors ligne');
+  }
+};
+async function acceptCourierInvite(token){
+  try{
+    const r=await Cloud.courierInviteAccept(token); const x=Array.isArray(r)?r[0]:r;
+    const sessRes=await Cloud.courierLogin(x.access_code); const sess=Array.isArray(sessRes)?sessRes[0]:sessRes;
+    setCourierSession(sess);
+    const body=document.getElementById('courier-login-body');
+    if(body) body.innerHTML=renderCourierSetPinScreen(sess.name||x.name);
+  }catch(e){
+    console.error(e);
+    Toast.show('⚠️ Invitation invalide ou expirée');
+  }
+}
+async function loginCourier(forceReset){
+  const code=(document.getElementById('courier-code')?.value||'').trim(); const err=document.getElementById('courier-login-error');
+  if(!err){ /* formulaire pas encore affiché */ }
+  if(!/^\d{6}$/.test(code)){ if(err) err.textContent='Entrez le code à 6 chiffres remis par la boutique.'; return; }
+  try{
+    const r=await Cloud.courierLogin(code); const x=Array.isArray(r)?r[0]:r; setCourierSession(x);
+    if(!x.pin_set || forceReset){
+      const body=document.getElementById('courier-login-body');
+      if(body){ body.innerHTML=renderCourierSetPinScreen(x.name); return; }
+    }
+    Router.go('courier-dashboard'); AutoSync.start();
+  }catch(e){ console.error(e); if(err) err.textContent='Code invalide ou accès suspendu.'; }
+}
+async function submitCourierSetPin(){
+  const p1=(document.getElementById('courier-pin-new')?.value||'').trim();
+  const p2=(document.getElementById('courier-pin-new-confirm')?.value||'').trim();
+  const err=document.getElementById('courier-pin-error');
+  if(!/^\d{4}$/.test(p1)){err.textContent='Le PIN doit contenir 4 chiffres.';return;}
+  if(p1!==p2){err.textContent='Les deux codes ne correspondent pas.';return;}
+  const sess=courierSession();
+  if(!sess){err.textContent='Session expirée, rouvrez le lien.';return;}
+  try{
+    await Cloud.courierSetPin(sess.session_token,p1);
+    Toast.show('PIN enregistré ✓');
+    Router.go('courier-dashboard'); AutoSync.start();
+  }catch(e){ console.error(e); err.textContent='Impossible d’enregistrer le PIN.'; }
+}
+async function submitCourierPinLogin(token){
+  const pin=(document.getElementById('courier-pin-login')?.value||'').trim();
+  const err=document.getElementById('courier-pin-login-error');
+  if(!/^\d{4}$/.test(pin)){err.textContent='Entrez les 4 chiffres de votre PIN.';return;}
+  try{
+    const r=await Cloud.courierLoginPin(token,pin); const x=Array.isArray(r)?r[0]:r;
+    setCourierSession(x);
+    Router.go('courier-dashboard'); AutoSync.start();
+  }catch(e){
+    console.error(e);
+    const msg=(e&&e.message)||'';
+    err.textContent=/Trop de tentatives/i.test(msg)?'Trop d’essais. Réessayez dans quelques minutes.':'PIN incorrect.';
+  }
+}
+function forgotCourierPin(){
+  const body=document.getElementById('courier-login-body');
+  if(body) body.innerHTML=renderCourierCodeForm({forgot:true});
+}
+const ICO_MONEY_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="6" width="19" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg>';
+const ICO_PIN_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.6"/></svg>';
+const ICO_CLOCK_SVG='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* ---- Délai de réponse à une mission proposée : si le livreur n'accepte ni ne refuse
+   dans ce délai, la mission est automatiquement remise à disposition de la boutique
+   pour être proposée à un autre livreur (voir declineCourierDelivery silencieux
+   ci-dessous et MissionOfferPopup pour la variante en popup). ---- */
+const COURIER_OFFER_TIMEOUT_MS = 10*60*1000;
+function courierOfferDeadline(id){
+  const key='siams_mission_deadline_'+id;
+  let d=Number(sessionStorage.getItem(key)||0);
+  if(!d || d<Date.now()){ d=Date.now()+COURIER_OFFER_TIMEOUT_MS; sessionStorage.setItem(key,String(d)); }
+  return d;
+}
+function courierTickOfferTimers(){
+  document.querySelectorAll('[data-courier-timer]').forEach(el=>{
+    const id=el.getAttribute('data-courier-timer');
+    const deadline=courierOfferDeadline(id);
+    const remain=deadline-Date.now();
+    const span=el.querySelector('span');
+    if(remain<=0){
+      el.classList.add('low');
+      if(span) span.textContent='Délai dépassé — réaffectation…';
+      if(!el.dataset.expiredHandled){ el.dataset.expiredHandled='1'; declineCourierDelivery(id, true); }
+      return;
+    }
+    const m=Math.floor(remain/60000), s=Math.floor((remain%60000)/1000);
+    if(span) span.textContent='Réponse attendue sous '+m+':'+String(s).padStart(2,'0');
+    el.classList.toggle('low', remain<60000);
+  });
+}
+if(!window._courierTimerInterval) window._courierTimerInterval=setInterval(courierTickOfferTimers,1000);
+
+/* ---- Distance à parcourir : calculée côté appareil (formule de Haversine) entre la
+   position GPS actuelle du livreur et les coordonnées du client, sans appel serveur. ---- */
+function courierHaversineKm(lat1,lon1,lat2,lon2){
+  const toRad=d=>d*Math.PI/180, R=6371;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const s=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+}
+let _courierLastPos=null,_courierLastPosAt=0;
+function courierUpdateCardDistances(rows){
+  if(!navigator.geolocation) return;
+  const apply=coords=>{
+    _courierLastPos=coords; _courierLastPosAt=Date.now();
+    rows.forEach(a=>{
+      const el=document.getElementById('courier-dist-'+a.id); if(!el) return;
+      if(a.customer_latitude==null||a.customer_longitude==null){ el.textContent='—'; return; }
+      const km=courierHaversineKm(coords.latitude,coords.longitude,Number(a.customer_latitude),Number(a.customer_longitude));
+      el.textContent = km<1 ? Math.round(km*1000)+' m' : km.toFixed(1)+' km';
+    });
+  };
+  if(_courierLastPos && Date.now()-_courierLastPosAt<60000){ apply(_courierLastPos); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos=>apply(pos.coords),
+    ()=>rows.forEach(a=>{ const el=document.getElementById('courier-dist-'+a.id); if(el) el.textContent='GPS requis'; }),
+    {enableHighAccuracy:true,maximumAge:60000,timeout:10000}
+  );
+}
+function courierAssignmentCard(a){
+  const offered=a.status==='offered', accepted=a.status==='accepted';
+  return `<div class="courier-card ${accepted?'accepted':''}"><div class="courier-card-head"><div><div class="courier-card-order">Commande #${Utils.escapeHtml(a.order_number||'')}</div><div class="courier-card-meta">${Utils.escapeHtml(a.customer_name||'')} · ${Utils.escapeHtml(a.customer_address||'')}</div></div><span class="courier-card-status ${accepted?'accepted':'offered'}">${offered?'Proposée':accepted?'Acceptée':a.status}</span></div>
+      <div class="courier-card-info-row">
+        <div class="courier-card-info-chip"><span class="ico-round green">${ICO_MONEY_SVG}</span><div class="txt"><b>${a.amount!=null?Utils.fmtFCFA(a.amount):'—'}</b><span>Montant</span></div></div>
+        <div class="courier-card-info-chip"><span class="ico-round blue">${ICO_PIN_SVG}</span><div class="txt"><b id="courier-dist-${a.id}">…</b><span>Distance</span></div></div>
+      </div>
+      ${offered?`<div class="courier-card-timer" data-courier-timer="${a.id}">${ICO_CLOCK_SVG}<span>Réponse attendue sous 10:00</span></div>`:''}
+      <div class="courier-card-actions">
+      ${offered?`<div class="field"><label>Délai estimé</label><select id="eta-${a.id}"><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div><div class="courier-card-actions-row"><button class="btn btn-outline" onclick="declineCourierDelivery('${a.id}')">✕ Ignorer</button><button class="btn btn-primary btn-courier-primary" onclick="acceptCourierDelivery('${a.id}')">✓ Accepter</button></div>`:''}
+      ${accepted?`<div class="courier-progress-note">✓ Livraison acceptée. Le client et la boutique ont été informés.</div><button class="btn btn-primary btn-courier-primary btn-block" onclick="CourierMission.open('${a.id}')">Voir la mission ›</button><button class="btn btn-soft-indigo btn-block" onclick="startCourierLiveGps('${a.id}')">Démarrer mon GPS</button><button class="btn btn-soft-green btn-block" onclick="courierDelivered('${a.id}')">Marquer la livraison effectuée</button>`:''}
+      <button class="btn btn-outline btn-block" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent((a.customer_latitude||'')+','+(a.customer_longitude||'')),'_blank')">Itinéraire</button>
+      </div>
+    </div>`;
+}
+async function declineCourierDelivery(id, silent){
+  const sess=courierSession(); if(!sess) return;
+  const btns=document.querySelectorAll(`[data-courier-timer="${id}"]`);
+  try{
+    await Cloud.courierDeclineAssignment(sess.session_token, id);
+    sessionStorage.removeItem('siams_mission_deadline_'+id);
+    Toast.show(silent?'Délai dépassé — mission réaffectée à un autre livreur':'Mission ignorée — elle sera proposée à un autre livreur');
+    loadCourierDashboard();
+  }catch(e){
+    console.error('Refus mission (liste)',e);
+    if(!silent) Toast.show('⚠️ Impossible d’ignorer cette mission pour le moment');
+  }
+}
+async function loadCourierDashboard(){
+  const sess=courierSession();
+  const statsMount=document.getElementById('courier-stats-mount');
+  const dashList=document.getElementById('courier-dashboard-list');
+  const missionsList=document.getElementById('courier-missions-list');
+  if(!sess||(!statsMount&&!dashList&&!missionsList))return;
+  try{
+    const rows=await Cloud.courierAssignments(sess.session_token);
+    CourierApp._assignments = rows;
+    const offered=rows.filter(a=>a.status==='offered');
+    const accepted=rows.filter(a=>a.status==='accepted');
+    if(statsMount) statsMount.innerHTML=`<div class="courier-stats-row"><div class="courier-stat"><b>${offered.length}</b><span>À traiter</span></div><div class="courier-stat"><b>${accepted.length}</b><span>En cours</span></div></div>`;
+    const emptyState=EmptyState(`<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 3 3 7.5 12 12l9-4.5L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 7.5v9L12 21l9-4.5v-9" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,'Aucune livraison pour le moment','Les nouvelles courses proposées par la boutique apparaîtront ici.');
+    if(dashList){
+      const toShow=[...offered,...accepted];
+      dashList.innerHTML = toShow.length ? toShow.map(courierAssignmentCard).join('') : emptyState;
+    }
+    if(missionsList){
+      missionsList.innerHTML = rows.length ? rows.map(courierAssignmentCard).join('') : emptyState;
+    }
+    courierUpdateCardDistances([...offered,...accepted]);
+    CourierMission.refresh();
+  }catch(e){
+    console.error(e);
+    const errHtml='<div style="color:var(--red);padding:20px;">Impossible de charger les livraisons.</div>';
+    if(dashList) dashList.innerHTML=errHtml;
+    if(missionsList) missionsList.innerHTML=errHtml;
+  }
+}
+/* ---- Acceptation d'une mission proposée. Le détail d'erreur exact renvoyé par Supabase
+   (message/code/hint/details) est systématiquement affiché dans le Toast : c'est ce texte,
+   copié tel quel, qu'il faut relire pour diagnostiquer un refus d'acceptation côté serveur
+   (fonction RPC courier_accept_assignment) — un simple "Erreur inconnue" générique ne
+   suffit pas à savoir si la mission a déjà été prise, si le livreur est suspendu, etc. ---- */
+async function acceptCourierDelivery(id){
+  const sess=courierSession(); const eta=document.getElementById('eta-'+id)?.value||60;
+  try{
+    await Cloud.courierAcceptAssignment(sess.session_token,id,eta);
+    sessionStorage.removeItem('siams_mission_deadline_'+id);
+    Toast.show('Livraison acceptée ✓');
+    loadCourierDashboard();
+  }catch(e){
+    console.error('Acceptation mission (liste)',e);
+    const detail=(e&&(e.message||e.error_description||e.hint||e.details))||('code '+(e&&e.code||'inconnu'));
+    Toast.show('⚠️ '+detail);
+  }
+}
+let courierWatchId=null, courierLastSent=0, courierTrackingId=null, courierGpsErrorShown=false;
+/* CORRECTIF : le toast "Suivi GPS livreur activé ✓" s'affichait dès le démarrage de
+   watchPosition, indépendamment du succès réel de l'envoi de la position vers Supabase.
+   Si l'appel RPC courier_update_location échouait (fonction absente côté base, RLS,
+   paramètres invalides, etc.), l'erreur finissait uniquement dans console.error : le
+   livreur croyait son GPS actif et la boutique ne recevait jamais aucune position, sans
+   qu'aucune des deux parties ne soit prévenue. On affiche désormais l'erreur au livreur
+   dès la première tentative ratée (throttlée pour ne pas spammer), afin que le problème
+   soit visible immédiatement au lieu de rester silencieux. */
+function startCourierLiveGps(assignmentId){
+  const sess=courierSession(); if(!sess||!navigator.geolocation){Toast.show('GPS indisponible');return;}
+  if(courierWatchId!==null) navigator.geolocation.clearWatch(courierWatchId);
+  courierTrackingId=assignmentId;
+  courierGpsErrorShown=false;
+  courierWatchId=navigator.geolocation.watchPosition(async pos=>{
+    /* Met à jour le marqueur/la distance sur la carte à chaque position reçue — indépendant
+       du throttle réseau ci-dessous qui ne concerne que l'envoi vers Supabase. */
+    if(typeof CourierMission!=='undefined' && typeof CourierMission.updateCourierPosition==='function' && String(courierTrackingId)===String(assignmentId)){
+      CourierMission.updateCourierPosition(pos.coords.latitude,pos.coords.longitude);
+    }
+    const now=Date.now(); if(now-courierLastSent<5000)return; courierLastSent=now;
+    try{
+      await Cloud.courierUpdateLocation(sess.session_token,assignmentId,pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy,pos.coords.heading,pos.coords.speed);
+      courierGpsErrorShown=false;
+    }catch(e){
+      console.error('GPS livreur',e);
+      if(!courierGpsErrorShown){
+        courierGpsErrorShown=true;
+        const detail=(e&&(e.message||e.error_description||e.hint||e.details))||('code '+(e&&e.code||'inconnu'));
+        Toast.show('⚠️ Position non transmise : '+detail);
+      }
+    }
+  }, err=>Toast.show(err.code===1?'Autorisez la localisation pour le suivi du livreur.':'GPS indisponible'), {enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+  Toast.show('Suivi GPS livreur activé ✓');
+  CourierMission.refresh();
+}
+async function courierDelivered(id){ const sess=courierSession(); try{await Cloud.courierMarkDelivered(sess.session_token,id); if(courierWatchId!==null){navigator.geolocation.clearWatch(courierWatchId);courierWatchId=null;courierTrackingId=null;} Toast.show('Livraison signalée ✓'); CourierMission.close(); loadCourierDashboard();}catch(e){console.error(e);Toast.show('⚠️ Impossible de clôturer la livraison');} }
+
+/* =========================================================
+   Reversement à la boutique — espèces "paiement à la livraison"
+   encaissées par le livreur. Un livreur qui a livré une commande
+   payée en cash doit ce montant à la boutique ; il déclare son
+   virement et joint un reçu, la boutique confirme réception et le
+   solde correspondant est remis à zéro (voir Cloud.courierCashDue,
+   Cloud.courierSubmitPayoutReceipt, migration_courier_payouts.sql).
+   Si la boutique ne réagit pas sous 1h, la fonction SQL
+   courier_get_cash_due considère le versement confirmé automatiquement. */
+(function(){
+  'use strict';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+
+  async function loadCourierPayoutSection(){
+    const mount=document.getElementById('courier-payout-list');
+    const sess=courierSession();
+    if(!mount||!sess) return;
+    try{
+      const rows=await Cloud.courierCashDue(sess.session_token);
+      window._courierPayoutRows = rows||[];
+      mount.innerHTML = renderCourierPayoutSection(rows||[]);
+    }catch(e){
+      console.error('Solde livreur',e);
+      mount.innerHTML = '<div style="font-size:11.5px;color:var(--text-soft);padding:4px 2px;">Solde bientôt disponible.</div>';
+    }
+  }
+
+  function renderCourierPayoutSection(rows){
+    const due = rows.filter(r=>r.status!=='confirmed');
+    const total = due.reduce((s,r)=>s+Number(r.amount||0),0);
+    if(!rows.length){
+      return `<div style="font-size:11.5px;color:var(--text-mid);padding:4px 2px;">Aucune espèce en attente de reversement. Ce solde apparaît automatiquement après chaque livraison réglée en paiement à la livraison.</div>`;
+    }
+    const hero = total>0
+      ? `<div class="courier-payout-hero"><span>Montant à reverser à la boutique</span><b>${Utils.fmtFCFA(total)}</b><small>Effectuez le virement puis joignez votre reçu ci-dessous. La boutique confirme réception ; le solde est remis à zéro automatiquement.</small></div>`
+      : `<div style="font-size:11.5px;color:var(--green);font-weight:700;padding:4px 2px;">✓ Tout est à jour, aucun solde en attente.</div>`;
+    const list = rows.map(r=>{
+      const submitted = r.status==='submitted';
+      return `<div class="courier-payout-row">
+        <div class="courier-payout-row-head">
+          <div><b style="font-size:12.5px;">Commande #${esc(r.order_number||'')}</b><div style="font-size:11px;color:var(--text-mid);margin-top:2px;">${Utils.fmtFCFA(r.amount)}</div></div>
+          <span class="courier-payout-status ${submitted?'sub':'wait'}">${submitted?'Reçu envoyé · en attente':'À reverser'}</span>
+        </div>
+        ${submitted?`<div style="font-size:10.5px;color:var(--text-soft);margin-top:6px;">Confirmation boutique attendue sous 1h.</div>`:`<button class="btn btn-primary btn-sm btn-block" style="margin-top:9px;" onclick="CourierPayout.openSubmit('${esc(r.order_id)}','${esc(r.order_number||'')}',${Number(r.amount)||0})">Joindre mon reçu de virement</button>`}
+      </div>`;
+    }).join('');
+    return hero + list;
+  }
+
+  window.CourierPayout = {
+    openSubmit(orderId, orderNumber, amount){
+      const w=document.createElement('div'); w.id='courier-payout-sheet';
+      w.innerHTML=`<div class="shop-sheet-overlay show" onclick="document.getElementById('courier-payout-sheet')?.remove()"></div>
+      <div class="shop-sheet show">
+        <div class="sheet-handle"></div>
+        <h3>Reçu de virement — Commande #${esc(orderNumber)}</h3>
+        <p style="font-size:12px;color:var(--text-mid);margin:0 0 12px;">Montant à reverser : <strong>${Utils.fmtFCFA(amount)}</strong>. Joignez une capture d'écran ou une photo du reçu de votre virement à la boutique.</p>
+        <label class="btn btn-outline btn-block" style="cursor:pointer;">📎 Choisir le reçu<input type="file" accept="image/*" class="hidden" onchange="CourierPayout.handleFile(event)"></label>
+        <div id="courier-payout-preview" style="margin-top:10px;"></div>
+        <button id="courier-payout-submit-btn" class="btn btn-primary btn-block" style="margin-top:14px;" disabled onclick="CourierPayout.submit('${esc(orderId)}')">Envoyer le reçu</button>
+      </div>`;
+      document.body.appendChild(w);
+    },
+    _dataUrl:null,
+    handleFile(evt){
+      const f=evt.target.files&&evt.target.files[0]; if(!f) return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        this._dataUrl=reader.result;
+        const p=document.getElementById('courier-payout-preview');
+        if(p) p.innerHTML=`<img src="${reader.result}" style="width:100%;border-radius:12px;border:1px solid var(--line);">`;
+        const btn=document.getElementById('courier-payout-submit-btn'); if(btn) btn.disabled=false;
+      };
+      reader.readAsDataURL(f);
+    },
+    async submit(orderId){
+      if(!this._dataUrl){ Toast.show('Ajoutez la photo du reçu'); return; }
+      const btn=document.getElementById('courier-payout-submit-btn'); if(btn){btn.disabled=true;btn.textContent='Envoi…';}
+      try{
+        const sess=courierSession(); if(!sess) throw new Error('Session expirée');
+        await Cloud.courierSubmitPayoutReceipt(sess.session_token, orderId, this._dataUrl);
+        Toast.show('Reçu envoyé ✓ En attente de confirmation de la boutique');
+        this._dataUrl=null;
+        document.getElementById('courier-payout-sheet')?.remove();
+        loadCourierPayoutSection();
+      }catch(e){
+        console.error('Envoi reçu reversement',e);
+        Toast.show('⚠️ '+((e&&e.message)||'Impossible d’envoyer le reçu'));
+        if(btn){btn.disabled=false;btn.textContent='Envoyer le reçu';}
+      }
+    }
+  };
+
+  window.loadCourierPayoutSection = loadCourierPayoutSection;
+})();
+
+/* ---------- Écran Gains livreur ----------
+   S'appuie sur Cloud.courierEarnings(), qui appelle la fonction SQL
+   courier_get_earnings (voir migration_courier_earnings.sql). Tant que cette
+   fonction n'est pas déployée côté Supabase, l'appel échoue et on affiche un
+   état d'attente honnête plutôt qu'un montant inventé — même discipline que
+   pour les autres sections avec repli gracieux (dashboard admin, etc.). ---------- */
+let courierEarningsData = null, courierEarningsPeriod = 'today';
+async function loadCourierEarnings(){
+  const mount=document.getElementById('courier-earnings-mount');
+  const sess=courierSession();
+  if(!mount||!sess) return;
+  if(!courierEarningsData) mount.innerHTML='<div class="wd-spinner"></div>';
+  try{
+    const data=await Cloud.courierEarnings(sess.session_token);
+    courierEarningsData = data;
+    mount.innerHTML = renderCourierEarnings(data);
+  }catch(e){
+    console.error('courierEarnings',e);
+    mount.innerHTML = `<div class="courier-tab-empty-note" style="padding:64px 10px 10px;">
+      <div style="font-size:34px;margin-bottom:8px;">💰</div>
+      <b style="display:block;color:var(--text);font-size:14px;margin-bottom:4px;">Gains bientôt disponibles</b>
+      Cette fonctionnalité attend une mise à jour côté serveur. Contactez l'assistant SIAMS si ce message persiste.
+    </div>`;
+  }
+}
+function setCourierEarningsPeriod(p){
+  courierEarningsPeriod = p;
+  const mount=document.getElementById('courier-earnings-mount');
+  if(mount && courierEarningsData) mount.innerHTML = renderCourierEarnings(courierEarningsData);
+}
+function renderCourierEarnings(d){
+  const money=v=>Utils.fmtFCFA(Number(v||0));
+  const periods = [['today','Jour'],['week','Semaine'],['month','Mois'],['total_paid','Total']];
+  const amount = d[courierEarningsPeriod] ?? 0;
+  const history = Array.isArray(d.history) ? d.history : [];
+  const statusLabel = s => s==='paid' ? 'Payé' : s==='pending' ? 'En attente' : s;
+  const statusClass = s => s==='paid' ? 'paid' : 'pending';
+  const historyHtml = history.length ? history.map(h=>`
+    <div class="courier-earn-row">
+      <div>
+        <div class="courier-earn-row-title">Commande #${Utils.escapeHtml(h.order_number||'')}</div>
+        <div class="courier-earn-row-sub">${Utils.escapeHtml(h.customer_name||'')} · ${h.created_at?Utils.timeAgo(new Date(h.created_at).getTime()):''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="courier-earn-row-amount">${money(h.amount)}</div>
+        <span class="courier-earn-status ${statusClass(h.status)}">${statusLabel(h.status)}</span>
+      </div>
+    </div>`).join('') : EmptyState(`<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`,'Aucun gain pour le moment','Vos livraisons rémunérées apparaîtront ici au fur et à mesure.');
+  return `
+    <div class="courier-earn-period-tabs">
+      ${periods.map(([key,label])=>`<button class="courier-earn-period-btn ${courierEarningsPeriod===key?'active':''}" onclick="setCourierEarningsPeriod('${key}')">${label}</button>`).join('')}
+    </div>
+    <div class="courier-earn-hero">
+      <div class="courier-earn-hero-label">${periods.find(p=>p[0]===courierEarningsPeriod)?.[1]||''}</div>
+      <div class="courier-earn-hero-amount">${money(amount)}</div>
+      ${Number(d.pending||0)>0?`<div class="courier-earn-hero-pending">+ ${money(d.pending)} en attente de versement</div>`:''}
+    </div>
+    <div class="section-title" style="padding:0;margin:18px 0 10px;">Historique</div>
+    ${historyHtml}`;
+}
+
+/* ---------- Écran « Mission active » : overlay plein écran pour une livraison
+   acceptée, ouvert depuis courierAssignmentCard(). Réutilise les fonctions
+   existantes (startCourierLiveGps, courierDelivered) — aucune logique de
+   livraison n'est dupliquée ici, seulement l'affichage. Le téléphone client
+   n'est affiché que si la donnée existe côté serveur (dégradation propre si
+   le champ n'est pas encore exposé par courier_get_assignments). ---------- */
+const CourierMission = {
+  openId: null,
+  _assignments(){ return CourierApp._assignments || []; },
+  find(id){ return this._assignments().find(a=>String(a.id)===String(id)); },
+  open(id){
+    const a=this.find(id);
+    if(!a){ Toast.show('Mission introuvable, actualisation…'); loadCourierDashboard(); return; }
+    this.openId=id;
+    let el=document.getElementById('courier-mission-overlay');
+    if(!el){ el=document.createElement('div'); el.id='courier-mission-overlay'; el.className='courier-mission-overlay'; document.body.appendChild(el); }
+    el.innerHTML=this._render(a);
+  },
+  close(){
+    this.openId=null;
+    if(courierWatchId!==null){ /* on laisse le GPS actif si le livreur ferme juste l'écran, il continue de suivre la course en cours */ }
+    const el=document.getElementById('courier-mission-overlay');
+    if(el) el.remove();
+  },
+  refresh(){
+    if(!this.openId) return;
+    const a=this.find(this.openId);
+    const el=document.getElementById('courier-mission-overlay');
+    if(!a){ this.close(); return; }
+    if(el) el.innerHTML=this._render(a);
+  },
+  _render(a){
+    const name=Utils.escapeHtml(a.customer_name||'Client');
+    const addr=Utils.escapeHtml(a.customer_address||'Adresse non renseignée');
+    const phone=(a.customer_phone||'').trim();
+    const gpsOn = courierWatchId!==null && String(courierTrackingId)===String(a.id);
+    const delivered = a.status!=='accepted' && a.status!=='offered';
+    const mapsUrl='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent((a.customer_latitude||'')+','+(a.customer_longitude||''));
+    const since = a.updated_at ? Utils.timeAgo(new Date(a.updated_at).getTime()) : '';
+    return `
+      <div class="courier-mission-head">
+        <div class="courier-mission-head-row">
+          <button class="courier-mission-back" onclick="CourierMission.close()" aria-label="Retour"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 19 8 12l7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div><div class="courier-mission-title">Commande #${Utils.escapeHtml(a.order_number||'')}</div><div class="courier-mission-sub">${delivered?'Livraison effectuée':(since?'Acceptée '+since:'Livraison en cours')}</div></div>
+        </div>
+        <div class="courier-mission-steps">
+          <div class="courier-mission-step done"><div class="courier-mission-step-dot">✓</div><span>Acceptée</span></div>
+          <div class="courier-mission-step-line ${gpsOn||delivered?'done':''}"></div>
+          <div class="courier-mission-step ${gpsOn?'current':''} ${delivered?'done':''}"><div class="courier-mission-step-dot">${delivered?'✓':'2'}</div><span>En route</span></div>
+          <div class="courier-mission-step-line ${delivered?'done':''}"></div>
+          <div class="courier-mission-step ${delivered?'done':''}"><div class="courier-mission-step-dot">${delivered?'✓':'3'}</div><span>Livrée</span></div>
+        </div>
+      </div>
+      <div class="courier-mission-body">
+        <div class="courier-mission-card">
+          <h4>Client</h4>
+          <div class="courier-mission-client-name">${name}</div>
+          <div class="courier-mission-client-addr">📍 ${addr}</div>
+          ${phone?`<div class="courier-mission-contact-row"><button class="btn btn-soft-green" onclick="window.open('tel:${Utils.escapeHtml(phone)}','_self')">📞 Appeler</button><button class="btn btn-outline" onclick="window.open('https://wa.me/${Utils.escapeHtml(phone.replace(/\\D/g,''))}','_blank')">WhatsApp</button></div>`:''}
+        </div>
+        <div class="courier-mission-card">
+          <h4>Suivi GPS</h4>
+          <span class="courier-mission-gps-badge ${gpsOn?'':'off'}"><span class="dot"></span>${gpsOn?'Position partagée en direct':'GPS non démarré'}</span>
+        </div>
+      </div>
+      <div class="courier-mission-actions">
+        <button class="btn btn-outline btn-block" onclick="window.open('${mapsUrl}','_blank')">Itinéraire</button>
+        ${!delivered?`<button class="btn btn-soft-indigo btn-block" onclick="startCourierLiveGps('${a.id}')">${gpsOn?'GPS actif — relancer':'Démarrer mon GPS'}</button><button class="btn btn-primary btn-courier-primary btn-block" onclick="courierDelivered('${a.id}')">Marquer la livraison effectuée</button>`:`<button class="btn btn-primary btn-courier-primary btn-block" onclick="CourierMission.close()">Retour aux missions</button>`}
+      </div>`;
+  }
+};
+
+/* ---------- Paiement ---------- */
+Views.payment = function(){
+  const p = Store.payment;
+  const statusBadge = (m)=>{
+    if(!m.enabled || !m.number) return '';
+    if(m.validated) return `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--green-tint);color:var(--green);">Vérifié ✓</span>`;
+    return `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--mango-tint);color:var(--mango-dark);">En attente</span>`;
+  };
+  const row = (key,label,icon)=>`
+    <div class="payment-method-card">
+      <div class="toggle-row" style="border:none;padding:0;">
+        <span style="display:flex;align-items:center;gap:10px;font-weight:750;">${icon}<span>${label}</span>${statusBadge(p[key])}</span>
+        <label class="switch"><input type="checkbox" id="pm-${key}" ${p[key].enabled?'checked':''} onchange="togglePaymentMethod('${key}')"><span class="slider"></span></label>
+      </div>
+      <div id="pm-${key}-num" class="${p[key].enabled?'':'hidden'}" style="margin-top:12px;">
+        <input type="text" id="pm-${key}-input" placeholder="Numéro marchand ${label}" value="${p[key].number||''}" style="width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-size:14px;font-family:var(--font-body);margin-bottom:9px;box-sizing:border-box;">
+        <input type="url" id="pm-${key}-link" placeholder="Lien de paiement (optionnel)" value="${p[key].link||''}" style="width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-size:14px;font-family:var(--font-body);margin-bottom:9px;box-sizing:border-box;">
+        <button type="button" class="btn btn-soft-indigo btn-block" onclick="savePaymentNumber('${key}')">Enregistrer ${label}</button>
+      </div>
+    </div>`;
+  const active=['wave','om','mtn','moov'].filter(k=>p[k].enabled&&p[k].number).length;
+  return `
+    ${TopBar('Paiement','Moyens d’encaissement')}
+    <div class="payment-head"><div class="eyebrow">Encaissement</div><h2>Paiements de votre boutique</h2><p>Choisissez comment vos clients peuvent vous payer.</p></div>
+    <div class="payment-hero"><div class="label">Moyens mobiles configurés</div><div class="title">${active} / 4 actifs</div><div style="font-size:11.5px;color:var(--text-mid);margin-top:4px;">Les paiements sont envoyés directement sur vos comptes marchands.</div></div>
+    <div style="padding:0 20px 4px;">
+      ${row('wave','Wave','')}
+      ${row('om','Orange Money','')}
+      ${row('mtn','MTN Money','')}
+      ${row('moov','Moov Money','')}
+      <div class="payment-method-card"><div class="toggle-row" style="border:none;padding:0;"><span style="font-weight:750;">Paiement à la livraison <span style="font-size:10.5px;color:var(--text-mid);font-weight:500;">(cash)</span></span><label class="switch"><input type="checkbox" id="pm-cash" ${p.cash.enabled?'checked':''} onchange="togglePaymentMethod('cash')"><span class="slider"></span></label></div></div>
+    </div>
+    <div class="payment-security" style="border:1.5px solid var(--green);padding:14px 16px;background:var(--green-tint);">
+      <div style="display:flex;align-items:center;gap:8px;font-weight:750;font-size:13.5px;margin-bottom:6px;color:var(--green);">Paiements directs et sécurisés</div>
+      <p style="font-size:12px;color:var(--text-mid);margin:0;line-height:1.55;">Les moyens mobiles activés encaissent directement sur votre numéro marchand. SIAMS ne reçoit ni ne conserve ces paiements.</p>
+    </div>
+    <div class="payment-note">Les moyens activés seront proposés à vos clients au moment du paiement dans votre boutique.</div>
+  `;
+};
+
+function togglePaymentMethod(key){
+  const p = Store.payment;
+  p[key].enabled = document.getElementById('pm-'+key).checked;
+  if(p[key].enabled && p[key].number){
+    p[key].validated = true;
+    p[key].validatedAt = p[key].validatedAt || Date.now();
+  }
+  Store.payment = p;
+  const numWrap = document.getElementById('pm-'+key+'-num');
+  if(numWrap) numWrap.classList.toggle('hidden', !p[key].enabled);
+}
+function savePaymentNumber(key){
+  const p = Store.payment;
+  const prevNumber = p[key].number || '';
+  const prevLink = p[key].link || '';
+  p[key].number = document.getElementById('pm-'+key+'-input').value.trim();
+  const linkInput = document.getElementById('pm-'+key+'-link');
+  p[key].link = linkInput ? linkInput.value.trim() : '';
+  if(p[key].number !== prevNumber || p[key].link !== prevLink){
+    p[key].validated = !!p[key].number;
+    p[key].validatedAt = p[key].number ? Date.now() : 0;
+  } else if(p[key].number){
+    // Un numéro déjà renseigné reste immédiatement disponible.
+    p[key].validated = true;
+    p[key].validatedAt = p[key].validatedAt || Date.now();
+  }
+  p[key].enabled = true;
+  Store.payment = p;
+  Toast.show(p[key].number ? 'Moyen de paiement activé ✓' : 'Numéro enregistré');
+  Router.go('payment');
+}
+
+/* ---------- Catégories ---------- */
+Views.categories = function(){
+  const cats = Store.categories;
+  const products = Store.products;
+  const photos = Store.categoryPhotos;
+  return `
+  ${TopBar('Catégories', cats.length+' catégorie(s)')}
+  <div style="padding:16px 20px 0;">
+    ${cats.map(c=>{
+      const count = products.filter(p=>p.category===c).length;
+      const cid = 'catphoto-' + Utils.escapeHtml(c).replace(/[^a-zA-Z0-9]/g,'_');
+      const photo = photos[c];
+      return `
+      <div style="display:flex;align-items:center;gap:14px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px;background:#fff;">
+        <div style="position:relative;flex:none;">
+          <div class="store-logo" style="width:44px;height:44px;border-radius:11px;overflow:hidden;cursor:pointer;" onclick="document.getElementById('${cid}-input').click()">
+            ${photo ? `<img src="${Utils.escapeHtml(photo)}" style="width:100%;height:100%;object-fit:cover;">` : `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="var(--indigo)" stroke-width="1.7"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="var(--indigo)" stroke-width="1.7"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="var(--indigo)" stroke-width="1.7"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="var(--indigo)" stroke-width="1.7"/></svg>`}
+          </div>
+          <input type="file" id="${cid}-input" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleCategoryPhoto(event,'${Utils.escapeHtml(c)}','${cid}')">
+        </div>
+        <div style="flex:1;"><h4 style="margin:0 0 2px;font-size:14.5px;font-weight:700;">${Utils.escapeHtml(c)}</h4><span style="font-size:12px;color:var(--text-mid);">${count} produit(s)</span>
+          <div style="margin-top:4px;display:flex;gap:12px;">
+            <button onclick="document.getElementById('${cid}-input').click()" style="background:none;border:none;color:var(--indigo);font-size:11.5px;font-weight:700;cursor:pointer;padding:0;">${photo?'Changer la photo':'Ajouter une photo'}</button>
+            ${photo?`<button onclick="removeCategoryPhoto('${Utils.escapeHtml(c)}')" style="background:none;border:none;color:var(--red);font-size:11.5px;font-weight:700;cursor:pointer;padding:0;">Retirer</button>`:''}
+          </div>
+        </div>
+        <button onclick="deleteCategory('${Utils.escapeHtml(c)}')" style="background:none;border:none;color:var(--text-soft);cursor:pointer;padding:6px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0-1 13a2 2 0 0 1-2 1.8H10a2 2 0 0 1-2-1.8L7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>`;
+    }).join('')}
+  </div>
+  <div style="padding:8px 20px 24px;"><button class="btn btn-soft-indigo btn-block" onclick="addCategory()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="var(--indigo)" stroke-width="2.2" stroke-linecap="round"/></svg>Ajouter une catégorie</button></div>
+  `;
+};
+function handleCategoryPhoto(e, name, cid){
+  const file = e.target.files[0];
+  if(!file) return;
+  siamsPrepareImageDataURL(file).then(async dataUrl=>{
+    try{
+      await Cloud.setCategoryPhoto(name, dataUrl);
+      Toast.show('Photo enregistrée ✓');
+      Router.go('categories');
+    }catch(err){ console.error(err); Toast.show('⚠️ Impossible d’enregistrer cette photo'); }
+  }).catch(()=>Toast.show('Impossible de traiter cette photo'));
+}
+async function removeCategoryPhoto(name){
+  try{
+    await Cloud.setCategoryPhoto(name, null);
+    Toast.show('Photo retirée');
+    Router.go('categories');
+  }catch(err){ console.error(err); Toast.show('⚠️ Impossible de retirer cette photo'); }
+}
+function addCategory(){
+  const name = prompt('Nom de la catégorie');
+  if(!name || !name.trim()) return;
+  const cats = Store.categories;
+  if(cats.includes(name.trim())){ Toast.show('Cette catégorie existe déjà'); return; }
+  cats.push(name.trim());
+  Store.categories = cats;
+  Toast.show('Catégorie ajoutée ✓');
+  Router.go('categories');
+}
+function deleteCategory(name){
+  if(!confirm(`Supprimer la catégorie "${name}" ?`)) return;
+  Store.categories = Store.categories.filter(c=>c!==name);
+  Toast.show('Catégorie supprimée');
+  Router.go('categories');
+}
+
+/* ---------- Codes promo ---------- */
+Views.promos = function(){
+  if(!Store.hasFeature('promos')) return FeatureLock('Codes promo', "La création de codes promo est incluse à partir de la formule DOYEN.", 'doyen');
+  const promos = (Store.promos || []).map(p=>PromoLocal.merge(p));
+  const active = promos.filter(p=>p.active && (!p.maxUses || p.usedCount<p.maxUses)).length;
+  const inactive = promos.length-active;
+  return `
+  ${TopBar('Codes promo', promos.length+' code(s)')}
+  <div class="promo-premium-head"><div class="eyebrow">Marketing boutique</div><h2>Vos codes promo</h2><p>Créez des réductions, limitez leur utilisation et désactivez-les quand vous le souhaitez.</p></div>
+  <div class="promo-summary"><div class="promo-stat"><div class="n">${promos.length}</div><div class="t">Total</div></div><div class="promo-stat active"><div class="n">${active}</div><div class="t">Disponibles</div></div><div class="promo-stat inactive"><div class="n">${inactive}</div><div class="t">Désactivés / épuisés</div></div></div>
+  <div class="promo-tip">Définissez une limite pour créer une campagne maîtrisée, ou laissez <b>0</b> pour une utilisation illimitée.</div>
+  <div class="section-title" style="padding-top:2px;">Codes disponibles</div>
+  ${promos.length===0 ? EmptyState(ICONS.box,'Aucun code promo',"Créez votre premier code promo pour proposer une réduction à vos clients.") : promos.map(p=>{
+    const exhausted=p.maxUses>0 && p.usedCount>=p.maxUses;
+    return `<div class="promo-card-premium">
+      <div class="promo-card-top"><div class="promo-code-badge"><span>％</span>${Utils.escapeHtml(p.code)}</div><span class="badge ${p.active&&!exhausted?'delivered':'pending'}">${exhausted?'Épuisé':p.active?'Actif':'Inactif'}</span></div>
+      <div class="promo-card-desc">${p.type==='percent'?p.value+'% de réduction sur la commande':Utils.fmtFCFA(p.value)+' de réduction sur la commande'}</div>
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:var(--text-mid);margin-bottom:11px;"><span>${p.maxUses>0?`Utilisations : <b>${p.usedCount} / ${p.maxUses}</b>`:`Utilisations : <b>${p.usedCount}</b> · illimité`}</span><button class="link-btn" onclick="editPromo('${p.id}')">Modifier</button></div>
+      ${p.maxUses>0?`<div style="height:6px;background:var(--panel);border-radius:999px;overflow:hidden;margin-bottom:11px;"><span style="display:block;height:100%;width:${Math.min(100,Math.round(p.usedCount/p.maxUses*100))}%;background:var(--indigo);"></span></div>`:''}
+      <div class="promo-card-foot"><span class="promo-kind">${p.type==='percent'?'Pourcentage':'Montant fixe'}</span><label class="switch"><input type="checkbox" ${p.active&&!exhausted?'checked':''} ${exhausted?'disabled':''} onchange="togglePromo('${p.id}')"><span class="slider"></span></label></div>
+    </div>`;
+  }).join('')}
+  <div class="promo-create"><button class="btn btn-mango btn-block" onclick="addPromo()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>Créer un code promo</button></div>`;
+};
+function addPromo(){
+  const code=prompt('Code promo (ex. BIENVENUE10)'); if(!code||!code.trim()) return;
+  if((Store.promos||[]).some(p=>p.code===code.trim().toUpperCase())) return Toast.show('Ce code existe déjà');
+  const type=prompt('Type : % pourcentage / montant fixe', '%'); if(type===null) return;
+  const value=Number(prompt(type.trim()==='%'?'Valeur en pourcentage':'Montant de la réduction en FCFA','10')); if(!Number.isFinite(value)||value<=0) return Toast.show('Valeur invalide');
+  const max=Number(prompt("Nombre maximum d'utilisations (0 = illimité)",'0')); if(!Number.isFinite(max)||max<0) return Toast.show('Limite invalide');
+  const p={id:Utils.uid(),code:code.trim().toUpperCase(),type:type.trim()==='%'?'percent':'fixed',value,active:true,maxUses:Math.floor(max),usedCount:0,createdAt:Date.now()};
+  Store.promos=[...(Store.promos||[]),p]; PromoLocal.update(p.id,{maxUses:p.maxUses,usedCount:0,active:true}); Toast.show('Code promo créé ✓'); Router.go('promos');
+}
+function togglePromo(id){ const promos=Store.promos.map(p=>p.id===id?Object.assign({},p,{active:!p.active}):p); Store.promos=promos; const p=promos.find(x=>x.id===id); PromoLocal.update(id,{active:p.active}); Toast.show(p.active?'Code activé ✓':'Code désactivé'); Router.go('promos'); }
+function editPromo(id){
+  const promos=Store.promos.slice(); const p=promos.find(x=>x.id===id); if(!p) return;
+  const max=prompt("Nombre maximum d'utilisations (0 = illimité)",String(p.maxUses||0)); if(max===null) return;
+  const n=Number(max); if(!Number.isFinite(n)||n<0) return Toast.show('Limite invalide');
+  p.maxUses=Math.floor(n); Store.promos=promos; PromoLocal.update(id,{maxUses:p.maxUses}); Toast.show('Limite mise à jour ✓'); Router.go('promos');
+}
+
+/* ---------- Avis clients ---------- */
+Views.reviews = function(){
+  if(!Store.hasFeature('reviews')) return FeatureLock('Avis clients', "La gestion des avis clients est incluse à partir de la formule DOYEN.", 'doyen');
+  const reviews = Store.reviews.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  const products = Store.products;
+  const nameFor = (id)=>{ const p = products.find(x=>x.id===id); return p?p.name:'Produit supprimé'; };
+  const count = reviews.length;
+  const total = reviews.reduce((sum,r)=>sum + Number(r.rating||0),0);
+  const avg = count ? total/count : 0;
+  const distribution = [5,4,3,2,1].map(n=>({n,count:reviews.filter(r=>Number(r.rating)===n).length}));
+  const stars = (value)=>`${'★'.repeat(Math.round(value))}${'☆'.repeat(5-Math.round(value))}`;
+  return `
+  ${TopBar('Avis clients', count+' avis')}
+  <div style="padding:16px 20px 0;">
+    <div class="reviews-summary">
+      <div style="text-align:center;">
+        <div class="reviews-score">${avg.toFixed(1)}</div>
+        <div class="reviews-score-stars">${stars(avg)}</div>
+        <div class="reviews-trust">${count ? 'Réputation basée sur '+count+' avis' : 'Aucun avis reçu'}</div>
+      </div>
+      <div class="reviews-bars">
+        ${distribution.map(x=>`<div class="reviews-bar-row"><span>${x.n}★</span><div class="reviews-bar"><span style="width:${count ? Math.round(x.count/count*100) : 0}%"></span></div><strong>${x.count}</strong></div>`).join('')}
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0 8px;">
+      <div><div style="font-size:15px;font-weight:800;">Avis récents</div><div style="font-size:11px;color:var(--text-soft);">Renforcez la confiance en répondant à vos clients.</div></div>
+      <span style="font-size:11px;color:var(--indigo);font-weight:800;">${count ? '★★★★★' : '—'}</span>
+    </div>
+
+    ${count===0 ? EmptyState(ICONS.box,'Aucun avis pour le moment',"Les avis laissés par vos clients apparaîtront ici.") : `
+      <div class="reviews-filter" id="reviews-filter">
+        <button class="active" onclick="filterReviews(0,this)">Tous (${count})</button>
+        ${[5,4,3,2,1].map(n=>`<button onclick="filterReviews(${n},this)">${n}★ (${distribution.find(x=>x.n===n).count})</button>`).join('')}
+      </div>
+      <div id="reviews-list">
+        ${reviews.map(r=>`
+        <div class="review-card review-item" data-rating="${Number(r.rating)||0}" style="padding:14px 0;">
+          <div class="review-card-top">
+            <div>
+              <div class="review-card-name">${Utils.escapeHtml(r.name||'Client')}</div>
+              <div style="font-size:11px;color:var(--text-soft);margin-top:2px;">${Utils.escapeHtml(nameFor(r.productId))}</div>
+            </div>
+            <span style="color:var(--mango-dark);font-size:13px;font-weight:700;">${'★'.repeat(Number(r.rating)||0)}${'☆'.repeat(5-(Number(r.rating)||0))}</span>
+          </div>
+          ${r.comment ? `<p class="review-card-comment">${Utils.escapeHtml(r.comment)}</p>` : `<p class="review-card-comment" style="font-style:italic;">Le client n’a pas laissé de commentaire.</p>`}
+          <div class="review-card-time">${Utils.timeAgo(r.createdAt)}</div>
+          ${r.reply ? `
+          <div class="review-card-reply">
+            <div style="font-size:11px;font-weight:800;color:var(--indigo);margin-bottom:3px;">Réponse de votre boutique</div>
+            <div style="font-size:12.5px;color:var(--text);line-height:1.45;">${Utils.escapeHtml(r.reply)}</div>
+          </div>
+          <button class="link-btn" style="margin-top:8px;padding:0;" onclick="replyToReview('${r.id}')">Modifier la réponse</button>
+          ` : `<button class="link-btn" style="margin-top:8px;padding:0;" onclick="replyToReview('${r.id}')">Répondre au client</button>`}
+        </div>`).join('')}
+      </div>`}
+  </div>
+  <div style="height:12px;"></div>
+  `;
+};
+
+function filterReviews(rating, button){
+  document.querySelectorAll('#reviews-filter button').forEach(b=>b.classList.remove('active'));
+  if(button) button.classList.add('active');
+  document.querySelectorAll('#reviews-list .review-item').forEach(card=>{
+    card.style.display = (!rating || Number(card.dataset.rating)===Number(rating)) ? '' : 'none';
+  });
+}
+
+function replyToReview(id){
+  const reviews = Store.reviews;
+  const review = reviews.find(r=>r.id===id);
+  if(!review) return;
+  const reply = prompt('Votre réponse à cet avis', review.reply || '');
+  if(reply===null) return;
+  review.reply = reply.trim();
+  Store.reviews = reviews;
+  Toast.show('Réponse enregistrée ✓');
+  Router.go('reviews');
+}
+
+/* ---------- Clients ---------- */
+Views.customers = function(){
+  if(!Store.hasFeature('customers')) return FeatureLock('Clients', "L'historique et le suivi de vos clients sont inclus à partir de la formule DOYEN.", 'doyen');
+  const customers = Store.customers();
+  return `
+  ${TopBar('Clients', customers.length+' client(s)')}
+  ${customers.length ? `<div style="padding:16px 20px 0;"><button class="btn btn-outline btn-block" onclick="exportCustomersCSV()">Exporter les clients (Excel / CSV)</button></div>` : ''}
+  <div style="padding:16px 20px 0;">
+    ${customers.length===0 ? EmptyState(ICONS.team,'Aucun client encore',"L'historique de vos clients apparaîtra ici après leurs premières commandes.") :
+      customers.map(c=>{
+        const medal = c.rank===1?'🥇':c.rank===2?'🥈':c.rank===3?'🥉':null;
+        return `
+      <div style="display:flex;align-items:center;gap:14px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px;background:#fff;cursor:pointer;" onclick="Router.go('customer-detail',{phone:'${Utils.escapeHtml(c.phone)}'})">
+        ${medal ? `<div class="rank-medal" style="background:var(--indigo-tint);">${medal}</div>` : `<div class="store-logo" style="width:42px;height:42px;border-radius:12px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="var(--indigo)" stroke-width="1.7"/><path d="M4.5 20c.8-4 3.6-6.2 7.5-6.2s6.7 2.2 7.5 6.2" stroke="var(--indigo)" stroke-width="1.7" stroke-linecap="round"/></svg></div>`}
+        <div style="flex:1;min-width:0;">
+          <h4 style="margin:0 0 2px;font-size:14.5px;font-weight:700;">${Utils.escapeHtml(c.name)}${c.isTopContributor?' <span style="font-size:10px;font-weight:800;color:var(--gold-dark);background:var(--gold-tint);padding:2px 6px;border-radius:999px;vertical-align:middle;">TOP CLIENT</span>':''}</h4>
+          <span class="mono" style="font-size:12px;color:var(--text-mid);">${Utils.escapeHtml(c.phone)}</span>
+        </div>
+        <div style="text-align:right;">
+          <div class="mono" style="font-size:13.5px;font-weight:700;color:var(--indigo);">${Utils.fmtFCFA(c.spent)}</div>
+          <span style="font-size:11px;color:var(--text-soft);">${c.orders} commande(s)</span>
+        </div>
+      </div>`;}).join('')}
+  </div>
+  <div style="height:12px;"></div>
+  `;
+};
+
+/* ---------- Fiche client ---------- */
+Views['customer-detail'] = function(opts){
+  const orders = Store.ordersForPhone(opts.phone);
+  if(orders.length===0) return `${TopBar('Client introuvable')}<div style="padding:20px;">${EmptyState(ICONS.team,'Client introuvable','Aucune commande associée à ce numéro.')}</div>`;
+  const name = orders[0].customer.name;
+  const address = orders[0].customer.address;
+  const spent = orders.reduce((s,o)=>s+o.amount,0);
+  const badgeLabel = {pending:'En attente', confirmed:'Confirmée', delivered:'Livrée'};
+  const custInfo = Store.customers().find(c=>c.phone===opts.phone);
+  const isTop = custInfo && custInfo.isTopContributor;
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('customers')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>${Utils.escapeHtml(name)}</h1></div>
+  </div>
+  <div style="padding:0 20px;">
+    <div class="mono" style="font-size:13px;color:var(--text-mid);margin-bottom:2px;">${Utils.escapeHtml(opts.phone)}</div>
+    <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px;">${Utils.escapeHtml(address)}</div>
+    <button class="btn btn-soft-green btn-sm" style="margin-bottom:16px;" onclick="window.open('https://wa.me/225${opts.phone.replace(/\\D/g,'')}','_blank')"><svg width="14" height="14" viewBox="0 0 448 512" fill="var(--green)"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter sur WhatsApp</button>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="lbl">Total dépensé</div><div class="val">${Utils.fmtFCFA(spent)}</div></div>
+    <div class="stat-card"><div class="lbl">Commandes</div><div class="val">${orders.length}</div></div>
+  </div>
+  ${isTop ? `
+  <div style="margin:14px 20px 0;border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:14px 16px;background:var(--gold-tint);">
+    <div style="font-size:13px;font-weight:700;color:var(--gold-dark);margin-bottom:4px;">⭐ Ce client contribue énormément à votre activité</div>
+    <div style="font-size:12.5px;color:var(--text-mid);margin-bottom:10px;">Et si vous lui donniez un code de réduction pour le fidéliser ?</div>
+    <button class="btn btn-sm" style="background:var(--gold);color:#fff;" onclick="${Store.hasFeature('promos')?"Router.go('promos')":"SubscriptionSheet.open()"}">${Store.hasFeature('promos')?'Créer un code promo':'Débloquer les codes promo'}</button>
+  </div>` : ''}
+  <div class="section-title">Historique des commandes</div>
+  <div style="padding:8px 20px 24px;">
+    ${orders.map(o=>`
+      <div class="order-row" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:10px;padding:14px 16px;background:#fff;cursor:pointer;" onclick="Router.go('order-detail',{id:'${o.id}'})">
+        <div class="order-status ${o.status}"></div>
+        <div class="order-info"><h4>Commande #${o.number}</h4><div class="meta">${Utils.timeAgo(o.createdAt)}</div></div>
+        <div style="text-align:right;"><div class="order-amount">${Utils.fmtFCFA(o.amount)}</div><span class="badge ${o.status}">${badgeLabel[o.status]}</span></div>
+      </div>`).join('')}
+  </div>
+  `;
+};
+
+/* ---------- Couleurs de l'application (déblocables par formule) ---------- */
+Views['app-theme'] = function(){
+  const unlocked = ThemeUnlock.unlocked;
+  const active = ThemeUnlock.active;
+  const rows = SUBSCRIPTION_PLANS.map(p=>{
+    const isUnlocked = unlocked.includes(p.key);
+    const isActive = active===p.key;
+    return `
+    <div class="theme-tier-row ${isActive?'active':''} ${isUnlocked?'':'locked'}" ${isUnlocked?`onclick=\"ThemeUnlock.setActive('${p.key}');Router.go('app-theme')\"`:''}>
+      <div class="theme-swatch" style="background:${TIER_COLORS[p.key]};"></div>
+      <div style="flex:1;min-width:0;">
+        <h4 style="margin:0 0 2px;font-size:14.5px;font-weight:700;">${p.label}</h4>
+        <span style="font-size:12px;color:var(--text-mid);">${isUnlocked ? (isActive?'Couleur active':'Débloquée — appuyez pour l\'activer') : `À débloquer avec la formule ${p.label}`}</span>
+      </div>
+      ${isActive?`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="var(--indigo)"/><path d="m7 12.5 3.2 3.2L17 9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : !isUnlocked ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="var(--text-soft)" stroke-width="1.6"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="var(--text-soft)" stroke-width="1.6"/></svg>` : ''}
+    </div>`;
+  }).join('');
+  return `
+  ${TopBar('Couleurs de l\'app', 'Débloquées automatiquement à chaque formule souscrite')}
+  <div style="padding:16px 20px 0;">
+    ${!unlocked.length ? `<div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:14px;font-size:12.5px;color:var(--text-mid);background:#fff;">Souscrivez à une formule pour débloquer votre première couleur d'application.</div>`:''}
+    ${rows}
+    ${unlocked.length ? `<div style="margin-top:6px;"><button class="btn btn-ghost btn-block" onclick="ThemeUnlock.setActive(null);Router.go('app-theme')">Revenir à la couleur par défaut</button></div>` : ''}
+  </div>
+  <div style="height:12px;"></div>
+  `;
+};
+
+/* ---------- Livraison ---------- */
+Views.delivery = function(){
+  if(!Store.hasFeature('delivery')) return FeatureLock('Livraison', "La configuration des zones de livraison est réservée à la formule DOYA.", 'doya');
+  const zones = Store.deliveryZones || [];
+  const orders = Store.orders || [];
+  const delivered = orders.filter(o=>o.status==='delivered').length;
+  const active = zones.length;
+  const avgFee = zones.length ? Math.round(zones.reduce((s,z)=>s+Number(z[1]||z.fee||0),0)/zones.length) : 0;
+  return `
+  ${TopBar('Livraison', zones.length+' zone(s) configurée(s)')}
+  <div class="delivery-head">
+    <div class="eyebrow">Logistique boutique</div>
+    <h2>Livraison</h2>
+    <p>Configurez vos zones, tarifs et conditions de livraison.</p>
+  </div>
+  <div class="delivery-summary">
+    <div class="delivery-stat"><div class="n">${active}</div><div class="t">Zones actives</div></div>
+    <div class="delivery-stat green"><div class="n">${delivered}</div><div class="t">Commandes livrées</div></div>
+    <div class="delivery-stat"><div class="n">${avgFee?Utils.fmtFCFA(avgFee):'—'}</div><div class="t">Frais moyen</div></div>
+  </div>
+  <div class="section-title" style="padding-top:2px;">Vos zones de livraison</div>
+  ${zones.length===0 ? EmptyState(ICONS.box,'Aucune zone de livraison',"Ajoutez des zones avec leurs frais. Sans zone, la livraison sera gratuite ou à négocier avec le client.") :
+    zones.map((z,i)=>{
+      const name = Array.isArray(z) ? z[0] : (z.name||z.zone||'Zone');
+      const fee = Array.isArray(z) ? z[1] : (z.fee||z.price||0);
+      const delay = Array.isArray(z) ? (z[2]||'24–72 h') : (z.delay||'24–72 h');
+      return `<div class="delivery-zone">
+        <div class="zone-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.8"/></svg></div>
+        <div class="zone-main"><h4>${Utils.escapeHtml(name)}</h4><p>Délai indicatif : ${Utils.escapeHtml(String(delay))}</p></div>
+        <div class="fee"><strong>${Utils.fmtFCFA(Number(fee)||0)}</strong><span>frais</span></div>
+      </div>`;
+    }).join('')}
+  <div class="delivery-note">
+    Les zones configurées seront proposées automatiquement au client lors de la commande. Les frais affichés dépendent de la zone sélectionnée.
+  </div>
+  <div class="delivery-action">
+    <button class="btn btn-soft-green btn-block" onclick="addDeliveryZone()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="var(--green)" stroke-width="2.2" stroke-linecap="round"/></svg>Ajouter une zone de livraison</button>
+  </div>`;
+};
+function addDeliveryZone(){
+  const name = prompt('Nom de la zone (ex : Cocody, Yopougon)');
+  if(!name || !name.trim()) return;
+  const fee = prompt('Frais de livraison (FCFA)');
+  if(fee===null || isNaN(Number(fee)) || Number(fee)<0){ Toast.show('Montant invalide'); return; }
+  const zones = Store.deliveryZones;
+  zones.push({ name:name.trim(), fee:Number(fee) });
+  Store.deliveryZones = zones;
+  Toast.show('Zone ajoutée ✓');
+  Router.go('delivery');
+}
+function deleteDeliveryZone(i){
+  const zones = Store.deliveryZones;
+  zones.splice(i,1);
+  Store.deliveryZones = zones;
+  Toast.show('Zone supprimée');
+  Router.go('delivery');
+}
+
+/* ---------- Boutique ---------- */
+Views.boutique = function(){
+  const store = Store.store;
+  const products = Store.products;
+  return `
+  ${TopBar('Boutique')}
+  ${store.banner ? `<div style="margin:0 20px;border-radius:var(--radius-lg);overflow:hidden;aspect-ratio:16/7;"><img src="${store.banner}" style="width:100%;height:100%;object-fit:cover;display:block;"></div>` : ''}
+  <div class="store-card">
+    <div class="store-card-top"><h3>Votre boutique</h3><button class="btn btn-soft-indigo btn-sm" onclick="Router.go('store-edit')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 20h9" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="var(--indigo)" stroke-width="2" stroke-linejoin="round"/></svg>Modifier</button></div>
+    <div class="store-id-row">
+      <div class="store-logo">${store.photo?`<img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;">`:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="var(--indigo)" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="var(--indigo)" stroke-width="1.8" stroke-linecap="round"/></svg>`}</div>
+      <h2>${Utils.escapeHtml(store.name)}</h2>
+    </div>
+    <div class="store-actions">
+      <button class="btn btn-soft-green btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="var(--green)"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Ouvrir la boutique WhatsApp</button>
+      <div class="row2">
+        <button class="btn btn-outline" onclick="copyLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.7"/></svg>Copier le lien</button>
+        <button class="btn btn-outline" onclick="shareLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v10m0-10 4 4m-4-4-4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Partager</button>
+      </div>
+      <button class="btn btn-mango btn-block" onclick="openStorePreview()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="#fff" stroke-width="1.7"/></svg>Aperçu client</button>
+    </div>
+  </div>
+
+  <div class="catalog-card">
+    <h3>Aperçu du catalogue</h3><p>Voici comment vos clients voient vos produits</p>
+    <button class="btn btn-soft-indigo btn-block" onclick="Router.go('products')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 20h9" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" stroke="var(--indigo)" stroke-width="2" stroke-linejoin="round"/></svg>Modifier le menu</button>
+  </div>
+  ${products.length===0 ? EmptyState(ICONS.box,'Votre boutique est vide','Les produits que vous ajoutez apparaîtront ici.') :
+    `<div style="margin-top:8px;">${products.slice(0,6).map(p=>`
+      <div class="product-row">
+        <div class="product-thumb">${p.photo?`<img src="${p.photo}">`:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 8v8l9 5 9-5V8M12 13v8" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`}</div>
+        <div class="product-info"><h4>${Utils.escapeHtml(p.name)}</h4><div class="price">${Utils.fmtFCFA(p.price)}</div></div>
+      </div>`).join('')}</div>`}
+  `;
+};
+/* ---------- Horaires d'ouverture façon WhatsApp Business ----------
+   Structure remplie manuellement par le vendeur, jour par jour (ouvert/fermé,
+   heure d'ouverture, heure de fermeture). Stockée en JSON dans store.hours. */
+const SCHEDULE_DAYS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function defaultSchedule(){
+  return SCHEDULE_DAYS.map(day => ({ day, closed: day==='Dimanche', open:'08:00', close:'19:00' }));
+}
+function parseSchedule(hoursValue){
+  if(hoursValue){
+    try{
+      const parsed = JSON.parse(hoursValue);
+      if(Array.isArray(parsed) && parsed.length===SCHEDULE_DAYS.length) return parsed;
+    }catch(e){ /* ancien format texte libre : on retombe sur les horaires par défaut */ }
+  }
+  return defaultSchedule();
+}
+function scheduleTodayIndex(){ return (new Date().getDay()+6)%7; } // 0 = Lundi
+let storeEditPhoto = null;
+Views['store-edit'] = function(){
+  const store = Store.store;
+  return `
+  ${TopBar('Modifier la boutique')}
+  <div class="form-wrap">
+    <div class="field"><label>Bannière de la boutique</label>
+      <div class="upload-box" id="banner-upload-box" onclick="document.getElementById('f-store-banner').click()" style="padding:0;overflow:hidden;${store.banner?'border-style:solid;':''}">
+        <input type="file" id="f-store-banner" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleStoreBanner(event)">
+        <div id="banner-upload-empty" class="${store.banner?'hidden':''}" style="padding:32px 20px;">
+          <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <strong>Ajouter une bannière</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — format large recommandé — max 5 Mo</div>
+        </div>
+        <img id="banner-upload-preview" class="${store.banner?'':'hidden'}" src="${store.banner||''}" style="width:100%;aspect-ratio:16/7;object-fit:cover;display:block;">
+      </div>
+      ${store.banner ? `<button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="removeStoreBanner()">Retirer la bannière</button>` : ''}
+    </div>
+    <div class="field"><label>Photo / logo de la boutique</label>
+      <div class="upload-box" id="store-upload-box" onclick="document.getElementById('f-store-photo').click()">
+        <input type="file" id="f-store-photo" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleStorePhoto(event)">
+        <div id="store-upload-empty" class="${store.photo?'hidden':''}">
+          <div class="upload-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0 4 4m-4-4L8 8" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="var(--indigo)" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <strong>Ajouter une photo</strong><div class="sub">Appuyez pour choisir un fichier</div><div class="hint">PNG, JPG, WEBP — max 5 Mo</div>
+        </div>
+        <img id="store-upload-preview" class="upload-preview ${store.photo?'':'hidden'}" src="${store.photo||''}">
+      </div>
+    </div>
+    <div class="field"><label>Nom de la boutique</label><input id="f-store-name" type="text" placeholder="Ex : AMOS STORE" value="${Utils.escapeHtml(store.name)}"></div>
+    <div class="field"><label>Numéro WhatsApp</label><input id="f-store-phone" type="tel" placeholder="07 00 00 00 00" value="${Utils.escapeHtml(store.phone)}"></div>
+    <div class="field"><label>Description de la boutique</label><textarea id="f-store-desc" rows="3" placeholder="Présentez votre boutique en quelques mots" style="width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;font-family:var(--font-body);font-size:14.5px;color:var(--text);resize:vertical;">${Utils.escapeHtml(store.description||'')}</textarea></div>
+    <div class="field"><label>Adresse</label><input id="f-store-address" type="text" placeholder="Ex : Cocody, Abidjan" value="${Utils.escapeHtml(store.address||'')}"></div>
+    <div class="field"><label>E-mail (optionnel)</label><input id="f-store-email" type="email" placeholder="contact@maboutique.com" value="${Utils.escapeHtml(store.email||'')}"></div>
+    <div class="field">
+      <label>Horaires d'ouverture</label>
+      <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:4px 16px;background:#fff;">
+        ${parseSchedule(store.hours).map((d,i)=>`
+        <div class="sched-row">
+          <span class="sched-day">${d.day}</span>
+          <div class="sched-times" id="sched-times-${i}" style="${d.closed?'opacity:.4;':''}">
+            <input type="time" id="sched-${i}-open" value="${d.open||'08:00'}" ${d.closed?'disabled':''}>
+            <span style="color:var(--text-soft);font-size:12px;">à</span>
+            <input type="time" id="sched-${i}-close" value="${d.close||'19:00'}" ${d.closed?'disabled':''}>
+          </div>
+          <label class="switch" style="flex:none;"><input type="checkbox" id="sched-${i}-open-toggle" ${d.closed?'':'checked'} onchange="toggleScheduleDay(${i})"><span class="slider"></span></label>
+        </div>`).join('')}
+      </div>
+      <div class="hint" style="margin-top:6px;">Comme sur WhatsApp Business : indiquez, pour chaque jour, si la boutique est ouverte et à quelles heures.</div>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-bottom:24px;" onclick="saveStoreProfile()">Enregistrer</button>
+  </div>`;
+};
+Views._after_store_edit = function(){ storeEditPhoto = Store.store.photo || null; storeEditBanner = Store.store.banner || null; };
+function handleStorePhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  siamsPrepareImageDataURL(file).then(dataUrl=>{
+    storeEditPhoto = dataUrl;
+    document.getElementById('store-upload-empty').classList.add('hidden');
+    const prev = document.getElementById('store-upload-preview');
+    prev.src = storeEditPhoto; prev.classList.remove('hidden');
+  }).catch(()=>Toast.show('Impossible de traiter cette photo'));
+}
+let storeEditBanner = null;
+function handleStoreBanner(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  siamsPrepareImageDataURL(file).then(dataUrl=>{
+    storeEditBanner = dataUrl;
+    document.getElementById('banner-upload-empty').classList.add('hidden');
+    const prev = document.getElementById('banner-upload-preview');
+    prev.src = storeEditBanner; prev.classList.remove('hidden');
+    document.getElementById('banner-upload-box').style.borderStyle = 'solid';
+  }).catch(()=>Toast.show('Impossible de traiter cette photo'));
+}
+function removeStoreBanner(){
+  storeEditBanner = null;
+  Router.go('store-edit');
+}
+function toggleScheduleDay(i){
+  const open = !document.getElementById(`sched-${i}-open-toggle`).checked; // décoché = fermé
+  const wrap = document.getElementById(`sched-times-${i}`);
+  wrap.style.opacity = open ? '.4' : '';
+  document.getElementById(`sched-${i}-open`).disabled = open;
+  document.getElementById(`sched-${i}-close`).disabled = open;
+}
+function readScheduleFromForm(){
+  return SCHEDULE_DAYS.map((day,i)=>{
+    const closed = !document.getElementById(`sched-${i}-open-toggle`).checked;
+    return { day, closed, open: document.getElementById(`sched-${i}-open`).value||'08:00', close: document.getElementById(`sched-${i}-close`).value||'19:00' };
+  });
+}
+function saveStoreProfile(){
+  const name = document.getElementById('f-store-name').value.trim();
+  const phone = document.getElementById('f-store-phone').value.trim();
+  if(!name){ Toast.show('Indiquez le nom de la boutique'); return; }
+  const description = document.getElementById('f-store-desc').value.trim();
+  const address = document.getElementById('f-store-address').value.trim();
+  const email = document.getElementById('f-store-email').value.trim();
+  const hours = JSON.stringify(readScheduleFromForm());
+  const store = Store.store;
+  store.name = name;
+  store.phone = phone || store.phone;
+  store.photo = storeEditPhoto;
+  store.banner = storeEditBanner;
+  store.description = description;
+  store.address = address;
+  store.email = email;
+  store.hours = hours;
+  Store.store = store;
+  Toast.show('Boutique mise à jour ✓');
+  Router.go('boutique');
+}
+function openWhatsapp(){ const s = Store.store; window.open('https://wa.me/225'+s.phone.replace(/\\D/g,''), '_blank'); }
+function getPublicStoreUrl(store, productId){
+  const s = store || Store.store || {};
+  const slug = String(s.slug || '').trim();
+  if(!slug) return location.origin + '/';
+  /* Lien de partage dédié : Vercel /api/share génère les métadonnées sociales
+     (nom + logo de la boutique) avant de rediriger vers la vitrine SIAMS. */
+  const u = new URL('/api/share', location.origin);
+  u.searchParams.set('boutique', slug);
+  if(productId) u.searchParams.set('produit', String(productId));
+  return u.toString();
+}
+
+function setPublicStoreMeta(store){
+  const s = store || {};
+  const name = String(s.name || 'Boutique en ligne').trim();
+  const description = String(s.description || 'Découvrez cette boutique en ligne sur SIAMS.').trim();
+  document.title = name + ' — Boutique en ligne';
+  const setMeta=(selector,attr,value)=>{
+    let el=document.head.querySelector(selector);
+    if(!el){ el=document.createElement('meta'); el.setAttribute(attr,''); document.head.appendChild(el); }
+    el.setAttribute(attr,value);
+  };
+  setMeta('meta[name="description"]','name',description);
+  setMeta('meta[property="og:title"]','property',name + ' — Boutique en ligne');
+  setMeta('meta[property="og:description"]','property',description);
+  setMeta('meta[property="og:url"]','property',location.href);
+  if(s.photo){ setMeta('meta[property="og:image"]','property',s.photo); }
+  setMeta('meta[name="twitter:title"]','name',name + ' — Boutique en ligne');
+  setMeta('meta[name="twitter:description"]','name',description);
+  if(s.photo){ setMeta('meta[name="twitter:image"]','name',s.photo); }
+}
+function copyLink(){
+  const link = getPublicStoreUrl(Store.store);
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(link).then(()=>Toast.show('Lien de la boutique copié ✓')).catch(()=>Toast.show(link));
+  } else {
+    Toast.show(link);
+  }
+}
+function shareLink(){
+  const s = Store.store || {};
+  const link = getPublicStoreUrl(s);
+  if(navigator.share){
+    navigator.share({title:s.name || 'Ma boutique', text:'Découvrez ma boutique SIAMS', url:link}).catch(()=>{});
+  } else if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(link).then(()=>Toast.show('Lien de la boutique copié ✓')).catch(()=>Toast.show(link));
+  } else {
+    Toast.show(link);
+  }
+}
+function openStorePreview(){
+  try{
+    /* L'aperçu est interne : aucune authentification et aucun onboarding client. */
+    Router.go('shop', {skipOnboarding:true, source:'merchant-preview'});
+  }catch(e){
+    console.error('openStorePreview',e);
+    const url = getPublicStoreUrl(Store.store);
+    const w = window.open(url,'_blank','noopener,noreferrer');
+    if(!w) location.href = url;
+  }
+}
+
+/* ---------- Palette des tuiles de catégories ---------- */
+function catTileHtml(name, index, opts){
+  opts = opts || {};
+  const size = opts.grid ? '' : 'style="flex:0 0 148px;"';
+  return `
+  <div class="cat-tile cat-tile-palette-${index%5}" onclick="Router.go('shop-categories',{cat:decodeURIComponent('${encodeURIComponent(name)}')})">
+    <div class="cat-tile-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div>
+      <h4>${Utils.escapeHtml(name)}</h4>
+      <div class="cat-tile-btn" style="margin-top:8px;">DÉCOUVRIR</div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Accueil client (bannière réduite + catégories + nouveautés) ---------- */
+Views.shop = function(){
+  const store = Store.store;
+  const isRestauration = store.businessType==='restauration';
+  const products = Store.products;
+  const access = Store.access();
+  const storeBadge = (access.status==='active' && access.badge) ? access.badge : null;
+  const isGoldenStore = storeBadge==='GOLDEN';
+  const isPlatinumStore = storeBadge==='PLATINE';
+  const isAllStore = storeBadge==='TOUTE BOUTIQUE';
+  const isDoyaStore = storeBadge==='DOYA';
+  const isPremiumStore = isGoldenStore || isPlatinumStore || isAllStore || isDoyaStore;
+  const paidVerified = isPaidSubscriptionActive();
+  // Côté client : le nom de la formule reste réservé à l'accueil marchand.
+  // La vitrine client affiche uniquement le badge de visibilité.
+  const badgeChip = paidVerified ? VerifiedBadge(16, access.plan) : '';
+  const certifiedChip = (store.verification && store.verification.verified) ? CertifiedBadge(16) : '';
+  /* ---- Stats du hero premium : nombre d'articles, note moyenne boutique (toutes
+     les notes produits confondues), commandes livrées. Purement dérivé des
+     données déjà en cache, aucun nouvel appel réseau. ---- */
+  const catalogCount = (isRestauration ? Store.menuItems : Store.products).length;
+  const allReviews = Store.reviews||[];
+  const storeAvgRating = allReviews.length ? (allReviews.reduce((s,r)=>s+r.rating,0)/allReviews.length) : null;
+  const deliveredCount = Store.orders.filter(o=>o.status==='delivered').length;
+  return `
+  <div class="shop-hero-premium">
+    <div class="shop-hero-top">
+      ${store.photo ? `<div class="store-logo${isGoldenStore?' tier-golden-logo':isPlatinumStore?' tier-platinum-logo':isAllStore?' tier-all-logo':isDoyaStore?' tier-doya-logo':''}" style="width:44px;height:44px;border-radius:13px;"><img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:${isPremiumStore?'11px':'12px'};"></div>` : ''}
+      <div class="shop-hero-store"><h1>${Utils.escapeHtml(store.name)}${badgeChip}${certifiedChip}</h1><div class="page-sub">${isRestauration?'Restauration & street food':'Boutique en ligne'}</div></div>
+      <button class="cn-notif-btn" onclick="ClientNotify.openPanel()" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="cn-notif-dot" id="cn-notif-dot"></span></button>
+    </div>
+    <div class="shop-hero-stats">
+      <div class="shop-hero-stat"><b data-count-to="${catalogCount}">0</b><span>${isRestauration?'Plats':'Articles'}</span></div>
+      <div class="shop-hero-stat"><b>${storeAvgRating!=null?storeAvgRating.toFixed(1):'—'}</b><span>Note ${storeAvgRating!=null?`(${allReviews.length})`:''}</span></div>
+      <div class="shop-hero-stat"><b data-count-to="${deliveredCount}">0</b><span>Livrées</span></div>
+    </div>
+  </div>
+  ${store.banner ? `<div class="shop-banner-wrap"${isAllStore?' style="border:1.5px solid var(--ruby);"':isPlatinumStore?' style="border:1.5px solid #FF3B5C;"':isDoyaStore?' style="border:1.5px solid var(--gold);"':''}><img src="${store.banner}"></div>` : ''}
+  ${isRestauration ? `
+  <div class="search-wrap" style="padding-top:14px;">
+    <div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="menu-home-search" type="text" placeholder="Rechercher un plat..." oninput="renderClientMenu()"></div>
+  </div>
+  <div id="menu-home-empty" class="hidden">${EmptyState(ICONS.box,'Aucun plat disponible aujourd\u2019hui',"Repassez plus tard, le menu du jour n'a pas encore été mis à jour.")}</div>
+  <div id="menu-home-sections"></div>
+  ` : `
+  <div class="search-wrap" style="padding-top:14px;">
+    <div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="home-search" type="text" placeholder="Rechercher un produit..." oninput="renderHomeGrid()"></div>
+  </div>
+  ${Store.categories.length>0 ? `
+  <div class="home-section-row"><h3>Catégories</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div>
+  <div class="cat-tile-row">${Store.categories.slice(0,8).map((c,i)=>catTileHtml(c,i)).join('')}</div>` : ''}
+  <div class="home-section-row"><h3 id="home-grid-title">Nouveautés</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div>
+  <div id="home-empty" class="hidden">${EmptyState(ICONS.box,'Boutique vide',"Cette boutique n'a pas encore de produits.")}</div>
+  <div id="home-grid" class="home-grid"></div>
+  `}
+  <div class="fab hidden" id="cart-bar" style="left:20px;right:20px;bottom:24px;max-width:440px;">
+    <button class="btn btn-mango btn-block" onclick="Router.go('cart')" style="justify-content:space-between;">
+      <span style="display:flex;align-items:center;gap:8px;">${ICONS.cart.replace('30','18').replace('30','18')} Voir le panier</span>
+      <span id="cart-bar-amount"></span>
+    </button>
+  </div>
+  `;
+};
+Views._after_shop = function(){
+  Wishlist.load();
+  ClientLocal.load();
+  if(Store.store.businessType==='restauration') renderClientMenu();
+  else renderHomeGrid();
+  ClientNotify.renderBadges();
+  animateShopHeroStats();
+};
+/* ---- Compteurs animés du hero premium (0 -> valeur réelle en ~600ms). Purement
+   cosmétique, ne modifie aucune donnée. ---- */
+function animateShopHeroStats(){
+  document.querySelectorAll('.shop-hero-stat b[data-count-to]').forEach(el=>{
+    const target = Number(el.getAttribute('data-count-to'))||0;
+    const start = performance.now();
+    const dur = 650;
+    function tick(now){
+      const p = Math.min(1,(now-start)/dur);
+      const eased = 1-Math.pow(1-p,3);
+      el.textContent = String(Math.round(target*eased));
+      if(p<1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+/* ---- Rendu de la vitrine "restauration" : plats disponibles aujourd'hui,
+   groupés par catégorie (Entrée/Plat/Boisson/Dessert/Snack). Les plats
+   indisponibles ne sont jamais affichés côté client. ---- */
+function renderClientMenu(){
+  const wrap = document.getElementById('menu-home-sections');
+  if(!wrap) return;
+  const searchEl = document.getElementById('menu-home-search');
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const empty = document.getElementById('menu-home-empty');
+  let items = Store.menuItems.filter(m=>m.available);
+  if(q) items = items.filter(m=>m.name.toLowerCase().includes(q));
+  if(items.length===0){
+    if(empty) empty.classList.remove('hidden');
+    wrap.innerHTML = '';
+    updateCartBar();
+    return;
+  }
+  if(empty) empty.classList.add('hidden');
+  const groups = MENU_CATEGORIES.map(cat=>({ cat, list: items.filter(m=>m.category===cat) })).filter(g=>g.list.length);
+  wrap.innerHTML = groups.map(g=>`
+    <div class="home-section-row"><h3>${g.cat}</h3></div>
+    <div class="home-grid">${g.list.map(m=>menuItemCardHtml(m)).join('')}</div>
+  `).join('');
+  updateCartBar();
+}
+function menuItemCardHtml(m){
+  return `
+  <div class="pcard">
+    <div class="pcard-media">
+      ${m.photo?`<img src="${m.photo}" loading="lazy">`:`<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M7 2v6.5a2.2 2.2 0 0 0 2.2 2.2M7 2v8.7M9.2 2v6.5M11.4 2v6.5a2.2 2.2 0 0 1-2.2 2.2M9.2 10.7V22" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+    </div>
+    <div class="pcard-body">
+      <h4 class="pcard-name">${Utils.escapeHtml(m.name)}</h4>
+      <div class="pcard-price-row"><span class="pcard-price">${Utils.fmtFCFA(m.price)}</span></div>
+      <button class="pcard-add" onclick="addToCart('${m.id}')">Ajouter</button>
+    </div>
+  </div>`;
+}
+function renderHomeGrid(){
+  const grid = document.getElementById('home-grid');
+  if(!grid) return;
+  const searchEl = document.getElementById('home-search');
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const titleEl = document.getElementById('home-grid-title');
+  const list = Store.products;
+  const empty = document.getElementById('home-empty');
+  let shown;
+  if(q){
+    shown = list.filter(p=>p.name.toLowerCase().includes(q));
+    if(titleEl) titleEl.textContent = `Résultats pour « ${searchEl.value.trim()} »`;
+  } else {
+    shown = list.slice(0,8);
+    if(titleEl) titleEl.textContent = 'Nouveautés';
+  }
+  if(list.length===0){ empty.classList.remove('hidden'); grid.innerHTML=''; }
+  else { empty.classList.add('hidden'); grid.innerHTML = shown.map(p=>productCardHtml(p)).join(''); }
+  updateCartBar();
+}
+
+/* ---------- Onglet Catégories (façon Jumia : onglets réduits à gauche, produits à droite) ---------- */
+Views['shop-categories'] = function(opts){
+  opts = opts || {};
+  const catLabel = (!opts.cat || opts.cat==='__all__') ? 'Tous les produits' : opts.cat;
+  const cats = Store.categories || [];
+  const icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/></svg>`;
+  const catCards = cats.map((c,i)=>{
+    const count = Store.products.filter(p=>p.category===c).length;
+    return `<button class="category-card" type="button" onclick="setShopCatFilter(decodeURIComponent('${encodeURIComponent(c)}'))">
+      <div class="cc-icon">${icon}</div><h4>${Utils.escapeHtml(c)}</h4><div class="category-count">${count} produit${count>1?'s':''}</div>
+      <span class="cc-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </button>`;
+  }).join('');
+  return `
+  <div class="topbar" style="padding-top:18px;"><h1 style="font-size:19px;">Catégories</h1></div>
+  <div class="categories-hero">
+    <div class="eyebrow">Explorer la boutique</div>
+    <h2>${catLabel==='Tous les produits'?'Que recherchez-vous ?':Utils.escapeHtml(catLabel)}</h2>
+    <p>Parcourez les produits par univers et trouvez rapidement ce qui vous intéresse.</p>
+  </div>
+  ${cats.length ? `<div class="category-cards">${catCards}</div>` : `<div class="category-empty">Aucune catégorie n'est encore disponible dans cette boutique.</div>`}
+  <div class="shop-toolbar">
+    <div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="shop-search" type="text" placeholder="Rechercher un produit..." oninput="renderShopGrid()"></div>
+    <button class="shop-tool-btn" id="shop-sort-btn" onclick="openShopSheet()" aria-label="Trier et filtrer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="shop-tool-dot" id="shop-sort-dot"></span></button>
+  </div>
+  <div class="shop-result-row"><span class="count" id="shop-result-count"></span><button class="fav-toggle" id="shop-fav-toggle" onclick="toggleShopFavOnly()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Favoris</button></div>
+  <div class="shop-layout"><div class="shop-cat-side"><button class="cat-side-tab ${catLabel==='Tous les produits'?'active':''}" data-scat="" onclick="setShopCatFilter('')">Tous</button>${cats.map(c=>`<button class="cat-side-tab ${c===catLabel?'active':''}" data-scat="${Utils.escapeHtml(c)}" onclick="setShopCatFilter(decodeURIComponent('${encodeURIComponent(c)}'))">${Utils.escapeHtml(c)}</button>`).join('')}</div><div class="shop-cat-main"><div id="shop-empty" class="hidden">${EmptyState(ICONS.box,'Boutique vide',"Cette boutique n'a pas encore de produits.")}</div><div id="shop-grid" class="shop-grid"></div></div></div>
+  <div class="fab hidden" id="cart-bar__v46_2" style="left:20px;right:20px;bottom:24px;max-width:440px;"><button class="btn btn-mango btn-block" onclick="Router.go('cart')" style="justify-content:space-between;"><span style="display:flex;align-items:center;gap:8px;">${ICONS.cart.replace('30','18').replace('30','18')} Voir le panier</span><span id="cart-bar-amount__v46_2"></span></button></div>`;
+};
+
+Views._after_shop_categories = function(opts){
+  opts = opts || {};
+  Wishlist.load();
+  shopCatFilter = (!opts.cat || opts.cat==='__all__') ? '' : opts.cat;
+  shopSort='default'; shopFavOnly=false; shopPriceMin=null; shopPriceMax=null;
+  renderShopGrid();
+};
+
+/* ---------- Compte client ---------- */
+Views['shop-account'] = function(){
+  const store = Store.store;
+  const p = ClientLocal.profile;
+  const myOrders = p.phone ? Store.orders.filter(o=>o.customer.phone===p.phone) : [];
+  return `
+  <div class="page-header"><h1>Mon compte</h1></div>
+  <div class="acc-store-row">
+    <div class="store-logo">${store.photo?`<img src="${store.photo}">`:''}</div>
+    <div><h3 style="margin:0 0 2px;font-size:15.5px;">${Utils.escapeHtml(store.name)}</h3><div style="font-size:12.5px;color:var(--text-mid);">${Utils.escapeHtml(store.phone||'')}</div></div>
+  </div>
+
+  <div class="acc-group-label">Mes informations</div>
+  <div class="acc-card">
+    <div class="acc-row" onclick="openAccountProfileEditor()">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c1-4.2 4-6.5 7.5-6.5s6.5 2.3 7.5 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="acc-row-text"><h4>Nom, téléphone, adresse</h4><p>${p.name ? Utils.escapeHtml(p.name)+' · '+Utils.escapeHtml(p.phone||'') : 'À renseigner pour un paiement plus rapide'}</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="acc-group-label">Mes achats</div>
+  <div class="acc-card">
+    <div class="acc-row" onclick="Router.go('shop-orders-history')">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <div class="acc-row-text"><h4>Historique de mes commandes</h4><p>${myOrders.length ? myOrders.length+' commande(s) trouvée(s)' : 'Retrouver vos commandes précédentes'}</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="acc-row" onclick="openTrackByNumber()">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="acc-row-text"><h4>Suivre ma commande</h4><p>Retrouver une commande par son numéro</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="acc-row" onclick="Router.go('shop-favorites')">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      <div class="acc-row-text"><h4>Mes favoris</h4><p>Retrouver vos produits enregistrés</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="acc-group-label">Mon activité</div>
+  <div class="acc-card">
+    <div class="acc-row" onclick="openClientPromoList()"><div class="acc-row-icon"><span style="font-weight:900;font-size:15px;">％</span></div><div class="acc-row-text"><h4>Mes codes promo</h4><p>Consulter les offres disponibles et utilisées</p></div><div class="acc-row-chev">›</div></div>
+    <div class="acc-row" onclick="openClientReviews()"><div class="acc-row-icon"><span style="font-size:15px;">★</span></div><div class="acc-row-text"><h4>Mes avis</h4><p>Retrouver les évaluations laissées aux produits</p></div><div class="acc-row-chev">›</div></div>
+  </div>
+
+  <div class="acc-group-label">Boutique</div>
+  <div class="acc-card">
+    <div class="acc-row" onclick="openWhatsapp()">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 448 512" fill="currentColor"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg></div>
+      <div class="acc-row-text"><h4>Contacter le vendeur</h4><p>Discuter sur WhatsApp</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="acc-row" onclick="shareLink()">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="2.6" stroke="currentColor" stroke-width="1.6"/><path d="m8.3 10.7 7.4-4.2M8.3 13.3l7.4 4.2" stroke="currentColor" stroke-width="1.6"/></svg></div>
+      <div class="acc-row-text"><h4>Partager la boutique</h4><p>Copier le lien de la boutique</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="acc-group-label">Paramètres</div>
+  <div class="acc-card">
+    
+    <div class="acc-row" onclick="ClientNotify.openPanel()">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="acc-row-text"><h4>Notifications</h4><p>Suivi de vos commandes en temps réel</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+    <div class="acc-row" onclick="Router.go('shop-about')">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v6M12 8v.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></div>
+      <div class="acc-row-text"><h4>À propos de la boutique</h4><p>Coordonnées et informations</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="acc-group-label">Aide</div>
+  <div class="acc-card" style="margin-bottom:28px;">
+    <div class="acc-row" onclick="Router.go('shop-help')">
+      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.2 1.9-2.2 3.6M12 16.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+      <div class="acc-row-text"><h4>Aide & questions fréquentes</h4><p>Livraison, paiement, commandes</p></div>
+      <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+  `;
+};
+Views._after_shop_account = function(){ ClientLocal.load(); };
+
+function openClientPromoList(){
+  const promos=(Store.promos||[]).map(p=>PromoLocal.merge(p)).filter(p=>p.active && (!p.maxUses || p.usedCount<p.maxUses));
+  const w=document.createElement('div'); w.id='client-promo-wrap';
+  w.innerHTML=`<div class="shop-sheet-overlay show" onclick="this.parentElement.remove()"></div><div class="shop-sheet show" style="max-height:76vh;"><div class="sheet-handle"></div><h3>Mes codes promo</h3>${promos.length?promos.map(p=>`<div class="promo-card-premium" style="margin:8px 0;"><div class="promo-card-top"><div class="promo-code-badge">${Utils.escapeHtml(p.code)}</div><span class="badge delivered">Actif</span></div><div class="promo-card-desc">${p.type==='percent'?p.value+'% de réduction':Utils.fmtFCFA(p.value)+' de réduction'} · ${p.maxUses?Math.max(0,p.maxUses-p.usedCount)+' utilisation(s) restante(s)':'utilisation illimitée'}</div></div>`).join(''):`<p style="text-align:center;color:var(--text-mid);padding:20px;">Aucun code promo disponible pour le moment.</p>`}<button class="btn btn-ghost btn-block" onclick="this.closest('#client-promo-wrap').remove()">Fermer</button></div>`;
+  document.body.appendChild(w);
+}
+function openClientReviews(){ Toast.show('Vos avis sont accessibles depuis les produits commandés.'); }
+
+/* ---------- À propos de la boutique (client) ---------- */
+Views['shop-about'] = function(){
+  const store = Store.store;
+  const access = Store.access();
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">À propos</h1></div>
+  </div>
+  <div style="padding-top:14px;">
+    <div class="about-hero">
+      ${store.banner?`<img class="about-hero-banner" src="${store.banner}">`:''}
+      <div class="about-hero-body">
+        <div class="about-hero-top">
+          <div class="store-logo">${store.photo?`<img src="${store.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;">`:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="var(--indigo)" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="var(--indigo)" stroke-width="1.8" stroke-linecap="round"/></svg>`}</div>
+          <div>
+            <h3 class="about-hero-name">${Utils.escapeHtml(store.name)}</h3>
+            ${isPaidSubscriptionActive() ? `<span class="about-verified" title="Boutique vérifiée" aria-label="Boutique vérifiée">${VerifiedBadge(14, access.plan)}</span>` : ''}
+          </div>
+        </div>
+        <p class="about-desc">${Utils.escapeHtml(store.description || "Boutique en ligne spécialisée dans la vente d'articles de qualité, avec livraison rapide et paiement sécurisé à la livraison.")}</p>
+      </div>
+    </div>
+
+    <div class="about-info-list">
+      <div class="about-info-row">
+        <div class="about-info-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg></div>
+        <div><h5>Adresse</h5><p>${Utils.escapeHtml(store.address || 'Abidjan, Côte d’Ivoire')}</p></div>
+      </div>
+      <div class="about-info-row">
+        <div class="about-info-icon"><svg width="16" height="16" viewBox="0 0 448 512" fill="currentColor"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg></div>
+        <div><h5>Téléphone / WhatsApp</h5><p>${Utils.escapeHtml(store.phone || 'Non renseigné')}</p></div>
+      </div>
+      ${store.email ? `<div class="about-info-row">
+        <div class="about-info-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="m4 7 8 6 8-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div><h5>E-mail</h5><p>${Utils.escapeHtml(store.email)}</p></div>
+      </div>` : ''}
+      <div class="about-info-row" style="align-items:flex-start;">
+        <div class="about-info-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div style="flex:1;">
+          <h5>Horaires</h5>
+          <div>
+            ${parseSchedule(store.hours).map((d,i)=>`
+            <div class="about-hours-row ${i===scheduleTodayIndex()?'today':''}">
+              <span class="d">${d.day}</span>
+              <span class="t">${d.closed ? `<span class="closed">Fermé</span>` : `${d.open} – ${d.close}`}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-badges">
+      <div class="about-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6M2 7h20v5H2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Livraison rapide</span></div>
+      <div class="about-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Paiement à la livraison</span></div>
+      <div class="about-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3 4 6.5v5c0 5 3.4 8.7 8 9.5 4.6-.8 8-4.5 8-9.5v-5L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Achat sécurisé</span></div>
+    </div>
+
+    <div class="about-actions">
+      <button class="btn btn-mango btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="#fff"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Discuter sur WhatsApp</button>
+      <button class="btn btn-outline btn-block" onclick="shareLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v10m0-10 4 4m-4-4-4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Partager la boutique</button>
+    </div>
+  </div>
+  `;
+};
+
+/* ---------- Aide & questions fréquentes (client) ----------
+   Les questions/réponses sont générées dynamiquement à partir des données
+   réelles de la boutique (zones de livraison, moyens de paiement activés,
+   horaires, adresse) et, quand elle est disponible, de la géolocalisation
+   du client (pour indiquer si sa position est dans une zone couverte). */
+let faqClientCoords = null; /* {lat,lng,accuracy} une fois obtenue */
+function buildFaqData(){
+  const store = Store.store || {};
+  const zones = Store.deliveryZones || [];
+  const pay = Store.payment || {};
+
+  const deliveryAnswer = zones.length
+    ? `Nous livrons dans les zones suivantes : ${zones.map(z=>`${z.name} (${Utils.fmtFCFA(z.fee)})`).join(', ')}. La zone et les frais correspondants sont sélectionnés au moment de la commande.`
+    : "Les frais et délais de livraison dépendent de votre localisation et vous sont indiqués au moment de la commande.";
+
+  let locationAnswer;
+  if(faqClientCoords){
+    const quality = faqClientCoords.accuracy<=50 ? 'précise' : 'approximative';
+    locationAnswer = `Votre position ${quality} a été détectée (précision ~${Math.round(faqClientCoords.accuracy)} m). ${zones.length?'Choisissez la zone correspondante lors de votre commande pour connaître les frais exacts, ou contactez le vendeur pour confirmer la couverture à votre adresse précise.':'Contactez le vendeur pour confirmer que votre adresse est couverte.'}`;
+  } else {
+    locationAnswer = "Activez la localisation depuis cette page pour que nous puissions vous indiquer si votre position est couverte. Vous pouvez aussi simplement renseigner votre zone lors de la commande.";
+  }
+
+  const payMethods = [];
+  if(pay.wave && pay.wave.enabled) payMethods.push('Wave');
+  if(pay.om && pay.om.enabled) payMethods.push('Orange Money');
+  if(pay.mtn && pay.mtn.enabled) payMethods.push('MTN Money');
+  if(pay.moov && pay.moov.enabled) payMethods.push('Moov Money');
+  if(!pay.cash || pay.cash.enabled!==false) payMethods.push('Paiement à la livraison (espèces)');
+  const paymentAnswer = payMethods.length
+    ? `Cette boutique accepte : ${payMethods.join(', ')}.`
+    : "Le paiement à la livraison est disponible ; d'autres moyens peuvent être proposés selon la boutique.";
+
+  const groups = [
+    {group:'Livraison', items:[
+      {q:'Quels sont les délais de livraison ?', a:"Les commandes passées avant 14h sont généralement livrées sous 24 à 72h selon votre zone. Un lien de suivi vous est envoyé dès l'expédition."},
+      {q:'Quelles sont vos zones de livraison et leurs frais ?', a: deliveryAnswer},
+      {q:'Livrez-vous chez moi ?', a: locationAnswer, geo:true},
+      {q:'Puis-je suivre ma commande ?', a:"Oui, rendez-vous dans « Mon compte » puis « Suivre ma commande » : vous y verrez le statut en temps réel, ainsi que la position du livreur une fois la commande expédiée."}
+    ]},
+    {group:'Paiement', items:[
+      {q:'Quels moyens de paiement acceptez-vous ?', a: paymentAnswer},
+      {q:'Le paiement en ligne est-il sécurisé ?', a:"Oui, toutes les transactions passent par des canaux sécurisés et aucune donnée bancaire n'est stockée dans l'application."}
+    ]},
+    {group:'Commandes & retours', items:[
+      {q:'Comment passer une commande ?', a:"Ajoutez vos articles au panier, renseignez vos informations de livraison (en activant si possible votre localisation pour une livraison plus précise) puis validez."},
+      {q:'Puis-je modifier ou annuler ma commande ?', a:"Contactez le vendeur rapidement via WhatsApp après votre commande : toute modification est possible tant que la commande n'a pas été expédiée."},
+      {q:'Que faire si un article est défectueux ?', a:"Contactez le vendeur sous 48h après réception avec une photo de l'article. Un échange ou un remboursement sera proposé selon la situation."}
+    ]}
+  ];
+  if(store.hours || store.address){
+    groups.push({group:'Boutique', items:[
+      ...(store.address ? [{q:'Où êtes-vous situés ?', a:`La boutique ${Utils.escapeHtml(store.name||'')} est basée : ${store.address}.`}] : []),
+      ...(store.hours ? [{q:'Quels sont vos horaires ?', a: store.hours}] : [])
+    ]});
+  }
+  return groups;
+}
+Views['shop-help'] = function(){
+  const data = buildFaqData();
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Aide & FAQ</h1></div>
+  </div>
+  <div class="page-sub" style="padding:0 20px;margin-top:2px;">Livraison, paiement, commandes et retours — adapté à cette boutique${faqClientCoords?' et à votre position':''}</div>
+  <div id="faq-groups-wrap">${renderFaqGroups(data)}</div>
+  <div class="help-contact-card">
+    <h4>Vous ne trouvez pas de réponse ?</h4>
+    <p>Notre équipe vous répond directement sur WhatsApp.</p>
+    <button class="btn btn-mango btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="#fff"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter le vendeur</button>
+  </div>
+  <div style="height:12px;"></div>
+  `;
+};
+function renderFaqGroups(data){
+  return data.map((g,gi)=>`
+    <div class="faq-group-label">${Utils.escapeHtml(g.group)}</div>
+    <div class="faq-card">
+      ${g.items.map((it,ii)=>`
+        <div class="faq-item" id="faq-${gi}-${ii}">
+          <div class="faq-q" onclick="toggleFaq(${gi},${ii})">${Utils.escapeHtml(it.q)}<span class="faq-q-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          <div class="faq-a"><p>${Utils.escapeHtml(it.a)}</p>${it.geo && !faqClientCoords ? `<button class="btn btn-outline btn-sm" style="margin-top:2px;" onclick="event.stopPropagation();requestFaqLocation();">📍 Activer ma localisation</button>` : ''}</div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+function toggleFaq(gi, ii){
+  const el = document.getElementById('faq-'+gi+'-'+ii);
+  if(el) el.classList.toggle('open');
+}
+function requestFaqLocation(){
+  if(!navigator.geolocation){ Toast.show('Localisation non prise en charge par cet appareil'); return; }
+  Toast.show('Recherche de votre position…');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      faqClientCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy||0};
+      const wrap = document.getElementById('faq-groups-wrap');
+      if(wrap) wrap.innerHTML = renderFaqGroups(buildFaqData());
+      Toast.show('Position détectée ✓');
+    },
+    ()=>{ Toast.show('Localisation refusée ou indisponible'); },
+    {enableHighAccuracy:true, timeout:12000, maximumAge:30000}
+  );
+}
+Views._after_shop_help = function(){ /* la géoloc n'est demandée qu'à la demande du client via le bouton dédié */ };
+
+function openAccountProfileEditor(){
+  ClientLocal.load();
+  const p = ClientLocal.profile;
+  const existing = document.getElementById('acc-edit-wrap');
+  if(existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'acc-edit-wrap';
+  wrap.innerHTML = `
+    <div class="shop-sheet-overlay show" onclick="document.getElementById('acc-edit-wrap').remove()"></div>
+    <div class="shop-sheet show">
+      <div class="sheet-handle"></div>
+      <h3>Mes informations</h3>
+      <div class="field"><label>Nom complet</label><input id="acc-name" type="text" value="${Utils.escapeHtml(p.name||'')}"></div>
+      <div class="field"><label>Numéro de téléphone</label><input id="acc-phone" type="tel" value="${Utils.escapeHtml(p.phone||'')}"></div>
+      <div class="field"><label>Adresse de livraison</label><input id="acc-address" type="text" value="${Utils.escapeHtml(p.address||'')}"></div>
+      <button class="btn btn-primary btn-block" style="margin-top:6px;" onclick="saveAccountProfile()">Enregistrer</button>
+    </div>`;
+  document.body.appendChild(wrap);
+}
+function saveAccountProfile(){
+  const name = document.getElementById('acc-name').value.trim();
+  const phone = document.getElementById('acc-phone').value.trim();
+  const address = document.getElementById('acc-address').value.trim();
+  ClientLocal.save({name, phone, address});
+  const w = document.getElementById('acc-edit-wrap'); if(w) w.remove();
+  Toast.show('Informations enregistrées ✓');
+  Router.go('shop-account');
+}
+function openTrackByNumber(){
+  const existing = document.getElementById('track-lookup-wrap');
+  if(existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'track-lookup-wrap';
+  wrap.innerHTML = `
+    <div class="shop-sheet-overlay show" onclick="document.getElementById('track-lookup-wrap').remove()"></div>
+    <div class="shop-sheet show">
+      <div class="sheet-handle"></div>
+      <h3>Suivre ma commande</h3>
+      <div class="field"><label>Code de commande</label><input id="track-number" type="text" placeholder="Ex : SIA-4K9F2" style="text-transform:uppercase;"></div>
+      <button class="btn btn-primary btn-block" onclick="lookupOrderTrack()">Rechercher</button>
+    </div>`;
+  document.body.appendChild(wrap);
+}
+function lookupOrderTrack(){
+  const val = document.getElementById('track-number').value.trim().toUpperCase();
+  const order = Store.orders.find(o=>String(o.number).toUpperCase()===val);
+  if(!order){ Toast.show('Aucune commande trouvée avec ce numéro'); return; }
+  const w = document.getElementById('track-lookup-wrap'); if(w) w.remove();
+  Router.go('order-track', {id:order.id});
+}
+
+/* ---------- Historique des commandes du client ---------- */
+Views['shop-orders-history'] = function(){
+  const p = ClientLocal.profile;
+  const myOrders = p.phone ? Store.orders.filter(o=>o.customer.phone===p.phone) : [];
+  const badgeLabel = {pending:'En attente', confirmed:'Confirmée', delivered:'Livrée'};
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Mes commandes</h1></div>
+  </div>
+  <div style="padding:12px 20px 24px;">
+    ${!p.phone ? EmptyState(ICONS.box,'Renseignez vos informations',"Ajoutez votre numéro de téléphone dans « Mes informations » pour retrouver vos commandes.",`<button class="btn btn-primary" onclick="openAccountProfileEditor()">Renseigner mes informations</button>`) :
+      myOrders.length===0 ? EmptyState(ICONS.box,'Aucune commande',"Vous n'avez pas encore passé de commande.",`<button class="btn btn-primary" onclick="Router.go('shop-categories',{cat:'__all__'})">Découvrir la boutique</button>`) :
+      myOrders.map(o=>`
+      <div class="order-row" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:10px;padding:14px 16px;background:#fff;cursor:pointer;" onclick="Router.go('order-track',{id:'${o.id}'})">
+        <div class="order-status ${o.status}"></div>
+        <div class="order-info"><h4>Commande #${o.number}</h4><div class="meta">${o.items.length} article(s) · ${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div></div>
+        <div style="text-align:right;"><div class="order-amount">${Utils.fmtFCFA(o.amount)}</div><span class="badge ${o.status}">${badgeLabel[o.status]}</span></div>
+      </div>`).join('')}
+  </div>
+  `;
+};
+
+/* ---------- Favoris ---------- */
+Views['shop-favorites'] = function(){
+  const store = Store.store;
+  return `
+  <div class="page-header"><h1>Mes favoris</h1><div class="page-sub">Les articles que vous avez enregistrés chez ${Utils.escapeHtml(store.name)}</div></div>
+  <div id="fav-empty" class="hidden">${EmptyState(ICONS.box,'Aucun favori',"Touchez le cœur sur un article pour l'ajouter ici.",`<button class="btn btn-primary" onclick="Router.go('shop-categories',{cat:'__all__'})">Découvrir la boutique</button>`)}</div>
+  <div id="fav-grid" class="home-grid" style="padding-top:8px;"></div>
+  `;
+};
+Views._after_shop_favorites = function(){
+  Wishlist.load();
+  const list = Store.products.filter(p=>Wishlist.has(p.id));
+  const grid = document.getElementById('fav-grid');
+  const empty = document.getElementById('fav-empty');
+  if(list.length===0){ empty.classList.remove('hidden'); grid.innerHTML=''; }
+  else { empty.classList.add('hidden'); grid.innerHTML = list.map(p=>productCardHtml(p)).join(''); }
+  updateCartBar();
+};
+let shopCatFilter = '';
+let shopSort = 'default'; // default | price-asc | price-desc | popular
+let shopFavOnly = false;
+let shopPriceMin = null;
+let shopPriceMax = null;
+
+function ShopMarquee(){
+  const activePromos = (Store.promos||[]).filter(p=>p.active);
+  const items = activePromos.length ? activePromos.map(p=>
+    `<span class="shop-marquee-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M2 7h20v5H2z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 22V7M12 7c-1.5 0-4-1-4-3.2C8 2.3 8.9 2 9.6 2c1.9 0 2.4 2.5 2.4 5Zm0 0c1.5 0 4-1 4-3.2 0-1.5-.9-1.8-1.6-1.8-1.9 0-2.4 2.5-2.4 5Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg> Code ${Utils.escapeHtml(p.code)} : ${p.type==='percent'?p.value+'% de réduction':Utils.fmtFCFA(p.value)+' de réduction'}</span>`
+  ) : [`<span class="shop-marquee-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> Paiement à la livraison disponible</span>`,
+     `<span class="shop-marquee-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6M2 7h20v5H2z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg> Commandez directement sur WhatsApp</span>`];
+  const looped = items.concat(items).join('');
+  return `<div class="shop-marquee"><div class="shop-marquee-track">${looped}</div></div>`;
+}
+
+function setShopCatFilter(cat){
+  shopCatFilter = cat;
+  document.querySelectorAll('.cat-side-tab').forEach(c=>c.classList.toggle('active', c.dataset.scat===cat));
+  renderShopGrid();
+}
+function toggleShopFavOnly(){
+  shopFavOnly = !shopFavOnly;
+  document.getElementById('shop-fav-toggle').classList.toggle('active', shopFavOnly);
+  renderShopGrid();
+}
+function productBadges(p){
+  const badges = [];
+  if(p.oldPrice && Number(p.oldPrice) > Number(p.price)){
+    const pct = Math.round((1 - Number(p.price)/Number(p.oldPrice)) * 100);
+    badges.push(`<span class="pcard-badge promo">−${pct}%</span>`);
+  }
+  const rating = Store.avgRating(p.id);
+  if(rating && rating.count >= 3 && rating.avg >= 4.5){
+    badges.push(`<span class="pcard-badge hot">★ Populaire</span>`);
+  }
+  return badges.join('');
+}
+/* ---- Carte produit réutilisable (grille accueil, catégories, favoris) ---- */
+function productCardHtml(p){
+  const rating = Store.avgRating(p.id);
+  const fav = Wishlist.has(p.id);
+  const meta = Utils.decodeMeta(p.desc);
+  const variantBits = [];
+  if(meta.sizes.length) variantBits.push(meta.sizes.length+' taille'+(meta.sizes.length>1?'s':''));
+  if(meta.colors.length) variantBits.push(meta.colors.length+' couleur'+(meta.colors.length>1?'s':''));
+  (meta.extra||[]).forEach(g=>{ if(g.values.length) variantBits.push(g.values.length+' '+g.label.toLowerCase()); });
+  return `
+  <div class="pcard">
+    <div class="pcard-media" onclick="Router.go('shop-product',{id:'${p.id}'})" style="cursor:pointer;">
+      <div class="pcard-badges">${productBadges(p)}</div>
+      <button class="pcard-share" onclick="event.stopPropagation();shareProduct('${p.id}')" aria-label="Partager"><svg viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="19" r="2.6" stroke="currentColor" stroke-width="1.7"/><path d="m8.3 10.7 7.4-4.2M8.3 13.3l7.4 4.2" stroke="currentColor" stroke-width="1.7"/></svg></button>
+      <button class="pcard-heart ${fav?'active':''}" onclick="event.stopPropagation();toggleWishlist('${p.id}')" aria-label="Ajouter aux favoris">
+        <svg viewBox="0 0 24 24" fill="${fav?'currentColor':'none'}"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </button>
+      ${p.photo?`<img src="${p.photo}" loading="lazy">`:`<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 8v8l9 5 9-5V8M12 13v8" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`}
+      ${(p.photos&&p.photos.length>1)?`<span class="pcard-photo-count">1/${p.photos.length}</span>`:''}
+    </div>
+    <div class="pcard-body">
+      <h4 class="pcard-name" style="cursor:pointer;" onclick="Router.go('shop-product',{id:'${p.id}'})">${Utils.escapeHtml(p.name)}</h4>
+      <div class="pcard-price-row">
+        <span class="pcard-price">${Utils.fmtFCFA(p.price)}</span>
+        ${(p.oldPrice && Number(p.oldPrice)>Number(p.price)) ? `<span class="pcard-old-price">${Utils.fmtFCFA(p.oldPrice)}</span>` : ''}
+      </div>
+      ${variantBits.length ? `<div class="pcard-variants">${variantBits.join(' · ')}</div>` : ''}
+      <div class="pcard-rating">${rating?`★ ${rating.avg.toFixed(1)} (${rating.count})`:''}</div>
+      <button class="pcard-add" onclick="event.stopPropagation();addToCart('${p.id}')">Ajouter</button>
+    </div>
+  </div>`;
+}
+/* ---- Partage d'un article (lien direct produit) ---- */
+function shareProduct(productId){
+  const p = Store.products.find(x=>x.id===productId);
+  const store = Store.store;
+  if(!p) return;
+  const link = getPublicStoreUrl(store, productId);
+  const text = `${p.name} — ${Utils.fmtFCFA(p.price)} sur ${store.name}`;
+  if(navigator.share){
+    navigator.share({title:p.name, text, url:link}).catch(()=>{});
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(`${text}\n${link}`).then(()=>Toast.show('Lien de l\'article copié ✓')).catch(()=>Toast.show(link));
+  } else {
+    Toast.show(link);
+  }
+}
+function renderShopGrid(){
+  const list = Store.products;
+  const searchEl = document.getElementById('shop-search');
+  const q = searchEl ? searchEl.value.toLowerCase() : '';
+  let filtered = q ? list.filter(p=>p.name.toLowerCase().includes(q)) : list.slice();
+  if(shopCatFilter) filtered = filtered.filter(p=>p.category===shopCatFilter);
+  if(shopFavOnly) filtered = filtered.filter(p=>Wishlist.has(p.id));
+  if(shopPriceMin != null) filtered = filtered.filter(p=>Number(p.price) >= shopPriceMin);
+  if(shopPriceMax != null) filtered = filtered.filter(p=>Number(p.price) <= shopPriceMax);
+  if(shopSort === 'price-asc') filtered.sort((a,b)=>a.price-b.price);
+  else if(shopSort === 'price-desc') filtered.sort((a,b)=>b.price-a.price);
+  else if(shopSort === 'popular') filtered.sort((a,b)=>{
+    const ra = Store.avgRating(a.id), rb = Store.avgRating(b.id);
+    return (rb?rb.count*rb.avg:0) - (ra?ra.count*ra.avg:0);
+  });
+  const grid = document.getElementById('shop-grid');
+  const empty = document.getElementById('shop-empty');
+  const countEl = document.getElementById('shop-result-count');
+  if(!grid) return;
+  if(countEl) countEl.textContent = `${filtered.length} produit${filtered.length>1?'s':''}`;
+  const dot = document.getElementById('shop-sort-dot');
+  if(dot) dot.classList.toggle('show', shopSort!=='default' || shopPriceMin!=null || shopPriceMax!=null);
+  if(list.length===0){ empty.classList.remove('hidden'); grid.innerHTML=''; }
+  else {
+    empty.classList.add('hidden');
+    grid.innerHTML = filtered.map(p=>productCardHtml(p)).join('');
+  }
+  updateCartBar();
+}
+
+/* ---- Favoris (liste de souhaits, stockée localement sur l'appareil du client) ---- */
+const Wishlist = {
+  _ids: [],
+  _key(){ return 'belou_wishlist_' + (Store.store && Store.store.slug ? Store.store.slug : 'default'); },
+  load(){
+    try{ this._ids = JSON.parse(localStorage.getItem(this._key()) || '[]'); }
+    catch(e){ this._ids = []; }
+  },
+  save(){ try{ localStorage.setItem(this._key(), JSON.stringify(this._ids)); }catch(e){} },
+  has(id){ return this._ids.includes(id); },
+  toggle(id){
+    if(this._ids.includes(id)) this._ids = this._ids.filter(x=>x!==id);
+    else this._ids.push(id);
+    this.save();
+  }
+};
+function toggleWishlist(productId){
+  Wishlist.toggle(productId);
+  Toast.show(Wishlist.has(productId) ? 'Ajouté aux favoris ♥' : 'Retiré des favoris');
+  if(Router.current==='shop') renderHomeGrid();
+  else if(Router.current==='shop-categories') renderShopGrid();
+  else if(Router.current==='shop-favorites') Views._after_shop_favorites();
+}
+
+/* ---- Profil client local (nom / téléphone / adresse mémorisés sur l'appareil) ---- */
+const ClientLocal = {
+  profile:{name:'', phone:'', address:''},
+  _key(){ return 'siams_client_profile_' + (Store.store && Store.store.slug ? Store.store.slug : 'default'); },
+  load(){
+    try{ this.profile = Object.assign({name:'',phone:'',address:''}, JSON.parse(localStorage.getItem(this._key())||'{}')); }
+    catch(e){ this.profile = {name:'',phone:'',address:''}; }
+  },
+  save(p){ this.profile = Object.assign({}, this.profile, p); try{ localStorage.setItem(this._key(), JSON.stringify(this.profile)); }catch(e){} }
+};
+
+/* ---- Gestion locale des limites d'utilisation des codes promo ---- */
+const PromoLocal = {
+  _key(){ return 'siams_promo_limits_' + (Store.store && Store.store.slug ? Store.store.slug : 'default'); },
+  _map:{},
+  load(){ try{ this._map=JSON.parse(localStorage.getItem(this._key())||'{}'); }catch(e){ this._map={}; } return this._map; },
+  save(promos){ try{ this.load(); promos.forEach(p=>{ this._map[p.id]={maxUses:Number(p.maxUses||0),usedCount:Number(p.usedCount||0),active:p.active!==false}; }); localStorage.setItem(this._key(),JSON.stringify(this._map)); }catch(e){} },
+  merge(p){ this.load(); const x=this._map[p.id]||{}; return Object.assign({},p,{maxUses:Number(p.maxUses||x.maxUses||0),usedCount:Number(p.usedCount||x.usedCount||0),active:p.active!==false && x.active!==false}); },
+  get(id){ this.load(); return this._map[id]||{}; },
+  update(id, patch){ this.load(); this._map[id]=Object.assign({},this._map[id]||{},patch); try{ localStorage.setItem(this._key(),JSON.stringify(this._map)); }catch(e){} }
+};
+
+/* ---- Notifications client (suivi de commande, stockées sur l'appareil) ---- */
+const ClientNotify = {
+  _list:[],
+  _key(){ return 'siams_client_notifs_' + (Store.store && Store.store.slug ? Store.store.slug : 'default'); },
+  load(){
+    try{ this._list = JSON.parse(localStorage.getItem(this._key())||'[]'); }
+    catch(e){ this._list = []; }
+  },
+  save(){ try{ localStorage.setItem(this._key(), JSON.stringify(this._list)); }catch(e){} },
+  add(orderNumber, message){
+    this.load();
+    this._list.unshift({ id:Utils.uid(), orderNumber, message, read:false, createdAt:Date.now() });
+    this.save();
+    this.renderBadges();
+    if('Notification' in window && Notification.permission==='granted'){
+      try{ new Notification(Store.store.name || 'Boutique', {body:message}); }catch(e){}
+    }
+  },
+  unreadCount(){ this.load(); return this._list.filter(n=>!n.read).length; },
+  renderBadges(){
+    const count = this.unreadCount();
+    const dot = document.getElementById('cn-notif-dot');
+    if(dot) dot.classList.toggle('show', count>0);
+  },
+  markAllRead(){ this.load(); this._list = this._list.map(n=>({...n, read:true})); this.save(); this.renderBadges(); },
+  openPanel(){
+    if('Notification' in window && Notification.permission==='default'){ try{ Notification.requestPermission(); }catch(e){} }
+    this.load();
+    const existing = document.getElementById('cn-notif-panel-wrap');
+    if(existing){ existing.remove(); return; }
+    const wrap = document.createElement('div');
+    wrap.id = 'cn-notif-panel-wrap';
+    wrap.innerHTML = `
+      <div class="shop-sheet-overlay show" onclick="ClientNotify.closePanel()"></div>
+      <div class="shop-sheet show" style="max-height:70vh;">
+        <div class="sheet-handle"></div>
+        <h3>Notifications</h3>
+        ${this._list.length===0 ? `<p style="color:var(--text-mid);font-size:13.5px;text-align:center;padding:20px 0;">Aucune notification pour le moment.</p>` :
+          this._list.map(n=>`
+          <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);">
+            <div style="width:34px;height:34px;border-radius:10px;background:${n.read?'var(--panel)':'var(--indigo-tint)'};color:${n.read?'var(--text-mid)':'var(--indigo)'};display:flex;align-items:center;justify-content:center;flex:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M2 7h20v5H2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+            <div style="flex:1;"><p style="margin:0 0 3px;font-size:13px;font-weight:${n.read?'500':'700'};color:var(--text);line-height:1.4;">${Utils.escapeHtml(n.message)}</p><span style="font-size:11px;color:var(--text-soft);">${Utils.timeAgo(n.createdAt)}</span></div>
+          </div>`).join('')}
+        <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="ClientNotify.markAllRead();ClientNotify.closePanel();">Fermer</button>
+      </div>`;
+    document.body.appendChild(wrap);
+    this.markAllRead();
+  },
+  closePanel(){ const w = document.getElementById('cn-notif-panel-wrap'); if(w) w.remove(); }
+};
+
+/* ---- Suivi de livraison détaillé (étape "en livraison" + preuve photo, stocké sur l'appareil) ----
+   Ces informations complètent le statut officiel de la commande (pending/confirmed/delivered)
+   sans modifier le schéma de la base de données. */
+const OrderTrack = {
+  _map:{},
+  _key(){ return 'siams_order_track_' + (Store.store && Store.store.slug ? Store.store.slug : 'default'); },
+  load(){ try{ this._map = JSON.parse(localStorage.getItem(this._key())||'{}'); }catch(e){ this._map = {}; } },
+  save(){ try{ localStorage.setItem(this._key(), JSON.stringify(this._map)); }catch(e){} },
+  get(orderId){ this.load(); return this._map[orderId] || {}; },
+  set(orderId, patch){
+    this.load();
+    this._map[orderId] = Object.assign({}, this._map[orderId]||{}, patch);
+    this.save();
+  }
+};
+
+/* ---- Tri & filtres avancés (feuille de sélection) ---- */
+function openShopSheet(){
+  const existing = document.getElementById('shop-filter-sheet-wrap');
+  if(existing) existing.remove();
+  const opts = [
+    {v:'default', label:'Pertinence'},
+    {v:'popular', label:'Popularité'},
+    {v:'price-asc', label:'Prix croissant'},
+    {v:'price-desc', label:'Prix décroissant'}
+  ];
+  const wrap = document.createElement('div');
+  wrap.id = 'shop-filter-sheet-wrap';
+  wrap.innerHTML = `
+    <div class="shop-sheet-overlay" id="shop-sheet-overlay" onclick="closeShopSheet()"></div>
+    <div class="shop-sheet" id="shop-filter-sheet">
+      <div class="sheet-handle"></div>
+      <h3>Trier & filtrer</h3>
+      <div class="sub-label">Trier par</div>
+      ${opts.map(o=>`
+        <div class="sort-option ${shopSort===o.v?'active':''}" data-sort="${o.v}" onclick="setShopSortChoice('${o.v}')">
+          <span>${o.label}</span><span class="radio"></span>
+        </div>`).join('')}
+      <div class="sub-label">Fourchette de prix (FCFA)</div>
+      <div class="price-range-row">
+        <input id="shop-price-min" type="number" inputmode="numeric" placeholder="Min" value="${shopPriceMin!=null?shopPriceMin:''}">
+        <input id="shop-price-max" type="number" inputmode="numeric" placeholder="Max" value="${shopPriceMax!=null?shopPriceMax:''}">
+      </div>
+      <div class="shop-sheet-actions">
+        <button class="btn btn-ghost" onclick="resetShopSheet()">Réinitialiser</button>
+        <button class="btn btn-primary" onclick="applyShopSheet()">Appliquer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  requestAnimationFrame(()=>{
+    document.getElementById('shop-sheet-overlay').classList.add('show');
+    document.getElementById('shop-filter-sheet').classList.add('show');
+  });
+}
+let shopSortChoice = null;
+function setShopSortChoice(v){
+  shopSortChoice = v;
+  document.querySelectorAll('#shop-filter-sheet .sort-option').forEach(el=>el.classList.toggle('active', el.dataset.sort===v));
+}
+function closeShopSheet(){
+  const overlay = document.getElementById('shop-sheet-overlay');
+  const sheet = document.getElementById('shop-filter-sheet');
+  if(overlay) overlay.classList.remove('show');
+  if(sheet) sheet.classList.remove('show');
+  setTimeout(()=>{ const w = document.getElementById('shop-filter-sheet-wrap'); if(w) w.remove(); }, 220);
+}
+function applyShopSheet(){
+  if(shopSortChoice) shopSort = shopSortChoice;
+  const min = document.getElementById('shop-price-min').value;
+  const max = document.getElementById('shop-price-max').value;
+  shopPriceMin = min ? Number(min) : null;
+  shopPriceMax = max ? Number(max) : null;
+  closeShopSheet();
+  renderShopGrid();
+}
+function resetShopSheet(){
+  shopSort = 'default'; shopSortChoice = null; shopPriceMin = null; shopPriceMax = null;
+  closeShopSheet();
+  renderShopGrid();
+}
+function openPhotoGallery(productId){
+  const p = Store.products.find(x=>x.id===productId);
+  if(!p || !p.photos || !p.photos.length) return;
+  const existing = document.getElementById('photo-lightbox');
+  if(existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'photo-lightbox';
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,15,.9);z-index:90;display:flex;flex-direction:column;';
+  wrap.innerHTML = `
+    <div style="display:flex;justify-content:flex-end;padding:16px;position:relative;z-index:3;"><button onclick="document.getElementById('photo-lightbox').remove()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;">✕</button></div>
+    <div style="flex:1;display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;position:relative;">
+      ${p.photos.map(src=>`<div class="lb-slide"><img src="${src}"></div>`).join('')}
+      <div class="lb-hint">Pincez ou touchez deux fois pour zoomer</div>
+    </div>`;
+  document.body.appendChild(wrap);
+  initLightboxZoom(wrap);
+}
+/* ---- Zoom photo produit : pincer pour zoomer + double-tap ---- */
+function initLightboxZoom(wrap){
+  wrap.querySelectorAll('.lb-slide').forEach(slide=>{
+    const img = slide.querySelector('img');
+    let scale = 1, originX = 0, originY = 0, startDist = 0, startScale = 1, lastTap = 0;
+    let panX = 0, panY = 0, startPanX = 0, startPanY = 0, startTouchX = 0, startTouchY = 0;
+
+    function apply(){ img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; }
+    function dist(t){ return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+    function clampPan(){
+      const max = 80 * (scale - 1);
+      panX = Math.max(-max, Math.min(max, panX));
+      panY = Math.max(-max, Math.min(max, panY));
+    }
+    function resetZoom(){ scale=1; panX=0; panY=0; apply(); }
+
+    slide.addEventListener('touchstart', e=>{
+      if(e.touches.length===2){
+        startDist = dist(e.touches);
+        startScale = scale;
+      } else if(e.touches.length===1 && scale>1){
+        startPanX = panX; startPanY = panY;
+        startTouchX = e.touches[0].clientX; startTouchY = e.touches[0].clientY;
+      }
+    }, {passive:true});
+    slide.addEventListener('touchmove', e=>{
+      if(e.touches.length===2){
+        e.preventDefault();
+        const newDist = dist(e.touches);
+        scale = Math.max(1, Math.min(4, startScale * (newDist/startDist)));
+        clampPan();
+        apply();
+      } else if(e.touches.length===1 && scale>1){
+        e.preventDefault();
+        panX = startPanX + (e.touches[0].clientX - startTouchX);
+        panY = startPanY + (e.touches[0].clientY - startTouchY);
+        clampPan();
+        apply();
+      }
+    }, {passive:false});
+    slide.addEventListener('touchend', e=>{
+      if(scale < 1.02) resetZoom();
+      const now = Date.now();
+      if(now - lastTap < 300 && e.touches.length===0){
+        scale = scale > 1 ? 1 : 2.4;
+        panX = 0; panY = 0;
+        apply();
+      }
+      lastTap = now;
+    });
+    /* Double-clic souris (desktop) pour tester le zoom */
+    img.addEventListener('dblclick', ()=>{ scale = scale > 1 ? 1 : 2.4; panX=0; panY=0; apply(); });
+  });
+}
+/* ---- Sélecteur d'étoiles cliquable (remplace les prompt() du navigateur) ---- */
+function starIconSvg(){
+  return `<svg viewBox="0 0 24 24" fill="none"><path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+}
+function starPickerHtml(){
+  return `<div class="star-picker" id="review-star-picker">
+    ${[1,2,3,4,5].map(n=>`<button type="button" class="star-btn" data-star="${n}" onclick="setReviewStar(${n})" aria-label="${n} étoile${n>1?'s':''}">${starIconSvg()}</button>`).join('')}
+  </div>`;
+}
+let reviewStarValue = 0;
+function setReviewStar(n){
+  reviewStarValue = n;
+  document.querySelectorAll('#review-star-picker .star-btn').forEach(btn=>{
+    btn.classList.toggle('filled', Number(btn.dataset.star) <= n);
+  });
+}
+function staticStarsHtml(rating){
+  const r = Math.round(rating||0);
+  return `<span class="static-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=r?'filled':''}">${starIconSvg()}</span>`).join('')}</span>`;
+}
+function reviewCardHtml(r){
+  return `
+  <div class="review-card">
+    <div class="review-card-top">
+      <span class="review-card-name">${Utils.escapeHtml(r.name||'Client')}</span>
+      ${staticStarsHtml(r.rating)}
+    </div>
+    ${r.comment ? `<p class="review-card-comment">${Utils.escapeHtml(r.comment)}</p>` : ''}
+    <div class="review-card-time">${Utils.timeAgo(r.createdAt)}</div>
+    ${r.reply ? `<div class="review-card-reply"><strong>Réponse de la boutique :</strong> ${Utils.escapeHtml(r.reply)}</div>` : ''}
+  </div>`;
+}
+async function submitProductReview(productId){
+  const nameInput = document.getElementById('review-name-input');
+  const commentInput = document.getElementById('review-comment-input');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if(!name){ Toast.show('Merci d’indiquer votre nom'); return; }
+  if(!reviewStarValue){ Toast.show('Sélectionnez une note en étoiles'); return; }
+  if(!Cloud.storeId){ Toast.show('⚠️ Boutique introuvable'); return; }
+  const comment = commentInput ? commentInput.value.trim() : '';
+  const rating = reviewStarValue;
+  try{
+    /* Envoi direct d'une seule ligne (et non via Store.reviews, qui resynchronise
+       toute la liste et nécessiterait des droits d'écriture sur les avis existants). */
+    const { data, error } = await sb.from('reviews')
+      .insert({ store_id:Cloud.storeId, product_id:productId, name, rating, comment: comment || null })
+      .select().single();
+    if(error) throw error;
+    _cache.reviews = [{ id:data.id, productId, name, rating, comment, reply:null, createdAt:new Date(data.created_at).getTime() }, ..._cache.reviews];
+  } catch(e){
+    console.error(e);
+    Toast.show('⚠️ Impossible d’envoyer votre avis, réessayez');
+    return;
+  }
+  Toast.show('Merci pour votre avis ✓');
+  reviewStarValue = 0;
+  Router.go('shop-product', {id:productId});
+}
+
+/* ---- Fiche produit détaillée (photo, description, avis + étoiles, articles similaires) ---- */
+Views['shop-product'] = function(opts){
+  const p = Store.products.find(x=>x.id===opts.id);
+  if(!p) return `${TopBar('Produit introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Produit introuvable',"Cet article n'existe plus ou a été retiré.")}</div>`;
+  const rating = Store.avgRating(p.id);
+  const reviews = Store.reviewsFor(p.id).slice().sort((a,b)=>b.createdAt-a.createdAt);
+  const meta = Utils.decodeMeta(p.desc);
+  const similar = Store.products.filter(x=>x.id!==p.id && x.category===p.category).slice(0,6);
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="bell-btn" onclick="Router.go('shop')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h1 style="font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${Utils.escapeHtml(p.name)}</h1>
+    </div>
+    <button class="pcard-share" style="position:static;" onclick="shareProduct('${p.id}')" aria-label="Partager"><svg viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="19" r="2.6" stroke="currentColor" stroke-width="1.7"/><path d="m8.3 10.7 7.4-4.2M8.3 13.3l7.4 4.2" stroke="currentColor" stroke-width="1.7"/></svg></button>
+  </div>
+  <div class="pd-gallery" id="pd-gallery" ${(p.photos&&p.photos.length)?`onclick="openPhotoGallery('${p.id}')"`:''}>
+    ${(p.photos&&p.photos.length) ? p.photos.map((src,i)=>`<img class="pd-gallery-img" data-i="${i}" src="${src}" style="position:absolute;inset:0;opacity:${i===0?1:0};transition:opacity .5s ease;">`).join('') : (p.photo?`<img src="${p.photo}">`:`<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 8v8l9 5 9-5V8M12 13v8" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`)}
+    ${(p.photos&&p.photos.length>1)?`<span class="pcard-photo-count" id="pd-gallery-count">1/${p.photos.length}</span><div class="pd-gallery-dots" id="pd-gallery-dots">${p.photos.map((_,i)=>`<span class="pd-gallery-dot ${i===0?'active':''}"></span>`).join('')}</div>`:''}
+  </div>
+  <div style="padding:18px 20px 4px;">
+    <h2 style="font-size:20px;margin:0 0 8px;">${Utils.escapeHtml(p.name)}</h2>
+    <div class="pcard-price-row" style="margin-bottom:8px;">
+      <span class="pcard-price" style="font-size:20px;">${Utils.fmtFCFA(p.price)}</span>
+      ${(p.oldPrice && Number(p.oldPrice)>Number(p.price)) ? `<span class="pcard-old-price">${Utils.fmtFCFA(p.oldPrice)}</span>` : ''}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+      ${rating ? `${staticStarsHtml(rating.avg)}<span style="font-size:13px;color:var(--text-mid);">${rating.avg.toFixed(1)} · ${rating.count} avis</span>` : `<span style="font-size:13px;color:var(--text-mid);">Aucun avis pour l’instant</span>`}
+    </div>
+    <button class="btn btn-primary btn-block" onclick="addToCart('${p.id}')">Ajouter au panier</button>
+  </div>
+  <div style="padding:18px 20px;border-top:1px solid var(--line);margin-top:8px;">
+    <h3 style="font-size:15px;margin:0 0 8px;">Description</h3>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.6;margin:0;">${meta.desc ? Utils.escapeHtml(meta.desc) : 'Aucune description fournie pour cet article.'}</p>
+  </div>
+  <div style="padding:18px 20px;border-top:1px solid var(--line);">
+    <h3 style="font-size:15px;margin:0 0 12px;">Avis clients (${reviews.length})</h3>
+    ${reviews.length ? reviews.map(r=>reviewCardHtml(r)).join('') : `<p style="font-size:13.5px;color:var(--text-mid);">Soyez le premier à donner votre avis sur cet article.</p>`}
+  </div>
+  <div style="padding:18px 20px;border-top:1px solid var(--line);">
+    <h3 style="font-size:15px;margin:0 0 12px;">Laisser un avis</h3>
+    <div class="field"><input id="review-name-input" type="text" placeholder="Votre nom"></div>
+    <div class="field"><label style="font-size:12.5px;color:var(--text-mid);margin-bottom:6px;display:block;">Votre note</label>${starPickerHtml()}</div>
+    <div class="field"><textarea id="review-comment-input" rows="3" placeholder="Votre commentaire (facultatif)" style="resize:vertical;"></textarea></div>
+    <button class="btn btn-mango btn-block" onclick="submitProductReview('${p.id}')">Envoyer mon avis</button>
+  </div>
+  ${similar.length ? `
+  <div style="padding:18px 20px 0;border-top:1px solid var(--line);"><h3 style="font-size:15px;margin:0 0 4px;">Produits similaires</h3></div>
+  <div class="pd-similar-row">${similar.map(s=>`
+    <div class="pd-similar-card" onclick="Router.go('shop-product',{id:'${s.id}'})">
+      <div class="pd-similar-media">${s.photo?`<img src="${s.photo}" loading="lazy">`:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 8v8l9 5 9-5V8M12 13v8" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`}</div>
+      <div class="pd-similar-name">${Utils.escapeHtml(s.name)}</div>
+      <div class="pd-similar-price">${Utils.fmtFCFA(s.price)}</div>
+    </div>`).join('')}</div>` : ''}
+  <div style="height:20px;"></div>
+  `;
+};
+let pdGalleryTimer=null;
+Views._after_shop_product=function(opts){
+  if(pdGalleryTimer){ clearInterval(pdGalleryTimer); pdGalleryTimer=null; }
+  const p = Store.products.find(x=>x.id===opts.id);
+  if(!p || !p.photos || p.photos.length<2) return;
+  let i=0;
+  pdGalleryTimer=setInterval(()=>{
+    const gallery=document.getElementById('pd-gallery');
+    if(!gallery){ clearInterval(pdGalleryTimer); pdGalleryTimer=null; return; }
+    i=(i+1)%p.photos.length;
+    gallery.querySelectorAll('.pd-gallery-img').forEach(img=>{ img.style.opacity = (Number(img.dataset.i)===i) ? 1 : 0; });
+    const count=document.getElementById('pd-gallery-count'); if(count) count.textContent=(i+1)+'/'+p.photos.length;
+    const dots=document.getElementById('pd-gallery-dots'); if(dots)[...dots.children].forEach((d,j)=>d.classList.toggle('active',j===i));
+  },10000);
+};
+function addToCart(productId){
+  const p = Store.sellables.find(x=>x.id===productId);
+  if(!p) return;
+  const meta = Utils.decodeMeta(p.desc);
+  if(meta.sizes.length || meta.colors.length || (meta.extra&&meta.extra.length)){ openVariantPicker(productId, meta); return; }
+  addToCartWithVariant(productId, '', '', {});
+}
+function addToCartWithVariant(productId, size, color, extra){
+  extra = extra || {};
+  const extraKey = Object.keys(extra).sort().map(k=>k+'='+extra[k]).join('|');
+  const key = productId + '::' + (size||'') + '::' + (color||'') + '::' + extraKey;
+  const cart = Store.cart;
+  const existing = cart.find(c=>c.key===key);
+  if(existing) existing.qty += 1; else cart.push({productId, key, size:size||'', color:color||'', extra, qty:1});
+  Store.cart = cart;
+  Toast.show('Ajouté au panier ✓');
+  updateCartBar();
+}
+/* ---- Sélecteur de taille / couleur / autres attributs avant ajout au panier ---- */
+let variantChoice = {size:'', color:'', extra:{}};
+function openVariantPicker(productId, meta){
+  const p = Store.products.find(x=>x.id===productId);
+  if(!p) return;
+  const extraGroups = meta.extra || [];
+  variantChoice = {size: meta.sizes[0]||'', color: meta.colors[0]||'', extra:{}};
+  extraGroups.forEach(g=>{ variantChoice.extra[g.label] = g.values[0]||''; });
+  const existing = document.getElementById('variant-sheet-wrap');
+  if(existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'variant-sheet-wrap';
+  wrap.innerHTML = `
+    <div class="shop-sheet-overlay" id="variant-sheet-overlay" onclick="closeVariantPicker()"></div>
+    <div class="shop-sheet" id="variant-sheet">
+      <div class="sheet-handle"></div>
+      <h3>${Utils.escapeHtml(p.name)}</h3>
+      ${meta.sizes.length ? `<div class="sub-label">Taille</div>
+      <div class="variant-chip-row">${meta.sizes.map((s,i)=>`<button class="variant-chip ${i===0?'active':''}" data-vsize="${Utils.escapeHtml(s)}" onclick="setVariantChoice('size','${Utils.escapeHtml(s)}')">${Utils.escapeHtml(s)}</button>`).join('')}</div>` : ''}
+      ${meta.colors.length ? `<div class="sub-label">Couleur</div>
+      <div class="variant-chip-row">${meta.colors.map((c,i)=>`<button class="variant-chip ${i===0?'active':''}" data-vcolor="${Utils.escapeHtml(c)}" onclick="setVariantChoice('color','${Utils.escapeHtml(c)}')">${Utils.escapeHtml(c)}</button>`).join('')}</div>` : ''}
+      ${extraGroups.map(g=>`<div class="sub-label">${Utils.escapeHtml(g.label)}</div>
+      <div class="variant-chip-row">${g.values.map((v,i)=>`<button class="variant-chip ${i===0?'active':''}" data-vextra="${Utils.escapeHtml(g.label)}" data-vval="${Utils.escapeHtml(v)}" onclick="setExtraVariantChoice('${g.label.replace(/'/g,"\\'")}','${v.replace(/'/g,"\\'")}')">${Utils.escapeHtml(v)}</button>`).join('')}</div>`).join('')}
+      <div class="shop-sheet-actions">
+        <button class="btn btn-primary btn-block" onclick="confirmVariantAdd('${productId}')">Ajouter au panier</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  requestAnimationFrame(()=>{
+    document.getElementById('variant-sheet-overlay').classList.add('show');
+    document.getElementById('variant-sheet').classList.add('show');
+  });
+}
+function setVariantChoice(kind, val){
+  variantChoice[kind] = val;
+  document.querySelectorAll(kind==='size'?'[data-vsize]':'[data-vcolor]').forEach(el=>{
+    el.classList.toggle('active', (kind==='size'?el.dataset.vsize:el.dataset.vcolor)===val);
+  });
+}
+function setExtraVariantChoice(label, val){
+  variantChoice.extra[label] = val;
+  document.querySelectorAll('[data-vextra]').forEach(el=>{
+    if(el.dataset.vextra===label) el.classList.toggle('active', el.dataset.vval===val);
+  });
+}
+function closeVariantPicker(){
+  const overlay = document.getElementById('variant-sheet-overlay');
+  const sheet = document.getElementById('variant-sheet');
+  if(overlay) overlay.classList.remove('show');
+  if(sheet) sheet.classList.remove('show');
+  setTimeout(()=>{ const w = document.getElementById('variant-sheet-wrap'); if(w) w.remove(); }, 220);
+}
+function confirmVariantAdd(productId){
+  addToCartWithVariant(productId, variantChoice.size, variantChoice.color, variantChoice.extra);
+  closeVariantPicker();
+}
+function updateCartBar(){
+  const cart = Store.cart;
+  const count = cart.reduce((s,c)=>s+c.qty,0);
+  const badge = document.getElementById('cn-cart-badge');
+  if(badge){ badge.textContent = count>99?'99+':String(count); badge.classList.toggle('show', count>0); }
+  const bar = document.getElementById('cart-bar');
+  if(!bar) return;
+  if(count===0){ bar.classList.add('hidden'); return; }
+  const products = Store.sellables;
+  const amount = cart.reduce((s,c)=>{ const p = products.find(x=>x.id===c.productId); return s + (p?p.price*c.qty:0); },0);
+  bar.classList.remove('hidden');
+  animateCartAmount(count, amount);
+}
+/* ---- Anime le montant du panier vers sa nouvelle valeur au lieu de le remplacer
+   brutalement, façon compteur d'app bancaire. Repli immédiat si aucune valeur
+   précédente (premier article ajouté). ---- */
+let _cartBarAmountShown = 0;
+function animateCartAmount(count, amount){
+  const el = document.getElementById('cart-bar-amount');
+  if(!el) return;
+  const from = _cartBarAmountShown;
+  const to = amount;
+  _cartBarAmountShown = to;
+  if(from===to){ el.textContent = `${count} · ${Utils.fmtFCFA(to)}`; return; }
+  const start = performance.now(), dur = 420;
+  function tick(now){
+    const p = Math.min(1,(now-start)/dur);
+    const eased = 1-Math.pow(1-p,3);
+    const val = Math.round(from + (to-from)*eased);
+    el.textContent = `${count} · ${Utils.fmtFCFA(val)}`;
+    if(p<1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+/* ---- Retour visuel "Ajouté ✓" sur les boutons produit (délégation, purement
+   cosmétique — n'intercepte ni ne remplace la logique d'ajout existante). ---- */
+document.addEventListener('click', e=>{
+  const btn = e.target.closest && e.target.closest('.pcard-add');
+  if(!btn || btn.dataset.animLock) return;
+  const original = btn.textContent;
+  btn.dataset.animLock = '1';
+  btn.classList.add('added');
+  btn.textContent = '✓ Ajouté';
+  setTimeout(()=>{ btn.classList.remove('added'); btn.textContent = original; delete btn.dataset.animLock; }, 900);
+});
+
+/* ---------- Panier ---------- */
+Views.cart = function(){
+  const cart = Store.cart;
+  const products = Store.sellables;
+  const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
+  const total = items.reduce((s,i)=>s+i.product.price*i.qty,0);
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>Mon panier</h1></div>
+  </div>
+  ${items.length===0 ? EmptyState(ICONS.cart,'Panier vide','Ajoutez des produits depuis la boutique pour commencer.',
+    `<button class="btn btn-primary" onclick="Router.go('shop')">Voir la boutique</button>`) : `
+  <div style="padding:8px 20px 0;">
+    ${items.map(i=>{
+      const variantLabel = Utils.variantLabel(i);
+      const key = i.key || i.productId;
+      return `
+      <div class="product-row" style="padding:14px 0;">
+        <div class="product-thumb">${i.product.photo?`<img src="${i.product.photo}">`:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`}</div>
+        <div class="product-info"><h4>${Utils.escapeHtml(i.product.name)}</h4>${variantLabel?`<div class="meta">${Utils.escapeHtml(variantLabel)}</div>`:''}<div class="price">${Utils.fmtFCFA(i.product.price)}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="changeCartQty('${key}',-1)" style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:16px;cursor:pointer;">−</button>
+          <span class="mono" style="min-width:16px;text-align:center;font-size:14px;font-weight:700;">${i.qty}</span>
+          <button onclick="changeCartQty('${key}',1)" style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:16px;cursor:pointer;">+</button>
+        </div>
+      </div>
+    `;}).join('')}
+  </div>
+  <div style="margin:20px 20px 0;padding:18px;border-radius:var(--radius-md);background:var(--panel);display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-weight:700;font-size:15px;">Total</span><span class="mono" style="font-weight:700;font-size:17px;">${Utils.fmtFCFA(total)}</span>
+  </div>
+  <div style="padding:16px 20px 24px;"><button class="btn btn-mango btn-block" onclick="Router.go('checkout')">Passer la commande</button></div>
+  `}`;
+};
+function changeCartQty(key, delta){
+  let cart = Store.cart;
+  const item = cart.find(c=>(c.key||c.productId)===key);
+  if(item){ item.qty += delta; if(item.qty<=0) cart = cart.filter(c=>(c.key||c.productId)!==key); }
+  Store.cart = cart;
+  Router.go('cart');
+}
+
+/* ---------- Checkout ---------- */
+Views.checkout = function(){
+  const cart = Store.cart;
+  const products = Store.sellables;
+  const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
+  const total = items.reduce((s,i)=>s+i.product.price*i.qty,0);
+  const pay = Store.payment;
+  const methods = [
+    pay.wave.enabled ? {key:'wave',label:'Wave'} : null,
+    pay.om.enabled ? {key:'om',label:'Orange Money'} : null,
+    pay.mtn.enabled ? {key:'mtn',label:'MTN Money'} : null,
+    pay.moov.enabled ? {key:'moov',label:'Moov Money'} : null,
+    pay.cash.enabled ? {key:'cash',label:'Paiement à la livraison'} : null,
+  ].filter(Boolean);
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('cart')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>Finaliser la commande</h1></div>
+  </div>
+  <div class="form-wrap">
+    <div class="field"><label>Nom complet</label><input id="co-name" type="text" placeholder="Votre nom" value="${Utils.escapeHtml(ClientLocal.profile.name||'')}"></div>
+    <div class="field"><label>Numéro de téléphone</label><input id="co-phone" type="tel" placeholder="07 00 00 00 00" value="${Utils.escapeHtml(ClientLocal.profile.phone||'')}"></div>
+    <div class="field"><label>Adresse / Quartier de livraison</label><input id="co-address" type="text" placeholder="Ex : Yopougon, Sicogi" value="${Utils.escapeHtml(ClientLocal.profile.address||'')}"></div>
+    ${Store.deliveryZones.length>0 ? `<div class="field"><label>Zone de livraison</label>
+      <select id="co-zone" onchange="recalcCheckoutTotal()">
+        <option value="">Aucune / à convenir</option>
+        ${Store.deliveryZones.map(z=>`<option value="${Utils.escapeHtml(z.name)}" data-fee="${z.fee}">${Utils.escapeHtml(z.name)} — ${Utils.fmtFCFA(z.fee)}</option>`).join('')}
+      </select>
+    </div>` : ''}
+    <div class="field"><label>Code promo (facultatif)</label>
+      <div style="display:flex;gap:10px;">
+        <input id="co-promo" type="text" placeholder="Ex : BIENVENUE10" style="flex:1;text-transform:uppercase;">
+        <button class="btn btn-outline btn-sm" onclick="applyPromoCode()" style="flex:none;">Appliquer</button>
+      </div>
+      <div id="co-promo-msg" style="font-size:12.5px;margin-top:8px;"></div>
+    </div>
+    <div class="field"><label>Mode de paiement</label>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${methods.length===0 ? `<div style="font-size:13px;color:var(--text-mid);">Aucun mode de paiement configuré par le vendeur.</div>` :
+          methods.map((m,i)=>{
+            const pm = pay[m.key] || {};
+            const info = m.key==='cash' ? 'Paiement à la livraison' : (pm.number ? pm.number : 'Numéro non renseigné');
+            return `<label style="display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;">
+            <input type="radio" name="co-pay" value="${m.key}" ${i===0?'checked':''} onchange="onCheckoutPayChange()" style="width:18px;height:18px;accent-color:var(--indigo);">
+            <span style="display:flex;flex-direction:column;gap:3px;"><span style="font-size:14.5px;font-weight:700;">${m.label}</span><span style="font-size:11.5px;color:var(--text-mid);">${Utils.escapeHtml(info)}</span></span>
+          </label>`;
+          }).join('')}
+      </div>
+      <div id="co-pay-details"></div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:16px;margin-bottom:20px;">
+      <div id="co-subtotal-row" class="hidden" style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13.5px;color:var(--text-mid);"><span>Sous-total</span><span class="mono" id="co-subtotal"></span></div>
+      <div id="co-discount-row" class="hidden" style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13.5px;color:var(--green);"><span>Réduction</span><span class="mono" id="co-discount"></span></div>
+      <div id="co-delivery-row" class="hidden" style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13.5px;color:var(--text-mid);"><span>Livraison</span><span class="mono" id="co-delivery"></span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-weight:700;">Total à payer</span><span class="mono" style="font-weight:700;" id="co-total">${Utils.fmtFCFA(total)}</span></div>
+    </div>
+    <button class="btn btn-mango btn-block" style="margin-bottom:24px;" onclick="confirmOrder()">Confirmer la commande</button>
+  </div>
+  `;
+};
+let appliedPromo = null;
+let checkoutPaymentProof = null;
+Views._after_checkout = function(){ appliedPromo = null; checkoutPaymentProof = null; ClientLocal.load(); onCheckoutPayChange(); };
+function onCheckoutPayChange(){
+  const payRadio = document.querySelector('input[name="co-pay"]:checked');
+  const wrap = document.getElementById('co-pay-details');
+  if(!wrap || !payRadio) return;
+  checkoutPaymentProof = null;
+  const method = payRadio.value;
+  if(method==='cash'){ wrap.innerHTML = ''; return; }
+  const pay = Store.payment;
+  const number = pay[method] ? pay[method].number : '';
+  const link = pay[method] ? pay[method].link : '';
+  const validated = pay[method] ? pay[method].validated : false;
+  const label = PAY_LABELS[method] || method;
+  wrap.innerHTML = `
+    <div style="margin-top:10px;border:1.5px dashed var(--line);border-radius:var(--radius-sm);padding:14px;">
+      <p style="margin:0 0 8px;font-size:12.5px;color:var(--text-mid);">Envoyez le montant total au numéro ${label} ci-dessous, puis joignez une capture d'écran ou le reçu de la transaction.</p>
+      <div style="display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;">
+        <span class="mono" style="font-weight:700;font-size:15px;flex:1;">${number ? Utils.escapeHtml(number) : 'Numéro non renseigné par le vendeur'}</span>
+        ${validated ? `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--green-tint);color:var(--green);white-space:nowrap;">Vérifié ✓</span>` : ''}
+        ${number ? `<button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${number.replace(/'/g,"")}');Toast.show('Numéro copié ✓')">Copier</button>` : ''}
+      </div>
+      ${link ? `<a href="${Utils.escapeHtml(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--indigo);">Payer directement via le lien ${label} ↗</a>` : ''}
+      <input type="file" accept="image/*" id="co-payment-proof-input" class="hidden" onchange="handleCheckoutProof(event)">
+      <div id="co-payment-proof-preview"></div>
+      <button type="button" class="btn btn-mango btn-sm" style="width:100%;" onclick="document.getElementById('co-payment-proof-input').click()">📎 Joindre la capture / le reçu de paiement</button>
+    </div>`;
+}
+function handleCheckoutProof(evt){
+  const file = evt.target.files && evt.target.files[0];
+  if(!file) return;
+  siamsPrepareImageDataURL(file).then(dataUrl=>{
+    checkoutPaymentProof = dataUrl;
+    const prev = document.getElementById('co-payment-proof-preview');
+    if(prev) prev.innerHTML = `<div style="margin:10px 0;border-radius:var(--radius-sm);overflow:hidden;border:1.5px solid var(--line);"><img src="${checkoutPaymentProof}" style="width:100%;display:block;"></div><div style="font-size:12px;color:var(--green);font-weight:600;">✓ Justificatif joint</div>`;
+  }).catch(()=>Toast.show('Impossible de traiter cette image'));
+}
+function applyPromoCode(){
+  const code = document.getElementById('co-promo').value.trim().toUpperCase();
+  const msg = document.getElementById('co-promo-msg');
+  if(!code){ msg.textContent=''; appliedPromo=null; recalcCheckoutTotal(); return; }
+  const promo = Store.promos.map(p=>PromoLocal.merge(p)).find(p=>p.code===code && p.active && (!p.maxUses || p.usedCount<p.maxUses));
+  if(!promo){ msg.textContent = 'Code invalide, inactif ou épuisé'; msg.style.color = 'var(--red)'; appliedPromo=null; recalcCheckoutTotal(); return; }
+  appliedPromo = promo;
+  msg.textContent = `Code appliqué : ${promo.type==='percent' ? promo.value+'% de réduction' : Utils.fmtFCFA(promo.value)+' de réduction'}`;
+  msg.style.color = 'var(--green)';
+  recalcCheckoutTotal();
+}
+function recalcCheckoutTotal(){
+  const cart = Store.cart;
+  const products = Store.sellables;
+  const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
+  const subtotal = items.reduce((s,i)=>s+i.product.price*i.qty,0);
+  let discount = 0;
+  if(appliedPromo) discount = appliedPromo.type==='percent' ? Math.round(subtotal*appliedPromo.value/100) : Math.min(appliedPromo.value, subtotal);
+  const zoneEl = document.getElementById('co-zone');
+  const deliveryFee = zoneEl && zoneEl.value ? Number(zoneEl.selectedOptions[0].dataset.fee||0) : 0;
+  const total = subtotal - discount + deliveryFee;
+  document.getElementById('co-total').textContent = Utils.fmtFCFA(total);
+  document.getElementById('co-subtotal-row').classList.toggle('hidden', discount===0 && deliveryFee===0);
+  document.getElementById('co-discount-row').classList.toggle('hidden', discount===0);
+  document.getElementById('co-delivery-row').classList.toggle('hidden', deliveryFee===0);
+  if(discount>0 || deliveryFee>0){
+    document.getElementById('co-subtotal').textContent = Utils.fmtFCFA(subtotal);
+  }
+  if(discount>0) document.getElementById('co-discount').textContent = '−'+Utils.fmtFCFA(discount);
+  if(deliveryFee>0) document.getElementById('co-delivery').textContent = Utils.fmtFCFA(deliveryFee);
+}
+let checkoutLocation=null;
+let checkoutLocationRequestInProgress=false;
+
+function setCheckoutLocationStatus(message, type='neutral'){
+  const status=document.getElementById('co-location-status');
+  if(!status) return;
+  const styles={
+    neutral:'color:var(--text-soft);',
+    loading:'color:var(--indigo);',
+    success:'color:var(--green);font-weight:700;',
+    warning:'color:#9a6700;',
+    error:'color:var(--danger,#d64545);'
+  };
+  status.style.cssText='font-size:12px;margin-top:8px;line-height:1.5;'+(styles[type]||styles.neutral);
+  status.innerHTML=message;
+}
+
+function locationHelpHtml(){
+  return `<div style="margin-top:10px;padding:11px 12px;border-radius:12px;background:#fff8e8;border:1px solid #f0d58a;color:#765b18;line-height:1.5;">
+    <strong>La localisation est bloquée.</strong><br>
+    Sur Android, ouvrez les paramètres du site depuis votre navigateur, choisissez <strong>Localisation → Autoriser</strong>, puis revenez ici et appuyez sur <strong>Réessayer</strong>.
+    <div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="btn btn-soft-indigo btn-sm" onclick="requestDeliveryLocation(true)">Réessayer</button>
+    </div>
+  </div>`;
+}
+
+async function requestDeliveryLocation(forceRetry=false){
+  const status=document.getElementById('co-location-status');
+  if(checkoutLocationRequestInProgress) return;
+  if(!navigator.geolocation){
+    setCheckoutLocationStatus('Votre appareil ou votre navigateur ne prend pas en charge la géolocalisation.', 'error');
+    return;
+  }
+
+  checkoutLocationRequestInProgress=true;
+  setCheckoutLocationStatus('Recherche de votre position…<br><span style="font-weight:400;">Gardez la page ouverte quelques secondes.</span>', 'loading');
+
+  const handleSuccess=(pos)=>{
+    checkoutLocationRequestInProgress=false;
+    const accuracy=Number(pos.coords.accuracy||0);
+    checkoutLocation={lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy,timestamp:Date.now()};
+    const quality=accuracy<=30?'Position précise':accuracy<=100?'Position correcte':'Position approximative';
+    setCheckoutLocationStatus(`✓ ${quality} — précision ~${Math.round(accuracy)} m`, 'success');
+  };
+
+  const handleError=(err)=>{
+    checkoutLocationRequestInProgress=false;
+    if(err && err.code===1){
+      setCheckoutLocationStatus(
+        'L’accès à votre position a été refusé par le navigateur.'+locationHelpHtml(),
+        'warning'
+      );
+      return;
+    }
+    if(err && err.code===2){
+      setCheckoutLocationStatus('Votre position est momentanément indisponible. Vérifiez que la localisation du téléphone est activée, puis appuyez sur <strong>Réessayer</strong>.', 'warning');
+      return;
+    }
+    if(err && err.code===3){
+      setCheckoutLocationStatus('La recherche de votre position a pris trop de temps. Vérifiez votre connexion et votre GPS, puis appuyez sur <strong>Réessayer</strong>.', 'warning');
+      return;
+    }
+    setCheckoutLocationStatus('Impossible d’obtenir votre position pour le moment. Vous pouvez vérifier les autorisations du site puis réessayer.', 'error');
+  };
+
+  // Si l’API Permissions est disponible, on explique immédiatement l’état
+  // de l’autorisation sans empêcher getCurrentPosition de déclencher le prompt
+  // lorsque celui-ci est encore à l’état "prompt".
+  try{
+    if(navigator.permissions && navigator.permissions.query){
+      const permission=await navigator.permissions.query({name:'geolocation'});
+      if(permission.state==='denied'){
+        checkoutLocationRequestInProgress=false;
+        setCheckoutLocationStatus('L’accès à la localisation est actuellement bloqué pour ce site.'+locationHelpHtml(), 'warning');
+        return;
+      }
+    }
+  }catch(e){}
+
+  navigator.geolocation.getCurrentPosition(
+    handleSuccess,
+    handleError,
+    {enableHighAccuracy:true,timeout:15000,maximumAge:10000}
+  );
+}
+
+async function confirmOrder(){
+  const name = document.getElementById('co-name').value.trim();
+  const phone = document.getElementById('co-phone').value.trim();
+  const address = document.getElementById('co-address').value.trim();
+  if(!name || !phone || !address){ Toast.show('Merci de remplir tous les champs'); return; }
+  const payRadio = document.querySelector('input[name="co-pay"]:checked');
+  const payMethod = payRadio?payRadio.value:'cash';
+  if(payMethod!=='cash' && !checkoutPaymentProof){ Toast.show('Veuillez joindre la capture ou le reçu de votre paiement'); return; }
+  const cart = Store.cart;
+  let products = Store.sellables;
+  const items = cart.map(c=>{ const p = products.find(x=>x.id===c.productId); if(!p) return null; const variantLabel = Utils.variantLabel(c); return {productId:c.productId, name: variantLabel ? `${p.name} (${variantLabel})` : p.name, price:p.price, qty:c.qty}; }).filter(Boolean);
+  if(items.length===0){ Toast.show('Panier vide'); return; }
+  const subtotal = items.reduce((s,i)=>s+i.price*i.qty,0);
+  let discount = 0;
+  if(appliedPromo) discount = appliedPromo.type==='percent' ? Math.round(subtotal*appliedPromo.value/100) : Math.min(appliedPromo.value, subtotal);
+  const zoneEl = document.getElementById('co-zone');
+  const deliveryZone = zoneEl && zoneEl.value ? zoneEl.value : null;
+  const deliveryFee = zoneEl && zoneEl.value ? Number(zoneEl.selectedOptions[0].dataset.fee||0) : 0;
+  const amount = subtotal - discount + deliveryFee;
+  const orders = Store.orders.slice();
+  const isFirstOrderEver = orders.length===0;
+  let number = Utils.genOrderCode(Store.store.name);
+  while(orders.some(o=>o.number===number)) number = Utils.genOrderCode(Store.store.name);
+  const order = { id:Utils.uid(), number, customer:{name,phone,address}, items, amount, discount, deliveryZone, deliveryFee, promoCode: appliedPromo?appliedPromo.code:null, paymentMethod: payMethod, paymentProof: checkoutPaymentProof||null, status:'pending', createdAt:Date.now(), deliveryToken:Utils.uid(),
+    customerLat: checkoutLocation?checkoutLocation.lat:null, customerLng: checkoutLocation?checkoutLocation.lng:null, customerLocationAccuracy: checkoutLocation?checkoutLocation.accuracy:null };
+  orders.unshift(order);
+  if(appliedPromo){ const promos=Store.promos.slice(); const pp=promos.find(x=>x.id===appliedPromo.id); if(pp){ pp.usedCount=Number(pp.usedCount||0)+1; Store.promos=promos; PromoLocal.update(pp.id,{usedCount:pp.usedCount}); } }
+  Store.orders = orders;
+  /* Conserve immédiatement la commande sur l'appareil du client et attend
+     l'écriture serveur avant d'annoncer qu'elle est reçue par la boutique. */
+  try{
+    ClientOrderCache.save(order);
+    await Cloud.waitForOrderPersisted(order.id);
+  }catch(syncErr){
+    console.error('Commande non synchronisée', syncErr);
+    const detail = syncErr && (syncErr.message || syncErr.code || (syncErr.error && syncErr.error.message) || JSON.stringify(syncErr));
+    Toast.show('⚠️ La commande n’a pas pu être transmise : '+(detail||'erreur inconnue'));
+    return;
+  }
+
+  /* Décrément du stock */
+  products = products.map(p=>{
+    const it = items.find(i=>i.productId===p.id);
+    if(it && p.stockLimited){
+      const newQty = Math.max(0, Number(p.stockQty||0) - it.qty);
+      if(newQty===0) Notify.add('stock', `⚠️ Stock épuisé : ${p.name} — pensez à réapprovisionner`);
+      else if(newQty <= 3) Notify.add('stock', `Stock presque épuisé : ${p.name} (${newQty} restant${newQty>1?'s':''})`);
+      return { ...p, stockQty: newQty };
+    }
+    return p;
+  });
+  Store.products = products;
+
+  Store.cart = [];
+  appliedPromo = null;
+  checkoutPaymentProof = null;
+  checkoutLocation = null;
+  Notify.add('order', `Nouvelle commande #${number} de ${name} — ${Utils.fmtFCFA(amount)}`);
+  ClientLocal.save({name, phone, address});
+  ClientNotify.add(number, `Commande #${number} reçue — en attente de confirmation du vendeur.`);
+
+  /* Envoi automatique au vendeur par WhatsApp */
+  const store = Store.store;
+  const lines = items.map(i=>`• ${i.name} ×${i.qty} — ${Utils.fmtFCFA(i.price*i.qty)}`).join('\n');
+  const waText = `Nouvelle commande #${number}\nClient : ${name} (${phone})\nAdresse : ${address}${deliveryZone?`\nZone : ${deliveryZone}`:''}\n\n${lines}\n\nTotal : ${Utils.fmtFCFA(amount)}`;
+  const waLink = `https://wa.me/225${(store.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(waText)}`;
+  window.open(waLink, '_blank');
+
+  if(isFirstOrderEver){
+    Achievements.celebrate({ icon:'trophy', color:'#1E9E6B', title:'Première commande enregistrée ! 🎉', subtitle:'Votre boutique vient de recevoir sa toute première vente.' });
+  }
+  Router.go('confirmation', {orderNumber:number});
+}
+
+/* ---------- Aperçu PNG inline du reçu (canvas), harmonisé avec le design de référence
+   renderSIAMSReceiptPDF : bandeau dégradé navy → bleu, ruban bleu → cyan, panneau
+   d'informations, tableau à en-tête navy, bandeau de pied navy avec identité SIAMS. ---------- */
+function ctxRoundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+function buildReceiptDataURL(order){
+  const store = Store.store;
+  const C = { navy:'#052A4D', blueDeep:'#0060D9', blue:'#0098E8', cyan:'#00D6EE',
+    ink:'#162335', mid:'#5C6B7A', line:'#DCE4EC', green:'#1E9E6B', mango:'#EE9A2E',
+    panel:'#EEF3F8', legal:'#F0F6FB', paper:'#FFFFFF' };
+  const W = 680;
+  const padX = 40;
+  const rowH = 28;
+
+  /* Hauteurs fixes des sections (utilisées à la fois pour calculer H et pour dessiner) */
+  const headerH = 128, rubanH = 3, gapHeader = 24;
+  const infoBoxH = 118, gapInfo = 22;
+  const tableHeadH = 28, gapTable = 12;
+  const extraTotalLines = (order.discount?1:0) + (order.deliveryFee?1:0);
+  const totalsH = 22 + extraTotalLines*22 + 14 + 34;
+  const gapTotals = 18, statusH = 24, gapStatus = 16, legalH = 68, gapLegal = 20, footerH = 58;
+
+  const H = headerH + rubanH + gapHeader + infoBoxH + gapInfo + tableHeadH + order.items.length*rowH
+    + gapTable + totalsH + gapTotals + statusH + gapStatus + legalH + gapLegal + footerH;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = C.paper; ctx.fillRect(0,0,W,H);
+
+  /* ---- Bandeau d'en-tête dégradé navy → bleu + badge SIAMS ---- */
+  const grad = ctx.createLinearGradient(0,0,W,0);
+  grad.addColorStop(0, C.navy); grad.addColorStop(1, C.blueDeep);
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,headerH);
+
+  ctx.fillStyle = '#fff';
+  ctxRoundRect(ctx, W-padX-58, 20, 58, 58, 12); ctx.fill();
+  ctx.fillStyle = C.navy; ctx.textAlign = 'center'; ctx.font = '800 15px Arial';
+  ctx.fillText('SIAMS', W-padX-29, 54);
+
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  ctx.font = '800 26px Arial'; ctx.fillText('Reçu', padX, 54);
+  ctx.font = '700 12px Arial'; ctx.fillText(`N° ${order.number}`, padX, 72);
+  ctx.globalAlpha = .85; ctx.font = '500 12px Arial';
+  ctx.fillText(`Reçu de commande — ${store.name || 'Boutique'} (propulsé par SIAMS)`, padX, 92);
+  ctx.globalAlpha = 1;
+
+  /* ---- Ruban dégradé bleu → cyan ---- */
+  const ruban = ctx.createLinearGradient(0,0,W,0);
+  ruban.addColorStop(0, C.blueDeep); ruban.addColorStop(1, C.cyan);
+  ctx.fillStyle = ruban; ctx.fillRect(0, headerH, W, rubanH);
+
+  let y = headerH + rubanH + gapHeader;
+
+  /* ---- Panneau d'informations ---- */
+  ctx.fillStyle = C.panel; ctx.strokeStyle = C.line;
+  ctxRoundRect(ctx, padX, y, W-padX*2, infoBoxH, 8); ctx.fill(); ctx.stroke();
+  const half = (W-padX*2-32)/2;
+  const infoRows = [
+    ['Date', new Date(order.createdAt).toLocaleString('fr-FR')],
+    ['Client', `${order.customer.name} · ${order.customer.phone}`],
+    ['Paiement', PAY_LABELS[order.paymentMethod]||order.paymentMethod],
+    ['Statut', 'En attente de confirmation']
+  ];
+  let iy = y + 26;
+  infoRows.forEach((row,idx)=>{
+    const cx = padX + 16 + (idx%2)*(half+16);
+    ctx.textAlign = 'left'; ctx.fillStyle = C.mid; ctx.font = '600 10px Arial';
+    ctx.fillText(row[0].toUpperCase(), cx, iy);
+    ctx.fillStyle = C.ink; ctx.font = '700 12px Arial';
+    let val = String(row[1]);
+    if (val.length > 30) val = val.slice(0,30)+'…';
+    ctx.fillText(val, cx, iy+16);
+    if (idx%2===1) iy += 44;
+  });
+  ctx.textAlign = 'left'; ctx.fillStyle = C.mid; ctx.font = '600 10px Arial';
+  ctx.fillText('ADRESSE', padX+16, iy);
+  ctx.fillStyle = C.ink; ctx.font = '700 12px Arial';
+  let addr = order.customer.address || '';
+  if (addr.length > 62) addr = addr.slice(0,62)+'…';
+  ctx.fillText(addr, padX+16, iy+16);
+
+  y += infoBoxH + gapInfo;
+
+  /* ---- Tableau des articles ---- */
+  const tableW = W-padX*2;
+  ctx.fillStyle = C.navy; ctx.fillRect(padX, y, tableW, tableHeadH);
+  ctx.fillStyle = '#fff'; ctx.font = '700 10px Arial';
+  ctx.textAlign = 'left'; ctx.fillText('DESCRIPTION', padX+10, y+18);
+  ctx.textAlign = 'center'; ctx.fillText('QTÉ', padX+tableW*0.62, y+18);
+  ctx.textAlign = 'right'; ctx.fillText('TOTAL', W-padX-10, y+18);
+  y += tableHeadH;
+
+  order.items.forEach((it,idx)=>{
+    if (idx%2===1){ ctx.fillStyle = '#F8FAFC'; ctx.fillRect(padX, y, tableW, rowH); }
+    ctx.fillStyle = C.ink; ctx.font = '600 12px Arial'; ctx.textAlign = 'left';
+    const label = it.name.length > 34 ? it.name.slice(0,34)+'…' : it.name;
+    ctx.fillText(label, padX+10, y+18);
+    ctx.textAlign = 'center'; ctx.font = '600 12px Arial';
+    ctx.fillText(String(it.qty), padX+tableW*0.62, y+18);
+    ctx.textAlign = 'right'; ctx.font = '700 12px Arial';
+    ctx.fillText(Utils.fmtFCFA(it.price*it.qty), W-padX-10, y+18);
+    ctx.strokeStyle = C.line; ctx.beginPath(); ctx.moveTo(padX,y+rowH); ctx.lineTo(W-padX,y+rowH); ctx.stroke();
+    y += rowH;
+  });
+
+  y += gapTable;
+
+  /* ---- Totaux ---- */
+  const totX = padX, totW = tableW;
+  ctx.textAlign = 'left'; ctx.fillStyle = C.mid; ctx.font = '500 13px Arial';
+  ctx.fillText('Sous-total', totX, y);
+  ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '600 12px Arial';
+  ctx.fillText(Utils.fmtFCFA(order.amount - (order.deliveryFee||0) + (order.discount||0)), totX+totW, y);
+  y += 22;
+  if (order.discount){
+    ctx.textAlign = 'left'; ctx.fillStyle = C.green; ctx.font = '500 13px Arial';
+    ctx.fillText(`Réduction${order.promoCode?' ('+order.promoCode+')':''}`, totX, y);
+    ctx.textAlign = 'right'; ctx.font = '600 12px Arial';
+    ctx.fillText('−'+Utils.fmtFCFA(order.discount), totX+totW, y);
+    y += 22;
+  }
+  if (order.deliveryFee){
+    ctx.textAlign = 'left'; ctx.fillStyle = C.mid; ctx.font = '500 13px Arial';
+    ctx.fillText(`Livraison${order.deliveryZone?' ('+order.deliveryZone+')':''}`, totX, y);
+    ctx.textAlign = 'right'; ctx.fillStyle = C.ink; ctx.font = '600 12px Arial';
+    ctx.fillText(Utils.fmtFCFA(order.deliveryFee), totX+totW, y);
+    y += 22;
+  }
+  ctx.strokeStyle = C.navy; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(totX,y+2); ctx.lineTo(totX+totW,y+2); ctx.stroke(); ctx.lineWidth = 1;
+  y += 24;
+  ctx.textAlign = 'left'; ctx.fillStyle = C.ink; ctx.font = '800 16px Arial';
+  ctx.fillText('Total payé', totX, y);
+  ctx.textAlign = 'right'; ctx.fillStyle = C.blueDeep; ctx.font = '800 16px Arial';
+  ctx.fillText(Utils.fmtFCFA(order.amount), totX+totW, y);
+
+  y += gapTotals + statusH;
+
+  /* ---- Statut de paiement ---- */
+  ctx.textAlign = 'center'; ctx.font = '700 12px Arial';
+  const statusText = order.status==='delivered' ? 'Statut : livraison confirmée ✓'
+    : order.status==='confirmed' ? 'Statut : commande confirmée'
+    : order.shipped ? 'Statut : en livraison'
+    : 'Statut : en attente de confirmation du vendeur';
+  ctx.fillStyle = order.status==='delivered' ? C.green : C.mango;
+  ctx.fillText(statusText, W/2, y);
+
+  y += gapStatus;
+
+  /* ---- Mention légale ---- */
+  ctx.fillStyle = C.legal;
+  ctxRoundRect(ctx, padX, y, W-padX*2, legalH, 8); ctx.fill();
+  ctx.fillStyle = C.mid; ctx.textAlign = 'center'; ctx.font = 'italic 400 10px Arial';
+  ctx.fillText("Ce reçu fait office de preuve d'achat électronique, généré via l'application.", W/2, y+20);
+  ctx.fillText(`${store.name || 'Boutique'}, propulsée par SIAMS. Conservez-le ou téléchargez le reçu PDF officiel.`, W/2, y+38);
+
+  y += legalH + gapLegal;
+
+  /* ---- Pied de page navy avec identité SIAMS ---- */
+  ctx.fillStyle = C.navy; ctx.fillRect(0, y, W, footerH);
+  ctx.textAlign = 'center'; ctx.fillStyle = C.cyan; ctx.font = '700 10px Arial';
+  ctx.fillText('SIAMS', W/2, y+20);
+  ctx.fillStyle = '#CBD8E6'; ctx.font = '500 10px Arial';
+  ctx.fillText(`Tél. ${SIAMS_RECEIPT_IDENTITY.phone}  ·  ${SIAMS_RECEIPT_IDENTITY.email}`, W/2, y+36);
+
+  return canvas.toDataURL('image/png');
+}
+function downloadReceipt(orderNumber){
+  const img = document.getElementById('receipt-img');
+  if(!img || !img.src) return;
+  const a = document.createElement('a');
+  a.href = img.src;
+  a.download = `recu-commande-${orderNumber}.png`;
+  document.body.appendChild(a); a.click(); a.remove();
+  Toast.show('Reçu téléchargé ✓');
+}
+
+/* ---------- Reçu PDF officiel (logo SIAMS + logo boutique, étapes, CGV) ---------- */
+function loadImageAsDataURL(url){
+  return new Promise(resolve=>{
+    if(!url){ resolve(null); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try{
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        c.getContext('2d').drawImage(img,0,0);
+        resolve(c.toDataURL('image/png'));
+      }catch(e){ resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+/* =========================================================================
+   RENDU DE RÉFÉRENCE — REÇU OFFICIEL SIAMS
+   -------------------------------------------------------------------------
+   Ce moteur (renderSIAMSReceiptPDF) est LA référence visuelle et structurelle
+   pour tout reçu émis par l'application, quelle que soit la nature du
+   paiement ou de la transaction (commande boutique, abonnement, versement
+   journalier, futur module de paiement…). Toute nouvelle fonctionnalité qui
+   génère un paiement doit produire son reçu PDF en appelant cette fonction
+   plutôt qu'en dessinant un document ad hoc.
+
+   data = {
+     receiptNumber   : string  (Utils.genReceiptNumber())
+     docSubtitle     : string  ex. "Reçu de commande" / "Reçu d'abonnement"
+     receiptDate     : timestamp ms — date d'émission du reçu
+     paidDate        : timestamp ms — date effective du paiement
+     clientNumber    : string|null
+     agent           : string  — émis par (nom boutique / agent SIAMS)
+     paymentMethod   : string  — libellé déjà traduit (FR)
+     clientName, clientContact, clientAddress, clientPhone : string
+     items           : [{ description, qty, unit, unitPrice, total }]
+     subtotal, discount, deliveryFee, total : number (FCFA)
+     bankLines       : [string] — lignes "Détails bancaires / Mobile Money"
+     footerNote      : string — mention légale (remplace le texte par défaut)
+   }
+   ========================================================================= */
+function drawPdfGradient(doc, x, y, w, h, colorA, colorB, steps){
+  steps = steps || 48;
+  const stepW = w/steps;
+  for(let i=0;i<steps;i++){
+    const t = i/(steps-1);
+    const r = Math.round(colorA[0]+(colorB[0]-colorA[0])*t);
+    const g = Math.round(colorA[1]+(colorB[1]-colorA[1])*t);
+    const b = Math.round(colorA[2]+(colorB[2]-colorA[2])*t);
+    doc.setFillColor(r,g,b);
+    doc.rect(x+stepW*i, y, stepW+0.6, h, 'F');
+  }
+}
+async function renderSIAMSReceiptPDF(doc, data){
+  const logoPdf = await loadImageAsDataURL(LOGO_DATA_URI);
+
+  const NAVY=[5,42,77], BLUE_DEEP=[0,96,217], BLUE=[0,152,232], CYAN=[0,214,238],
+        INK=[22,35,47], MUTED=[92,107,122], LINE=[220,228,236], GREEN=[30,158,107], PAPER=[255,255,255];
+  const W = doc.internal.pageSize.getWidth();
+  const margin = 44;
+  const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('fr-FR') : '—';
+
+  const issuer = data.issuer || SIAMS_RECEIPT_IDENTITY;
+  /* ---------- En-tête : bandeau dégradé navy → bleu + badge (logo SIAMS ou photo boutique) ---------- */
+  const headerH = 112;
+  drawPdfGradient(doc, 0, 0, W, headerH, NAVY, BLUE_DEEP);
+  doc.setFillColor(PAPER[0],PAPER[1],PAPER[2]);
+  doc.roundedRect(W-margin-58, 20, 58, 58, 12, 12, 'F');
+  try{ doc.addImage(issuer.logo || logoPdf, 'PNG', W-margin-53, 25, 48, 48); }catch(e){}
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(28);
+  doc.text('Reçu', margin, 54);
+  doc.setFont('courier','normal'); doc.setFontSize(10);
+  doc.text(`N° ${data.receiptNumber}`, margin, 72);
+  if(data.docSubtitle){ doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(224,236,250); doc.text(data.docSubtitle, margin, 90); }
+  /* ruban dégradé bleu → cyan sous l'en-tête */
+  drawPdfGradient(doc, 0, headerH, W, 3, BLUE_DEEP, CYAN);
+
+  /* ---------- Émetteur / Destinataire ---------- */
+  let y = headerH + 34;
+  const colW = (W-margin*2-32)/2;
+  const col2X = margin+colW+32;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(BLUE_DEEP[0],BLUE_DEEP[1],BLUE_DEEP[2]);
+  doc.text('ÉMETTEUR', margin, y);
+  doc.text('DESTINATAIRE', col2X, y, {align:'left'});
+  y += 16;
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(INK[0],INK[1],INK[2]);
+  doc.text(issuer.name, margin, y);
+  doc.text(String(data.clientName||'—'), col2X, y);
+  y += 15;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  const emLines = [issuer.fullName, issuer.address, `Tél. : ${issuer.phone}`, issuer.email ? `Email : ${issuer.email}` : ''].filter(Boolean);
+  const destLines = [data.clientContact||'', data.clientAddress||'', data.clientPhone||''].filter(Boolean);
+  const maxLines = Math.max(emLines.length, destLines.length);
+  for(let i=0;i<maxLines;i++){
+    if(emLines[i]) doc.text(emLines[i], margin, y);
+    if(destLines[i]) doc.text(destLines[i], col2X, y);
+    y += 13;
+  }
+  y += 12;
+
+  /* ---------- Bloc infos (fond gris clair) ---------- */
+  const infoRows = [
+    ['Date du reçu', fmtDate(data.receiptDate)],
+    ['Paiement effectué le', fmtDate(data.paidDate)],
+    ['Numéro de reçu', data.receiptNumber],
+    ['Numéro de client', data.clientNumber || '—'],
+    ['Émis par', data.agent || issuer.name],
+    ['Mode de paiement', data.paymentMethod || '—']
+  ];
+  const infoBoxH = 22 + Math.ceil(infoRows.length/2)*17;
+  doc.setFillColor(238,243,248); doc.setDrawColor(LINE[0],LINE[1],LINE[2]);
+  doc.roundedRect(margin, y, W-margin*2, infoBoxH, 8, 8, 'FD');
+  let iy = y+22, half = (W-margin*2-32)/2;
+  infoRows.forEach((row,idx)=>{
+    const cx = margin+16 + (idx%2)*(half+32-16);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+    doc.text(row[0], cx, iy);
+    doc.setFont('courier','bold'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]);
+    doc.text(String(row[1]), cx+half-8, iy, {align:'right'});
+    if(idx%2===1) iy += 17;
+  });
+  y += infoBoxH + 26;
+
+  /* ---------- Tableau des articles ---------- */
+  const cols = [
+    {label:'Description', w:0.42, align:'left'},
+    {label:'Qté', w:0.12, align:'center'},
+    {label:'Unité', w:0.12, align:'center'},
+    {label:'Prix unit.', w:0.17, align:'right'},
+    {label:'Total', w:0.17, align:'right'}
+  ];
+  const tableW = W-margin*2;
+  let cx0 = margin;
+  doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]);
+  doc.rect(margin, y, tableW, 24, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
+  cx0 = margin;
+  cols.forEach(c=>{
+    const cw = tableW*c.w;
+    const tx = c.align==='left' ? cx0+10 : c.align==='right' ? cx0+cw-10 : cx0+cw/2;
+    doc.text(c.label.toUpperCase(), tx, y+15, {align:c.align});
+    cx0 += cw;
+  });
+  y += 24;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]);
+  (data.items||[]).forEach((it,idx)=>{
+    const rowH = 22;
+    if(idx%2===1){ doc.setFillColor(248,250,252); doc.rect(margin, y, tableW, rowH, 'F'); }
+    cx0 = margin;
+    const money = v => `${Number(v||0).toLocaleString('fr-FR').replace(/\u202f|\s/g,' ')} FCFA`;
+    const rowVals = [it.description, String(it.qty), it.unit||'u', money(it.unitPrice), money(it.total)];
+    cols.forEach((c,i)=>{
+      const cw = tableW*c.w;
+      const tx = c.align==='left' ? cx0+10 : c.align==='right' ? cx0+cw-10 : cx0+cw/2;
+      let val = rowVals[i];
+      if(i===0 && val && val.length>46) val = val.slice(0,46)+'…';
+      doc.text(String(val), tx, y+14, {align:c.align});
+      cx0 += cw;
+    });
+    doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.line(margin, y+rowH, margin+tableW, y+rowH);
+    y += rowH;
+  });
+  y += 20;
+
+  /* ---------- Totaux ---------- */
+  const totW = 250, totX = W-margin-totW;
+  const money = v => `${Number(v||0).toLocaleString('fr-FR').replace(/\u202f|\s/g,' ')} FCFA`;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text('Sous-total', totX, y); doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont('helvetica','normal'); doc.text(money(data.subtotal||0), totX+totW, y, {align:'right'}); y+=16;
+  if(data.discount){
+    doc.setFont('helvetica','normal'); doc.setTextColor(GREEN[0],GREEN[1],GREEN[2]); doc.text('Remise', totX, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.text('−'+money(data.discount), totX+totW, y, {align:'right'}); y+=16;
+  }
+  if(data.deliveryFee){
+    doc.setFont('helvetica','normal'); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]); doc.text('Livraison', totX, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(money(data.deliveryFee), totX+totW, y, {align:'right'}); y+=16;
+  }
+  doc.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); doc.setLineWidth(1.3); doc.line(totX, y+2, totX+totW, y+2); doc.setLineWidth(1); y += 20;
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(INK[0],INK[1],INK[2]);
+  doc.text('Total payé', totX, y);
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(BLUE_DEEP[0],BLUE_DEEP[1],BLUE_DEEP[2]);
+  doc.text(money(data.total||0), totX+totW, y, {align:'right'});
+  y += 34;
+
+  /* ---------- Chronologie de la commande (optionnelle) ----------
+     Utilisée pour le reçu détaillé de livraison : retrace les étapes
+     de la commande, de sa création jusqu'à la confirmation de réception. */
+  if(data.timeline && data.timeline.length){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(BLUE_DEEP[0],BLUE_DEEP[1],BLUE_DEEP[2]);
+    doc.text('CHRONOLOGIE DE LA COMMANDE', margin, y);
+    y += 14;
+    doc.setDrawColor(LINE[0],LINE[1],LINE[2]);
+    data.timeline.forEach((step,idx)=>{
+      doc.setFillColor(GREEN[0],GREEN[1],GREEN[2]);
+      doc.circle(margin+4, y-3, 3, 'F');
+      if(idx<data.timeline.length-1) doc.line(margin+4, y, margin+4, y+15);
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]);
+      doc.text(step.label, margin+16, y);
+      doc.setFont('courier','normal'); doc.setFontSize(8.5); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+      doc.text(step.time || '—', W-margin, y, {align:'right'});
+      y += 17;
+    });
+    y += 8;
+  }
+
+  /* ---------- Mention légale ---------- */
+  doc.setDrawColor(LINE[0],LINE[1],LINE[2]);
+  const legal = data.footerNote || "Le présent reçu constitue la preuve officielle du règlement effectué par le client auprès de SIAMS, pour le montant et à la date indiqués ci-dessus. Il fait foi entre les parties et peut être produit à toute fin utile, notamment auprès des autorités compétentes, conformément à la réglementation en vigueur en République de Côte d'Ivoire.";
+  const legalLines = doc.splitTextToSize(legal, W-margin*2-28);
+  const legalH = Math.max(42, legalLines.length*10 + 18);
+  doc.setFillColor(240,246,251); doc.roundedRect(margin, y, W-margin*2, legalH, 8, 8, 'F');
+  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(MUTED[0],MUTED[1],MUTED[2]);
+  doc.text(legalLines, margin+14, y+15);
+  y += legalH + 14;
+
+  /* ---------- Pied de page navy (3 colonnes) ---------- */
+  const pageH = doc.internal.pageSize.getHeight();
+  const footH = 86;
+  const footY = Math.max(y, pageH-footH);
+  if(footY + footH > pageH + 0.5){
+    doc.addPage();
+  }
+  const safeFootY = doc.internal.pageSize.getHeight()-footH;
+  doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0, safeFootY, W, footH, 'F');
+  const fcolW = (W-margin*2)/3;
+  const footCols = [
+    { title:issuer.footerTitle || 'SIÈGE SOCIAL', lines:issuer.footerAddressLines || [issuer.name, 'Yopougon, Abidjan', "Côte d'Ivoire"] },
+    { title:'COORDONNÉES', lines:[`Tél. : ${issuer.phone}`, issuer.email ? `Email : ${issuer.email}` : ''].filter(Boolean) },
+    { title:'DÉTAILS BANCAIRES / MOBILE MONEY', lines: data.bankLines && data.bankLines.length ? data.bankLines : ['Voir application pour les détails de paiement'] }
+  ];
+  footCols.forEach((c,i)=>{
+    const fx = margin + fcolW*i;
+    let fy = safeFootY+22;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(CYAN[0],CYAN[1],CYAN[2]);
+    doc.text(c.title, fx, fy); fy += 13;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(203,216,230);
+    c.lines.forEach(l=>{ doc.text(doc.splitTextToSize(l, fcolW-14), fx, fy); fy += 12; });
+  });
+}
+
+async function downloadReceiptPDF(orderId){
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  const order = Store.orders.find(o=>o.id===orderId) || ClientOrderCache.get(orderId);
+  if(!order){ Toast.show('Commande introuvable'); return; }
+  const store = Store.store;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+
+  if(!order.receiptNumber){ order.receiptNumber = Utils.genReceiptNumber(); Store.orders = Store.orders.map(o=>o.id===order.id?order:o); }
+
+  const items = order.items.map(it=>({ description: it.name, qty: it.qty, unit:'u', unitPrice: it.price, total: it.price*it.qty }));
+  const pay = Store.payment || {};
+  const bankLines = [];
+  if(pay.wave && pay.wave.enabled && pay.wave.number) bankLines.push(`Wave : ${pay.wave.number}`);
+  if(pay.om && pay.om.enabled && pay.om.number) bankLines.push(`Orange Money : ${pay.om.number}`);
+  if(pay.mtn && pay.mtn.enabled && pay.mtn.number) bankLines.push(`MTN Money : ${pay.mtn.number}`);
+  if(!bankLines.length) bankLines.push('Paiement à la livraison');
+
+  const fmtT = ts => ts ? new Date(ts).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : null;
+  let timeline = null;
+  if(order.status==='delivered'){
+    timeline = [
+      { label:'Commande passée par le client', time: fmtT(order.createdAt) },
+      { label:'Confirmée par la boutique', time: fmtT(order.confirmedAt) || '—' },
+      { label:'Expédiée / prise en charge par le livreur', time: fmtT(order.shippedAt) || '—' },
+      { label:'Réception confirmée par le client (photo à l’appui)', time: fmtT(order.deliveryConfirmedAt) || '—' }
+    ];
+  }
+
+  await renderSIAMSReceiptPDF(doc, {
+    receiptNumber: order.receiptNumber,
+    docSubtitle: order.status==='delivered' ? `Reçu détaillé de livraison — ${store.name || 'Boutique'}` : `Reçu de commande — ${store.name || 'Boutique'}`,
+    receiptDate: Date.now(),
+    timeline,
+    paidDate: order.createdAt,
+    clientNumber: order.customer.phone,
+    agent: store.name || 'Ma boutique',
+    paymentMethod: PAY_LABELS[order.paymentMethod]||order.paymentMethod,
+    clientName: order.customer.name,
+    clientContact: order.customer.phone,
+    clientAddress: order.customer.address,
+    clientPhone: order.customer.phone,
+    items,
+    subtotal: order.amount - (order.deliveryFee||0) + (order.discount||0),
+    discount: order.discount,
+    deliveryFee: order.deliveryFee,
+    total: order.amount,
+    bankLines,
+    issuer: {
+      name: store.name || 'Ma boutique',
+      fullName: store.name || 'Ma boutique',
+      address: store.address || '',
+      phone: store.phone || '',
+      email: store.email || '',
+      logo: store.photo || null,
+      footerTitle: 'BOUTIQUE',
+      footerAddressLines: [store.name || 'Ma boutique', store.address || ''].filter(Boolean)
+    },
+    footerNote: "Ce reçu fait office de preuve d'achat. La commande n'est considérée comme livrée qu'après confirmation du client depuis l'application. Tout litige doit être signalé au vendeur dans les 48h suivant la livraison."
+  });
+
+  doc.save(`recu-commande-${order.number}.pdf`);
+  Toast.show('Reçu PDF téléchargé ✓');
+}
+
+/* ---------- Reçu PDF officiel d'abonnement (réutilise le moteur de référence SIAMS) ---------- */
+async function downloadSubscriptionReceiptPDF(){
+  if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+  const access = Store.access();
+  if(access.status!=='active' || !access.contractRef){ Toast.show('Aucun abonnement actif à ce jour'); return; }
+  const store = Store.store;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+
+  const receiptNumber = Store.subscription.receiptNumber || Utils.genReceiptNumber();
+  if(!Store.subscription.receiptNumber){ Store.subscription = { ...Store.subscription, receiptNumber }; }
+  const renewDate = access.renewsAt ? new Date(access.renewsAt).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'}) : '—';
+
+  const items = [{ description:`Abonnement ${access.label} — mensuel (sans commission sur les ventes)`, qty:1, unit:'mois', unitPrice: access.amount||0, total: access.amount||0 }];
+  const bankLines = [];
+  if(access.paymentMethod==='card'){ bankLines.push(`${PAYMENT_INFO.bankName} : carte se terminant par ${(PAYMENT_INFO.cardNumber||'').slice(-4)}`); }
+  else if(PAYMENT_INFO.djamoNumber){ bankLines.push(`Djamo : ${PAYMENT_INFO.djamoNumber}`); }
+
+  await renderSIAMSReceiptPDF(doc, {
+    receiptNumber,
+    docSubtitle: "Reçu d'abonnement — SIAMS",
+    receiptDate: Date.now(),
+    paidDate: access.activatedAt,
+    clientNumber: store.phone || null,
+    agent: 'SIAMS',
+    paymentMethod: SUB_PAY_LABELS[access.paymentMethod] || access.paymentMethod || '—',
+    clientName: store.name || 'Ma boutique',
+    clientContact: store.phone || '',
+    clientAddress: `Réf. contrat : ${access.contractRef}`,
+    clientPhone: `Prochain renouvellement : ${renewDate}`,
+    items,
+    subtotal: access.amount||0,
+    discount: 0,
+    deliveryFee: 0,
+    total: access.amount||0,
+    bankLines,
+    footerNote: "Ce reçu fait office de preuve de paiement de l'abonnement SIAMS pour la boutique désignée ci-dessus. La référence de contrat identifie de manière unique cet abonnement. Tout litige doit être signalé sous 48h. Document généré automatiquement — SIAMS."
+  });
+
+  doc.save(`recu-abonnement-${access.contractRef}.pdf`);
+  Toast.show('Reçu PDF téléchargé ✓');
+}
+
+/* ---------- Confirmation ---------- */
+Views.confirmation = function(opts){
+  const order = Store.orders.find(o=>o.number===opts.orderNumber);
+  const store = Store.store;
+  let waLink = '';
+  if(order){
+    const lines = order.items.map(i=>`• ${i.name} ×${i.qty} — ${Utils.fmtFCFA(i.price*i.qty)}`).join('\n');
+    const waText = `Nouvelle commande #${order.number}\nClient : ${order.customer.name} (${order.customer.phone})\nAdresse : ${order.customer.address}\n\n${lines}\n\nTotal : ${Utils.fmtFCFA(order.amount)}`;
+    waLink = `https://wa.me/225${(store.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(waText)}`;
+  }
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Confirmation</h1></div>
+  </div>
+  <div style="padding:24px 20px 24px;text-align:center;">
+    <div style="width:76px;height:76px;border-radius:22px;background:var(--green-tint);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h1 style="font-size:21px;margin:0 0 8px;">Commande envoyée ✓</h1>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.5;margin:0 0 4px;">Votre commande <strong class="mono">#${opts.orderNumber}</strong> a bien été transmise au vendeur.</p>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.5;margin:0;">Vous serez contacté sur WhatsApp pour la suite.</p>
+    ${order ? `<div style="margin:16px auto 0;max-width:360px;padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);text-align:left;font-size:12.5px;"><strong>Mode de paiement :</strong> ${Utils.escapeHtml(PAY_LABELS[order.paymentMethod]||order.paymentMethod||'Paiement à la livraison')}${order.paymentMethod!=='cash' && Store.payment[order.paymentMethod]?.number ? `<br><span style="color:var(--text-mid);">Numéro : ${Utils.escapeHtml(Store.payment[order.paymentMethod].number)}</span>` : ''}</div>` : ''}
+  </div>
+  ${order ? `
+  <div class="receipt-wrap"><img id="receipt-img" alt="Reçu de commande #${opts.orderNumber}"></div>
+  <div class="receipt-hint">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><rect x="4" y="2" width="16" height="20" rx="2" stroke="var(--mango-dark)" stroke-width="1.7"/><path d="M9 7h6M9 11h6M9 15h3" stroke="var(--mango-dark)" stroke-width="1.7" stroke-linecap="round"/></svg>
+    <span>C'est votre reçu officiel. Faites-en une <strong>capture d'écran</strong> ou touchez « Télécharger le reçu » pour le conserver comme preuve d'achat.</span>
+  </div>
+  <div style="padding:0 20px;">
+    <button class="btn btn-outline btn-block" style="margin-bottom:10px;" onclick="downloadReceiptPDF('${order.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Télécharger le reçu (PDF)</button>
+    ${waLink ? `<button class="btn btn-soft-green btn-block" style="margin-bottom:10px;" onclick="window.open('${waLink}','_blank')"><svg width="16" height="16" viewBox="0 0 448 512" fill="var(--green)"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Confirmer sur WhatsApp</button>` : ''}
+    <button class="btn btn-mango btn-block" style="margin-bottom:10px;" onclick="Router.go('order-track',{id:'${order.id}'})">Suivre ma commande</button>
+    <button class="btn btn-ghost btn-block" style="margin-bottom:24px;" onclick="Router.go('shop')">Retour à la boutique</button>
+  </div>` : `
+  <div style="padding:0 20px;text-align:center;">
+    <button class="btn btn-primary btn-block" onclick="Router.go('shop')">Retour à la boutique</button>
+  </div>`}
+  `;
+};
+Views._after_confirmation = function(opts){
+  const order = Store.orders.find(o=>o.number===opts.orderNumber);
+  const img = document.getElementById('receipt-img');
+  if(order && img) img.src = buildReceiptDataURL(order);
+};
+
+/* ---------- Suivi de commande client (étapes professionnelles) ---------- */
+Views['order-track'] = function(opts){
+  const order = Store.orders.find(o=>o.id===opts.id);
+  if(!order) return `${TopBar('Commande introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Commande introuvable',"Cette commande n'existe pas ou a été supprimée.")}</div>`;
+  const shipped = !!order.shipped || order.status==='delivered';
+  const delivered = order.status==='delivered';
+  const confirmed = order.status==='confirmed' || delivered;
+  const fmtT = ts => ts ? new Date(ts).toLocaleString('fr-FR') : '';
+
+  const steps = [
+    { key:'placed', title:'Commande reçue', desc:`Votre commande #${order.number} a été transmise au vendeur.`, done:true, time:fmtT(order.createdAt) },
+    { key:'confirmed', title:'Confirmée par le vendeur', desc: confirmed ? "Le vendeur prépare vos articles." : "En attente de confirmation par le vendeur.", done:confirmed, current: !confirmed, time: confirmed?fmtT(order.confirmedAt):'' },
+    { key:'shipped', title:'En cours de livraison', desc: shipped ? "Votre colis est en route." : "Votre colis sera bientôt pris en charge pour la livraison.", done:shipped, current: confirmed && !shipped, time: shipped?fmtT(order.shippedAt):'' },
+    { key:'delivered', title:'Livrée', desc: delivered ? "Réception confirmée avec photo à l'appui." : "À valider dès réception de votre colis.", done:delivered, current: shipped && !delivered, time: delivered?fmtT(order.deliveryConfirmedAt):'' },
+  ];
+
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Suivi de commande</h1></div>
+  </div>
+  <div class="track-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div><div class="mono" style="font-size:13px;color:var(--text-mid);">Commande</div><div style="font-weight:700;font-size:16px;">#${order.number}</div></div>
+      <div style="text-align:right;"><div style="font-size:13px;color:var(--text-mid);">Total</div><div class="mono" style="font-weight:700;font-size:16px;color:var(--indigo);">${Utils.fmtFCFA(order.amount)}</div></div>
+    </div>
+    ${steps.map((s,i)=>`
+      <div class="track-step ${s.done?'done':''} ${s.current?'current':''}">
+        ${i<steps.length-1 ? '<div class="track-step-line"></div>' : ''}
+        <div class="track-step-dot">${s.done?`<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`:(i+1)}</div>
+        <div class="track-step-body">
+          <h4>${s.title}</h4>
+          <p>${s.desc}</p>
+          ${s.time ? `<div class="ts-time">${s.time}</div>` : ''}
+          ${s.key==='delivered' && s.current ? `
+            <div style="margin-top:12px;border:1.5px dashed var(--line);border-radius:var(--radius-sm);padding:12px;">
+              <p style="margin:0 0 10px;font-size:12.5px;color:var(--text-mid);">Prenez une photo de l'article reçu pour valider définitivement la livraison.</p>
+              <input type="file" accept="image/*" capture="environment" id="delivery-photo-input" class="hidden" onchange="handleDeliveryPhoto(event,'${order.id}')">
+              <div id="delivery-photo-preview"></div>
+              <button class="btn btn-mango btn-sm" style="width:100%;" onclick="document.getElementById('delivery-photo-input').click()">📷 Ajouter une photo & confirmer la réception</button>
+            </div>` : ''}
+        </div>
+      </div>`).join('')}
+  </div>
+  ${order.courierId && shipped && !delivered ? `<div id="client-courier-live-${order.id}" style="margin:0 20px 16px;border:1.5px solid var(--green);background:var(--green-tint);border-radius:var(--radius-md);padding:14px 16px;"><div style="font-weight:800;margin-bottom:5px;">🚚 Livraison prise en charge</div><div style="font-size:12.5px;color:var(--text-mid);">${Utils.escapeHtml(order.deliveryStatusMessage||'Votre livreur a pris en charge la commande. Sa position sera mise à jour pendant le trajet.')}</div><div id="client-courier-coords-${order.id}" style="font-size:12px;color:var(--text-soft);margin-top:8px;">Position du livreur : attente de la prochaine mise à jour…</div></div>` : ''}
+  ${delivered && order.deliveryPhoto ? `
+  <div class="home-section-row" style="padding-top:0;"><h3 style="font-size:14.5px;">Photo de réception</h3></div>
+  <div style="margin:0 20px 20px;border-radius:var(--radius-md);overflow:hidden;border:1.5px solid var(--line);"><img src="${order.deliveryPhoto}" style="width:100%;display:block;"></div>
+  ${buildDetailedReceiptHtml(order)}` : ''}
+  <div style="padding:0 20px 28px;">
+    <button class="btn btn-ghost btn-block" onclick="Router.go('shop-account')">Retour à mon compte</button>
+  </div>
+  `;
+};
+/* ---------- Reçu détaillé (du début de la commande jusqu'à la livraison) ----------
+   Affiché juste sous la photo de confirmation de réception, avec bouton de
+   téléchargement PDF (renderSIAMSReceiptPDF, chronologie incluse). Le fait
+   que la commande soit livrée + reçu disponible remonte automatiquement
+   dans les statistiques boutique (carte « Reçus de livraison signés »). */
+function buildDetailedReceiptHtml(order){
+  const fmtT = ts => ts ? new Date(ts).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'}) : '—';
+  const steps = [
+    { label:'Commande passée', time: fmtT(order.createdAt), done:true },
+    { label:'Confirmée par la boutique', time: fmtT(order.confirmedAt), done:!!order.confirmedAt },
+    { label:'Expédiée', time: fmtT(order.shippedAt), done:!!order.shippedAt },
+    { label:'Réception confirmée (photo à l’appui)', time: fmtT(order.deliveryConfirmedAt), done:!!order.deliveryConfirmedAt }
+  ];
+  return `
+  <div class="home-section-row" style="padding-top:0;"><h3 style="font-size:14.5px;">Reçu détaillé de la commande</h3></div>
+  <div style="margin:0 20px 14px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;background:#fff;">
+    ${steps.map(s=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12.5px;border-bottom:1px solid var(--line);">
+        <span style="color:${s.done?'var(--text)':'var(--text-soft)'};font-weight:${s.done?'700':'400'};">${s.done?'✓ ':'• '}${s.label}</span>
+        <span class="mono" style="color:var(--text-mid);">${s.time}</span>
+      </div>`).join('')}
+    <div style="display:flex;justify-content:space-between;padding-top:10px;font-weight:700;font-size:14px;"><span>Total payé</span><span class="mono">${Utils.fmtFCFA(order.amount)}</span></div>
+  </div>
+  <div style="padding:0 20px 20px;">
+    <button class="btn btn-primary btn-block" onclick="downloadReceiptPDF('${order.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Télécharger le reçu détaillé (PDF)</button>
+    <div style="font-size:11px;color:var(--text-soft);margin-top:8px;text-align:center;">Ce reçu professionnel retrace toutes les étapes de votre commande, du passage de commande jusqu'à la livraison confirmée.</div>
+  </div>`;
+}
+async function handleDeliveryPhoto(evt, orderId){
+  const file = evt.target.files && evt.target.files[0];
+  if(!file) return;
+  const order = Store.orders.find(o=>String(o.id)===String(orderId));
+  if(!order) return;
+  if(order.status==='delivered'){ Toast.show('Cette commande est déjà livrée.'); return; }
+  if(order.status!=='confirmed' || !order.shipped){
+    Toast.show('La commande doit être confirmée et en cours de livraison.');
+    return;
+  }
+  const input=evt.target;
+  const button=document.querySelector(`[onclick=\"document.getElementById('delivery-photo-input').click()\"]`);
+  if(button){button.disabled=true;button.textContent='⏳ Confirmation de la livraison…';}
+  try{
+    const token=await ensureDeliverySecurityToken(order);
+    if(!token) throw new Error('security_token_unavailable');
+    const localDataUrl=await siamsPrepareImageDataURL(file);
+    const dataUrl=await Cloud.ensureStoredUrl(localDataUrl, 'delivery-photos');
+    const {error}=await sb.rpc('confirm_order_delivery',{p_order_id:orderId,p_token:token,p_photo_url:dataUrl});
+    if(error) throw error;
+    const now=Date.now();
+    const updated={...order,status:'delivered',shipped:true,deliveryPhoto:dataUrl,deliveryConfirmedAt:now};
+    _cache.orders=(_cache.orders||[]).map(o=>String(o.id)===String(orderId)?updated:o);
+    ClientOrderCache.save(updated);
+    Cloud.pushCommission(Store.commissionDue(),Store.commissionSettled).catch(e=>console.error('Sync error [commission]',e));
+    try{if(typeof AutoSync!=='undefined')AutoSync.refresh(true);}catch(e){}
+    Notify.add('order',`Le client a confirmé la réception de la commande #${order.number} avec photo à l'appui ✓`);
+    ClientNotify.add(order.number,`Merci ! Réception de la commande #${order.number} confirmée avec succès.`);
+    showDeliveredBadge();
+    Toast.show('✓ Commande terminée — livraison confirmée');
+    Router.go('order-track',{id:orderId});
+  }catch(e){
+    console.error('Confirmation livraison par photo',e);
+    Toast.show('⚠️ Impossible de confirmer la livraison. Vérifiez la connexion puis réessayez.');
+    if(button){button.disabled=false;button.textContent='📷 Ajouter une photo & confirmer la réception';}
+    if(input)input.value='';
+  }
+}
+function showDeliveredBadge(){
+  const el = document.createElement('div');
+  el.className = 'delivered-badge-overlay';
+  el.innerHTML = `<div class="delivered-badge-pop">
+    <svg width="46" height="46" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#1E9E6B"/><path d="m7 12.5 3.2 3.2L17 9" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div>Livraison confirmée ✓</div>
+  </div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.classList.add('show'), 20);
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 300); }, 1900);
+}
+
+/* ---------------- Promo carousel dots ---------------- */
+function initPromoCarousel(){
+  const row = document.getElementById('promo-row');
+  const dotsWrap = document.getElementById('promo-dots');
+  if(!row || !dotsWrap) return;
+  const cards = row.querySelectorAll('.promo-card');
+  dotsWrap.innerHTML = Array.from(cards).map((_,i)=>`<div class="dot${i===0?' active':''}"></div>`).join('');
+  const dots = dotsWrap.querySelectorAll('.dot');
+  let ticking = false;
+  row.addEventListener('scroll', ()=>{
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(()=>{
+      const rowCenter = row.scrollLeft + row.clientWidth/2;
+      let closest = 0, closestDist = Infinity;
+      cards.forEach((card,i)=>{
+        const cardCenter = card.offsetLeft + card.offsetWidth/2;
+        const dist = Math.abs(cardCenter - rowCenter);
+        if(dist < closestDist){ closestDist = dist; closest = i; }
+      });
+      dots.forEach((d,i)=>d.classList.toggle('active', i===closest));
+      ticking = false;
+    });
+  }, {passive:true});
+}
+
+/* ---------- Position livreur côté client ----------
+   La position est lue par une RPC protégée par le token de livraison.
+   Cela évite d'ouvrir la table delivery_tracking en lecture publique. */
+let courierClientPoll=null;
+async function startClientCourierRealtime(orderId){
+  const el=document.getElementById('client-courier-live-'+orderId);
+  if(!el) return;
+  if(courierClientPoll) clearInterval(courierClientPoll);
+  const refresh=async()=>{
+    try{
+      const order=Store.orders.find(o=>o.id===orderId);
+      if(!order||!order.deliveryToken) return;
+      const {data,error}=await sb.rpc('get_public_courier_location',{p_order_id:orderId,p_delivery_token:order.deliveryToken});
+      if(error||!data) return;
+      const r=Array.isArray(data)?data[0]:data;
+      const c=document.getElementById('client-courier-coords-'+orderId);
+      if(!c||!r||!r.latitude||!r.longitude)return;
+      c.innerHTML=`Dernière position : ${new Date(r.recorded_at||Date.now()).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · précision ${Math.round(r.accuracy||0)} m · <button class="btn btn-soft-green btn-sm" onclick="window.open('https://www.google.com/maps?q='+${Number(r.latitude)}+','+${Number(r.longitude)},'_blank')">Voir / itinéraire</button>`;
+    }catch(e){ console.error('courier location',e); }
+  };
+  await refresh();
+  courierClientPoll=setInterval(refresh,5000);
+}
+
+Views._after_order_track=function(opts){ if(opts&&opts.id) setTimeout(()=>startClientCourierRealtime(opts.id),0); };
+
+/* ---------------- Init ---------------- */
+document.addEventListener('DOMContentLoaded', async ()=>{
+  const initBottomNav = document.getElementById('bottom-nav');
+  if(initBottomNav) initBottomNav.classList.add('hidden');
+  const initRoot = document.getElementById('page-root');
+  initRoot.innerHTML = Views.loading();
+  const stopSplashLoop = siamsStartSplashLoop(initRoot);
+  /* Le chargement réel démarre tout de suite, en parallèle de ce délai minimum
+     (juste assez pour que l'animation ne clignote pas) — au lieu d'attendre
+     bêtement 3 secondes avant même de commencer à charger quoi que ce soit. */
+  const splashMinDelay = new Promise(resolve=>setTimeout(resolve, 900));
+  try{
+    /* ---- Vitrine publique : /{slug}[?produit={id}] ---- */
+    const path = location.pathname.replace(/^\/+|\/+$/g, '');
+    const qsEarly = new URLSearchParams(location.search);
+    const courierInviteToken = qsEarly.get('courier_invite');
+    if(path.toLowerCase()==='livreur'){ Router.go(courierSession()?'courier-dashboard':'courier-login'); return; }
+    if(courierInviteToken){ setCourierSession(null); Router.go('courier-login'); return; }
+    /* URL publique : /?boutique=slug (robuste sur Vercel) ou ancien /slug. */
+    const querySlug = qsEarly.get('boutique') || qsEarly.get('store') || qsEarly.get('shop');
+    const pathSlug = path && path.toLowerCase() !== 'index.html' ? path.split('/')[0] : null;
+    const slug = querySlug || pathSlug;
+    const isPublicStoreUrl = !!slug;
+
+    if(slug){
+      /* ---- Ce bloc a son propre try/catch : un lien de boutique cassé (réseau,
+         Supabase, etc.) ne doit JAMAIS renvoyer un client sur l'écran marchand
+         « Découvrir SIAMS / créer ma boutique » (catch générique plus bas) — il
+         doit voir un message d'erreur adapté à un client, avec le détail affiché
+         à l'écran pour pouvoir nous le transmettre facilement en capture. ---- */
+      try{
+        const store = await Cloud.ensurePublicStore(slug);
+        if(!store){
+          document.getElementById('page-root').innerHTML = `
+            <div style="padding:60px 24px;text-align:center;">
+              <h2 style="color:var(--text);">Boutique introuvable</h2>
+              <p style="color:var(--text-soft,#888);">Ce lien n'est plus valide ou la boutique a été retirée.</p>
+              <button class="btn btn-primary" style="margin-top:20px;" onclick="location.href=location.origin">Connexion</button>
+            </div>`;
+          return;
+        }
+        await Cloud.loadAll();
+        setPublicStoreMeta(Store.store);
+        Auth.loggedIn = false;
+        AutoSync.start();
+        const qs = new URLSearchParams(location.search);
+        const productId = qs.get('produit');
+        /* Les anciens paramètres de confirmation sont ignorés. La livraison est
+           désormais validée directement par la photo prise dans le suivi de commande. */
+        await splashMinDelay;
+        if(productId){
+          const sharedProduct = Store.products.find(p=>String(p.id)===String(productId));
+          if(sharedProduct){ Router.go('shop-product', {id: sharedProduct.id}); }
+          else { Toast.show('Article introuvable ou retiré'); Router.go('shop', {skipOnboarding:true, source:'public-link'}); }
+        }
+        else { Router.go('shop', {skipOnboarding:true, source:'public-link'}); }
+        Notify.renderBell();
+      }catch(publicErr){
+        console.error('Erreur boutique publique', publicErr);
+        document.getElementById('page-root').innerHTML = `
+          <div style="padding:60px 24px;text-align:center;">
+            <h2 style="color:var(--text);">Boutique temporairement indisponible</h2>
+            <p style="color:var(--text-soft,#888);">Une erreur technique empêche l'affichage de cette boutique pour le moment. Vous pouvez réessayer, ou transmettre le détail ci-dessous au support.</p>
+            <button class="btn btn-primary" style="margin-top:20px;" onclick="location.reload()">Réessayer</button>
+            <p style="margin-top:24px;font-size:11px;color:#b91c1c;word-break:break-all;">${Utils.escapeHtml(String((publicErr&&(publicErr.message||publicErr.toString&&publicErr.toString()))||publicErr))}</p>
+          </div>`;
+      }
+      return;
+    }
+
+    /* ---- Comportement existant : espace marchand ---- */
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session && session.user){
+      Auth.loggedIn = true;
+      await Bootstrap.loadStoreData(session.user);
+      Store.trialStartedAt; // amorce le pass gratuit de 20 jours dès la première ouverture
+      ThemeUnlock.init();
+      await splashMinDelay;
+      Router.go('dashboard');
+      AutoSync.start();
+    } else {
+      await splashMinDelay;
+      if(ActivationGate.getStored()){
+        Router.go('register');
+      } else if(ActivationGate.hasPendingRequest()){
+        Router.go('activation-code');
+      } else {
+        Router.go('welcome');
+      }
+    }
+  } catch(e){
+    console.error(e);
+    Auth.loggedIn = false;
+    await splashMinDelay;
+    Router.go('welcome');
+  } finally {
+    stopSplashLoop();
+  }
+  Notify.renderBell();
+});
+
+
+/* ===== app-04.js ===== */
+(function(){
+ const oldGo=Router.go.bind(Router);
+ const money=n=>{try{return Utils.fmtFCFA(Number(n)||0)}catch(e){return (Number(n)||0)+' FCFA'}};
+ const panel=(t,s,b)=>`<section class="v14-merchant-panel"><div class="v14-kicker">Service SIAMS</div><h2 class="v14-title">${t}</h2><p class="v14-sub">${s}</p>${b}</section>`;
+ function enhance(name){const root=document.getElementById('page-root');if(!root||!['customers','delivery','team','boutique'].includes(name))return;root.querySelectorAll('.v14-merchant-panel').forEach(x=>x.remove());let h='';
+ if(name==='customers'){const c=Store.customers(),o=c.reduce((a,x)=>a+(+x.orders||0),0),v=c.reduce((a,x)=>a+(+x.spent||0),0),f=c.filter(x=>x.isTopContributor).length;h=panel('Pilotage clients','Suivez la fidélité et la valeur de vos clients.',`<div class="v14-grid"><div class="v14-stat"><b>${c.length}</b><span>Clients connus</span></div><div class="v14-stat"><b>${o}</b><span>Commandes</span></div><div class="v14-stat"><b>${money(v)}</b><span>Dépenses cumulées</span></div><div class="v14-stat"><b>${f}</b><span>Clients fidèles</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="Router.go('orders')"><strong>🧾 Historique</strong><small>Commandes clients</small></button><button class="v14-action" onclick="Router.go('reviews')"><strong>⭐ Satisfaction</strong><small>Avis clients</small></button></div>`)}
+ if(name==='delivery'){const o=Store.orders||[],z=Store.deliveryZones||[],d=o.filter(x=>x.status==='delivered').length,p=o.filter(x=>['pending','confirmed','preparing','shipped'].includes(x.status)).length,a=o.length?Math.round(o.reduce((s,x)=>s+(+x.deliveryFee||0),0)/o.length):0;h=panel('Centre livraison','Pilotez les zones, les frais et les livraisons.',`<div class="v14-grid"><div class="v14-stat"><b>${p}</b><span>À traiter / en cours</span></div><div class="v14-stat"><b>${d}</b><span>Livrées</span></div><div class="v14-stat"><b>${z.length}</b><span>Zones</span></div><div class="v14-stat"><b>${money(a)}</b><span>Frais moyen</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="Router.go('orders')"><strong>🚚 Voir les commandes</strong><small>Suivre les livraisons</small></button><button class="v14-action" onclick="addDeliveryZone()"><strong>＋ Ajouter une zone</strong><small>Frais et délai</small></button></div>`)}
+ if(name==='team'){const t=Store.team||[],c=Store.couriers||[],a=t.filter(x=>['Admin','Administrateur','Propriétaire'].includes(x.role)).length;h=panel('Centre équipe','Organisez les rôles et la collaboration de votre boutique.',`<div class="v14-grid"><div class="v14-stat"><b>${t.length}</b><span>Membres</span></div><div class="v14-stat"><b>${t.filter(x=>x.status!=='suspended').length}</b><span>Actifs</span></div><div class="v14-stat"><b>${a}</b><span>Administrateurs</span></div><div class="v14-stat"><b>${c.length}</b><span>Livreurs</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="openAddMember()"><strong>＋ Ajouter un membre</strong><small>Gérant, vendeur, admin</small></button><button class="v14-action" onclick="inviteCourierFromMerchant()"><strong>🚚 Inviter un livreur</strong><small>Invitation SIAMS</small></button></div>`)}
+ if(name==='boutique'){const st=Store.store||{},p=Store.products||[],cats=[...new Set(p.map(x=>x.category).filter(Boolean))];h=panel('Centre boutique','Gérez votre vitrine, votre catalogue et votre visibilité.',`<div class="v14-grid"><div class="v14-stat"><b>${p.length}</b><span>Produits</span></div><div class="v14-stat"><b>${cats.length}</b><span>Catégories</span></div><div class="v14-stat"><b>★ 4,8</b><span>Note boutique</span></div><div class="v14-stat"><b>${st.name?'Active':'À compléter'}</b><span>Profil</span></div></div><div style="height:10px"></div><div class="v14-actions"><button class="v14-action" onclick="Router.go('store-edit')"><strong>✎ Modifier la vitrine</strong><small>Logo, bannière, infos</small></button><button class="v14-action" onclick="Router.go('products')"><strong>🛍️ Catalogue</strong><small>Produits, prix, stocks</small></button><button class="v14-action" onclick="Router.go('categories')"><strong>▦ Catégories</strong><small>Organiser le catalogue</small></button><button class="v14-action" onclick="Router.go('banners')"><strong>🖼️ Bannières</strong><small>Carrousel en haut de la boutique</small></button><button class="v14-action" onclick="Router.go('showcase')"><strong>📢 Cournsel client</strong><small>Annonces &amp; partenariats</small></button><button class="v14-action" onclick="Router.go('shop',{skipOnboarding:true})"><strong>👁 Aperçu client</strong><small>Voir la boutique</small></button></div>`)}
+ root.insertAdjacentHTML('afterbegin',h)}
+ Router.go=function(n,o){oldGo(n,o);setTimeout(()=>enhance(n),0)};window.SIAMS_V14={enhance};
+})();
+
+
+/* ===== app-05.js ===== */
+(function(){
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  function promoForm(){
+    return `<div class="v15-promo-form">
+      <div style="font-size:13px;font-weight:800;margin-bottom:10px;">Créer un code promo</div>
+      <div class="v15-promo-grid">
+        <div class="field"><label>Code</label><input id="v15-promo-code" type="text" maxlength="30" autocomplete="off" placeholder="BIENVENUE10" oninput="this.value=this.value.toUpperCase().replace(/\\s/g,'')"></div>
+        <div class="field"><label>Type</label><select id="v15-promo-type"><option value="percent">Pourcentage</option><option value="fixed">Montant fixe</option></select></div>
+      </div>
+      <div class="v15-promo-row">
+        <div class="field"><label>Valeur</label><input id="v15-promo-value" type="number" min="1" step="1" placeholder="10"></div>
+        <div class="field"><label>Limite d'utilisation</label><input id="v15-promo-max" type="number" min="0" step="1" value="0" placeholder="0"></div>
+      </div>
+      <div class="v15-promo-hint">0 = utilisation illimitée. Le compteur est conservé et le code devient indisponible dès que la limite est atteinte.</div>
+      <div class="v15-promo-actions"><button class="btn btn-mango btn-block" onclick="createPromoV15()">Créer le code</button><button class="btn btn-ghost btn-block" onclick="document.getElementById('v15-promo-form')?.remove()">Annuler</button></div>
+    </div>`;
+  }
+  window.openPromoFormV15=function(){const w=document.getElementById('v15-promo-form'); if(!w)return; w.innerHTML=promoForm(); w.classList.remove('hidden'); w.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(()=>document.getElementById('v15-promo-code')?.focus(),50);};
+  window.createPromoV15=function(){
+    const code=(document.getElementById('v15-promo-code')?.value||'').trim().toUpperCase();
+    const type=document.getElementById('v15-promo-type')?.value||'percent';
+    const value=Number(document.getElementById('v15-promo-value')?.value);
+    const max=Number(document.getElementById('v15-promo-max')?.value||0);
+    if(!/^[A-Z0-9_-]{3,30}$/.test(code)) return Toast.show('Code invalide : 3 à 30 caractères');
+    if((Store.promos||[]).some(p=>String(p.code).toUpperCase()===code)) return Toast.show('Ce code existe déjà');
+    if(!Number.isFinite(value)||value<=0) return Toast.show('Valeur invalide');
+    if(type==='percent' && value>100) return Toast.show('Le pourcentage ne peut pas dépasser 100 %');
+    if(!Number.isFinite(max)||max<0) return Toast.show('Limite invalide');
+    const p={id:Utils.uid(),code,type,value:Math.floor(value),active:true,maxUses:Math.floor(max),usedCount:0,createdAt:Date.now()};
+    Store.promos=[...(Store.promos||[]),p];
+    PromoLocal.update(p.id,{maxUses:p.maxUses,usedCount:0,active:true});
+    Toast.show('Code promo créé ✓'); Router.go('promos');
+  };
+  window.setPromoLimitV15=function(id){
+    const p=(Store.promos||[]).find(x=>x.id===id); if(!p)return;
+    const n=prompt("Nombre maximum d'utilisations (0 = illimité)",String(p.maxUses||0)); if(n===null)return;
+    const max=Number(n); if(!Number.isFinite(max)||max<0)return Toast.show('Limite invalide');
+    p.maxUses=Math.floor(max); Store.promos=Store.promos.slice(); PromoLocal.update(id,{maxUses:p.maxUses}); Toast.show('Limite mise à jour ✓'); Router.go('promos');
+  };
+  window.togglePromoV15=function(id){
+    const p=(Store.promos||[]).find(x=>x.id===id); if(!p)return;
+    if(p.maxUses>0 && Number(p.usedCount||0)>=p.maxUses && !p.active) return Toast.show('Ce code est épuisé');
+    p.active=!p.active; Store.promos=Store.promos.slice(); PromoLocal.update(id,{active:p.active}); Toast.show(p.active?'Code activé ✓':'Code désactivé'); Router.go('promos');
+  };
+  window.deletePromoV15=function(id){
+    const p=(Store.promos||[]).find(x=>x.id===id); if(!p)return;
+    if(!confirm(`Supprimer le code ${p.code} ?`))return;
+    Store.promos=Store.promos.filter(x=>x.id!==id); PromoLocal.update(id,{active:false}); Toast.show('Code supprimé'); Router.go('promos');
+  };
+  const originalPromos=Views.promos;
+  Views.promos=function(){
+    const promos=(Store.promos||[]).map(p=>PromoLocal.merge(p));
+    const active=promos.filter(p=>p.active&&(!p.maxUses||p.usedCount<p.maxUses)).length;
+    const inactive=promos.length-active;
+    const cards=promos.map(function(p){
+      const exhausted=p.maxUses>0&&p.usedCount>=p.maxUses;
+      const pct=p.maxUses?Math.min(100,Math.round(p.usedCount/p.maxUses*100)):0;
+      const discount=p.type==='percent' ? p.value+'% de réduction' : Utils.fmtFCFA(p.value)+' de réduction';
+      const uses=p.maxUses ? 'Utilisations : <b>'+p.usedCount+' / '+p.maxUses+'</b>' : 'Utilisations : <b>'+p.usedCount+'</b> · illimité';
+      const progress=p.maxUses ? '<div style="height:6px;background:var(--panel);border-radius:999px;overflow:hidden;margin-bottom:10px;"><span style="display:block;height:100%;width:'+pct+'%;background:var(--indigo);"></span></div>' : '';
+      return '<div class="promo-card-premium">'+
+        '<div class="promo-card-top"><div class="promo-code-badge"><span>％</span>'+esc(p.code)+'</div><span class="badge '+(p.active&&!exhausted?'delivered':'pending')+'">'+(exhausted?'Épuisé':p.active?'Actif':'Inactif')+'</span></div>'+ 
+        '<div class="promo-card-desc">'+discount+' sur la commande</div>'+ 
+        '<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:var(--text-mid);margin-bottom:8px;"><span>'+uses+'</span><span>'+(p.maxUses?pct+'%':'')+'</span></div>'+progress+
+        '<div class="promo-card-foot"><span class="promo-kind">'+(p.type==='percent'?'Pourcentage':'Montant fixe')+'</span><label class="switch"><input type="checkbox" '+(p.active&&!exhausted?'checked':'')+' '+(exhausted?'disabled':'')+' onchange="togglePromoV15(\''+p.id+'\')"><span class="slider"></span></label></div>'+ 
+        '<div class="v15-promo-edit"><button class="v15-mini" onclick="setPromoLimitV15(\''+p.id+'\')">⚙ Limite</button><button class="v15-mini" onclick="togglePromoV15(\''+p.id+'\')">'+(p.active?'⏸ Désactiver':'▶ Activer')+'</button><button class="v15-mini" onclick="deletePromoV15(\''+p.id+'\')">🗑 Supprimer</button></div>'+ 
+      '</div>';
+    }).join('');
+    return TopBar('Codes promo',promos.length+' code(s)')+
+      '<div class="promo-premium-head"><div class="eyebrow">Marketing boutique</div><h2>Vos codes promo</h2><p>Créez, limitez, désactivez et suivez chaque campagne depuis un seul espace.</p></div>'+ 
+      '<div class="promo-summary"><div class="promo-stat"><div class="n">'+promos.length+'</div><div class="t">Total</div></div><div class="promo-stat active"><div class="n">'+active+'</div><div class="t">Disponibles</div></div><div class="promo-stat inactive"><div class="n">'+inactive+'</div><div class="t">Inactifs / épuisés</div></div></div>'+ 
+      '<div id="v15-promo-form" class="hidden"></div>'+ 
+      '<div class="promo-create"><button class="btn btn-mango btn-block" onclick="openPromoFormV15()">＋ Créer un code promo</button></div>'+ 
+      '<div class="promo-tip">Définissez une limite pour une campagne maîtrisée, ou laissez <b>0</b> pour une utilisation illimitée.</div>'+ 
+      '<div class="section-title" style="padding-top:2px;">Vos campagnes</div>'+ 
+      (promos.length===0?EmptyState(ICONS.box,'Aucun code promo','Créez votre premier code promo pour proposer une réduction à vos clients.'):cards);
+  };
+  // Rendre le champ promo checkout réellement cliquable et confortable sur mobile.
+  document.addEventListener('click',function(e){
+    const input=e.target.closest?.('#co-promo'); if(input){input.removeAttribute('readonly');input.focus();}
+  },true);
+  // Services SIAMS : une zone secondaire, volontairement placée tout en bas du menu Plus.
+  function addBottomServices(){
+    const sheet=document.getElementById('sheet'); if(!sheet||sheet.querySelector('.v15-service-backdrop'))return;
+    const box=document.createElement('div'); box.className='v15-service-backdrop'; box.innerHTML='<div class="v15-service-title">Autres services SIAMS</div><div class="v15-service-list">'+[['📊','Statistiques'],['💳','Paiements'],['🚚','Livraison'],['⭐','Avis clients'],['👥','Clients'],['⚙','Paramètres']].map(x=>`<div class="v15-service-item"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')+'</div>';
+    sheet.appendChild(box);
+  }
+  document.addEventListener('DOMContentLoaded',addBottomServices);
+  window.addEventListener('load',addBottomServices);
+})();
+
+
+/* ===== app-06.js ===== */
+(function(){
+  const esc = s => { try{return Utils.escapeHtml(String(s??''));}catch(e){return String(s??'');} };
+  const money = n => { try{return Utils.fmtFCFA(Number(n)||0);}catch(e){return (Number(n)||0)+' FCFA';} };
+  const stat = (n,l) => `<div class="v15-stat"><b>${esc(n)}</b><span>${esc(l)}</span></div>`;
+  const card = (icon,title,sub,action) => `<button class="v15-action" onclick="${action}"><span class="v15-action-icon">${icon}</span><span><strong>${esc(title)}</strong><small>${esc(sub)}</small></span><b>›</b></button>`;
+
+  // --- Promotions: form always visible, no prompt, with limit + activation + delete ---
+  window.v15CreatePromo = function(){
+    const code=(document.getElementById('v15-code')?.value||'').trim().toUpperCase();
+    const type=document.getElementById('v15-type')?.value||'percent';
+    const value=Number(document.getElementById('v15-value')?.value);
+    const max=Number(document.getElementById('v15-max')?.value||0);
+    if(!/^[A-Z0-9_-]{3,30}$/.test(code)) return Toast.show('Code invalide : 3 à 30 caractères');
+    if((Store.promos||[]).some(p=>String(p.code).toUpperCase()===code)) return Toast.show('Ce code existe déjà');
+    if(!Number.isFinite(value)||value<=0) return Toast.show('Indiquez une valeur valide');
+    if(type==='percent'&&value>100) return Toast.show('Le pourcentage ne peut pas dépasser 100 %');
+    if(!Number.isFinite(max)||max<0) return Toast.show('Limite invalide');
+    const p={id:Utils.uid(),code,type,value:Math.floor(value),active:true,maxUses:Math.floor(max),usedCount:0,createdAt:Date.now()};
+    Store.promos=[...(Store.promos||[]),p]; PromoLocal.update(p.id,{active:true,maxUses:p.maxUses,usedCount:0});
+    Toast.show('Code promo créé ✓'); Router.go('promos');
+  };
+  window.v15SetPromoLimit = function(id){
+    const p=(Store.promos||[]).find(x=>x.id===id); if(!p)return;
+    const n=prompt("Nombre maximum d'utilisations (0 = illimité)",String(p.maxUses||0)); if(n===null)return;
+    const max=Number(n); if(!Number.isFinite(max)||max<0)return Toast.show('Limite invalide');
+    p.maxUses=Math.floor(max); Store.promos=Store.promos.slice(); PromoLocal.update(id,{maxUses:p.maxUses}); Toast.show('Limite mise à jour ✓'); Router.go('promos');
+  };
+  window.v15TogglePromo = function(id){
+    const p=(Store.promos||[]).find(x=>x.id===id); if(!p)return;
+    if(p.maxUses>0 && Number(p.usedCount||0)>=p.maxUses) return Toast.show('Ce code a atteint sa limite');
+    p.active=!p.active; Store.promos=Store.promos.slice(); PromoLocal.update(id,{active:p.active}); Toast.show(p.active?'Code activé ✓':'Code désactivé'); Router.go('promos');
+  };
+  window.v15DeletePromo = function(id){
+    const p=(Store.promos||[]).find(x=>x.id===id); if(!p)return;
+    if(!confirm('Supprimer le code '+p.code+' ?'))return;
+    Store.promos=Store.promos.filter(x=>x.id!==id); PromoLocal.update(id,{active:false}); Toast.show('Code supprimé'); Router.go('promos');
+  };
+  Views.promos = function(){
+    if(!Store.hasFeature('promos')) return FeatureLock('Codes promo',"La création de codes promo est incluse à partir de la formule DOYEN.",'doyen');
+    const promos=(Store.promos||[]).map(p=>PromoLocal.merge(p));
+    const active=promos.filter(p=>p.active&&(!p.maxUses||p.usedCount<p.maxUses)).length;
+    return TopBar('Codes promo',promos.length+' code(s)')+
+      `<div class="v15-promo-hero"><div><span>MARKETING BOUTIQUE</span><h2>Gérez vos promotions</h2><p>Créez un code, fixez sa limite et désactivez-le à tout moment.</p></div><div class="v15-promo-hero-icon">％</div></div>`+
+      `<div class="v15-promo-stats">${stat(promos.length,'Codes créés')}${stat(active,'Actifs')}${stat(promos.reduce((a,p)=>a+(Number(p.usedCount)||0),0),'Utilisations')}</div>`+
+      `<section class="v15-form-card"><div class="v15-card-title"><span>＋</span><div><b>Créer un code promo</b><small>Le formulaire est directement accessible ici.</small></div></div><div class="v15-form-grid"><label>Code<input id="v15-code" type="text" maxlength="30" autocomplete="off" placeholder="BIENVENUE10" oninput="this.value=this.value.toUpperCase().replace(/\\s/g,'')"></label><label>Type<select id="v15-type"><option value="percent">Pourcentage (%)</option><option value="fixed">Montant fixe (FCFA)</option></select></label><label>Valeur<input id="v15-value" type="number" min="1" step="1" placeholder="10"></label><label>Utilisations max<input id="v15-max" type="number" min="0" step="1" value="0"><small>0 = illimité</small></label></div><button class="btn btn-mango btn-block" onclick="v15CreatePromo()">Créer le code promo</button></section>`+
+      `<div class="section-title">Vos codes</div>`+
+      (promos.length?promos.map(p=>{const exhausted=p.maxUses>0&&p.usedCount>=p.maxUses;const pct=p.maxUses?Math.min(100,Math.round(p.usedCount/p.maxUses*100)):0;return `<article class="v15-promo-card"><div class="v15-promo-top"><div><div class="v15-code">${esc(p.code)}</div><div class="v15-desc">${p.type==='percent'?p.value+'% de réduction':money(p.value)+' de réduction'}</div></div><span class="v15-status ${p.active&&!exhausted?'on':'off'}">${exhausted?'Épuisé':p.active?'Actif':'Désactivé'}</span></div><div class="v15-use"><span>${p.maxUses?`Utilisations <b>${p.usedCount} / ${p.maxUses}</b>`:`Utilisations <b>${p.usedCount}</b> · illimité`}</span><span>${p.maxUses?pct+'%':''}</span></div>${p.maxUses?`<div class="v15-progress"><i style="width:${pct}%"></i></div>`:''}<div class="v15-promo-actions"><button onclick="v15SetPromoLimit('${p.id}')">⚙ Limite</button><button onclick="v15TogglePromo('${p.id}')" ${exhausted?'disabled':''}>${p.active?'⏸ Désactiver':'▶ Activer'}</button><button class="danger" onclick="v15DeletePromo('${p.id}')">🗑 Supprimer</button></div></article>`}).join(''):EmptyState(ICONS.box,'Aucun code promo','Créez votre premier code directement avec le formulaire ci-dessus.'));
+  };
+
+  // --- Merchant areas: richer, actionable panels ---
+  const oldViews={customers:Views.customers,delivery:Views.delivery,team:Views.team,boutique:Views.boutique};
+  Views.customers=function(){
+    const base=oldViews.customers(); const c=Store.customers(); const orders=Store.orders||[]; const spend=c.reduce((s,x)=>s+(+x.spent||0),0); const loyal=c.filter(x=>x.isTopContributor).length;
+    const panel=`<section class="v15-merchant-card"><div class="v15-kicker">SERVICE SIAMS · CLIENTS</div><h2>Centre clients</h2><p>Une vue rapide pour connaître, fidéliser et contacter vos clients.</p><div class="v15-stats4">${stat(c.length,'Clients')}${stat(orders.length,'Commandes')}${stat(money(spend),'Dépenses')}${stat(loyal,'Fidèles')}</div><div class="v15-action-list">${card('🔎','Rechercher / consulter','Ouvrir la liste et les fiches clients','document.querySelector(".v15-client-search")?.focus()')}${card('🧾','Historique des commandes','Voir toutes les commandes clients',"Router.go('orders')")}${card('⭐','Satisfaction','Consulter et répondre aux avis',"Router.go('reviews')")}</div></section>`;
+    return panel+`<div class="v15-client-tools"><input class="v15-client-search" placeholder="Rechercher un client…" oninput="v15FilterCustomers(this.value)"></div>`+base.replace('<div style="padding:16px 20px 0;">','<div id="v15-customers-list" style="padding:8px 20px 0;">');
+  };
+  window.v15FilterCustomers=function(q){document.querySelectorAll('#v15-customers-list > div').forEach(x=>{x.style.display=(x.innerText||'').toLowerCase().includes(String(q||'').toLowerCase())?'flex':'none';});};
+  Views.delivery=function(){
+    const base=oldViews.delivery(); const z=Store.deliveryZones||[], o=Store.orders||[]; const pending=o.filter(x=>['pending','confirmed','preparing','shipped'].includes(x.status)).length; const delivered=o.filter(x=>x.status==='delivered').length;
+    const panel=`<section class="v15-merchant-card"><div class="v15-kicker">SERVICE SIAMS · LIVRAISON</div><h2>Centre logistique</h2><p>Pilotez vos zones, les commandes à livrer et vos tarifs.</p><div class="v15-stats4">${stat(pending,'À traiter')}${stat(delivered,'Livrées')}${stat(z.length,'Zones')}${stat(money(z.reduce((s,x)=>s+(+(x.fee||x[1])||0),0)),'Tarifs cumulés')}</div><div class="v15-action-list">${card('🚚','Commandes à livrer','Ouvrir le suivi des commandes',"Router.go('orders')")}${card('＋','Nouvelle zone','Ajouter une zone et son tarif','addDeliveryZone()')}${card('📱','Espace livreur','Gérer les livreurs',"Router.go('team')")}</div></section>`;
+    return panel+base;
+  };
+  Views.team=function(){
+    const base=oldViews.team(); const t=Store.team||[], c=Store.couriers||[]; const active=t.filter(x=>x.status!=='suspended').length;
+    const panel=`<section class="v15-merchant-card"><div class="v15-kicker">SERVICE SIAMS · ÉQUIPE</div><h2>Centre équipe</h2><p>Attribuez les rôles et organisez les accès de votre boutique.</p><div class="v15-stats4">${stat(t.length,'Membres')}${stat(active,'Actifs')}${stat(c.length,'Livreurs')}${stat(t.filter(x=>/admin|propriétaire/i.test(x.role||'')).length,'Admins')}</div><div class="v15-action-list">${card('＋','Ajouter un membre','Gérant, vendeur ou administrateur','openAddMember()')}${card('🚚','Inviter un livreur','Créer une invitation SIAMS','inviteCourierFromMerchant()')}${card('🔐','Accès livreur','Ouvrir l’espace livreur',"Router.go('courier-login')")}</div></section>`;
+    return panel+base;
+  };
+  Views.boutique=function(){
+    // V17 — le panneau "Centre boutique" (stats + actions) ne s'affiche plus en
+    // haut de cette page : il est désormais intégré directement comme un champ
+    // dans la liste de l'onglet Plus (voir menu-item "Boutique" du Sheet).
+    return oldViews.boutique();
+  };
+
+  // --- Dashboard: Services SIAMS is secondary and moved to the very end ---
+  const oldDash=Views.dashboard;
+  Views.dashboard=function(){
+    let html=oldDash();
+    const start=html.indexOf('<div class="dashboard-v2-section"><h3>Services SIAMS</h3>');
+    const end=html.indexOf('<div class="dashboard-v2-section"><h3>Suivi des commandes</h3>');
+    if(start>=0&&end>start){
+      const block=html.slice(start,end);
+      html=html.slice(0,start)+html.slice(end);
+      html=html.replace('</div>\n  `;','</div>\n  `;');
+      html=html.replace(/\s*$/,'')+`<section class="v15-services-bottom"><div class="v15-services-label">Services SIAMS · en dernier plan</div><p>Les outils secondaires restent disponibles ici sans prendre la place des fonctions principales.</p><div class="v15-service-chips">${DASHBOARD_SERVICES.map(s=>`<button onclick="Router.go('${s.route}')">${s.icon}<span>${esc(s.label)}</span></button>`).join('')}</div></section>`;
+    }
+    return html;
+  };
+})();
+
+
+/* ===== app-07.js ===== */
+(function(){
+  function refinePlusServices(){
+    const box=document.querySelector('#sheet .v15-service-backdrop');
+    if(!box) return;
+    box.className='v15-service-backdrop';
+    box.innerHTML='<div class="v15-service-title">Services SIAMS · secondaires</div><p style="margin:4px 0 10px;color:var(--text-soft);font-size:10px">Outils complémentaires, placés volontairement en dernier.</p><div class="v15-service-list">'+[
+      ['📊','Statistiques','stats'],['💳','Paiements','payment'],['🚚','Livraison','delivery'],['⭐','Avis clients','reviews'],['👥','Clients','customers'],['🛡️','Certification boutique','verification'],['⚙️','Paramètres','settings']
+    ].map(x=>'<button class="v15-service-item" onclick="Sheet.close();Router.go(\''+x[2]+'\')"><span>'+x[0]+'</span><b>'+x[1]+'</b><i>›</i></button>').join('')+'</div>';
+  }
+  document.addEventListener('click',function(e){ if(e.target.closest('#sheet')) setTimeout(refinePlusServices,0); },true);
+  document.addEventListener('DOMContentLoaded',refinePlusServices);
+  window.addEventListener('load',refinePlusServices);
+})();
+
+
+/* ===== app-08.js ===== */
+(function(){
+  const routes=['customers','delivery','team','boutique'];
+  const oldGo=Router.go.bind(Router);
+  function cleanup(){
+    const root=document.getElementById('page-root'); if(!root)return;
+    root.querySelectorAll('.v14-merchant-panel,.v15-merchant-card').forEach(el=>el.remove());
+  }
+  Router.go=function(name,opts){
+    oldGo(name,opts);
+    if(routes.includes(name)){
+      requestAnimationFrame(cleanup);
+      setTimeout(cleanup,40);
+      setTimeout(cleanup,180);
+    }
+  };
+  function addPlusGroup(){
+    const sheet=document.getElementById('sheet'); if(!sheet || sheet.querySelector('.v16-merchant-cleanup')) return;
+    const anchor=[...sheet.querySelectorAll('.menu-item')].find(el=>/Clients/.test(el.innerText||''));
+    const box=document.createElement('section');
+    box.className='v16-merchant-cleanup';
+    box.innerHTML=`<div class="v16-merchant-cleanup-head"><div class="mi"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 20v-1.5A4.5 4.5 0 0 1 8.5 14h7a4.5 4.5 0 0 1 4.5 4.5V20M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><b>Gestion marchand</b><span>Les centres de gestion sont regroupés ici.</span></div></div>
+      <div class="v16-merchant-grid">
+        <button class="v16-merchant-link" onclick="Sheet.close();Router.go('customers')"><span class="li" style="background:var(--blue-tint);color:var(--blue)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.8-3.8 3.6-6 7.5-6s6.7 2.2 7.5 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span><b>Clients</b><small>Fiches et historique</small></span><i class="arr">›</i></button>
+        <button class="v16-merchant-link" onclick="Sheet.close();Router.go('delivery')"><span class="li" style="background:var(--indigo-tint);color:var(--indigo)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.7" stroke="currentColor" stroke-width="1.5"/><circle cx="17" cy="17.5" r="1.7" stroke="currentColor" stroke-width="1.5"/></svg></span><span><b>Livraison</b><small>Zones et suivi</small></span><i class="arr">›</i></button>
+        <button class="v16-merchant-link" onclick="Sheet.close();Router.go('team')"><span class="li" style="background:var(--green-tint);color:var(--green)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 20c.7-3.5 2.9-5.5 5.5-5.5s4.8 2 5.5 5.5M16 10c2 .1 3 1.4 3 3.2M16 5.5a3 3 0 0 1 0 5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span><b>Équipe</b><small>Rôles et accès</small></span><i class="arr">›</i></button>
+        <button class="v16-merchant-link" onclick="Sheet.close();Router.go('boutique')"><span class="li" style="background:var(--mango-tint);color:var(--mango-dark)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span><b>Boutique</b><small>Vitrine et catalogue</small></span><i class="arr">›</i></button>
+      </div>`;
+    if(anchor) sheet.insertBefore(box,anchor); else sheet.insertBefore(box,sheet.querySelector('.menu-item'));
+    // Retire les anciennes entrées individuelles pour éviter les doublons.
+    sheet.querySelectorAll('.menu-item').forEach(el=>{
+      const t=(el.innerText||'').trim();
+      if(/^(Boutique|Équipe|Clients|Livraison)$/.test(t.split('\\n')[0])) el.style.display='none';
+    });
+  }
+  const oldOpen=Sheet.open.bind(Sheet);
+  Sheet.open=function(){ oldOpen(); requestAnimationFrame(addPlusGroup); setTimeout(addPlusGroup,30); };
+})();
+
+
+/* ===== app-09.js ===== */
+(function(){
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  function overlay(title,body){
+    document.getElementById('v20-modal')?.remove();
+    const d=document.createElement('div'); d.id='v20-modal'; d.innerHTML=`<div class="v20-backdrop" onclick="document.getElementById('v20-modal')?.remove()"></div><div class="v20-dialog"><div class="v20-dialog-head"><b>${title}</b><button onclick="document.getElementById('v20-modal')?.remove()">×</button></div><div class="v20-dialog-body">${body}</div></div>`; document.body.appendChild(d);
+  }
+  const oldCatAdd=window.addCategory, oldCatDel=window.deleteCategory;
+  window.v20AddCategory=function(){
+    overlay('Nouvelle catégorie',`<label class="v20-field">Nom de la catégorie<input id="v20-cat-name" maxlength="40" placeholder="Ex. Chaussures"></label><p class="v20-help">Une catégorie claire aide vos clients à trouver rapidement vos produits.</p><button class="btn btn-soft-indigo btn-block" onclick="v20SaveCategory()">Créer la catégorie</button>`);
+    setTimeout(()=>document.getElementById('v20-cat-name')?.focus(),50);
+  };
+  window.v20SaveCategory=function(){const input=document.getElementById('v20-cat-name');const name=(input?.value||'').trim();if(!name)return Toast.show('Saisissez un nom de catégorie');const cats=Store.categories||[];if(cats.some(c=>c.toLowerCase()===name.toLowerCase()))return Toast.show('Cette catégorie existe déjà');Store.categories=[...cats,name];Toast.show('Catégorie créée ✓');document.getElementById('v20-modal')?.remove();Router.go('categories');};
+  window.v20DeleteCategory=function(name){
+    const count=(Store.products||[]).filter(p=>p.category===name).length;
+    overlay('Supprimer la catégorie',`<div class="v20-confirm"><div class="v20-confirm-icon">!</div><b>${esc(name)}</b><p>${count?`Cette catégorie contient ${count} produit(s). Les produits resteront disponibles mais seront sans catégorie.`:'Cette catégorie ne contient aucun produit.'}</p><div class="v20-two"><button class="btn btn-ghost" onclick="document.getElementById('v20-modal')?.remove()">Annuler</button><button class="btn btn-danger" onclick="v20ConfirmDeleteCategory(${JSON.stringify(name)})">Supprimer</button></div></div>`);
+  };
+  window.v20ConfirmDeleteCategory=function(name){Store.categories=(Store.categories||[]).filter(c=>c!==name);Store.products=(Store.products||[]).map(p=>p.category===name?{...p,category:''}:p);Toast.show('Catégorie supprimée');document.getElementById('v20-modal')?.remove();Router.go('categories');};
+  Views.categories=function(){
+    const cats=Store.categories||[], products=Store.products||[];
+    const rows=cats.map((c,i)=>{const n=products.filter(p=>p.category===c).length;return `<article class="v20-cat-card"><div class="v20-cat-icon c${i%6}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="v20-cat-main"><b>${esc(c)}</b><span>${n} produit${n>1?'s':''}</span></div><button class="v20-cat-action" onclick="v20DeleteCategory(${JSON.stringify(c)})" aria-label="Supprimer">⋯</button></article>`}).join('');
+    const totalProducts=products.length, assigned=products.filter(p=>p.category).length;
+    return `${TopBar('Catégories',cats.length+' catégorie(s)')}<div class="v20-cat-head"><div><div class="v20-eyebrow">Organisation du catalogue</div><h2>Catégories</h2><p>Structurez votre catalogue pour rendre la boutique plus simple à parcourir.</p></div><button class="v20-add-cat" onclick="v20AddCategory()">＋</button></div><div class="v20-cat-summary"><div><b>${cats.length}</b><span>Catégories</span></div><div><b>${totalProducts}</b><span>Produits</span></div><div><b>${assigned}</b><span>Classés</span></div></div><div class="v20-section-title">Votre organisation</div><div class="v20-cat-list">${rows||`<div class="v20-empty"><div class="v20-empty-icon">▦</div><b>Aucune catégorie</b><span>Créez votre première catégorie pour organiser vos produits.</span></div>`}</div><button class="v20-add-cat-full" onclick="v20AddCategory()">＋ Ajouter une catégorie</button>`;
+  };
+  window.v20AddPromo=function(){
+    overlay('Créer un code promo',`<div class="v20-promo-grid"><label class="v20-field full">Code promo<input id="v20-p-code" maxlength="30" placeholder="BIENVENUE10" oninput="this.value=this.value.toUpperCase().replace(/\\s/g,'')"></label><label class="v20-field">Type<select id="v20-p-type"><option value="percent">Pourcentage (%)</option><option value="fixed">Montant fixe (FCFA)</option></select></label><label class="v20-field">Valeur<input id="v20-p-value" type="number" min="1" step="1" placeholder="10"></label><label class="v20-field full">Nombre maximum d'utilisations<input id="v20-p-max" type="number" min="0" step="1" value="0"><small>0 = illimité</small></label></div><button class="btn btn-mango btn-block" onclick="v20SavePromo()">Créer le code promo</button>`); setTimeout(()=>document.getElementById('v20-p-code')?.focus(),50);
+  };
+  window.v20SavePromo=function(){const code=(document.getElementById('v20-p-code')?.value||'').trim().toUpperCase(),type=document.getElementById('v20-p-type')?.value||'percent',value=Number(document.getElementById('v20-p-value')?.value),max=Number(document.getElementById('v20-p-max')?.value||0);if(!/^[A-Z0-9_-]{3,30}$/.test(code))return Toast.show('Code invalide : 3 à 30 caractères');if((Store.promos||[]).some(p=>String(p.code).toUpperCase()===code))return Toast.show('Ce code existe déjà');if(!Number.isFinite(value)||value<=0)return Toast.show('Valeur invalide');if(type==='percent'&&value>100)return Toast.show('Le pourcentage ne peut pas dépasser 100 %');if(!Number.isFinite(max)||max<0)return Toast.show('Limite invalide');const p={id:Utils.uid(),code,type,value:Math.floor(value),active:true,maxUses:Math.floor(max),usedCount:0,createdAt:Date.now()};Store.promos=[...(Store.promos||[]),p];PromoLocal.update(p.id,{maxUses:p.maxUses,usedCount:0,active:true});Toast.show('Code promo créé ✓');document.getElementById('v20-modal')?.remove();Router.go('promos');};
+  window.v20TogglePromo=function(id){const ps=Store.promos||[],p=ps.find(x=>x.id===id);if(!p)return;if(p.maxUses>0&&Number(p.usedCount||0)>=p.maxUses&&!p.active)return Toast.show('Ce code est épuisé');p.active=!p.active;Store.promos=ps.slice();PromoLocal.update(id,{active:p.active});Toast.show(p.active?'Code activé ✓':'Code désactivé');Router.go('promos');};
+  window.v20LimitPromo=function(id){const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;overlay('Modifier la limite',`<label class="v20-field">Nombre maximum d'utilisations<input id="v20-p-limit" type="number" min="0" value="${Number(p.maxUses||0)}"><small>0 = illimité. Utilisations actuelles : ${Number(p.usedCount||0)}</small></label><button class="btn btn-soft-indigo btn-block" onclick="v20SaveLimit(${JSON.stringify(id)})">Enregistrer</button>`);};
+  window.v20SaveLimit=function(id){const n=Number(document.getElementById('v20-p-limit')?.value);if(!Number.isFinite(n)||n<0)return Toast.show('Limite invalide');const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;p.maxUses=Math.floor(n);Store.promos=Store.promos.slice();PromoLocal.update(id,{maxUses:p.maxUses});Toast.show('Limite mise à jour ✓');document.getElementById('v20-modal')?.remove();Router.go('promos');};
+  window.v20DeletePromo=function(id){const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;overlay('Supprimer le code promo',`<div class="v20-confirm"><div class="v20-confirm-icon">!</div><b>${esc(p.code)}</b><p>Cette action supprimera définitivement ce code de la boutique.</p><div class="v20-two"><button class="btn btn-ghost" onclick="document.getElementById('v20-modal')?.remove()">Annuler</button><button class="btn btn-danger" onclick="v20ConfirmDeletePromo(${JSON.stringify(id)})">Supprimer</button></div></div>`);};
+  window.v20ConfirmDeletePromo=function(id){Store.promos=(Store.promos||[]).filter(x=>x.id!==id);PromoLocal.update(id,{active:false});Toast.show('Code supprimé');document.getElementById('v20-modal')?.remove();Router.go('promos');};
+  Views.promos=function(){if(!Store.hasFeature('promos'))return FeatureLock('Codes promo','La création de codes promo est incluse à partir de la formule DOYEN.','doyen');const ps=(Store.promos||[]).map(p=>PromoLocal.merge(p)),active=ps.filter(p=>p.active&&(!p.maxUses||p.usedCount<p.maxUses)).length,uses=ps.reduce((s,p)=>s+(Number(p.usedCount)||0),0);return `${TopBar('Codes promo',ps.length+' code(s)')}<div class="v20-promo-head"><div><div class="v20-eyebrow">Marketing boutique</div><h2>Promotions</h2><p>Créez des offres maîtrisées et gardez le contrôle sur chaque utilisation.</p></div><button class="v20-promo-plus" onclick="v20AddPromo()">＋</button></div><div class="v20-promo-summary"><div><b>${ps.length}</b><span>Codes</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${uses}</b><span>Utilisations</span></div></div><div class="v20-promo-create" onclick="v20AddPromo()"><div class="v20-promo-create-icon">％</div><div><b>Créer une promotion</b><span>Code, réduction et limite d'utilisation</span></div><strong>›</strong></div><div class="v20-section-title">Vos codes</div><div class="v20-promo-list">${ps.length?ps.map(p=>{const ex=p.maxUses>0&&p.usedCount>=p.maxUses,pct=p.maxUses?Math.min(100,Math.round(p.usedCount/p.maxUses*100)):0;return `<article class="v20-promo-card"><div class="v20-promo-line"><div class="v20-code">${esc(p.code)}</div><span class="v20-promo-status ${p.active&&!ex?'on':'off'}">${ex?'Épuisé':p.active?'Actif':'Désactivé'}</span></div><div class="v20-promo-desc">${p.type==='percent'?p.value+'% de réduction':Utils.fmtFCFA(p.value)+' de réduction'}</div><div class="v20-promo-use"><span>${p.maxUses?`Utilisations <b>${p.usedCount}/${p.maxUses}</b>`:`Utilisations <b>${p.usedCount}</b> · illimité`}</span>${p.maxUses?`<span>${pct}%</span>`:''}</div>${p.maxUses?`<div class="v20-progress"><i style="width:${pct}%"></i></div>`:''}<div class="v20-promo-actions"><button onclick="v20LimitPromo('${p.id}')">Limite</button><button onclick="v20TogglePromo('${p.id}')" ${ex?'disabled':''}>${p.active?'Désactiver':'Activer'}</button><button class="danger" onclick="v20DeletePromo('${p.id}')">Supprimer</button></div></article>`}).join(''):`<div class="v20-empty"><div class="v20-empty-icon">％</div><b>Aucun code promo</b><span>Créez votre première promotion avec le bouton ci-dessus.</span></div>`}</div>`;};
+  const style=document.createElement('style');style.textContent=`#v20-modal{position:fixed;inset:0;z-index:99999}.v20-backdrop{position:absolute;inset:0;background:rgba(8,12,24,.52);backdrop-filter:blur(4px)}.v20-dialog{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(520px,100%);background:var(--panel,#fff);border-radius:24px 24px 0 0;padding:18px 20px 24px;box-shadow:0 -18px 50px rgba(0,0,0,.2)}.v20-dialog-head{display:flex;justify-content:space-between;align-items:center;font-size:18px;color:var(--text,#111)}.v20-dialog-head button{border:0;background:var(--line,#eee);width:34px;height:34px;border-radius:50%;font-size:22px;color:var(--text);cursor:pointer}.v20-dialog-body{padding-top:18px}.v20-field{display:block;font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px}.v20-field input,.v20-field select{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:#111;font:inherit}.v20-field small,.v20-help{display:block;color:var(--text-mid);font-size:11px;font-weight:500;margin-top:6px}.v20-two{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.btn-danger{background:#d84b55;color:#fff;border:0}.v20-confirm{text-align:center}.v20-confirm-icon{margin:0 auto 10px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#fff1f1;color:#d84b55;font-weight:900}.v20-cat-head,.v20-promo-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 12px;gap:12px}.v20-eyebrow{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:4px}.v20-cat-head h2,.v20-promo-head h2{margin:0;font-size:25px;letter-spacing:-.04em;color:var(--text)}.v20-cat-head p,.v20-promo-head p{margin:5px 0 0;font-size:12px;color:var(--text-mid);line-height:1.45}.v20-add-cat,.v20-promo-plus{width:46px;height:46px;border:0;border-radius:15px;background:var(--indigo);color:#fff;font-size:25px;box-shadow:0 10px 22px rgba(17,17,17,.22);cursor:pointer}.v20-cat-summary,.v20-promo-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:6px 20px 16px}.v20-cat-summary>div,.v20-promo-summary>div{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:11px 12px}.v20-cat-summary b,.v20-promo-summary b{display:block;font:800 19px var(--font-mono);color:var(--text)}.v20-cat-summary span,.v20-promo-summary span{font-size:10.5px;color:var(--text-mid)}.v20-section-title{padding:4px 20px 9px;font-size:12px;font-weight:900;color:var(--text)}.v20-cat-list,.v20-promo-list{padding:0 20px}.v20-cat-card,.v20-promo-card{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:13px 14px;margin-bottom:9px}.v20-cat-card{display:flex;align-items:center;gap:12px}.v20-cat-icon{width:43px;height:43px;border-radius:13px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo)}.v20-cat-icon.c1{background:var(--green-tint);color:var(--green)}.v20-cat-icon.c2{background:var(--mango-tint);color:var(--mango-dark)}.v20-cat-icon.c3{background:var(--blue-tint);color:var(--blue)}.v20-cat-icon.c4{background:var(--red-tint);color:var(--red)}.v20-cat-main{flex:1;min-width:0}.v20-cat-main b{display:block;font-size:14px;color:var(--text)}.v20-cat-main span{display:block;font-size:11px;color:var(--text-mid);margin-top:3px}.v20-cat-action{border:0;background:transparent;color:var(--text-soft);font-size:21px;cursor:pointer}.v20-add-cat-full{margin:5px 20px 100px;width:calc(100% - 40px);padding:13px;border:1.5px dashed var(--indigo);border-radius:13px;background:var(--indigo-tint);color:var(--indigo);font-weight:850;cursor:pointer}.v20-promo-create{margin:0 20px 16px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel);display:flex;align-items:center;gap:12px;cursor:pointer}.v20-promo-create-icon{width:42px;height:42px;border-radius:13px;background:var(--mango-tint);color:var(--mango-dark);display:grid;place-items:center;font-weight:900}.v20-promo-create div:nth-child(2){flex:1}.v20-promo-create b{display:block;color:var(--text);font-size:13px}.v20-promo-create span{display:block;color:var(--text-mid);font-size:11px;margin-top:3px}.v20-promo-create strong{font-size:23px;color:var(--text-soft)}.v20-promo-line,.v20-promo-use{display:flex;justify-content:space-between;align-items:center;gap:8px}.v20-code{font:850 14px var(--font-mono);letter-spacing:.04em;color:var(--indigo)}.v20-promo-status{font-size:10px;font-weight:850;padding:5px 8px;border-radius:999px}.v20-promo-status.on{background:var(--green-tint);color:var(--green)}.v20-promo-status.off{background:var(--panel);color:var(--text-mid)}.v20-promo-desc{font-size:12px;color:var(--text-mid);margin:9px 0}.v20-promo-use{font-size:11px;color:var(--text-mid)}.v20-promo-use b{color:var(--text)}.v20-progress{height:5px;border-radius:999px;background:var(--line);overflow:hidden;margin:8px 0}.v20-progress i{display:block;height:100%;background:var(--indigo)}.v20-promo-actions{display:flex;gap:7px;margin-top:10px}.v20-promo-actions button{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 5px;font-size:10.5px;font-weight:800;color:var(--text);cursor:pointer}.v20-promo-actions button.danger{color:#d84b55}.v20-promo-actions button:disabled{opacity:.45}.v20-empty{text-align:center;border:1px dashed var(--line);border-radius:17px;padding:28px 20px;margin-bottom:12px}.v20-empty-icon{width:44px;height:44px;margin:0 auto 9px;border-radius:14px;background:var(--panel);display:grid;place-items:center;color:var(--indigo);font-weight:900}.v20-empty b{display:block;color:var(--text);font-size:14px}.v20-empty span{display:block;color:var(--text-mid);font-size:11px;margin-top:5px}.v20-promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v20-promo-grid .full{grid-column:1/-1}@media(max-width:380px){.v20-cat-head,.v20-promo-head{padding-left:14px;padding-right:14px}.v20-cat-summary,.v20-promo-summary,.v20-cat-list,.v20-promo-list{padding-left:14px;padding-right:14px}.v20-add-cat-full,.v20-promo-create{margin-left:14px;margin-right:14px;width:calc(100% - 28px)}}`;document.head.appendChild(style);
+})();
+
+
+/* ===== app-10.js ===== */
+(function(){
+  function cleanPlus(){
+    const sheet=document.getElementById('sheet'); if(!sheet)return;
+    sheet.querySelectorAll('.v16-merchant-cleanup,.v15-service-backdrop,.v16-plus-section').forEach(el=>el.remove());
+    sheet.querySelectorAll('.menu-item').forEach(el=>{el.style.display='flex';});
+  }
+  const previousOpen=Sheet.open.bind(Sheet);
+  Sheet.open=function(){
+    previousOpen();
+    cleanPlus();
+    requestAnimationFrame(cleanPlus);
+    setTimeout(cleanPlus,40);
+    setTimeout(cleanPlus,160);
+  };
+  const previousDashboard=Views.dashboard;
+  Views.dashboard=function(){
+    let html=previousDashboard();
+    html=html.replace(/<div class="dashboard-v2-section"><h3>Services SIAMS<\/h3>[\s\S]*?<\/div>\s*<div class="dashboard-v2-service-grid">[\s\S]*?<\/div>/,'');
+    html=html.replace(/<section class="v15-services-bottom">[\s\S]*?<\/section>/,'');
+    const serviceData=(typeof DASHBOARD_SERVICES!=='undefined'?DASHBOARD_SERVICES:[]).slice(0,8);
+    const services='<section class="v21-home-services" aria-label="Services SIAMS">'+
+      '<div class="v21-home-services-head"><div><div class="v21-home-services-title">Services SIAMS</div><div class="v21-home-services-sub">Accès rapide aux services complémentaires</div></div><button class="link-btn" onclick="Sheet.open()">Voir tout ›</button></div>'+
+      '<div class="v21-home-services-grid">'+serviceData.map(s=>'<button class="v21-home-service" onclick="Router.go(\\\''+s.route+'\\\')"><div class="si" style="background:'+s.tint+';color:'+s.color+'">'+s.icon+'</div><span>'+s.label+'</span></button>').join('')+'</div>'+
+      '</section>';
+    const follow='<div class="dashboard-v2-section"><h3>Suivi des commandes</h3>';
+    if(html.includes(follow)) html=html.replace(follow,services+'\n    '+follow);
+    return html;
+  };
+  document.addEventListener('DOMContentLoaded',cleanPlus);
+  window.addEventListener('load',cleanPlus);
+})();
+
+
+/* ===== app-11.js ===== */
+(function(){
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const money=n=>{try{return Utils.fmtFCFA(Number(n)||0)}catch(e){return (Number(n)||0)+' FCFA'}};
+  function render(){
+    const ps=(Store.promos||[]).map(p=>PromoLocal.merge(p));
+    const active=ps.filter(p=>p.active && (!p.maxUses || Number(p.usedCount||0)<Number(p.maxUses))).length;
+    const uses=ps.reduce((s,p)=>s+Number(p.usedCount||0),0);
+    return TopBar('Codes promo',ps.length+' code(s)')+
+      `<div class="v22-promo-head"><div><div class="v22-eyebrow">MARKETING BOUTIQUE</div><h2>Codes promo</h2><p>Créez, activez et limitez vos réductions directement depuis votre boutique.</p></div></div>`+
+      `<div class="v22-stats"><div><b>${ps.length}</b><span>Codes créés</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${uses}</b><span>Utilisations</span></div></div>`+
+      `<section class="v22-create"><div class="v22-create-title"><span>＋</span><div><b>Créer un code promo</b><small>Le code sera disponible immédiatement dans votre boutique.</small></div></div><div class="v22-grid"><label>Code promo<input id="v22-code" maxlength="30" autocomplete="off" placeholder="BIENVENUE10" oninput="this.value=this.value.toUpperCase().replace(/\\s/g,'')"></label><label>Type<select id="v22-type"><option value="percent">Pourcentage (%)</option><option value="fixed">Montant fixe (FCFA)</option></select></label><label>Valeur<input id="v22-value" type="number" min="1" step="1" placeholder="10"></label><label>Utilisations max<input id="v22-max" type="number" min="0" step="1" value="0"><small>0 = illimité</small></label></div><button class="btn btn-mango btn-block" type="button" onclick="window.siamsCreatePromoV22()">Créer le code promo</button></section>`+
+      `<div class="section-title">Vos codes</div><div class="v22-list">`+
+      (ps.length?ps.map(p=>{const max=Number(p.maxUses||0), used=Number(p.usedCount||0), exhausted=max>0&&used>=max, pct=max?Math.min(100,Math.round(used/max*100)):0; return `<article class="v22-card"><div class="v22-line"><div><strong>${esc(p.code)}</strong><small>${p.type==='percent'?p.value+'% de réduction':money(p.value)+' de réduction'}</small></div><span class="v22-status ${p.active&&!exhausted?'on':'off'}">${exhausted?'Épuisé':p.active?'Actif':'Désactivé'}</span></div><div class="v22-use">${max?`Utilisations <b>${used} / ${max}</b>`:`Utilisations <b>${used}</b> · illimité`}${max?`<span>${pct}%</span>`:''}</div>${max?`<div class="v22-progress"><i style="width:${pct}%"></i></div>`:''}<div class="v22-actions"><button type="button" onclick="window.siamsLimitPromoV22('${esc(p.id)}')">Limite</button><button type="button" ${exhausted&&!p.active?'disabled':''} onclick="window.siamsTogglePromoV22('${esc(p.id)}')">${p.active?'Désactiver':'Activer'}</button><button type="button" class="danger" onclick="window.siamsDeletePromoV22('${esc(p.id)}')">Supprimer</button></div></article>`}).join(''):`<div class="v22-empty"><b>Aucun code promo</b><span>Créez votre premier code avec le formulaire ci-dessus.</span></div>`)+`</div>`;
+  }
+  function rerender(){ try{Router.go('promos')}catch(e){const el=document.getElementById('app'); if(el) el.innerHTML=render();} }
+  window.siamsCreatePromoV22=function(){
+    const code=(document.getElementById('v22-code')?.value||'').trim().toUpperCase();
+    const type=document.getElementById('v22-type')?.value||'percent';
+    const value=Number(document.getElementById('v22-value')?.value);
+    const max=Number(document.getElementById('v22-max')?.value||0);
+    if(!/^[A-Z0-9_-]{3,30}$/.test(code)) return Toast.show('Code invalide : 3 à 30 caractères.');
+    if((Store.promos||[]).some(p=>String(p.code||'').toUpperCase()===code)) return Toast.show('Ce code existe déjà.');
+    if(!Number.isFinite(value)||value<=0) return Toast.show('Indiquez une valeur valide.');
+    if(type==='percent'&&value>100) return Toast.show('Le pourcentage ne peut pas dépasser 100 %.');
+    if(!Number.isFinite(max)||max<0) return Toast.show('Limite invalide.');
+    const p={id:Utils.uid(),code,type,value:Math.round(value),active:true,maxUses:Math.floor(max),usedCount:0,createdAt:Date.now()};
+    Store.promos=[...(Store.promos||[]),p];
+    PromoLocal.update(p.id,{active:true,maxUses:p.maxUses,usedCount:0});
+    Toast.show('Code promo créé ✓');
+    rerender();
+  };
+  window.siamsTogglePromoV22=function(id){const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;if(!p.active&&p.maxUses>0&&Number(p.usedCount||0)>=Number(p.maxUses))return Toast.show('Ce code est épuisé.');p.active=!p.active;Store.promos=Store.promos.slice();PromoLocal.update(id,{active:p.active});Toast.show(p.active?'Code activé ✓':'Code désactivé');rerender();};
+  window.siamsLimitPromoV22=function(id){const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;const n=prompt("Nombre maximum d'utilisations (0 = illimité)",String(p.maxUses||0));if(n===null)return;const max=Number(n);if(!Number.isFinite(max)||max<0)return Toast.show('Limite invalide.');p.maxUses=Math.floor(max);Store.promos=Store.promos.slice();PromoLocal.update(id,{maxUses:p.maxUses});Toast.show('Limite mise à jour ✓');rerender();};
+  window.siamsDeletePromoV22=function(id){const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;if(!confirm('Supprimer le code '+p.code+' ?'))return;Store.promos=Store.promos.filter(x=>x.id!==id);PromoLocal.update(id,{active:false});Toast.show('Code supprimé');rerender();};
+  Views.promos=function(){
+    if(!Store.hasFeature('promos')) return FeatureLock('Codes promo','La création de codes promo est incluse à partir de la formule DOYEN.','doyen');
+    return render();
+  };
+  const style=document.createElement('style');style.textContent=`.v22-promo-head{padding:22px 20px 10px}.v22-eyebrow{font-size:10px;font-weight:900;letter-spacing:.09em;color:var(--indigo);text-transform:uppercase}.v22-promo-head h2{margin:3px 0;font-size:26px;color:var(--text)}.v22-promo-head p{margin:0;color:var(--text-mid);font-size:12px;line-height:1.45}.v22-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:8px 20px 16px}.v22-stats>div{padding:13px;border:1px solid var(--line);border-radius:15px;background:#fff}.v22-stats b{display:block;font:800 20px var(--font-mono);color:var(--text)}.v22-stats span{font-size:10px;color:var(--text-mid)}.v22-create{margin:0 20px 18px;padding:15px;border:1px solid var(--line);border-radius:18px;background:var(--panel);box-shadow:var(--shadow-sm)}.v22-create-title{display:flex;gap:10px;align-items:center;margin-bottom:13px}.v22-create-title>span{width:38px;height:38px;border-radius:12px;background:var(--mango-tint);color:var(--mango-dark);display:grid;place-items:center;font-size:22px;font-weight:900}.v22-create-title b{display:block;font-size:13px;color:var(--text)}.v22-create-title small{display:block;font-size:10.5px;color:var(--text-mid);margin-top:3px}.v22-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}.v22-grid label{font-size:10.5px;font-weight:800;color:var(--text)}.v22-grid input,.v22-grid select{width:100%;margin-top:6px;padding:11px 12px;border:1.5px solid var(--line);border-radius:11px;background:#fff;color:var(--text);font:inherit;outline:none}.v22-grid small{display:block;color:var(--text-mid);font-size:9.5px;margin-top:4px}.v22-list{padding:0 20px}.v22-card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:14px;margin-bottom:9px}.v22-line{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.v22-line strong{display:block;font:850 14px var(--font-mono);color:var(--indigo);letter-spacing:.04em}.v22-line small{display:block;font-size:11px;color:var(--text-mid);margin-top:5px}.v22-status{font-size:9.5px;font-weight:900;padding:5px 8px;border-radius:999px;white-space:nowrap}.v22-status.on{background:var(--green-tint);color:var(--green)}.v22-status.off{background:var(--line);color:var(--text-mid)}.v22-use{display:flex;justify-content:space-between;margin-top:11px;font-size:10.5px;color:var(--text-mid)}.v22-use b{color:var(--text)}.v22-progress{height:5px;background:var(--line);border-radius:99px;overflow:hidden;margin:7px 0}.v22-progress i{display:block;height:100%;background:var(--indigo);border-radius:99px}.v22-actions{display:flex;gap:7px;margin-top:11px}.v22-actions button{flex:1;padding:8px 4px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text);font-size:10px;font-weight:800}.v22-actions .danger{color:var(--red)}.v22-actions button:disabled{opacity:.4}.v22-empty{text-align:center;border:1px dashed var(--line);border-radius:17px;padding:28px 16px;margin-bottom:20px}.v22-empty b{display:block;color:var(--text);font-size:14px}.v22-empty span{display:block;color:var(--text-mid);font-size:11px;margin-top:5px}@media(max-width:380px){.v22-promo-head,.v22-stats,.v22-list{padding-left:14px;padding-right:14px}.v22-create{margin-left:14px;margin-right:14px}.v22-grid{grid-template-columns:1fr}}`;document.head.appendChild(style);
+})();
+
+
+/* ===== app-12.js ===== */
+(function(){
+  window.dashboardQuickGo=function(route){
+    try{ Router.go(String(route)); }
+    catch(e){ console.error('Quick navigation',e); if(window.Toast&&Toast.show) Toast.show('Impossible d’ouvrir cette rubrique'); }
+  };
+})();
+
+
+/* ===== app-13.js ===== */
+/* SIAMS V50 — notifications client en temps réel + son SIAMS.
+   Le client doit recevoir une notification lorsque le marchand confirme ou met
+   sa commande en livraison. Le son personnalisé est joué dans l'onglet client
+   dès qu'une interaction utilisateur a déverrouillé l'audio du navigateur. */
+(function(){
+  const WATCH_KEY=()=> 'siams_client_order_status_watch_' + ((Store.store&&Store.store.slug)||'default');
+  let seeded=false;
+  function loadWatch(){try{return JSON.parse(localStorage.getItem(WATCH_KEY())||'{}')}catch(e){return{}}}
+  function saveWatch(x){try{localStorage.setItem(WATCH_KEY(),JSON.stringify(x))}catch(e){}}
+  function statusOf(o){return o?.status||'pending'}
+  function messageFor(o,prev){
+    const n=o.number||'';
+    if(statusOf(o)==='confirmed' && statusOf(prev)!=='confirmed') return `Bonne nouvelle : votre commande #${n} a été confirmée par la boutique.`;
+    if((o.shipped||statusOf(o)==='delivered') && !(prev&&prev.shipped) && statusOf(o)!=='delivered') return `Votre commande #${n} est maintenant en livraison.`;
+    if(statusOf(o)==='delivered' && statusOf(prev)!=='delivered') return `Votre commande #${n} a été livrée. Merci pour votre confiance !`;
+    return null;
+  }
+  function syncClientOrderNotifications(){
+    if(!Cloud.publicMode || !window.ClientOrderCache || !window.ClientNotify) return;
+    const cached=ClientOrderCache.load();
+    if(!cached.length) return;
+    const watch=loadWatch();
+    let changed=false;
+    cached.forEach(local=>{
+      const server=(Store.orders||[]).find(o=>String(o.id)===String(local.id));
+      if(!server) return;
+      const previous=watch[local.id] || {status:statusOf(local),shipped:!!local.shipped};
+      const msg=messageFor(server,previous);
+      /* Première observation : on initialise sans alerter. */
+      if(!seeded && !(local.id in watch)) { watch[local.id]={status:statusOf(server),shipped:!!server.shipped}; changed=true; return; }
+      if(msg){
+        ClientNotify.add(server.number,msg,statusOf(server)==='delivered'?'delivery':server.shipped?'delivery':'order');
+      }
+      if(previous.status!==statusOf(server) || previous.shipped!==!!server.shipped){
+        watch[local.id]={status:statusOf(server),shipped:!!server.shipped};
+        ClientOrderCache.save(Object.assign({},local,server,{items:(server.items&&server.items.length)?server.items:local.items}));
+        changed=true;
+      }
+    });
+    seeded=true;
+    if(changed) saveWatch(watch);
+  }
+
+  /* Chaque rafraîchissement public recharge les commandes puis déclenche la
+     détection des changements. Le système reste compatible avec l'AutoSync V48. */
+  const oldRefresh=AutoSync.refresh.bind(AutoSync);
+  AutoSync.refresh=async function(force){
+    const r=await oldRefresh(force);
+    try{ syncClientOrderNotifications(); }catch(e){ console.warn('V50 client notifications',e); }
+    return r;
+  };
+
+  /* Si l'utilisateur ouvre la boutique et interagit immédiatement, on initialise
+     aussi le son sans attendre le prochain cycle de synchronisation. */
+  setTimeout(()=>{try{syncClientOrderNotifications();}catch(e){}},1400);
+})();
+
+
+/* ===== app-14.js ===== */
+(function(){
+'use strict';
+const V67DOCS=[
+ {k:'cni',n:"CNI / Carte nationale d'identité"},
+ {k:'passeport',n:'Passeport'},
+ {k:'cmu',n:'Carte CMU'},
+ {k:'nationalite',n:'Certificat de nationalité'},
+ {k:'carte_scolaire',n:'Carte scolaire'}
+];
+const v67esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+let v67DocType='cni',v67Doc=null,v67Photo=null,v67AdFile=null;
+
+function v67CourierSession(){try{return courierSession&&courierSession()}catch(e){return null}}
+function v67DocName(k){return (V67DOCS.find(x=>x.k===k)||V67DOCS[0]).n}
+
+/* ---------- Identification livreur : même logique que la certification marchand,
+   mais avec les 5 pièces demandées par SIAMS. ---------- */
+window.SIAMSCourierIdentity={
+ async load(){
+  const root=document.getElementById('siams-v67-courier-root');if(!root)return;
+  const sess=v67CourierSession();if(!sess){Router.go('courier-login');return}
+  let d={status:'none'};
+  try{
+   const {data,error}=await sb.rpc('courier_get_identity_verification_v67',{p_session_token:sess.session_token});
+   if(error)throw error; d=Array.isArray(data)?(data[0]||{}):(data||{});
+  }catch(e){console.warn('V67 identité livreur',e)}
+  this.data=d;this.render();
+ },
+ render(){
+  const root=document.getElementById('siams-v67-courier-root');if(!root)return;
+  const d=this.data||{},status=d.status||'none';
+  if(status==='verified'){
+   root.innerHTML=`<div class="siams-v67-card"><div class="siams-v67-status siams-v67-ok"><b>✓ Compte livreur certifié</b><br>Le badge vert CERTIFIÉ SIAMS est actif.</div><p>Pièce validée : <b>${v67esc(v67DocName(d.docType))}</b></p></div>`;return;
+  }
+  if(status==='pending'){
+   root.innerHTML=`<div class="siams-v67-card"><div class="siams-v67-status siams-v67-pending"><b>⏳ Vérification en cours</b><br>Votre dossier est maintenant chez l'administration SIAMS.</div><p>Pièce envoyée : <b>${v67esc(v67DocName(d.docType))}</b></p></div>`;return;
+  }
+  root.innerHTML=`${status==='rejected'?`<div class="siams-v67-card"><div class="siams-v67-status siams-v67-no"><b>Dossier refusé</b><br>${v67esc(d.rejectReason||'Document non conforme. Merci de soumettre un nouveau dossier.')}</div></div>`:''}
+  <div class="siams-v67-card"><div class="siams-v67-kicker">ÉTAPE 1 · PIÈCE</div><h3>Identifiez votre compte</h3><p>Une seule pièce est nécessaire.</p><div class="siams-v67-docs">${V67DOCS.map(x=>`<button class="siams-v67-doc ${v67DocType===x.k?'active':''}" onclick="SIAMSCourierIdentity.select('${x.k}')"><b>${v67esc(x.n)}</b><small>Document accepté par SIAMS</small></button>`).join('')}</div></div>
+  <div class="siams-v67-card"><div class="siams-v67-kicker">ÉTAPE 2 · DOCUMENT</div><h3>Photo ou scan de la pièce</h3><label class="siams-v67-upload">📄<b>Ajouter ${v67esc(v67DocName(v67DocType))}</b><small>Image nette et entièrement visible</small><input type="file" accept="image/*" onchange="SIAMSCourierIdentity.doc(event)"></label><div class="siams-v67-preview" id="siams-v67-doc-preview">${v67Doc?`<img src="${v67Doc}">`:''}</div></div>
+  <div class="siams-v67-card"><div class="siams-v67-kicker">ÉTAPE 3 · PHOTO DE VÉRIFICATION</div><h3>Photo du titulaire</h3><label class="siams-v67-upload">🤳<b>Prendre ma photo</b><small>Caméra frontale recommandée</small><input type="file" accept="image/*" capture="user" onchange="SIAMSCourierIdentity.photo(event)"></label><div class="siams-v67-preview" id="siams-v67-photo-preview">${v67Photo?`<img src="${v67Photo}">`:''}</div><button id="siams-v67-submit" class="btn btn-primary btn-block" style="margin-top:11px" onclick="SIAMSCourierIdentity.submit()">Envoyer mon dossier à SIAMS</button></div>`;
+ },
+ select(k){v67DocType=k;this.render()},
+ async doc(e){const f=e.target.files&&e.target.files[0];if(!f)return;v67Doc=await siamsPrepareImageDataURL(f,{maxDim:1600});this.renderPreview('siams-v67-doc-preview',v67Doc)},
+ async photo(e){const f=e.target.files&&e.target.files[0];if(!f)return;v67Photo=await siamsPrepareImageDataURL(f,{maxDim:1200});this.renderPreview('siams-v67-photo-preview',v67Photo)},
+ renderPreview(id,u){const x=document.getElementById(id);if(x)x.innerHTML=`<img src="${u}">`},
+ async submit(){
+  if(!v67Doc||!v67Photo)return Toast.show('Ajoutez la pièce et votre photo de vérification.');
+  const sess=v67CourierSession();if(!sess)return Router.go('courier-login');
+  const b=document.getElementById('siams-v67-submit');if(b){b.disabled=true;b.textContent='Envoi en cours…'}
+  try{
+   const docUrl=await Cloud.ensureStoredUrl(v67Doc,'verification-docs');
+   const photoUrl=await Cloud.ensureStoredUrl(v67Photo,'verification-photos');
+   const {error}=await sb.rpc('courier_submit_identity_verification_v67',{p_session_token:sess.session_token,p_doc_type:v67DocType,p_doc_url:docUrl,p_photo_url:photoUrl});
+   if(error)throw error;
+   v67Doc=null;v67Photo=null;Toast.show('Dossier envoyé à SIAMS ✓');this.load();
+  }catch(e){console.error(e);Toast.show('Impossible d’envoyer le dossier. Exécutez le SQL V67.');if(b){b.disabled=false;b.textContent='Envoyer mon dossier à SIAMS'}}
+ }
+};
+/* CORRECTIF : cet écran faisait doublon avec le formulaire d'identification déjà intégré
+   directement dans l'onglet "Profil" du livreur (section VÉRIFICATION / Documents, géré
+   par CourierIdentity ci-dessous). On garde la route pour éviter tout lien mort, mais elle
+   redirige simplement vers le profil où se trouve désormais le seul formulaire. */
+Views['courier-identification']=function(){ Router.go('courier-dashboard'); setTimeout(()=>{ try{CourierApp.setTab('profil');}catch(e){} },0); return ''; };
+
+const oldCourierExtrasV67=window.loadCourierProfileExtras;
+window.loadCourierProfileExtras=function(){
+ if(oldCourierExtrasV67)oldCourierExtrasV67();
+};
+
+/* ---------- Codes promo : persistance immédiate dans la table EXISTANTE "promos". ---------- */
+async function v67PersistPromo(p){
+ const sid=Cloud.storeId||(Store.store&&Store.store.id);if(!sid)throw new Error('Boutique non identifiée');
+ const row={id:p.id,store_id:sid,code:p.code,type:p.type,value:p.value,active:p.active!==false,max_uses:Number(p.maxUses||0),used_count:Number(p.usedCount||0)};
+ const {error}=await sb.from('promos').upsert(row,{onConflict:'id'});if(error)throw error;
+}
+async function v67LoadPromos(){
+ try{
+  const sid=Cloud.storeId||(Store.store&&Store.store.id);if(!sid)return;
+  const {data,error}=await sb.from('promos').select('id,code,type,value,active,max_uses,used_count,created_at').eq('store_id',sid).order('created_at',{ascending:false}).limit(100);
+  if(error)throw error;
+  const fresh=(data||[]).map(p=>({id:p.id,code:p.code,type:p.type,value:Number(p.value||0),active:p.active!==false,maxUses:Number(p.max_uses||0),usedCount:Number(p.used_count||0),createdAt:new Date(p.created_at||Date.now()).getTime()}));
+  /* CORRECTIF : on met à jour uniquement le cache local d'affichage (comme pour _cache.orders
+     ailleurs dans le fichier), sans repasser par le setter Store.promos. Ce setter compare
+     l'ancienne et la nouvelle liste pour resynchroniser Supabase et supprimait par erreur les
+     codes tout juste créés lorsque cette relecture arrivait avant la confirmation de l'écriture
+     — c'était la cause du bug "le code promo disparaît après fermeture/réouverture". */
+  _cache.promos=fresh;
+  PromoLocal.save(fresh);
+ }catch(e){console.warn('V67 chargement promos',e)}
+}
+const v67OriginalPromoCreate=window.v15AddPromo;
+if(v67OriginalPromoCreate){
+ window.v15AddPromo=async function(){
+  await v67LoadPromos();
+  return v67OriginalPromoCreate.apply(this,arguments);
+ };
+}
+/* Capture la création par les fonctions déjà présentes : après toute navigation vers promos,
+   on relit Supabase. */
+const v67PromoView=Views.promos;
+Views.promos=function(){const h=v67PromoView();setTimeout(v67LoadPromos,0);return h};
+const v67OldAfterPromo=Views._after_promos;
+Views._after_promos=async function(){if(v67OldAfterPromo)await v67OldAfterPromo();await v67LoadPromos();if(Router.current==='promos')AutoSync.renderCurrent()};
+
+/* Réécrit les actions globales de promo lorsqu'elles existent pour garantir l'upsert. */
+function v67WrapPromo(fnName,action){
+ const old=window[fnName];if(!old)return;
+ window[fnName]=async function(id){
+  const before=(Store.promos||[]).find(p=>String(p.id)===String(id));
+  const r=await old.apply(this,arguments);
+  const after=(Store.promos||[]).find(p=>String(p.id)===String(id));
+  if(action==='delete'&&!after){try{await sb.from('promos').delete().eq('id',id).eq('store_id',Cloud.storeId)}catch(e){}}
+  else if(after){try{await v67PersistPromo(after)}catch(e){console.warn('Promo persist',e);}}
+  return r;
+ };
+}
+setTimeout(()=>{['v15TogglePromo','v20TogglePromo','siamsTogglePromoV22','v15SetPromoLimit','v20SaveLimit','siamsLimitPromoV22'].forEach(n=>v67WrapPromo(n,'update'));['v15DeletePromo','v20ConfirmDeletePromo','siamsDeletePromoV22'].forEach(n=>v67WrapPromo(n,'delete'));},0);
+
+/* ---------- Espace marchand : promotion d'articles dans la banderole existante ---------- */
+let v67AdLink='';
+window.SIAMSPromoBanners={
+ async load(){try{await SIAMSBanners.all()}catch(e){}},
+ render(){
+  const root=document.getElementById('siams-v67-promo-banner-root');if(!root)return;
+  const products=Store.products||[],ads=(SIAMSBanners.items||[]).filter(x=>x.promo_product===true);
+  root.innerHTML=`<div class="siams-v67-card"><div class="siams-v67-kicker">MARKETING · BANDEROLE CLIENT</div><h3>Promouvoir un article</h3><p>Créez une affiche liée à un produit. Elle sera ajoutée au carrousel déjà visible en haut de l'espace client.</p><div class="siams-v67-ad-grid"><div><label style="font-size:9px;font-weight:800">ARTICLE</label><select id="siams-v67-ad-product"><option value="">Choisir un article</option>${products.map(p=>`<option value="${v67esc(p.id)}">${v67esc(p.name)} · ${Utils.fmtFCFA(Number(p.price)||0)}</option>`).join('')}</select></div><div><label style="font-size:9px;font-weight:800">TITRE</label><input id="siams-v67-ad-title" maxlength="60" placeholder="Ex. Offre spéciale"></div><div class="siams-v67-full"><label style="font-size:9px;font-weight:800">SOUS-TITRE</label><input id="siams-v67-ad-sub" maxlength="90" placeholder="Profitez de cette offre"></div></div><label class="siams-v67-upload">🖼️<b>Ajouter l'affiche</b><small>Format recommandé 16:7 · 5 Mo maximum</small><input type="file" accept="image/*" onchange="SIAMSPromoBanners.file(event)"></label><div id="siams-v67-ad-preview" class="siams-v67-ad-preview"></div><button class="btn btn-primary btn-block" style="margin-top:10px" onclick="SIAMSPromoBanners.publish()">Publier dans la banderole client</button></div>
+  <div class="siams-v67-card"><div class="siams-v67-kicker">VOS PROMOTIONS</div><h3>Affiches publiées</h3>${ads.length?ads.map(x=>`<div style="border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-top:9px"><img src="${v67esc(x.image_url)}" style="width:100%;aspect-ratio:16/7;object-fit:cover;display:block"><div style="padding:9px;font-size:10px"><b>${v67esc(x.promo_title||'Promotion')}</b><div style="color:var(--text-mid);margin-top:3px">${x.active===false?'Masquée':'Visible'} · ${x.link_product_id?'Article lié':'Sans lien'}</div><div style="display:flex;gap:6px;margin-top:7px"><button class="btn btn-outline btn-sm" onclick="SIAMSPromoBanners.toggle('${v67esc(x.id)}')">${x.active===false?'Afficher':'Masquer'}</button><button class="btn btn-ghost btn-sm" onclick="SIAMSPromoBanners.remove('${v67esc(x.id)}')">Supprimer</button></div></div></div>`).join(''):'<div style="padding:18px;text-align:center;color:var(--text-mid);font-size:10px">Aucune affiche promotionnelle.</div>'}</div>`;
+ },
+ file(e){const f=e.target.files&&e.target.files[0];if(!f)return;v67AdFile=f;const p=document.getElementById('siams-v67-ad-preview');if(p)p.innerHTML=`<img src="${URL.createObjectURL(f)}">`},
+ async publish(){
+  const product=document.getElementById('siams-v67-ad-product')?.value;if(!product)return Toast.show('Choisissez un article');
+  if(!v67AdFile)return Toast.show('Ajoutez une affiche');
+  const title=(document.getElementById('siams-v67-ad-title')?.value||'').trim()||'Promotion';
+  const sub=(document.getElementById('siams-v67-ad-sub')?.value||'').trim();
+  try{
+   const image=await SIAMSBanners.upload(v67AdFile);
+   const items=SIAMSBanners.items||[],pos=items.reduce((m,x)=>Math.max(m,Number(x.position||0)),0)+10;
+   await SIAMSBanners.create({id:Utils.uid(),image_url:image,link_type:'product',link_product_id:product,active:true,position:pos,promo_product:true,promo_title:title,promo_subtitle:sub});
+   v67AdFile=null;Toast.show('Promotion publiée ✓');await this.load();this.render();
+  }catch(e){console.error(e);Toast.show('Impossible de publier. Vérifiez le stockage et le SQL V67.')}
+ },
+ async toggle(id){const x=(SIAMSBanners.items||[]).find(a=>String(a.id)===String(id));if(!x)return;try{await SIAMSBanners.update(id,{active:x.active===false});Toast.show('Affiche mise à jour ✓');this.load().then(()=>this.render())}catch(e){Toast.show('Impossible de modifier l’affiche')}},
+ async remove(id){if(!confirm('Supprimer cette affiche ?'))return;try{await SIAMSBanners.remove(id);Toast.show('Affiche supprimée ✓');this.load().then(()=>this.render())}catch(e){Toast.show('Impossible de supprimer l’affiche')}}
+};
+Views['product-promotions']=function(){return `${TopBar('Promotions articles','Banderole client')}<div style="padding-bottom:100px"><div id="siams-v67-promo-banner-root">Chargement…</div></div>`};
+Views._after_product_promotions=async function(){await SIAMSPromoBanners.load();SIAMSPromoBanners.render()};
+
+/* Ajoute le raccourci dans le Centre boutique sans toucher au reste de l'interface. */
+const v67OldBoutique=Views.boutique;
+if(v67OldBoutique){
+ Views.boutique=function(){
+  let h=v67OldBoutique();
+  if(!h.includes("Router.go('product-promotions')")){
+   const marker=`<button class="v14-action" onclick="Router.go('banners')"><strong>🖼️ Bannières</strong><small>Carrousel en haut de la boutique</small></button>`;
+   if(h.includes(marker))h=h.replace(marker,marker+`<button class="v14-action" onclick="Router.go('product-promotions')"><strong>🔥 Promotions articles</strong><small>Affiches dans la banderole client</small></button>`);
+  }
+  return h;
+ };
+}
+
+/* Admin : lecture/validation des nouveaux dossiers livreurs. */
+window.SIAMSAdminCourierIdentityV67={
+ async load(){
+  const root=document.getElementById('siams-v67-admin-courier-root');if(!root)return;
+  let rows=[];
+  try{const {data,error}=await sb.from('couriers').select('id,name,phone,identity_status,identity_doc_type,identity_doc_url,identity_photo_url,identity_submitted_at,identity_reject_reason').eq('identity_status','pending').order('identity_submitted_at',{ascending:true}).limit(100);if(error)throw error;rows=data||[]}catch(e){console.error(e)}
+  if(!rows.length){root.innerHTML='<div style="padding:30px;text-align:center;color:var(--text-mid)">✓ Aucun dossier livreur en attente.</div>';return}
+  root.innerHTML=rows.map(r=>`<article class="siams-v67-card"><div class="siams-v67-kicker">LIVREUR</div><h3>${v67esc(r.name||'Livreur')}</h3><p>${v67esc(r.phone||'')} · ${v67esc(v67DocName(r.identity_doc_type))}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${r.identity_doc_url?`<a href="${v67esc(r.identity_doc_url)}" target="_blank"><img src="${v67esc(r.identity_doc_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:11px"></a>`:''}${r.identity_photo_url?`<a href="${v67esc(r.identity_photo_url)}" target="_blank"><img src="${v67esc(r.identity_photo_url)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:11px"></a>`:''}</div><div style="display:flex;gap:7px;margin-top:10px"><button class="btn btn-primary" style="flex:1" onclick="SIAMSAdminCourierIdentityV67.review('${v67esc(r.id)}','verified')">✓ Approuver · Badge vert</button><button class="btn btn-outline" style="flex:1" onclick="SIAMSAdminCourierIdentityV67.review('${v67esc(r.id)}','rejected')">Refuser</button></div></article>`).join('');
+ },
+ async review(id,status){
+  let reason=null;if(status==='rejected'){reason=prompt('Motif du refus :','Document illisible ou non conforme. Merci de renvoyer une pièce nette.');if(reason===null)return}
+  try{
+   const patch={identity_status:status,identity_reject_reason:status==='rejected'?reason:null,identity_verified_at:status==='verified'?new Date().toISOString():null};
+   const {error}=await sb.from('couriers').update(patch).eq('id',id);if(error)throw error;
+   Toast.show(status==='verified'?'Livreur certifié ✓ Badge vert activé':'Dossier refusé');this.load();
+  }catch(e){console.error(e);Toast.show('Erreur de validation. Vérifiez le SQL V67.')}
+ }
+};
+/* CORRECTIF : cet écran et son bouton dashboard faisaient doublon avec l'espace unifié
+   "Vérifications d'identité" (Marchands + Livreurs) ajouté plus loin dans le fichier.
+   On garde la route pour éviter tout lien mort, mais elle redirige vers l'écran unifié
+   au lieu d'afficher un deuxième bouton/écran équivalent sur le dashboard admin. */
+Views['siams-admin-courier-identity-v67']=function(){ Router.go('siams-admin-identity-verifications'); return ''; };
+})();
+
+
+/* ===== app-15.js ===== */
+(function(){
+  const originalGo=Router.go.bind(Router);
+  Router.go=function(name,opts){
+    if(name==='register' && !ActivationGate.getStored()) name='activation-code';
+    if(name==='login') authMode='login';
+    return originalGo(name,opts);
+  };
+})();
+
+
+/* ===== app-16.js ===== */
+(function(){
+  'use strict';
+  const app=document.getElementById('app');
+
+  /* 1) Services accueil : délégation de clic robuste, indépendante des onclick générés */
+  function bindServices(){
+    const root=document.getElementById('page-root');
+    if(!root || root.dataset.v37ServicesBound==='1') return;
+    root.dataset.v37ServicesBound='1';
+    root.addEventListener('click',function(e){
+      const el=e.target.closest && e.target.closest('.dashboard-v2-service,.v21-home-service');
+      if(!el) return;
+      const route=el.getAttribute('data-v37-route') || el.getAttribute('data-route');
+      if(route){ e.preventDefault(); e.stopPropagation(); try{Sheet.close();}catch(_){} requestAnimationFrame(()=>Router.go(route)); }
+    },true);
+  }
+  function markServices(){
+    document.querySelectorAll('.dashboard-v2-service,.v21-home-service').forEach(el=>{
+      const text=(el.innerText||'').trim();
+      const found=(typeof DASHBOARD_SERVICES!=='undefined'?DASHBOARD_SERVICES:[]).find(s=>s.label===text);
+      if(found){el.classList.add('v37-service-clickable');el.setAttribute('data-v37-route',found.route);}
+    });
+  }
+
+  /* 2) Supprime uniquement le premier TopBar quand la page possède déjà un vrai titre secondaire. */
+  function cleanDuplicateHead(){
+    if(!app) return;
+    const root=document.getElementById('page-root'); if(!root) return;
+    const hasRichHead=!!root.querySelector('.payment-head,.delivery-head,.stats-premium-intro,.promo-premium-head,.products-v3-head,.orders-premium-head,.v20-cat-head,.v20-promo-head,.v22-promo-head,.v15-merchant-card');
+    if(!hasRichHead){app.removeAttribute('data-v37-clean-head');return;}
+    const top=root.querySelector('.topbar');
+    if(top) top.remove();
+    app.setAttribute('data-v37-clean-head','1');
+  }
+
+  /* 3) Métadonnées équipe persistées localement (photo + infos complémentaires). */
+  const TeamLocal={
+    key(){return 'siams_team_profiles_'+((Store.store&&Store.store.slug)||'default');},
+    load(){try{return JSON.parse(localStorage.getItem(this.key())||'{}')}catch(e){return {}}},
+    save(all){try{localStorage.setItem(this.key(),JSON.stringify(all||{}))}catch(e){console.warn('TeamLocal save',e)}},
+    get(id){const all=this.load();return all[id]||{}},
+    set(id,data){const all=this.load();all[id]=Object.assign({},all[id]||{},data||{});this.save(all);return all[id]},
+    remove(id){const all=this.load();delete all[id];this.save(all)}
+  };
+  window.TeamLocal=TeamLocal;
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const avatar=(m)=>{const meta=TeamLocal.get(m.id);if(meta.photo)return '<img src="'+esc(meta.photo)+'" alt="">';return '<svg width="25" height="25" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.8-4 3.6-6.2 7.5-6.2s6.7 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'};
+
+  function teamCard(m){
+    const x=TeamLocal.get(m.id); const status=m.status==='invited'?'Invitation envoyée':m.status==='suspended'?'Suspendu':'Actif';
+    return `<article class="v37-team-card" data-team-id="${esc(m.id)}">
+      <div class="v37-team-card-top"><div class="v37-team-avatar">${avatar(m)}</div><div class="v37-team-main"><h3>${esc(m.name||'Membre')}</h3><span class="v37-team-role">${esc(m.role||'Vendeur')}</span></div><span class="v37-team-status ${m.status==='invited'?'invited':''}">${status}</span></div>
+      <div class="v37-team-info">
+        <div class="v37-team-info-item"><small>Téléphone</small><span>${esc(m.phone||x.phone||'Non renseigné')}</span></div>
+        <div class="v37-team-info-item"><small>E-mail</small><span>${esc(x.email||'Non renseigné')}</span></div>
+        <div class="v37-team-info-item"><small>Ville / zone</small><span>${esc(x.city||'Non renseignée')}</span></div>
+        <div class="v37-team-info-item"><small>Depuis</small><span>${esc(x.joined||'Non renseigné')}</span></div>
+        ${x.note?`<div class="v37-team-info-item full"><small>Informations complémentaires</small><span>${esc(x.note)}</span></div>`:''}
+      </div>
+      <div class="v37-team-actions"><button type="button" onclick="v37EditMember('${esc(m.id)}')">Modifier</button><button type="button" class="danger" onclick="removeTeamMember('${esc(m.id)}')">Retirer</button></div>
+    </article>`;
+  }
+
+  window.v37EditMember=function(id){
+    const m=(Store.team||[]).find(x=>x.id===id); if(!m)return;
+    const x=TeamLocal.get(id);
+    const wrap=document.createElement('div'); wrap.id='v37-team-modal'; wrap.className='overlay show'; wrap.style.zIndex='99990';
+    const sheet=document.createElement('div'); sheet.className='sheet show'; sheet.style.zIndex='99991';
+    sheet.innerHTML=`<div class="sheet-handle"></div><h3 style="margin:0 0 5px;font-size:18px;">Profil du membre</h3><p style="margin:0 0 15px;color:var(--text-mid);font-size:12px;">Ajoutez une photo et les informations utiles à l’équipe.</p>
+      <div class="field"><label>Photo de profil</label><input id="v37-t-photo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+      <div class="field"><label>E-mail</label><input id="v37-t-email" type="email" value="${esc(x.email||'')}" placeholder="membre@exemple.com"></div>
+      <div class="field"><label>Ville / zone</label><input id="v37-t-city" value="${esc(x.city||'')}" placeholder="Ex. Cocody"></div>
+      <div class="field"><label>Date d'arrivée</label><input id="v37-t-joined" type="date" value="${esc(x.joined||'')}"></div>
+      <div class="field"><label>Informations complémentaires</label><textarea id="v37-t-note" rows="3" placeholder="Spécialité, horaires, remarques…">${esc(x.note||'')}</textarea></div>
+      <button class="btn btn-primary btn-block" type="button" onclick="v37SaveMember('${esc(id)}')">Enregistrer</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px;" type="button" onclick="document.getElementById('v37-team-modal')?.remove()">Annuler</button>`;
+    wrap.onclick=e=>{if(e.target===wrap)wrap.remove()}; wrap.appendChild(sheet); document.body.appendChild(wrap);
+  };
+  window.v37SaveMember=function(id){
+    const save={email:document.getElementById('v37-t-email')?.value.trim()||'',city:document.getElementById('v37-t-city')?.value.trim()||'',joined:document.getElementById('v37-t-joined')?.value||'',note:document.getElementById('v37-t-note')?.value.trim()||''};
+    const file=document.getElementById('v37-t-photo')?.files?.[0];
+    const done=photo=>{if(photo)save.photo=photo;TeamLocal.set(id,save);document.getElementById('v37-team-modal')?.remove();Toast.show('Profil du membre enregistré ✓');Router.go('team');};
+    if(!file)return done();
+    siamsPrepareImageDataURL(file).then(done).catch(()=>done());
+  };
+
+  const oldTeam=Views.team;
+  Views.team=function(){
+    if(!Store.hasFeature('team')) return oldTeam();
+    const t=Store.team||[], c=Store.couriers||[], active=t.filter(x=>x.status!=='suspended').length;
+    return `${TopBar('Équipe',t.length+' membre(s)')}<div class="v37-team-head"><div class="eyebrow">Gestion de votre équipe</div><h2>Membres de l’équipe</h2><p>Chaque membre dispose maintenant d’une carte complète avec photo, rôle et informations complémentaires.</p></div><div class="v37-team-summary"><div><b>${t.length}</b><span>Membres</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${c.length}</b><span>Livreurs</span></div></div><div class="v37-team-add"><button class="btn btn-primary btn-block" type="button" onclick="v37OpenAddMember()">＋ Ajouter un membre</button></div>${t.length?`<div class="v37-team-list">${t.map(teamCard).join('')}</div>`:`<div class="v37-team-empty"><b>Aucun membre d’équipe</b><div style="margin-top:5px;font-size:11.5px;">Ajoutez un gérant, vendeur ou administrateur.</div></div>`}<section class="v37-team-couriers"><h3>Livreurs SIAMS</h3>${c.length?c.map(q=>`<div class="v37-courier-row"><div class="v37-courier-avatar">🚚</div><div class="v37-courier-main"><b>${esc(q.name||'Livreur')}</b><span>${esc(q.phone||'')} · ${q.status==='active'?'Actif':q.status==='invited'?'Invitation envoyée':'Suspendu'}</span></div>${q.status!=='suspended'?`<button type="button" class="v37-courier-remove" onclick="removeCourier('${esc(q.id)}')" aria-label="Retirer ${esc(q.name||'livreur')}">Retirer</button>`:''}</div>`).join(''):`<div style="font-size:11.5px;color:var(--text-mid);">Aucun livreur connecté.</div>`}<button class="btn btn-soft-green btn-block" style="margin-top:10px;" onclick="inviteCourierFromMerchant()">Inviter un livreur</button></section>`;
+  };
+
+  window.v37OpenAddMember=function(){
+    const wrap=document.createElement('div');wrap.id='v37-add-team-modal';wrap.className='overlay show';wrap.style.zIndex='99990';
+    const sheet=document.createElement('div');sheet.className='sheet show';sheet.style.zIndex='99991';
+    sheet.innerHTML=`<div class="sheet-handle"></div><h3 style="margin:0 0 5px;font-size:18px;">Ajouter un membre</h3><p style="margin:0 0 15px;color:var(--text-mid);font-size:12px;">Créez sa fiche dès maintenant.</p>
+      <div class="field"><label>Nom complet</label><input id="v37-a-name" placeholder="Ex. Awa Koné"></div>
+      <div class="field"><label>Numéro WhatsApp</label><input id="v37-a-phone" inputmode="tel" placeholder="07 00 00 00 00"></div>
+      <div class="field"><label>Rôle</label><select id="v37-a-role"><option>Vendeur</option><option>Gérant</option><option>Admin</option></select></div>
+      <div class="field"><label>Photo de profil</label><input id="v37-a-photo" type="file" accept="image/png,image/jpeg,image/webp"></div>
+      <div class="field"><label>E-mail</label><input id="v37-a-email" type="email" placeholder="membre@exemple.com"></div>
+      <div class="field"><label>Ville / zone</label><input id="v37-a-city" placeholder="Ex. Abidjan"></div>
+      <div class="field"><label>Informations complémentaires</label><textarea id="v37-a-note" rows="3" placeholder="Spécialité, horaires, remarques…"></textarea></div>
+      <button class="btn btn-primary btn-block" type="button" onclick="v37CreateMember()">Créer le membre</button><button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="document.getElementById('v37-add-team-modal')?.remove()">Annuler</button>`;
+    wrap.onclick=e=>{if(e.target===wrap)wrap.remove()};wrap.appendChild(sheet);document.body.appendChild(wrap);setTimeout(()=>document.getElementById('v37-a-name')?.focus(),50);
+  };
+  window.v37CreateMember=function(){
+    const name=document.getElementById('v37-a-name')?.value.trim(),phone=document.getElementById('v37-a-phone')?.value.trim(),role=document.getElementById('v37-a-role')?.value||'Vendeur';
+    if(!name)return Toast.show('Renseignez le nom du membre');if(!phone)return Toast.show('Renseignez le numéro WhatsApp');
+    const id=Utils.uid(),meta={email:document.getElementById('v37-a-email')?.value.trim()||'',city:document.getElementById('v37-a-city')?.value.trim()||'',note:document.getElementById('v37-a-note')?.value.trim()||'',joined:new Date().toISOString().slice(0,10)};
+    const file=document.getElementById('v37-a-photo')?.files?.[0];
+    const done=photo=>{if(photo)meta.photo=photo;TeamLocal.set(id,meta);const team=[...(Store.team||[]),{id,name,phone,role,status:'invited'}];Store.team=team;document.getElementById('v37-add-team-modal')?.remove();Toast.show('Membre ajouté ✓');Router.go('team');};
+    if(file){ siamsPrepareImageDataURL(file).then(done).catch(()=>done()); } else done();
+  };
+
+  /* 4) Client : raccourci promo + checkout tactile */
+  const oldShop=Views.shop;
+  Views.shop=function(){
+    let html=oldShop();
+    const cta='<div class="v37-client-promo-cta" role="button" tabindex="0" onclick="openClientPromoList()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openClientPromoList()}"><div class="ico">％</div><div class="txt"><b>Codes promo</b><span>Voir les réductions disponibles avant de commander.</span></div><div class="arr">›</div></div>';
+    const marker='<div class="home-section-row"><h3 id="home-grid-title__v46_2">Nouveautés</h3>';
+    return html.replace(marker,cta+marker);
+  };
+  const oldAccount=Views['shop-account'];
+  Views['shop-account']=function(){
+    let html=oldAccount();
+    /* Le raccourci existant reste présent ; on lui ajoute une cible explicite. */
+    html=html.replace('onclick="openClientPromoList()"','onclick="openClientPromoList();" data-v37-promo="1"');
+    return html;
+  };
+  document.addEventListener('click',function(e){
+    const input=e.target.closest&&e.target.closest('#co-promo');if(input){input.removeAttribute('readonly');input.disabled=false;input.focus({preventScroll:true});}
+  },true);
+
+  /* 5) Rebranche après chaque navigation, car Router remplace page-root. */
+  const originalGo=Router.go.bind(Router);
+  Router.go=function(name,opts){
+    const r=originalGo(name,opts);
+    setTimeout(()=>{cleanDuplicateHead();markServices();bindServices()},0);
+    requestAnimationFrame(()=>{cleanDuplicateHead();markServices();bindServices()});
+    return r;
+  };
+  document.addEventListener('DOMContentLoaded',()=>{cleanDuplicateHead();markServices();bindServices()});
+  window.addEventListener('load',()=>{cleanDuplicateHead();markServices();bindServices()});
+})();
+
+
+/* ===== app-17.js ===== */
+(function(){
+  /* ---------- ID marchand : présentation plus claire et exploitable ---------- */
+  const oldAccountId = Views['account-id'];
+  Views['account-id'] = function(){
+    const id = AccountId.current || '';
+    return `
+    <div style="min-height:100vh;display:flex;flex-direction:column;padding:28px 22px;">
+      <button onclick="Router.go('plus')" style="border:none;background:var(--panel);color:var(--text);width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">←</button>
+      <div class="store-logo" style="width:58px;height:58px;border-radius:17px;margin-bottom:18px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
+      <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--indigo);text-transform:uppercase;margin-bottom:5px;">IDENTIFIANT DE CONNEXION</div>
+      <h1 style="font-size:25px;line-height:1.15;margin:0 0 8px;">Mon ID marchand SIAMS</h1>
+      <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 20px;">Cet identifiant vous permet de vous connecter rapidement à votre espace marchand. Gardez-le confidentiel.</p>
+      <div class="v39-id-card">
+        <div class="v39-id-top"><div class="v39-id-label">ID MARCHAND SIAMS</div><span class="v39-id-status">✓ Identifiant actif</span></div>
+        <div class="v39-id-value">${Utils.escapeHtml(id || '—')}</div>
+        <div class="v39-id-help">Vous pouvez saisir cet ID à la place de votre e-mail sur l'écran de connexion.</div>
+        <div class="v39-id-actions">
+          <button class="btn btn-primary" onclick="AccountId.copy()">Copier l’ID</button>
+          <button class="btn btn-outline" onclick="AccountId.save()">Enregistrer la carte</button>
+        </div>
+      </div>
+      <div class="v39-settings-section">
+        <div class="v39-settings-head"><div class="v39-settings-icon">🔐</div><div><b>Conseil de sécurité</b><span>Ne partagez pas votre identifiant avec une personne non autorisée.</span></div></div>
+        <div style="font-size:11.5px;line-height:1.5;color:var(--text-mid);">En cas d’oubli, utilisez « ID marchand oublié ? » depuis l’écran de connexion pour demander sa récupération.</div>
+      </div>
+      <div style="margin-top:auto;padding-top:16px;"><button class="btn btn-primary btn-block" onclick="AccountId.continueToApp()">Continuer vers mon tableau de bord</button></div>
+    </div>`;
+  };
+
+  /* ---------- Paramètres : séparation nette Préférences générales / Sécurité ---------- */
+  Views.settings = function(){
+    const s=Store.store||{};
+    return `${TopBar('Paramètres','Préférences générales et sécurité')}
+      <div style="padding:14px 20px 90px;">
+        <section class="v39-settings-section">
+          <div class="v39-settings-head"><div class="v39-settings-icon">⚙️</div><div><b>Préférences générales</b><span>Personnalisez le fonctionnement de votre espace SIAMS.</span></div></div>
+          
+          
+          <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="Router.go('store-edit')">Informations de la boutique</button>
+        </section>
+        <section class="v39-settings-section">
+          <div class="v39-settings-head"><div class="v39-settings-icon">🎨</div><div><b>Thème de l'application</b><span>S'applique aux boutons d'action et à la carte du tableau de bord.</span></div></div>
+          <div style="display:flex;gap:10px;">
+            <button type="button" onclick="setUiTheme('blue')" style="flex:1;padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme!=='black'?'var(--blue)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+              <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#0091FD,#00B4FD);"></span>
+              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Bleu${Store.uiTheme!=='black'?' ✓':''}</span>
+            </button>
+            <button type="button" onclick="setUiTheme('black')" style="flex:1;padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme==='black'?'var(--ink)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+              <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#000000,#2E2E2E);"></span>
+              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Noir${Store.uiTheme==='black'?' ✓':''}</span>
+            </button>
+          </div>
+        </section>
+        <section class="v39-settings-section">
+          <div class="v39-settings-head"><div class="v39-settings-icon">🛡️</div><div><b>Sécurité du compte</b><span>Identifiant et accès à votre espace marchand.</span></div></div>
+          <div style="padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:9px;"><small style="color:var(--text-mid);display:block;margin-bottom:4px;">ID marchand SIAMS</small><strong class="mono" style="font-size:15px;">${Utils.escapeHtml(s.loginId||Cloud.loginId||'—')}</strong></div>
+          <button class="btn btn-primary btn-block" onclick="AccountId.current='${Utils.escapeHtml(s.loginId||Cloud.loginId||'')}';Router.go('account-id')">Gérer mon ID marchand</button>
+          <button class="btn btn-outline btn-block" style="margin-top:8px;" onclick="contactSupportForgotPassword()">Mot de passe oublié</button>
+        </section>
+        <section class="v39-settings-section">
+          <div class="v39-settings-head"><div class="v39-settings-icon">💬</div><div><b>Assistance SIAMS</b><span>Besoin d'aide avec votre compte ou votre boutique ?</span></div></div>
+          <button class="btn btn-soft-green btn-block" onclick="window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent('Bonjour SIAMS, j’ai besoin d’assistance depuis mes paramètres.'),'_blank')">Contacter le service client</button>
+        </section>
+      </div>`;
+  };
+
+  /* ---------- Catégories client : suppression des grosses tables au-dessus de la recherche ---------- */
+  Views['shop-categories'] = function(opts){
+    opts=opts||{};
+    const selected=(!opts.cat||opts.cat==='__all__')?'':opts.cat;
+    const cats=Store.categories||[];
+    return `<div class="v39-cat-wrap">
+      <div class="v39-cat-head"><div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--indigo);text-transform:uppercase;margin-bottom:4px;">CATALOGUE</div><h1>Catégories</h1><p>Trouvez rapidement les produits qui vous intéressent.</p></div>
+      <div class="v39-cat-search">
+        <div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="shop-search__v46_2" type="text" placeholder="Rechercher un produit..." oninput="renderShopGrid()"></div>
+        <button class="shop-tool-btn" onclick="openShopSheet()" aria-label="Filtrer et trier"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="v39-cat-chips"><button class="v39-cat-chip ${!selected?'active':''}" onclick="setShopCatFilter('')">Tous</button>${cats.map(c=>`<button class="v39-cat-chip ${c===selected?'active':''}" onclick="setShopCatFilter(decodeURIComponent('${encodeURIComponent(c)}'))">${Utils.escapeHtml(c)}</button>`).join('')}</div>
+      <div class="v39-cat-results"><strong id="shop-result-count__v46_2"></strong><button class="fav-toggle" id="shop-fav-toggle__v46_2" onclick="toggleShopFavOnly()">♡ Favoris</button></div>
+      <div class="shop-layout" style="padding:0 20px;"><div class="shop-cat-main" style="width:100%;"><div id="shop-empty__v46_2" class="hidden">${EmptyState(ICONS.box,'Boutique vide',"Cette boutique n'a pas encore de produits.")}</div><div id="shop-grid__v46_2" class="shop-grid"></div></div></div>
+      <div class="fab hidden" id="cart-bar__v46_3" style="left:20px;right:20px;bottom:24px;max-width:440px;"><button class="btn btn-mango btn-block" onclick="Router.go('cart')" style="justify-content:space-between;"><span style="display:flex;align-items:center;gap:8px;">${ICONS.cart.replace('30','18').replace('30','18')} Voir le panier</span><span id="cart-bar-amount__v46_3"></span></button></div>
+    </div>`;
+  };
+  Views._after_shop_categories=function(opts){ opts=opts||{}; Wishlist.load(); shopCatFilter=(!opts.cat||opts.cat==='__all__')?'':opts.cat; shopSort='default';shopFavOnly=false;shopPriceMin=null;shopPriceMax=null;renderShopGrid(); };
+
+  /* ---------- Informations client : identité + adresse + position Google Maps ---------- */
+  window.captureClientLocation=function(){
+    if(!navigator.geolocation){ Toast.show('La localisation n’est pas disponible sur cet appareil'); return; }
+    const btn=document.getElementById('acc-location-btn'); if(btn){btn.disabled=true;btn.textContent='Localisation…';}
+    navigator.geolocation.getCurrentPosition(function(pos){
+      const lat=Number(pos.coords.latitude.toFixed(6)), lng=Number(pos.coords.longitude.toFixed(6));
+      const mapsUrl='https://www.google.com/maps/search/?api=1&query='+lat+','+lng;
+      document.getElementById('acc-lat').value=lat;document.getElementById('acc-lng').value=lng;document.getElementById('acc-maps-url').value=mapsUrl;
+      const preview=document.getElementById('acc-location-preview'); if(preview){preview.innerHTML=`Position détectée ✓<br><span style="font-size:10.5px;color:var(--text-mid);">${lat}, ${lng}</span>`;preview.style.color='var(--green)';}
+      if(btn){btn.disabled=false;btn.textContent='Actualiser ma position';}
+      Toast.show('Position enregistrée ✓');
+    },function(){ if(btn){btn.disabled=false;btn.textContent='Utiliser ma position';} Toast.show('Autorisez la localisation pour continuer'); },{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+  };
+  window.openClientMaps=function(){
+    const url=document.getElementById('acc-maps-url')?.value||'';
+    if(url) window.open(url,'_blank'); else Toast.show('Enregistrez d’abord votre position');
+  };
+  window.saveAccountProfile=function(){
+    const name=document.getElementById('acc-name')?.value.trim()||'';
+    const firstName=document.getElementById('acc-firstname')?.value.trim()||'';
+    const email=document.getElementById('acc-email')?.value.trim()||'';
+    const phone=document.getElementById('acc-phone')?.value.trim()||'';
+    const city=document.getElementById('acc-city')?.value.trim()||'';
+    const district=document.getElementById('acc-district')?.value.trim()||'';
+    const address=document.getElementById('acc-address')?.value.trim()||'';
+    const lat=document.getElementById('acc-lat')?.value||'';
+    const lng=document.getElementById('acc-lng')?.value||'';
+    const mapsUrl=document.getElementById('acc-maps-url')?.value||'';
+    if(!firstName||!name||!phone){Toast.show('Renseignez au minimum le nom, le prénom et le numéro');return;}
+    ClientLocal.save({name,firstName,email,phone,city,district,address,lat,lng,mapsUrl});
+    document.getElementById('acc-edit-wrap')?.remove();Toast.show('Informations enregistrées ✓');Router.go('shop-account');
+  };
+  window.openAccountProfileEditor=function(){
+    ClientLocal.load(); const p=ClientLocal.profile; const existing=document.getElementById('acc-edit-wrap');if(existing)existing.remove();
+    const mapsLabel=p.lat&&p.lng?'Position déjà enregistrée':'Ajoutez votre position';
+    const wrap=document.createElement('div');wrap.id='acc-edit-wrap__v46_2';
+    wrap.innerHTML=`<div class="shop-sheet-overlay show" onclick="document.getElementById('acc-edit-wrap').remove()"></div><div class="shop-sheet show"><div class="sheet-handle"></div><h3>Mes informations</h3><p style="font-size:11.5px;color:var(--text-mid);line-height:1.45;margin:-4px 0 13px;">Ces informations facilitent vos commandes et votre livraison.</p>
+      <div class="v39-profile-grid">
+        <div class="field"><label>Prénom</label><input id="acc-firstname" type="text" autocomplete="given-name" value="${Utils.escapeHtml(p.firstName||'')}"></div>
+        <div class="field"><label>Nom</label><input id="acc-name" type="text" autocomplete="family-name" value="${Utils.escapeHtml(p.name||'')}"></div>
+        <div class="field full"><label>E-mail</label><input id="acc-email" type="email" autocomplete="email" value="${Utils.escapeHtml(p.email||'')}"></div>
+        <div class="field full"><label>Numéro de téléphone</label><input id="acc-phone" type="tel" autocomplete="tel" value="${Utils.escapeHtml(p.phone||'')}"></div>
+        <div class="field"><label>Ville</label><input id="acc-city" type="text" autocomplete="address-level2" value="${Utils.escapeHtml(p.city||'')}"></div>
+        <div class="field"><label>Quartier</label><input id="acc-district" type="text" value="${Utils.escapeHtml(p.district||'')}"></div>
+        <div class="field full"><label>Adresse / repère</label><input id="acc-address" type="text" autocomplete="street-address" placeholder="Rue, repère, lieu connu…" value="${Utils.escapeHtml(p.address||'')}"></div>
+      </div>
+      <div class="v39-location-card"><div class="v39-location-head"><div class="v39-location-icon">📍</div><div><b>Position de livraison</b><span>Utilisez la localisation de votre téléphone puis ouvrez-la dans Google Maps.</span></div></div>
+        <div id="acc-location-preview" style="font-size:11px;color:${p.lat&&p.lng?'var(--green)':'var(--text-mid)'};line-height:1.45;margin-bottom:8px;">${p.lat&&p.lng?mapsLabel+'<br><span style="font-size:10.5px;">'+Utils.escapeHtml(p.lat)+', '+Utils.escapeHtml(p.lng)+'</span>':'Aucune position enregistrée'}</div>
+        <input id="acc-lat" type="hidden" value="${Utils.escapeHtml(p.lat||'')}"><input id="acc-lng" type="hidden" value="${Utils.escapeHtml(p.lng||'')}"><input id="acc-maps-url" type="hidden" value="${Utils.escapeHtml(p.mapsUrl||'')}">
+        <div class="v39-location-actions"><button id="acc-location-btn" class="btn btn-soft-green" onclick="captureClientLocation()">${p.lat&&p.lng?'Actualiser ma position':'Utiliser ma position'}</button><button class="btn btn-outline" onclick="openClientMaps()">Ouvrir Google Maps</button></div>
+        <a class="v39-map-link" href="https://www.google.com/maps" target="_blank" rel="noopener">Google Maps · choisir ou vérifier un lieu</a>
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:4px;" onclick="saveAccountProfile()">Enregistrer mes informations</button>
+    </div>`;
+    document.body.appendChild(wrap);
+  };
+
+  /* Synchronise les anciennes données client avec les nouveaux champs sans les perdre. */
+  const oldClientLoad=ClientLocal.load.bind(ClientLocal);
+  ClientLocal.load=function(){
+    oldClientLoad();
+    this.profile=Object.assign({name:'',firstName:'',email:'',phone:'',city:'',district:'',address:'',lat:'',lng:'',mapsUrl:''},this.profile||{});
+    return this.profile;
+  };
+  const oldClientSave=ClientLocal.save.bind(ClientLocal);
+  ClientLocal.save=function(p){ return oldClientSave(Object.assign({firstName:'',email:'',city:'',district:'',lat:'',lng:'',mapsUrl:''},p||{})); };
+})();
+
+
+/* ===== app-18.js ===== */
+(function(){
+  const esc=s=>Utils.escapeHtml(String(s??''));
+  function categoryImage(name){
+    const custom=(Store.categoryPhotos||{})[name];
+    if(custom) return custom;
+    const p=(Store.products||[]).find(x=>String(x.category||'')===String(name) && (x.photo || (x.photos&&x.photos[0])));
+    return p ? (p.photo || p.photos[0]) : '';
+  }
+  function activePromos(){
+    return (Store.promos||[]).map(p=>PromoLocal.merge(p)).filter(p=>p.active!==false && (!p.maxUses || Number(p.usedCount||0)<Number(p.maxUses||0)));
+  }
+  function buildPromoSlides(){
+    const store=Store.store||{}; const promos=activePromos(); const slides=[];
+    if(store.banner && promos.length) slides.push(`<article class="v40-promo-slide"><img src="${esc(store.banner)}" alt="Promotion de ${esc(store.name||'la boutique')}"></article>`);
+    promos.slice(0,5).forEach(p=>{
+      const discount=p.type==='percent' ? `-${p.value}%` : `-${Number(p.value||0).toLocaleString('fr-FR')} FCFA`;
+      slides.push(`<article class="v40-promo-slide" style="background:linear-gradient(135deg,var(--indigo),#5b6fe8);"><div class="v40-promo-copy"><span class="tag">${esc(p.type==='percent'?'Réduction':'Offre spéciale')}</span><b>${discount}</b><span>Code <strong>${esc(p.code)}</strong> · offre proposée par la boutique</span></div></article>`);
+    });
+    return slides;
+  }
+  window.startV40Carousel=function(){
+    const root=document.getElementById('v40-promo-carousel'), track=document.getElementById('v40-promo-track'); if(!root||!track)return;
+    const n=track.children.length;if(n<1)return; root.style.display='block';
+    const dots=document.getElementById('v40-promo-dots'); let i=0;
+    const render=()=>{track.style.transform=`translateX(-${i*100}%)`;[...dots.children].forEach((d,j)=>d.classList.toggle('active',j===i));};
+    window.v40PromoTimer&&clearInterval(window.v40PromoTimer); render();
+    if(n>1) window.v40PromoTimer=setInterval(()=>{i=(i+1)%n;render();},5000);
+    let sx=0; track.ontouchstart=e=>{sx=e.touches[0].clientX}; track.ontouchend=e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40){i=(i+(dx<0?1:-1)+n)%n;render();}};
+  };
+
+  Views.shop=function(){
+    const store=Store.store||{}, products=Store.products||[];
+    const access=Store.access(), paidVerified=isPaidSubscriptionActive();
+    const badgeChip=paidVerified?VerifiedBadge(16,access.plan):'';
+    const cats=Store.categories||[];
+    const slides=buildPromoSlides();
+    return `<div class="topbar" style="padding-top:18px;">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        ${store.photo?`<div class="store-logo" style="width:40px;height:40px;border-radius:11px;flex:none;overflow:hidden;"><img src="${esc(store.photo)}" style="width:100%;height:100%;object-fit:cover;"></div>`:''}
+        <div style="min-width:0"><h1 style="font-size:20px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(store.name||'Boutique')}${badgeChip}</h1><div class="page-sub">Boutique en ligne</div></div>
+      </div>
+      <button class="cn-notif-btn" onclick="ClientNotify.openPanel()" aria-label="Notifications"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="cn-notif-dot" id="cn-notif-dot"></span></button>
+    </div>
+    <div class="search-wrap" style="padding-top:14px;"><div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="home-search" type="text" placeholder="Rechercher un produit..." oninput="renderHomeGrid()"></div></div>
+    ${slides.length?`<div class="v40-promo-carousel" id="v40-promo-carousel"><div class="v40-promo-track" id="v40-promo-track">${slides.join('')}</div><div class="v40-promo-dots" id="v40-promo-dots">${slides.map((_,i)=>`<span class="v40-promo-dot ${i===0?'active':''}"></span>`).join('')}</div></div>`:''}
+    ${cats.length?`<div class="home-section-row"><h3>Catégories</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div><div class="v40-category-row">${cats.slice(0,10).map(c=>{const im=categoryImage(c);return `<div class="v40-category-item" onclick="Router.go('shop-categories',{cat:decodeURIComponent('${encodeURIComponent(c)}')})"><div class="v40-category-img">${im?`<img src="${esc(im)}" alt="${esc(c)}">`:`<span style="font-size:22px;color:var(--text-soft);">▦</span>`}</div><span>${esc(c)}</span></div>`}).join('')}</div>`:''}
+    <div class="home-section-row"><h3 id="home-grid-title">Nouveautés</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div>
+    <div id="home-empty" class="hidden">${EmptyState(ICONS.box,'Boutique vide',"Cette boutique n'a pas encore de produits.")}</div><div id="home-grid" class="home-grid"></div>
+    <div class="fab hidden" id="cart-bar" style="left:20px;right:20px;bottom:24px;max-width:440px;"><button class="btn btn-mango btn-block" onclick="Router.go('cart')" style="justify-content:space-between;"><span style="display:flex;align-items:center;gap:8px;">${ICONS.cart.replace('30','18').replace('30','18')} Voir le panier</span><span id="cart-bar-amount"></span></button></div>`;
+  };
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=function(){ if(oldAfterShop)oldAfterShop(); startV40Carousel(); };
+
+  Views['shop-categories']=function(opts){
+    opts=opts||{}; const selected=(!opts.cat||opts.cat==='__all__')?'':opts.cat; const cats=Store.categories||[];
+    return `<div class="v40-cat-page-head"><div class="eyebrow">Explorer la boutique</div><h1>Catégories</h1><p>Des produits classés simplement, avec les vraies photos de la boutique.</p></div>
+      <div class="v40-cat-search"><div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="shop-search" type="text" placeholder="Rechercher un produit..." oninput="renderShopGrid()"></div></div>
+      ${cats.length?`<div class="v40-cat-chips"><button class="v40-cat-chip ${!selected?'active':''}" onclick="setShopCatFilter('')">Tous</button>${cats.map(c=>`<button class="v40-cat-chip ${c===selected?'active':''}" onclick="setShopCatFilter(decodeURIComponent('${encodeURIComponent(c)}'))">${esc(c)}</button>`).join('')}</div>`:''}
+      <div class="shop-result-row"><span class="count" id="shop-result-count"></span><button class="fav-toggle" id="shop-fav-toggle" onclick="toggleShopFavOnly()">♡ Favoris</button></div>
+      <div class="shop-layout"><div class="shop-cat-main" style="width:100%;"><div id="shop-empty" class="hidden">${EmptyState(ICONS.box,'Boutique vide',"Cette boutique n'a pas encore de produits.")}</div><div id="shop-grid" class="shop-grid"></div></div></div>
+      <div class="fab hidden" id="cart-bar" style="left:20px;right:20px;bottom:24px;max-width:440px;"><button class="btn btn-mango btn-block" onclick="Router.go('cart')" style="justify-content:space-between;"><span style="display:flex;align-items:center;gap:8px;">${ICONS.cart.replace('30','18').replace('30','18')} Voir le panier</span><span id="cart-bar-amount"></span></button></div>`;
+  };
+  const oldAfterCats=Views._after_shop_categories;
+  Views._after_shop_categories=function(opts){ if(oldAfterCats)oldAfterCats(opts); else { Wishlist.load();shopCatFilter=(!opts||!opts.cat||opts.cat==='__all__')?'':opts.cat;renderShopGrid(); } };
+
+  // Photo client : ajout au même profil local que les autres informations.
+  const oldEditor=window.openAccountProfileEditor;
+  window.openAccountProfileEditor=function(){
+    if(!ClientLocal.load) return oldEditor();
+    ClientLocal.load(); const p=ClientLocal.profile||{};
+    oldEditor();
+    const wrap=document.getElementById('acc-edit-wrap'); if(!wrap)return;
+    const host=wrap.querySelector('.shop-sheet'); if(!host)return;
+    const first=host.querySelector('h3');
+    const photo= document.createElement('div'); photo.innerHTML=`<div class="v40-client-profile-photo" id="v40-client-photo-preview">${p.photo?`<img src="${esc(p.photo)}" alt="Photo de profil">`:`<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="color:var(--text-soft)"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.9-4 3.7-6.2 7.5-6.2s6.6 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`}</div><div class="v40-client-photo-btn"><button type="button" onclick="document.getElementById('v40-client-photo-input').click()">📷 ${p.photo?'Modifier ma photo':'Ajouter ma photo'}</button><input id="v40-client-photo-input" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="window.handleClientProfilePhoto(event)"></div><div class="v40-profile-photo-note">Votre photo est utilisée uniquement pour votre profil client.</div>`;
+    host.insertBefore(photo,first?.nextSibling||host.firstChild);
+  };
+  window.handleClientProfilePhoto=function(e){const f=e.target.files&&e.target.files[0];if(!f)return;siamsPrepareImageDataURL(f).then(dataUrl=>{const img=document.getElementById('v40-client-photo-preview');if(img)img.innerHTML=`<img src="${esc(dataUrl)}" alt="Photo de profil">`;window._v40ClientPhoto=dataUrl;}).catch(()=>Toast.show('Impossible de traiter cette photo'));};
+  const oldSave=window.saveAccountProfile;
+  window.saveAccountProfile=function(){
+    const photo=window._v40ClientPhoto || (ClientLocal.profile&&ClientLocal.profile.photo) || '';
+    const oldProfile=ClientLocal.profile||{};
+    window._v40ClientPhoto='';
+    const name=document.getElementById('acc-name')?.value.trim()||oldProfile.name||'';
+    const firstName=document.getElementById('acc-firstname')?.value.trim()||oldProfile.firstName||'';
+    const email=document.getElementById('acc-email')?.value.trim()||oldProfile.email||'';
+    const phone=document.getElementById('acc-phone')?.value.trim()||oldProfile.phone||'';
+    const city=document.getElementById('acc-city')?.value.trim()||oldProfile.city||'';
+    const district=document.getElementById('acc-district')?.value.trim()||oldProfile.district||'';
+    const address=document.getElementById('acc-address')?.value.trim()||oldProfile.address||'';
+    const lat=document.getElementById('acc-lat')?.value||oldProfile.lat||''; const lng=document.getElementById('acc-lng')?.value||oldProfile.lng||''; const mapsUrl=document.getElementById('acc-maps-url')?.value||oldProfile.mapsUrl||'';
+    if(!firstName||!name||!phone){Toast.show('Renseignez au minimum le nom, le prénom et le numéro');return;}
+    ClientLocal.save({name,firstName,email,phone,city,district,address,lat,lng,mapsUrl,photo});
+    document.getElementById('acc-edit-wrap')?.remove(); document.getElementById('acc-edit-wrap__v46_2')?.remove(); Toast.show('Profil enregistré ✓'); Router.go('shop-account');
+  };
+
+  // Rendre le code promo du checkout très clairement accessible.
+  const oldCheckout=Views.checkout;
+  Views.checkout=function(){
+    const html=oldCheckout();
+    return html.replace(/<div class="field"><label>Code promo \(facultatif\)<\/label>[\s\S]*?<div id="co-promo-msg__v46_2"[^>]*><\/div>\s*<\/div>/,
+      `<div class="field"><label>Code promo</label><div style="font-size:11px;color:var(--text-mid);margin:-3px 0 7px;">Ajoutez le code communiqué par la boutique pour profiter d'une réduction.</div><div class="v40-promo-entry"><input id="co-promo__v46_2" type="text" inputmode="text" autocomplete="off" placeholder="Ex : BIENVENUE10"><button type="button" onclick="applyPromoCode()">Appliquer</button></div><div id="co-promo-msg__v46_3" style="font-size:12.5px;margin-top:8px;"></div></div>`);
+  };
+})();
+
+
+/* ===== app-19.js ===== */
+(function(){
+  const PKEY='siams_notification_prefs_v42';
+  const getPrefs=()=>{try{return Object.assign({push:true,orders:true,promos:true,delivery:true,system:true,sound:true},JSON.parse(localStorage.getItem(PKEY)||'{}'));}catch(e){return {push:true,orders:true,promos:true,delivery:true,system:true,sound:true};}};
+  const savePrefs=p=>{try{localStorage.setItem(PKEY,JSON.stringify(p));}catch(e){}};
+  const icon=t=>({order:'🛍️',delivery:'🚚',promo:'🏷️',stock:'📦',system:'🔔'}[t]||'🔔');
+  const title=t=>({order:'Commande',delivery:'Livraison',promo:'Promotion',stock:'Stock',system:'SIAMS'}[t]||'Notification');
+
+  // Son de notification SIAMS fourni par l'utilisateur.
+  const SIAMS_NOTIFICATION_SOUND='data:audio/mpeg;base64,SUQzBAAAAAABClRYWFgAAAASAAADbWFqb3JfYnJhbmQAaXNvbQBUWFhYAAAAEwAAA21pbm9yX3ZlcnNpb24ANTEyAFRYWFgAAAAkAAADY29tcGF0aWJsZV9icmFuZHMAaXNvbWlzbzJhdmMxbXA0MQBUU1NFAAAADwAAA0xhdmY1OC40NS4xMDAAAAAAAAAAAAAAAP/7UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFhpbmcAAAAPAAAAQAAAU8AACA0NEBQUGBwcICQkLCwzNzc7QEBESEhNUVFVVVpeXmFmZmtubnNzdnp6f4WFiY2NkZSUmJicoKCjp6eqrq6xsbW4uLy/v8LGxsrNzdHR1djY29/f4+bm6urt8fH09/f7/v7/AAAAAExhdmM1OC45MQAAAAAAAAAAAAAAACQFwAAAAAAAAFPANFKw5wAAAAAAAAAAAAAAAAAAAAD/+6BkAADwAAB/gAAACAAADSAAAAEHNMENJgyrwAAANIAAAARvoVnqgDE5GDwCa86A4nPKNmmlN9zLwAYqBsXX8zCEdMAPRX84dgHH8/Ix1dRTVyVd8nU7VHhyTIyCbqm9uNIgBQk4FiAbwIoKYh5nnCwEDU0RVZq2phVpxwZoxJA0Hg8sk0QiUtPCwfE8ljZ4uEWE9HKEqCWSAYlsQBEPDfiEB0uAUOTgrn6hgcHE62M3UPJVaex8jdXK2T9fvn5hDVk9Eo/dKUeghyJxsLPaNVW3uJn/gqp/OXluzrI2qUXd+Cmu+Wz8mX/2Xe9Wr6/0tXn9xqvv0oiWm0pI0iQGCKELUCMSGBMbcW4eCRZG+MhEFgOt8wxjgbWC8JwRzpFm4UaGLlUmQi0QPl2p0id6YcD1kSFai+kQ7TCOkJumtC+VVi1DPcoZJi7RY8wwdFY4dhnVz58jX1ZjqrtOMvLago8SBUYE1CAQgMGxdQeStzBWL6T97ZtJwBtUq9yG+36NCWGKcSabbkbSSJAoBYr0E37D1N/ccqLVIdQC6flRQtDYxH93/fHgpJh6DAyL7aQGrCZxMWkMTrxo1yMcHF91hwcn6sLG9FyBP0aHpAUSJ64s/bxQWTorHPPQYzRayju5SBdMjJ94vf35mNKADe48KhpFiTQWaEDS3HnVn3nTprTTHUkGVVTTBVr/+4Bk1gD0zTrC0ew0cgAADSAAAAERfMkNrD2JwAAANIAAAAQmtpnbWVAHGLqaqdgwpmzB2QkA9BVUcjmWKXJBuDUfhiuiQBxFBWNSQfGANxEIYGfkYBKirCUyjRMukiQWcSl20lhoToZlXEOBY02gXTbLEDlixGgEbWIw9DeuW7z6AqpJlz7n69ymqvHJCDnvZTesga9+baYej4y/vl74ez352qvPfm9Wy3+wZOvf2O1W3XEUWmjG0iiAMAn2bm8FxoNp6zENcLgxEEzswuJYRHBZO/nLbG4al4IhLOniEJQJNDxIWJwyIwdWJsZe2QEKSx2ciFxNBphmEHkSBZRCmVZRaJVk0bJmb0S0sYOT2ldjJpXE7xYh2GxVKCwMPFmPOyqBUmPJH2PQnbTelKYqHp211VjL0Q+ps8/557242iQB6Asy/AFrYUCbw5EJ9u3SIAlHonJ0jq8sH5KcD1eXjMpsxEBpwGyatUR2mP/7cGTngPQ4PEPrDDLwAAANIAAAARG04wssMSfIAAA0gAAABM1STDpKckonLjdvzF0wN9LKxm57Y+bTriE/BrSxhqKJXPJcdVoTDC88SsOPc9b+zfg16yjyZkJZca4iZPDwuxjCSUG7D1G9tKDKDX0AJfFXi00qbYSbklkjSSJaDPNQGQYJbtZnT7bnJwQXjGyoksZ+kmRZPi5yGm8RiuLzELYqEymGNuPdnurFWiGJRKRriaYTfeIWtxVdFXCoeLb9feta1ZATYsiYkMTSBBKZ5SGrIFY0Fuau0C5G3nD0qd/z+omNRtOPsVqc/94R5AHVyGlZEm6jf1/vzo/XW/q0IPw/3fyCNuOSRttpIEcB/wbKrLwo4lmRFIcyHWpGVgTkeG8Q8+VOiIhsVgERAkujDAz4ja0jSmn/+3Bk54D0QDlDawxJ8AAADSAAAAEQhNkNR6WCQAAANIAAAARG/FCSkaPFGQocZSabJCWkRLzFNG5TmRJudKa6wkP9VZJGgPiRRD1BSSMCDTNTYkPzRfl16MwRJaeHiQXOOBth6lghNIBUULMBvjO93d3n6FddbkTjcjcjTRDOU+qoWIhYyR1GjJccd0QnnJ6/btqR67arl3VKAiRAMWgPDHPgq9Qu0ICUUkaoIlCdoHkbKALNoDYHiqkLZEQZMRb3spFA3EQRJKQ9J7bWtLo2z60lFDQ+1GfOY7+Wznd7Cl+kVDU08mQEiAKty0Qmmye9taoz7f1dJlwolpJ6zKBeUaOkOcbvrXbZ/WttI58SpVE0VhdzlXkSrF93OqpR/w9BzsCfJYe5zbSJOcSICWCqCkJhqDabStB4//twZOuA9Hg+xGnmHxIAAA0gAAABEJT3Eaekc4AAADSAAAAEQsCcPFRyTyJEMwaCiSyBddBKBClw8iFgCiDrISZEBxFiEiqcXXjF1GmY/+eU49GWf3Z9CKGeh6MnQ7Cf81N73inuYeZ9cG1rP/+/vP7frKT1VXGmk4jbVKFQJTdTI/GelrrxRqDnXXw2kM3ZW6TxP+wCTq+j7YOCwG0ny5eSUaVt8pnpMfEkQjlgtLlCFqxJq7FF16he6H6GWWX61P23kMiclciDijRGbbQsqX5MSYxgmLYc0nFyMwbISgfqbMZMtK1H0gS+wSRjMdzC3Vf/sH7mInDbRPR5z/q9u2dcd9iR3vbfox3Xfu7erqWUAYDF3mMAo6GIPTVUzqNIAo7Mj58fS6HxaSkk+4UhQqArQeBfxZPx2v/7cGTsAPQSO0RrD0jwAAANIAAAARJA6QuMPSfIAAA0gAAABMUjqakhKHpdUaPaM3pV9E1NjCiAfHVhxYiK6hCr1ItFyhJNAZQwEZJRCwjEizsVQUmlMw5+KqKwhrcM+JekraN0oMaure2uqtg9CqVk089//u6n/b8NJ2nf7mz/7jgYjFfp5RWONNKNtxFIkADMVEU3BSKmDDozOSmTOMy9zYpHKeIx+GnEhbMwmVqSUwvbWHB6XbIZVEEzLQwXLyoUzlANi8fHLB8bnx6/rxVLn0hVmrUK6F1pVR/6ZSx/E/E5Gc2XML33bGaZYeowMJKVp7sqLI6ItS3Y10sZ2q85rJ111szu2tZTajkz7Em66DCtMoLLzxM7IJRtuIz0ikAAJ1AAYgdQMZg0GDcSNJgzihpshEAQCAD/+4Bk7AD0sjxDYwxMUgAADSAAAAESAOcLLLEriAAANIAAAAQt4kIuBWWG0NOVzG4EMAIAwEIaS6C2LypYEU3saThKBWRbn6pnNjVicVECNFisbGhiwbiGFwORDFBFf61Oy5U3XMe7i5eWC6fZ1qTV5I+WxgiUmgbdK7d8yx7wZ76/znO84jxq2+cW9/il/TVa1n3WJfe8U+/8Z1FGGgkYDQqqHkqWuKtSLqZJIz/ULUpVMAMAlAYAoBgDBER4FBoTlMCgIMFRzEYlmPqamF4gmGSXGYI5mSYsmL5vGlo2HXiaHIqOmQAyGW5PmQwXmJw1Eo0Gcw9GtCRhpyaajmMAZAwHuYwNIDCB8x8lNvOUaQoBGroZhBabKlroMQDC+CaanBiQkHCoCIxJvMICTRUsyMG1vBHxP80kfMAEh4VMlJzJCk20xKFNCo3KQPExjHwdiDoSykl4cvGUjaihQACwKXbNyNDYDhWecMXB1f/7cGT9APSPVMPrLCxwAAANIAAAARWNNQ+Vl4AAAAA0goAABI6r/IgKgVoJQFd8XMqIAYDmIgZvzgJSBhoHC2EgwLUCNHGR5hEhJJCxUbeKV5yGnEGghKtZ5bB1aexQqnQQFrFhAwAadNF50indUsqQ46kw4j8YYUl0WAGNlvy6DcQUDhghZtwjBuxgAAsArGWTEYA7L9P5INfzf/37f//6/5Clwhmt8EABaBgjtMDi0cfycvxiC5I8T4Pw/2DNl7Ry5qfo5MAAAAcAAAAACAkPcXJGRlDAKDLMI0hwwXAVTDuNwMJQE8xKQsDHoc3MbAOcyT3WDN9C+MAUC8wyAXTBED0MUABowuRIDBoCJMAQCEwHQejARCXMTBNEwNwzjHoOgMCQGIwAACwKAUYOYSokJYJBGmBYBgb/+8Bk6AAK62ZNfndkgAAADSDAAAAxQZlBWe8CQAAANIMAAAAIQIZg2AUu+MgDMaKoCingCAeYBoDxgGgTOwFAHQuAWSAZl/DALACAACZgFhQGB0AyYFQChgIADAEBowIgTDAgEVBwHRgGAGqOmDuG2YNQcYCE5AAB4sACm83qqxhVAwkQGo8AkgKMAMANVxhEgmI2lnFZlZC5WTzqKAEBoWA3MCkBBJeCIglkYIIBRgIiXmGsBSTAIsERzXIQgqGBkCaYXQHDNC7UMxiK0010uMtMeATj92ntVncj7EiyS9m7w/q7eBQBqjhZZ25M0UOABiVPDUi56qiQ7L0P6VQJvtO5vgEABaBJ4JR6o56XY8/n5SrCUQ9IquGOsuX5TKI49EUyj9NMUnxPeMstzUNQFHIjTP/M50PKtLNK1AAIADAAAF4OF0HCMYICCioHC0DQOMoScNS7RMMjRMGwUMMQiRGLpJUmBoIGG4Gqp4RdToOExgMeGY4IbGBpjYHp21XVlT/PkwaKU1WTuDQNXfF0dUsOv7Lo9DtHnyZ5pIVLkwAFTDAPMQAEMEKAFaU9DNSrcvUOMWucm4xa7Q4V9W8q1Nfml3L+a8zgsAYcDpkoapyqYqthLpSnCmyyn//WHL+qnPu9597KWwfSWI/BkR19Fl//+ON/Kvh9d+otrKlx3lNcq77//z/x3/659Si1czpLfPtU1nLe9c/Dv9//////1dXUQAgAOgCEfxoTggDrlMLBMFBUwYBQSET0VSN6ggQCkwsKS7yqr2GAhWYjFD3UsYVuV0rcBJAGelVs/F5TjQO9BdS2vSGYervlHqaXROp85LvxuZ2aW40mBYYMA0uX2cl+Yextbx1GtfqpXs5Vqb+blVN3ePKkrlVI3AHDKERaZ3o+9Ut93xUQU1erXx2RR6NsvBk1Rj4v5iJb7qP2kezVv/XExTt3orRy/cuIn0wNMr8dhlAAQDAOwP/7oGTPgPcxZdDvd4AIAAANIOAAARY5Y0OuYXOgAAA0gAAABEAuDEAZMPg0QhYDAcwIDBQOmIgEd/fhiAhGBAEABFAYoAEQjEAHCCaxSW1miKmdcRSY4gBEsaWu+VypLVfP3Ajd4GeCdvyibkMU+K08pywx1lSRmrchiItMTKiLyWr2XMMK1Sit1KnKlarhzsq3Y3lhLIcqyNnxq2LQh2XU2lO///jv/ekgRCA7FaFhIEIoIpQvH8KefNfRZZ427mo+a2+j6X8rdABEABAECcFQKDBMJAcMZhGGSV5gOERhCJ5qVW4NCUODMwjAtHBDZGQcAwBAmla2tNp9mGGA6+GxwPs3puS6fhvb1y3fOZRFuMEcr361FRv9D1Nl3Olii1mrrfZurti70tJh2t3/TI0gZ1aBxR5EuvSOs5PHysXT51IEICVDBAhxCmpqXSONlJu6b/9SLRVSaJWmDMpmtXpFQ6ca/9tRKJi+Nbw3TujNuMtQpJ9OFBCzQAsq3AgpAChKBnBIChgeAgcFBgKGzBgQEoNCoyUmIxAEQGAIYTAStYwIAVkzORUAp6tuy4wyBhYRwDUIHAdEaK9hXjj373vC5EHDdqBsY3DFHXitLS47s1bFS5RM3jEPP/Vh3va3aaHsLdn8Mu7uZVM98xqfVis7nQNKC7mzNkheG1YWvuDZ/+fVFoVDk0wQRv/7gGT2gPVWVVD7mEToAAANIAAAARZtNz2uxfyoAAA0gAAABEAeAJQ8VWP+VmvnhueGJhfdzMtS5KqQACFMCjTqn4UKMbjEQCAxKEm0MIgAw0HzqsRA00MABIwKJl2gUMAYQpVAYWy+fr5J+p7Dr0A6NZtr6fNry7be9GS5jqVLVT88zF9az9XZ2U5nIXNWRSvVbjC3rnQSllPqPF3EtaO2zwHZMzUiWkkzYiQEclSq63NiKtVQNqy4kzrZTkVTUouEPFTEoE0sckskgTLHC6ntNTqu5bda3usYV2u1yodgAJQAKJKK7gqhm4Ax0LbGOeakxgkHnBImAmOYDBYXCbTAEAzCAQMBgESBzrwZ/ZO8giZgPPjTa266jriC/hvIrNIwLhWSL2qZf+mPm7E3vy9FqDvEstvN5r9rpPquDfwoOMx9voWq1pnc0aDdcgBw3WVzxuN5nG17S2lj4xjX+b6gyvLqTCpwOw4zwvmf//uAZOuA9RpMz+u4ROoAAA0gAAABFIkbP+4+E2gAADSAAAAEf7vvyPHLXj8c7nORqVAEEQABMhmbgwQBMwcA1IgAAeIAEEIWjAeGKMOGG4WMgIgZTiLeqDNRHgdlEW3ycTaMFTINzABY7Ho19LKmUDk4Y1c54p/KhToap2Fn8/3E3DZn0rMZg+FDuP//0UqU4kJrz5w8cL6q8z3l9WxElUgkjy0m6KZQW2fWTVmWudXqsXg0cwwYP6yB8NEDy1x8xP6ai1TdK0x7b7ccV0FQHAr4YACDAAbQbn4CDgKjYEHTEw0SMTDQ4wABOx0R64EQIAQ5nIGClURUIHgP+9rwPEBGQCmS3Xdws2qkafyAJyct53HkyjM12pY5KL30mPM6WQVoxRNcga/zD//+xmxO3ab/xs2cNVbk1bs1Mo1nEYNqgYDoSXbme4pJ4p0lLjKF+oe7xXHmUzocDwpJQQDMGalfmqx1f9mjhf3rS2//+4Bk7AD02kLQezx5agAADSAAAAEUCUM97r1zqAAANIAAAARUCIPp1jwAJlgA3N53cCwMMMCJWswIAgwVmFBUBQCaGSIOK5f8QjFFAweNQUBAgPmHxAnOrZ9WkQ9TGHxizS1H3a2CVRlIxq+CVCjNJlixznXVYm7Q5rxmuqqDYE3MVXrblFzrVUOVB0Mra8pR+5unib2i56pRGzZx/CfizhC5eU45jJptdVTS83prmZEECmQA+RAvCSni3iqL0DKvbdhgI7xAHdu3/gRAphYsYkBAgpJAAxAjFAIxXKGBB8B4oXUb0YCICBwAKig8cCAEh/b8NGEY2D8F1Kv186txy3c3DV6VPC7D+Q1TUsXnb2H7zsYY5S+KJrsQXBrKW9/fPpZZbnda3h37nf12pVuXd43LM4vuMhC2XP1u4hHTIT9SuclEbbCDIAgYImkBlZUWtMPgeLHwzdRX/+jkAnwAGI17cAooAikYQCGElv/7gGTygPUFS8/7fEx6AAANIAAAARMhBUPuPlNgAAA0gAAABIKNjJigLE5s9CJHIWDkA5h4OY+nGxFC6WUGBBgcAp0UsndEqkYfqQ3VsHYjrDBviuZrHyeiVkdIrve3sU19i7ytDC0TycZU/5tMtvrFLaV6iy72Or/r54Wd/c1i+4EMDTQRarcpPgrOUUlLqtvHCxnuxG7cplfat6xKMrtWOw5SPPKf/s5jjCAAAccAB9Gg3gvQYVhcIQzMWhBMGBuO++pFkGMWgPARHgIBwAH5rA0BngWJn0spocPJgaERma5B6YXgKAWWuK18GiuLWi1Kq7SVIICBQeEtNgEcAkwCDZBO+aQj2xNAcudcDI0BRczwIUWGGvI4ySoLgbhZsZqqJTtmdPJH5KQzlCZCtFdKor2MvI8mAnve5hT1xus0M7QOR+Cs1WwdQJDoOla46S5VUXDYpcg0gTCKAHci75irX/+XuIty78+7Pm3L//twZPoA9NBBUXt4TOgAAA0gAAABEwEDQ62zE2AAADSAAAAE7AwQqQAoUZAcpeE3hg2FSvCsATAAIjDkLTo5wTX8BTBkvgMGZhGDIEDIyTP8IWwRhKYXAWjWCBCMJwhZEqKWIUmCJJk0iuJlTvyZ4IkOU7EiVtEC4coHeqO1IpXXtQVJZbS3P/GzZryB513Tshwt/je72EFUVLLZikjcE6w3SVYr/f/+52N7kruO45uu4OVehxavuhAvmu3SqAFD2FAaHhYuJV25+VIv/G0PFYOk5eSuWzb74HjAAT/WoAQRIUblN/BWAsQANodB0CcUCSMK9HAQg/EoV4KBQMAAAgwGwAQYFUBgX1LIfJgaKggFDp8pE1pSsgZYaRZjOYlo4A2KvtGbc82aX83PU/xulty2DbmVy181Wv/7kGTrgPYpUc97r0Y6AAANIAAAARbZTz/u4ROgAAA0gAAABHazjt3KwWxl2dbllixazVKydzXeVSRm20r3NN/ePq76ZhYAEhTq3FasWf8Pr6+KV9qx9YnxvsUOMVj9QuLZ6PYucf//H+MfGKvYuN4va+c53aeSAYLy0AgiQNtvHQKYlBxhYFmNxcYoGZ4fJk5tMGBQMJYIAQiBZhQTmAgwqdYZOtuwOCXKGMKoiNTh2RjVeBRfkspozo0q+ypXbAn6O479DGyHibFnHLSaJRq81XCbGZd3Oc5Zzgjbva8BietylfqoUHJgAvCCw9KTSKdvrSMFrTUvS1okXOmxHGhwbJiKa9nZHdMgPnJRKfJ6p5i98A40QTcVF/BgGAIACYGhSYZCYYUjOZ+aOZgi6YFhsYGhuYUg6nIYNgsRCuNCCXDblDI8IlBSv8ghChbg5WYldgQnJNqSrFmLT4rt6wIS4N60qYcee37gmUghipJ6hDLiPXb3t4y3rPPWHPvcKVxg//eM6+J8gVS2x/+KEIYQswREQIAodfraHjHAaArgTP/7gGTsAfWIUc9r3Ht6AAANIAAAARMVAz+uPjNoAAA0gAAABEAE9emib6+q6qzEu7mN86pfgxrZATyAxogfG6Z8DR0PzdAccC4NFQ1OrQ1rDIwOHcwpA0qgGpIEBOYQAa+6bsnQ6EIAzUTgpE4sGONIzKt4ZImpEeYiCJV1BbMJWq9vUjezTwI3xvznS7JmdptRozc+eVvlaOqNGntNHgWm3Sm/r5xRmjLuQ6ggrTjFHP2vW8XOd5rNGm3v/ersr2dD64iIJ3Gh4viNbdobzdYUGrKpt8xYMGRnG9X4CnwhWx5T4GDAGGAYMmDwoGJ4tgAPDS+rDMAYhCLhgCIhhMDQ6ApgeERggCS33FIgVkKB2tRVfIgLsmOj8900eltaW15t1b9mgoo1L39m5uXyn86/e7xpZHHXLXks9MCPduVcbeMM2rUW1qvnqMyG5F44jSRW5eyNFNAJxCpOnz6JieQrc66PmLr1digkQE4S//uAZOuA9RtRz2uvROoAAA0gAAABFEUjO6z14+gAADSAAAAENkAl7E7ydRlGOrTzc+/+rv44fc12oDWdCsbpnwMLAUwmDgcJQuLjAgtNf/03IETKolJioWABBQOJph0FJ6svEgPg/ku27yc5ClxJI0luiYkO0rp+dUPDo/qFVn2MQzyvzOaVCcHq0tiAQdcUftYmLQTN9v9LNmO97KZ1DVCz4XJT2Jw0OaT1atk6mQSPomRoREyKDF1I+9l4570IFEaK0rgAMIZgW1urcAxiBzHAgIh0YSLwXFpujAmiQuGJ01ocCj3xKFxyQ7VhYQYo49iNNM+alkHBT+JTYczUikEmWFXHUsNDo75dtEGK3oVh1I9rTeMZgODEpUuPk+IzHF3b28F1Fja2+rF+sT/+ucQdbwkQQIjRDv9OESk///tXEDV8Qb5pGYa6s8al5nSjx16HQAQoUgS2WjcAdCRhAOkgMAglMDjo0B+D9nj/+4Bk7QD1LU5O67BPmAAADSAAAAERaQc9rjITYAAANIAAAATd3DRCgIEL2BoQzAkFCjCQjWJ29Gjd7KqpmSdUFc/gPVIarEtJ9+SVwjtiNulGtSRMw4cSFLPDVF06fiAK5Ot5coDl2PFqMkWSz2ebMDcCfGP/nPtTcAXBeVX/kxaN//82zmV/elvF1XOGVNxqsO5pjDJROpZqpgBEhFAdY8NwB5dBSEAiAzMXMQCDz6opDBCyhhwW4IhcFLxhBIhLTiDlaRNGtShtlqDLTEp7mWUrYxGPh9A024kKND2A9X2KbnNdRa26XAjEIIhisZf35yq4sGrfJ6HTPYk+n6DHlrBXhxmrabspurWmmbpl8wQLjoJGBqbsibGoTALo7ZLgBrDQCW2d7gAQEmDxMYXFZkkxBUWmINSYoiZp0GL1KzLEVemTCt+IBplBS6CYYofUgJzir1Tgp9KR6olTHcIiWiMTFKzbZ8QVa3L+9f/7cGT5APR0QE97mnnYAAANIAAAARIBBTvuaeWoAAA0gAAABBoT3bWzP8GemTRY6U/t+4QWJ7LiLhbjwGe8C+q234L3TWbI5RATH1jMkKsbPv96xqnxjVN4tiltNcWGtwR199WgAgkAMmxX8Ghl5nIgZg5HHHhtMeaMFHkj5rqKYSAGNjZi4qY6ShYUMeFDCgAgCwMLtebkX8Q0pQtFhxg7kEFWHIhGqoYwIYrKp9Pq/dcfV2SU03NgePIsM6BiuLMbMWJRstTbGxs7qPGmpR5Ao2UeZu/fx93ywsLLOPBi9qU+pzbb1P7RVds35vzTUlw9PjI6IECiBAFBQYEYDitvaQFGATFYrbR+9tAUIEBISEiBBNNfYQADFIiAXS5XcGAcA8YJoIxgFgiGQOgKY1GxmGhGHRQcqnD/+3Bk9AD0K0BPe2xs2AAADSAAAAERqPs97mnlqAAANIAAAARmwABgtMJG00RWjcJOMVNc2Muz3BGVK7MCYNCTTVLigz2jTAidqYLBX93LnkLzEQIaKLaS9CAIFEItNDh9201VmL5AgFKwDAkHpXQvCoK3dJFtMXdeealtWit1cYJfCtEsYVjHrV6rKKWpzfN4Vs943KZgLzV8O8s7s95hQdpcp2/jhMWt7pcs412GoPzpLNvG7c5vKxh+Fy1y3SZWp+pWtVqO13sduzMtqzc4+0atfjT9gAAQAHcVU+BgnAImBoDUYFIMJjlJEmSeDyYQ4BpooFnHxaEMAgAwhCBg85mDgIXzEQcC4bcyfdoDCp+n2CqnWnWiSidWzpC1o3gIaQbZXHzvIt2431Kc2aWlcIa0i2Auq6cW//uQZPUA9ZVSzmtvTOgAAA0gAAABGo1PO+9zQyAAADSAAAAEXdLTbzVJvX9dVs37Z7QK11nP+cS5bBZ1OhddeC13pqL7R4taa1v1lrqFBVL9mcpMuOW+LPNCgxbQrxLRI1Yvkl1ums6+K/7esuv3r6gBjOB61c30GGQKGQgtmEYcGmU1HIYTGKCRmUkpzVSYGego7R3LBIGKZdAwcMMlAl3qsQ4u5GbIijRIjnPXIvr5S6QLRxXHdFQu3LqBY7OXW6v5AX42FQ9M4v6t+k9XnSO1y9ZjyrAc02ZmZ2Z5IbjMtz8ydNdjUFqUf33v7PhyX71Hs/efjlyCnrMmcysxdJ+vLSxgAm0hXV4/4EABwUA9GQYDBpQSEUYbM5GqiQJShY3stRAg6TFq/lK1KJMiLJXypZeKOZQzUWaFE97FjlJvMw+iodo6h7E45SGw2qmUzxyIA4GgQOvXi7barTltax6fOeKv/9nKoNh+u6k+bGcOltwu5JJV0qLF0MNWJpG56/a9qKx1ZIiL9gVhd0rWcE70AAdIVAW73vfClHj0YYAB//uAZPAA9XpTTmvceWgAAA0gAAABEnUbO67thaAAADSAAAAEumIHsBgZ7UQZcMmVAho2BoHKgciBoYu8QFQc/YFTSmBYitgUikz7HtFAYEBhRrAwudsrsxVGfkR9CfqKsOa1Xsjcnk4vkrNadjmn3NjMJ+4ybdybrZ9iRt17fWavcU6QFvJpN6PI9e9zv/53im/XN6Y98PgSBZICWlKg/2rfC/n1VWAAhHZQO6zv/gwIEMxNHIACCZZ1uaaCqYkjuYYAKFAsBRWGBQSCQEmBAABAUKaEgEmAQKPMpzUeaw9woFpME3M2+LDcozxJTJWDGfHGzGTdhmgUpAi/4nniK2CV5dlVEj1tn2u2MdfBpuL4tqz//OvbcCGzlzJUmcZuAYuwmQ3ETc3FCFFBOEZrPMXJWdF2uznMpiqjocc5mlkRqAAZYpAG6MFtBgXgXmBEEQYBoI5iSJHmI6EeYTwU51T5raowZMCDQYMi5N//+3Bk8wD0bEPO69tY+AAADSAAAAESFPc97mnloAAANIAAAAQ/DxIBqmSC00onJdizoYehhqK3czNlOnI67clMwnaM4yUYok7DVu5751f5hxdsReS9IuNGx//TUO98Qv8+WXX/xb6pFopwgCsQq/7NvUus//6/xr/D28uNQ+ExyRRy2hJugW8hLVhCBZCu+EwqgAJ/gn8vm1B4mHgmYdBRt4ejefMeJgSNRMoQ+bW18m4hXVsSKp3MQlQHxBz5HBxV+yfHsavSu9YiEAvfDEH00y0GY1LpRWpp3PHLdndPKKRulHIZHAUN4V88eZTMmrY0mVfWGs+a/n9wzr55SSncEEKi712csbtP3nOfrv5WPk/OCDlOI5a2cc/mlWUypv+d9df9GAEOTF/d62AMWRMMMCFMAQ8MhMsN//uAZO4A9NlPz3uvLOgAAA0gAAABEwD3Ne9p5agAADSAAAAENxSMSQoMIgGMNRIMEAeLQL4DgbDgIYOrINARVVZXbPEouVQtFgTw+yjF0fZbpDqQ9zUqga351XZznS+qarqke8BXM5fjuJcdyqvnH1lctJnrfgYvI+mhx0zr/W92vptjDWTiUxrCGUFmiSRoepTK1DMJB4oiYzqOpfzMsSpgCzyBbp9bABcCDAUJTBQUjKfajWwaDBErQwMRQdysHLRZWNXEK5COkguPeItzWht9ktQvTDMeVPjRu1autAbnCm+taOn1zpbRhAkLjk/Hs3WlhlECQjqYP/5nlpwRXHUV6VdVQF6O80n55n5Tg6XHq383tHnV2+fDn2n5n5ym0dpy51mR1D7f1gAISEIC+u71AMLBcy+Sg4UnMY2P+0BBUmPGmpGlGJFGCCmbKmBIrDjocyIZ/kwqGjlj1liWTY8LMkbVpVtOwDwep+v/+3Bk+ID0mzfOazzAKgAADSAAAAESJSE3rryzoAAANIAAAAQ8RxfubLBVz58zSUetyXP84FSTqh9MrrU08lV2aJsLW07EgpyWkKlf7/Gcdw0+KFSmU4ftjnm+rZ35LWi6x+8qEfEftipQAGaFMC+s79AGh4MABoJBXMD9lMoBPMJyqLXnTKnADgUUZEEaYSOExKm3MakLEbVr9rNp4gUk1qdtwIDFlUm4qT+upjRdo59LVwaqJ9L6bq5kYlLDb3Mk6Mb7b3/+2OVYMOaHCUzzUlK7rnGv/ZiP4EbOUC2tRNsm9tlNdtj38tHDFNU1jVvmBX+bV7SAAngA8lwLEBArMJRTMex1N5mBNW2tO/e/O75pNGzZMSwTGAGMuEONZHAN+k6MZgFDAGMBQ5MhzlNITrGgYRPJACME//twZPCA9EQ/zWu6YfoAAA0gAAABEPjhN+5p5agAADSAAAAEAUMsLJ19aA2thU6cGmcNClEpaiWYxocykcJAEDjWKjVDjCvTu3zqwzbuTYrzZtzEBAgAXULMI+RVc7bwAseD5dblUkpGUKkLvl42hsANoaHUpqz6A4wwRH4wAJaphxZiQaOwGAMxbfDfa9rCxhnDkoflgDvT1Jy6cEwPiWSxLJ71LMde8y2vpw4AMLFikIhq3jpcLEd7niZjkONQ5c/hvjFX/5yCmt2cn34fyCsaAha6Tpq3W01VAAAhhWAGyEDfTALAqAAFpggAcmAwD0YKwfpojGXmeSG8CAfgUFGDgKjANAyMsEK8ztBrzBzAWMCkFsQANmC8LSZVQIoirGPBmwNmLXGFZD4ZlzhsRT/NgLBzaXu65P/7kGTygPRmP837unloAAANIAAAAR81UTGu6ZHgAAA0gAAABIJHBd+LIZfHGtBUAa10Z0MECnxSFP8BNDBLy1RrRk7GhZexHGLV6wnKaLgEeEKCNHEdxOTpcT9VqlcaQZLWjPp++o2ukEUFoj5mT00tYL2Z7F1Bm81XuYecys6jiPECXFQsiShMq7guUOjlDmjUs9bNMakTx4NipVRP1WdCLPUsaLVx4EEcWc/EkcDcwpY02Kl6xqWlxmH48XE0CDqB4k958yeXW4vi4l1LEBBRivds9/gMAaOALkgERgNgphcJowg1XDDFCIMCUB0RAeAQBIEgEhxJJuQm+wl7xoBNiZKA0VDjeovFNW6kaeICuDQW2JUyXwgIU3ctCUKO8sMkencIlZM3zB21rpUI1OMKw4ZvlrevZasrZbf37wsPt5xjNa4zBc2QpIc29TazAk17WtnWfa261tuC9e6hK59qE+fbrWuqxa/Ft/5rX2hPrZhPo2YL2Lh89rrEJ9Gx//6biC8CjQp4KmAEEaN9ZnQAVg8PCGYFAKYSjqYfC+fXv//7oGTtgPg/Z8372nvKAAANIAAAARdZUz2vZetoAAA0gAAABKdjASYmhKHE4YIAgX8NAQsMuyBwFaSzRgsICZEMDiSq6WkrHzdbKJtxMGGR0edvIy5ocHjj+KYtFkmMNCJ51VDg2c/Rx7aeKy5Kk6s2vSLHo90/1i1NwoUTMfe953iF8RHzAJCT9XOMaBdqko9GGwz6oQGMIHZN1rQYDAGpUAQEIEJgFATGCOF+Y2S4Z6uCZQgGSn48hgoJMsFjMhUOIC8r9saCCJJF76dsCW5NL/8G5RwLyxpGhxiyTsyqpjwYW/9YpCXLO6OkmBVrpmht0R9fF39ry6xq0fbk32/+722+14R7H6w/Ob3T+mzTzGd6+8Y3f2kvDRXJC3GnRNLfVXzyFJjl9z8PZsAEFOJt95bQYqhkYaBCRAMYMCUY2iEceYYcTiYRFSPPhgaOgDPxzOCXi0vYLgU6k64go4nMrOPprX5bztcIcF0kSDvFzK4r6FRnKFJAVUdwvePeFH6pFnM4+YtqT+u5Y8XcGK5QH969SU3f/Ft0lxkYRDDcV8TriOh4UeIBKVBf0j5XbdDuWHiuO3ZgMV4fa7zAAwEgKhCBqAAGjAtBSMAILgxj0sjD8CcAIFZ0UGk8XzN6Yftlbu4pOlYTOVLHBWevEb63qzEEHVapL2G6VISVUBUGx26gHq9yFhby2f/7cGT/APRKM81runrYAAANIAAAARLQ7zevbeWoAAA0gAAABKrioYjiiCYfSU69Fau7Hb3HGnU1I2/X3tMzPS3RmgmiILFWMrlyvcmcjm0WUfVRAEF4YD8/70AMRgXMGwYMBgDMDw+MYBnN18POCA1MDQkCeAs0FjQXWe7jAVORk0ZJCJWI4s5YIoYLzWZ+XZco/mRJuhSqhd9a0ZGYGKKVXqDDPPGZ25+chPBch/K9xb9VxK8kVLQf722le9fxrPaZpr7+aSYlYxcUpX4hZnzFxEpa1os/prEIlb1brFUgMVQK2/KwAQANgkCYgALMBAAIwTwpTIOVPMSMI8wIgDjSszHkV+msQHBHiQiIydP0rDsRpK7Dkhhq1PSB9GOmJ4ErWqUS54VrcwMU8sGtUzHbX76HDViTPKr/+3Bk+YD0VTJN67p52AAADSAAAAEQGN03r2WH4AAANIAAAARiK6CcEK8CsNmiK1uoxLlZkYtamifWv/48uqGeV6NSt7yZmw+96//Wdz2Hafr/CW37HPIW0qAIbMHfN3ZAYRgYYKA2nMYCCCYOiobPXAbNhoYRBSHdx02osWJYZhd5/AwKVBYhBLQsrSLOlUSPRqb0x8drXUZTGINGqHhiuKcrBDK2VaXQ706Qh1PQXCISH0/v0gsyxCctxts/RLpvWZmfmtXqphBHwP0eTZhbz4o+FgWS4obVIoDb424pfgmzCRaJ0SYAoISgv+vOsBhSCAFGMwEBIwSEUwFEw0jtYz4FgwVAI1UY1CAvOWCwOkP28DjqPkQWdXCyxqqfpQn5zCfYw5mUYgO+glhfVy5QxX4HwlBqaLnU//twZP4A9GU6TXu5edgAAA0gAAABEeDlMa9p52gAADSAAAAEXOk3JtimP47eKe1TQG1jtU1mW9Kx//snYBxItX/RPHJZN9Sx/FVTNtMbHrHDaVoaSuSWo5UWqFqAAFNlQF29+0YCpcyMZlgUKQwUD02D4E0cDswlAA/ARCwYwp6VnEI9rIx4Nn9eQRuGmtpoE29TcTglU8CRp5InSMGk8Z5flO5PELUbh2o8lFch67zkp7WhhldyQa+rd3umeF2KaxlWtb7Zyq9y5zPO5KpJRStKpGhNcrDU5t9uYUVveVzL86976t/urVfO4oOqK7T/z3V+X4AQcgnumtbBEN4gGBXZi6PxgUO5xBw5vuOJjEB59tmSa9QK3ME1oDcy8CLq6Xcis+xMUoJ4qu3hkC4mNEE5cUJJ7Rms4//7cGT6gPRnM8zrumHYAAANIAAAARFc/TXu6WfgAAA0gAAABCmwloz1SnefbQ3Xy8YKI9xbXpM1maZ9HzbLWzwWrMePNBuwyx3KksWslWwynN+foG8AEgOy68lNvbZt73pnN48upRxGm/QefTUJmkudeT2i9YAAUYNAL/XvWAQg4YQASnOACTEAkGTGnGmYnGAgLGzMId1Tg8CZYyLJlLoPVnZs7EliEbJFxM+sdnzJHVNY/MDxGsPESl1BcqOQxXtNtfRCEF2IQQPCccqp3sxHA3RJVFz0CLtzdr3TN4y+fF0VjhFTuq5eZymW+mTzADQJCrQVeQa4YrLJqgUlREA2NdBABo7KBb+YaVhg0Lt3MjAMcBRz/wHCBoYtDJpiwCGGFGnFCDqoLg1gBpCiSEJGeVPamFpgdfn/+3Bk+QD0vjvM+13IKAAADSAAAAEStOcvruXnYAAANIAAAAQHdQ0y+23bbULix6vlk6lMzzqNdSKtT2nZmBxQ+DqE6MmauKf4eQNPJZr++4Uu4/194rnctXxUluX2X+BmsOFqNrW/vWc6r4Dhsfo/pb1JAzKl+D+96/6f/W2AAHGDED+l7sAMhARAwFqYGBByDgimWN+njFJhIIYGcgZeW6YICAUTLpDgc2eVjwbalWC0gRHDzlL9curCUGY82fDCBZgl4DROyWaNI4Or22UnYkj0Cgooi+Z60nOYmW3TrYoGaMv5OT07fYEIHkR3nbE7LRAs/GpAxlbIuk7hywjwBF4w99vaABI0AQHl1jGJYMyEU7F1TqofMEBwzUVMLERAMAg3EQ2k0vJ7kOAQOy+jlq5BDbCSc0PW//twZOyB9Gs5TPu6YdgAAA0gAAABEgzrM+5p52gAADSAAAAE7Gy5s51PFCsxUPjM0BvKd+rHFkUdJne4iEzvUkdxrkoSKxefTy3Rb+MxYYHJ+1Q4N/eD76vqXL5dqQ0x4LLTJua3g6fFfpGVFMKgAFJoIDsu8iAMC4AYwEgO1SmBWIKYCAJBhjItHZqAMHwAIEQaYOBGFk5kgeyF9SgXMXJjQx2ipnrKgAS4BbBt8IzEI4g54LG5YTq/VRqdPQoessSvrSmKQ37CWxLnsVLJKwx38Biwtos82iJeeHtmsqrM8s+sXxJFgKWGeSZSmL7hTaQprADOuHv/5qAACBXUE239sAHQeYhDDwmJE2SBI8m6ilMiQ/MDABBBAIEDBgICR+VIDocMBBKNVIaTIBJsGipR4U0pWPTaN//7cGToAPQJMsx7u2F4AAANIAAAARBwzy+ubedoAAA0gAAABHiCSDpIYpCWX2qdyALi1uequ+iC06AY65Sj9n5xo8dlf0cKTGmji242cb1ieCjWIYNWFbgYxq889PqPWD8E7ZxDTpPH1aAAYpcQG6/OsAwrEswEHJWQAC4YeiqYsbyfauARBg24KVgQMZc+hqa4CX/HgyZhkh9yzaayDZhR0n+WqrXDxE3U6Es4PzpsXRjmhM1lQzRsYvDjM5SPjDenMpn76Pm81LRPtgtvwoUk2bZ3rOdSXjwD5TrVvW8SS38v3nN9/H3mYf3ppf1SAA5wqAf3/lYBrZIZwYo3DDUYaOH/IR9oCGFhoYqYiQlRQyEDsZg6gFgGZFwodh5+2RENBGzR93EWqbSdEkasmYt2JSOUKWjExtz/+3Bk8AD0YjLLe9t5aAAADSAAAAEQXNkx7jH1IAAANIAAAAS6mlivHM6IQ2WAvBYHOWtKXvpiVMR/Cmc+1Z2y63/uvrCgKZwJikXGHb+QieEgTTWLJX0etYAAYUUQHezysAw5BIwtElsxhqB5iYLRizaxgAJQjB8G1Go8iMZogt6nnLGYoFhodmW6YSKlC9tJQc+UUWotR20WnflxOOxwI59Wh08de7OusUWul1sczquzM3ksNli6TW231TyqTiJ3c7X0hwWy06RgMVtZtRW8SMhiPS5Pk+2jL3v+uQAAxoigf3+lQBAUmUpAgATD7UGC59MeB9UwESM4IhAKIYgJfMJApVbaki6yxv3ypHDFAQSGaT19wU9coQp1GEYims3VgMrveGJ0+iRm/U6IszTFAaZaP01PVgjb//twZPKA9Cs6S/u6eWgAAA0gAAABD+TJMe3l6SAAADSAAAAE2qhqO5jUWES5CnPM8amSJMECEIkpv9hiNzh6j8hXfNq/0oAK3GHrt7AAmmAAUEYCmJBGmN41mJmUnFul0zCpwwelQcEsHM3ki6pHZa5DUGR15QssEmFPqjblavWMaZ+vUMneQFA+ifLDBbH872q6Ym44iNNzKhCmaomHjuEwq9ih4puO+St7vYOdSYxDhR09FXAMAUtOxuVHeVe4c6lbGAAEJUQDu+7gAMVkQycKS7RiBCGixAc6XgeozGABOGNGSKdpjB4dLbkvBBVbb6wFFX1rCNYUYaDFfhLMonrFYfuRMHbhONlj6schFKofK6UKerAX41CAeGXNlGm15+zEbrp0pqnSNLemZ2WIalZCHYPvRV317//7YGT6gPQfM8t7uWH6AAANIAAAAQ/A4y/tvTMgAAA0gAAABDL9tR1u4ArUoX3ubABgUDwhFEgAgqlsFBUMcacINDVSPTA0BmHBYgwgJmYDA5akBB0vjLcCFwN8uWlXE1d9I9L8zyN0rSymU9i/sQiStgzqx63SRexkrTu8RYuY+b2pudn087dmasj/WtY1nEO066LaSh69SEIU56mxSgCuRhaa+sABw5AwvT4MZmgzQDzg6NB4cAo9MUAYwAFhGGQcTgcQa82n4oshLeV+4Ee8sC4iZkhnTs2JjqwxPDsmLTl1hkwUOtuCUXH1Tbi11JCkHGAB47NrXZ+fqfn50vciULZhcP/7cGTqAPPsMMrrunlqAAANIAAAAQ9IwyvuaYdoAAA0gAAABP7eNp5ikkGCtqovQjy0qYJahbzagOIf/R/dkAFypEBv9/oADLAnC4+ZCYJGZjwKmGNmZ92Yg4dE6ZEev0BIRQmQgGItWlSYTutKlr7CJcNkJy03LgKoUh4/a4x4oy0iWYNtsKDizFGjU1Eo4zIURhDHNb8easKtoeIlIFbamywNzxu89L1f1nYaKs7R8LTuQwksvpMIoABhZUA7AADgw2JYVXBDyJE581oe2DGEAYGfzDRtrxjoKZOG0spdZuCQzZaWRUJUbBrNeTsBgMExIRvqRVpZqtdPIYmdZU+GdjQ2PN6T9kWTyIGWA6Yitn7S/dLzEaAuiFC6rI6J10M1JWjlPD4u4MAskgy+phJxmHumlhWzAGL/+2Bk+IDzrC/K67l5aAAADSAAAAEQDMMprjHzYAAANIAAAAS3UD/+9oAMIjIcCrpGFC2YdDRiP8GaA8vg3kgEojeYyA9SUJiQzHxGGER0kIvslHfgdrKL1mTy0nz5kH7kRzdVpnH5TEktNufZfFESjAeQ2Cdg8x76VgcX6oaSw5Ffy3ZrptX+hlYj4QAYIV73gf6kQLEptNllRwBFthNrvIADAAFMXgxxRGTjDATOt2UbQIKOZ/CAQ6Fg4gxFnjlhfgqpmGY3zTXOT5AMUdZPDrPGN5nusPlaXJcRWlucoqrbVDW9lRmM+rtlYmo9CZkJU6pXecS3kmVcZjjOEsaqynk62Mv/+3Bk7gLz2DDL+5p5aAAADSAAAAEPiMkr7b0zKAAANIAAAASY+85zGusSro31Ao3mNXpajikQHj3jn0qhAECFQU32+iAFQrKgaNHGAyMCwPMmI5MXQnBwCn14YeDhN4IzduM/UVRhcpyaVNFKVBSBtNLjCUhO2HhIVE4oBZ5QTKsBQURioztJClABxsCB0FkCq7/L0iRtvvisqdlNbJRSkQsKFxSkDRYEAFZZlXSeMRfIgB+f/YqGAHJ1UF/39oAJFDklMuo8FxGEjYUQNihQwMAjF4KMDguDwcgRYcxpraa0ZRZgJ5rbTk7ygESbUFSHOsMDUeR2NMOGkIKPRqLfrytiWVjjuKc7PteebRilSisZFA/uzzmRAvEiNo/2k/1ftjV7I/fv4UrUyVjQG9qhvUPjVhvHk1hG//tgZPyA880zy/uZYdoAAA0gAAABEEDPKa5l52gAADSAAAAE35k4DpqWAHJ3UW/31zAM5gEvmFUC0QQEDLdmMoBAvGZEDhhAGNuGCsMIi73rcJciwyCUCHJEXUSeLEOBrZZmZERX5kXXSlMpDttCvimjBlY2dwviem0mdyoJka5tqqWqdXbClIid1GaUPgHAYpgs4dCMXS4fKZ4xR6PLvHrPFYF1BlUrUwKyDV/iK/EQsHQeHf6nIAhcmzb7aXwAFFJiYQ6pWJhAab3xmyAq9j6GIBBEuMeGPMpotAsytQkXWGQJo5JoEoYtVD94zUje1h6MUbRuNmjlYxQ9LBrJpUkxesVn//twZO8A89gzS3u4SdgAAA0gAAABENjPLezx4+gAADSAAAAEp0lWrD9ZiwnmJuZNNJpy1lqji8mOLepXwH8bULi4+YPx/89JzjokKFq6msnqHHv+pswUF02l+iyTAISIk2/9u4AMBBEqChKsRD0GhMzJPTOINUAOXs2VUVALSbILRr7tR8GjIcoGjC6yoOyq3Olp8alzxNK5IRPD+SzoxKjUdnEUAlJ2TpwxbYu3AUl5jNubUUqhMn0K89MnYkqzbykZIInatP1ju6nW1LJ4uHBKS3ixVxRGw91I+vMKbMAhZWBXfeXAAhFhjQer/MAEMwOBjM1KNEhAtSThrsGgiic510rnXkKj7hruZY/6sQggdtSbC1E9CjDsmNKTB+JOtLCo4qbsKq0XSgRmoftmBQW4+dnkG252uv/7cGT4gPRsNsx7PHjYAAANIAAAARDQ5zPt5YdgAAA0gAAABLWLKlO+6qXH5Mudep7V8D/NuJol8J+sua1xxqz1W5Gah4YAg4hjf/fWsAWEBg0OqwGKBEIgUaJlBmIGDwOPbQ5GAuKZiAiYgZn7jLCoMwBFKdmCWgQhdkMMwNB7HLBijOQphHpE++Xj9WW63fbUQJSUyUlB2lEEjlXxNTUfWLYXVhJUQHR9p9XB7JJUfgMpYpVknRnnP6iQXosOXMp0t7262AFIYlX2XpgACUh3I/La6ADFwFDClCSQXCILmf8qaICYQHzSDzEkjDDQgOAkhdVJ5arhoPvA8MeWUmsEnJLaZmCIQgToAKGkgbktRgg1DA8KmEkcTDaNkTCYaN4sUZtJEkVKiYjZKqvgHmFkwzByBb3U5in/+2Bk+QD0EjrM+5lh2AAADSAAAAEPdOMx7mWHKAAANIAAAASK6bU1WgNvMDB8u74tUo7PPTGKpgB0d0Bf9pKwDEwFMFh6BzGYqMDBU0dCTPILAQEPGcwV2GhBZnhqKLuQtoLcclMMNFesWppPcPBDd6NekAELBIKBJJzw6rCkPqCvXvUbbaiLx4yIKEUzk+Ta4WaWtruPWRLbxsJjamWWEhxtKs2Ms4zXs1cvWoCiXh6DDmrqQ7fQco0QC0ukBv/paADEgQMFhyOEg9JAMY4ihkMBMnIGAf644PJNKN52MLyVKDRIk69aAUny2+XS8xEtYhVHIQqVxwtZG4kOEw0ZEk7VLzn/+3Bk6oD0PDjL+5lh6AAADSAAAAEP3O0r7mknYAAANIAAAARDWwIXPlFWyvjgk8WP/MK+CGrjC6zqRNE19YMXo8O3DRg5pA4e26rY+937kWBqkAB3p2Bf99awAUWmMjT+ChaIAg3/eN2CC1ZmSGAAaZph1AmRRDJ6UpQYDlg7TSSEUeynvJHHRdqJRqiDBYsTD+TzEmPvpS0mggo6dNXPFw+rwRHlD7nNaajjxr+cYVD+2ZltpDV29evxEY6zQlGkTPtNtr21ezm3dIBQmWK7FcvAgNpTuC/f/UAGEAmYBDFUQCYwKETMtFPEjEZA2MkFT1cmKIAlUYYDLFPOMh2l7nw/HyEaPS7mMbw982YJTteZFgmYnWFlte9xaMlZb9YPxabKKo4CUPzCI8KLQ5m+myZDSqjBOuWa//twZPGA9BQ1S3uZYdgAAA0gAAABDyDPL+5lh2gAADSAAAAEcLYT99uPFrjtWmiIpROJk5biYgA3Am7+unqxAJOHQD+8uqAMAATChlkxIoAYPOe6TlwtEQ54TfhYAYaogftM6XXAyGNLL6jwlR8X/vaymp+/nQswgl/rFmlHJElEQgQhV6EDZIosC4lfBRE/FkFak4oDArKODYWGCiIieQC0BAEVyULs2CAiZAYXFQUIwKKLkaJUiVSRyhOW+G3UGl/cjjZEAhppgX/yWABM0QD22YRBhgoEGQL0cswKAwGDVgCARvCZGBSbWWIiCAIvXCVmSjowTKP2PXyaePuqzMlUgOilcPjcsGBdNV66Cy9GusdH1NXSviqw04vjeL0S9SxdCsf66c4tXlKmZJyvJ66MtsJmC3toKf/7YGT+APQBN0t7eWHYAAANIAAAARAMyy3uaYWoAAA0gAAABBuxbKCkioqSAGR6QC39kYAMcAMiABcEGlcw0GDYcKNoAIFAgx0IxQ5Y5pVxwhVKy0qA0fDIIpLC5EvYRCxsdZu0dJSarwzGajUJi4QDpUKwoQiSej4friUblZpekeWQ/0CFFY8WNvoagwW648+qgPDhamrEt3UseatjKzJ6evZXrMf9P3+rOtVnv//3WgBK3KA+/2tYBmYXmGCAIgWAC2VAuYnq5lgOhgGPiswUGWhSMLMgYkRiDyIWSDPaHb6sQTcHvrGnyBGhktChMSH+iPQuC2MjFwsaJjZXOi8eRjdXcv/7cGTuAPQ2O8r7eUn4AAANIAAAAQ9o1SvuaYWoAAA0gAAABLjovElUcHBhqYzNPQC35fOrGi1tGVFxxHE9EqpHLWlVY3ZtZzOOF6Z1+P/Xz1LUrjPIMlA7mVuqowBTZyA/vnEQDFA414eTXNGAQM9n0f54oaY8Kn3KaacyYMQZm4DPEz2DhEFeWZNKEYBOtOy5snm3eNYJnAqNTNYOqJ0SkNEcA1Jx+gnLzTJXSQrSweCQViW6ajydXYfvrUC9jqVOjtSnOWrPacwI3ediWQPO62CYdkGYXC1gSVuUN3BenQ51P/+6hAHW3YE/+tiAAAaMcC9JYwEIguIDD1GO1wKCGqhDilZDORulA1RIJ8FYYs7s8/Fwm359ZBrTUA6MQdTFSFkfiqDRNdlYjh1epvU0K5WQjgqXbYj/+3Bk94D0KTjJ+5ph+AAADSAAAAERhO8r7mWHYAAANIAAAARRpBILDJfVn6fnLRMPVUNUcysXTXWT8/gUqF52/0eIouu3gLAwsChgu3R5OLi/psMAZbZwX/26MA7wcz8kYCGVxBgg8vYDyAMHNAMAwBBOYLCGQXDDrPokzdpU9HHKYATvvX+Lghmy1SVC3cc3S2diWaqUxcVSqFBiPhiH9j9k7ddsrYoXnFip95w+WMbZMgIZ4gx1iPWMXq10ol0I7LxLODVqzSxOzFsMTi2EllSRlS5vfrOSQBBuxAftiaIBloemPRcsUySHzHwvMy+U/IUfADqacasIQOYZShLbp8rpabeg/N4hRgfuq/jQQWsFgrILBUNGmzIri0NEqgOi6xcRDQbMn/qEjmcmhTJZopOZUlGScYEC//twZPkA9E4ySPt5YdgAAA0gAAABEEDZKe5lhaAAADSAAAAEUUDFI1FTSgZRCFIinhKfbabfcIy+utpkkIBZC6ESaHbn2XodVFMZsgCViGA//pKgDJBMMKFKxRpSXOEXxbbSoAbZnyqCArcAl2I6weC0w4lBleGCUQeavbQ352EVEemguy2qgKQVBoiMkSwWjNoSKHwuIjPLychWe0qWapVEosgS1H3rH0c1nssWzaVJWWmh1GVWaXp7OYzkvmNzf1/H02QDS3Kgv9scQBg4OGIiLKjCQ1MGhAwtXDEIkKgRFsBdlMM/gzIRHmkQUoUySQKBYo6cBFQQiKq4TunZhy+yLB2M3YghtlOEh2PY+KVNT/7yZVRxqDKLqIlEJwsO1zp+W03Q22CrbymHlzcuIqLv1hyOl0943v/7YGT9gPQrNkr7WGJIAAANIAAAARDw2yPuZSWgAAA0gAAABDi8YKgkCAmKDRQB81T7X//QkwB1eoBv77KgAxSLJ1SAhpHT3rAmIwI3IBiFjmaRnFI3oUPkYcVxnyjlQccrVeyFjTQWQmi6wbOhEsK6MsOCIjRJN7sCLDaKQsBsceYMROEUpok10LFNek3ELPaIiZhZrX1mn7Ray2TlhUXSe1U2Ga9x3bpJnldcABudSoHvvZAAYYCoBBktEYoCwNENDOBBMeEMEJGgzXAxkGAjCAkx2dIewO8kVlLIhE2ZNS8p5TOeLxEhMzNsfnCoKy6vJbK8slX1VVpcPDolH7ZKLGevPP/7cGTngPPHO0r7eUnYAAANIAAAARDAzynuZYfgAAA0gAAABHT9o4hlozKSszsw56CJR+rYqh61KyPHaWij8rNsOP5T5rm3c3v2Y6//5/6aqgCmmUBf9roADEA2CGZIGdUM1PALK6aSJxzmfbCDcXBi7S1aWSITy4lLNVWeEtE7n9qkhBAzzpKRGHEwiJxtsu2qZIU4qGSsDp4gbxlxRTrk4ws+yAsmwheiRkLJEqFihdkUE8W10QeD8iRGixTvtW6xX358ogOnmGBvvXYwAMKDA4vX0ISGKAYwVGDHxCIcCGhthSLYGIhCdtlboQytSF1qEWaQKoGoX/IyM/HlgCg0KhUKB8mmnAdFQwBllCNTbmQK23p4uWhFA1KkcGKLMqW4wzmSfAPUVJWXnG6XmWWbkeLpPhsvNi7/+3Bk8oDzvTtK+1hJ2AAADSAAAAEQfO8n7mmFoAAANIAAAAQMK2q5K73+zyaOvASVogClt5FP9pawAFhMKOio6XeQ85QncpJnQJBQ0luYMsZdI9JcBPu0yximMllJCESAtcIzpeNTB4UCIUgiDZooJFyQhYUcjZzEkBtJAvNKBVR1yQmZx74I0DMVnwIpoSo139KTkaAnyS7BwJEwQIxZN06L1N6dGxIEO2lzRbEA5WYQF91saAM8BExUOlUzBQ4MIhsZqpjZ5YQGXigKuiwIhpQnEhrC0iMWh1pHad1uRQBz8RjRwflxLj5IWFCWF89VNsvIIkicufE4TXyYWHy4jP4kJorncELK8eSQbSmUry2PCGsOoGzqKPcfLV6tpT1MlJ+64yyzc0QwYcsufAfxwmj3+7ayAKa5//tgZP8A86gzyvtZSdoAAA0gAAABEAzXKe5pJagAADSAAAAEpI/+trQMgeNIjjRUMMfCUhSjfs9yzFVIBgFmOxqZTacrvxVT1huDA4mLA38QQmQEp1RoKikyKjpYXbKvEJlU255ZVIeQ0jgVYJkaEw2yZhzhRdpCxmoFSqHW0jw7jObIkySdMIS6Ki7LG2yrc5pp4oGnr+6u9fXCAVJMKkfW2MAAAJA0MoqGERAYCBhiebAGgGAmtMdSzSgFwYQiX6XjCG7rKgyKzC8RgVNd5qluKMvljvAM3Y1T6DUQ+CQmsdIScg2iOUTaxVYgjEiIlXopI6TDhKpXJ0K8bcH5lreSoR0q//twZPSA8+I6yvtJNOgAAA0gAAABEPTRJ+5phagAADSAAAAEKELN64l08dfky1PSlWuIQOCJL//fkwClqHV/bq0QCKoCqSeJhVIsIPK7E3qA44CIyyaQBsQoM09C2CCwOiQzyAM2VGAsUjQ3XhmUroiEfJtzUZnsR1ItWLXrWYgqouc3R1PXIDIxMLPL6VLNCcKyYUSzy88PqKBKEUuau2KB6FbBa9rvVYipLWwPEapEAalK/ADv+30UwJEVTlH+1sQAceGBlg6EmFMYwBgDDNVQxIJMVJVDwc0WOJOZEl04rAQ4sXce4/RUM53e1Z1zonTQFrKXRy/Iql1rMbkT/ZWVKBgokIgBlkwoKMtEqgWjWCztQxOCkW4o4L0KNNBQzxJ5EpAlkEXecnYvz2rU4Arms6qVpwC1qv/7YGT9APPZOMt7WUnYAAANIAAAAQ/Y3SXuZSXgAAA0gAAABIOP/9qmDEGhUIXWNRhTCOdUKNS9ANnBBXwqUxJf5rqLTiSx7p6NPySQXHjUJOGkJsljeMhk0ZL1qATFihkpKnY2z8XrozKChrDQ6LixHCeFs7LZykQj+D1xZSFc6RGa4wOFJ8nTPu42pdWOevce1y+tBsEyADBwJu0+jxiGtWxKgkKV2YFTXMi/+skaBlg8TC9gwMpLAIZfkH0sWbPCI6FkHwwkqlKbjIqvWRqSd+w1qByoJPb42Zqj8yXOLhqTnhk4OrrpLHsuPmJkdo1J6dlssUhbldWNC5KxYtx9VtDXMP/7cGTwgPQDM8l7WWJYAAANIAAAAQ9k5ynt4MngAAA0gAAABOXs1RbakKQrXhYLDB2bwobPYnVQvBWBuAekC4s4j/+D7qeGuU6+53P/+b2qpgC0mWGN7pI0BK4IDD+GALqDml0hHHziHNlxsJhgBgyKs6pjtV1E03KOlQRmmuvs0KC4o81E+sreWRxc8CrYGh0yqdw6QoSQaxVz4iSRcjJELQgRJpNLIm2DJrWXKgqiJWjUVFZaJzGxIIqokGJkhObOelIp6DoGDhh5caOamNdaGrPa9taUSmOBVGXBv//toAEDDDDlNhBaa+YqeD5s8PtwKcs4BwhwU/gABIhf6p55r77t0FLKht+OrNwOzRCA8Rgw2AcbWQJiZQnOU0RhQjEbE0GVIQqwpMlghWUUkz1DERdZNEEEBVf/+3Bk/QD0OTVK+1hiSAAADSAAAAERIM0p7eWFqAAANIAAAAQpE/sKSjJEsmVg0aECKbplmvsIeqqKdr1f7aM3WBScwgCHuHBt/bYwDPKDVK3eICDYjPVhaczUEuVEicYyrAlqTGJVWCC3b3xmJMoIRMU59CyNgqcI6JAWmyJQP+HgkMLyqDY5nWbHhhG9134IGOVuLz+NUcJXPfXxklaZMqvgYYhtVabrz6fPFq0/Ru3chtTN2j9O1NbM16r1/tS7+F7UCdqhhX/2OMAyggyQBchizCVhqeRxkxhABtBRhhxgASCQBAC2Y4AXWxIFApZRPA+qDRMyUTkopIAq8lkBwm5JoRGoIqVoVyrSWoOijwzsO6kF61hWh2ntyeazt3KOalkqxndXZ69bmvqY2q/7m6tPupq3Y3Y1//tgZP8A9EE2yntZSfgAAA0gAAABD/zxL+1hJagAADSAAAAEvcvpKSV3LdLay7jey3nV5rf9xuA8Yp71JobckLIlcGaLeIZ4V4X+61tEkAAAwSIzIaDEIDMnG+U1Ch6goDmaA2IgjK6oCN6fZs57m+o7ekAICzkdkxU2IkLKoDmwEABgQIBgV2YKyw6HABgoCg+rtnTISyoABd1cOpIPjKWiI8KrFyiyy0VNcu61ceRU7L2bp0QlyamfaaGonNyCXRKnnZ/dL2/bpqspjNamprGOWfcdVMOW8wcc1wlEQUNBIDC0uHwwXHgHr7OgwD5TCQNeFTv+HwQ/+EiwACQCAVOw7iXB//twZOuA8/43SntYYdoAAA0gAAABEmjxJ/WsACgAADSCgAAEp///qfBVYapMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/7YGTsgAXVNEl+c2AAAAANIMAAAAIcAw0cAAAgAAA0g4AABKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/7EGTdj/AAAH+AAAAIAAANIAAAAQAAAaQAAAAgAAA0gAAABKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
+  let siamsNotifAudio=null, siamsAudioUnlocked=false;
+  function initNotifAudio(){
+    try{
+      if(!siamsNotifAudio){
+        siamsNotifAudio=new Audio(SIAMS_NOTIFICATION_SOUND);
+        siamsNotifAudio.preload='auto';
+        siamsNotifAudio.volume=0.82;
+      }
+      siamsNotifAudio.currentTime=0;
+    }catch(e){}
+  }
+  function unlockNotifAudio(){
+    if(siamsAudioUnlocked)return;
+    initNotifAudio();
+    if(!siamsNotifAudio)return;
+    const p=siamsNotifAudio.play();
+    if(p&&p.then)p.then(()=>{siamsNotifAudio.pause();siamsNotifAudio.currentTime=0;siamsAudioUnlocked=true;}).catch(()=>{});
+  }
+  function playNotifSound(){
+    const p=getPrefs();
+    if(!p.sound)return;
+    initNotifAudio();
+    if(!siamsNotifAudio)return;
+    try{
+      siamsNotifAudio.currentTime=0;
+      const play=siamsNotifAudio.play();
+      if(play&&play.catch)play.catch(()=>{});
+    }catch(e){}
+  }
+  window.SiamsV44TestNotificationSound=()=>{unlockNotifAudio();setTimeout(()=>playNotifSound(),80);};
+  window.SiamsV44ToggleSound=()=>{
+    const p=getPrefs();p.sound=!p.sound;savePrefs(p);return p.sound;
+  };
+  /* Sur mobile, le navigateur autorise le son après une interaction utilisateur.
+     On garde plusieurs points d'entrée tant que le son n'est pas débloqué : cela
+     permet aussi au client qui arrive depuis un lien de boutique d'être prêt pour
+     les changements de statut de sa commande. */
+  document.addEventListener('pointerdown',unlockNotifAudio,{passive:true});
+  document.addEventListener('touchstart',unlockNotifAudio,{passive:true});
+  document.addEventListener('keydown',unlockNotifAudio,{passive:true});
+  function nativePush(titleText,message){
+    playNotifSound();
+    const p=getPrefs();
+    if(!p.push||!('Notification' in window)||Notification.permission!=='granted')return;
+    try{new Notification(titleText,{body:message});}catch(e){}
+  }
+  async function askPush(){if(!('Notification' in window)){Toast.show('Les notifications système ne sont pas disponibles sur cet appareil');return;}try{const r=await Notification.requestPermission();Toast.show(r==='granted'?'Notifications activées ✓':r==='denied'?'Notifications bloquées dans le téléphone':'Notifications non activées');}catch(e){}}
+  function prefAllowed(type){const p=getPrefs();return type==='order'?p.orders:type==='delivery'?p.delivery:type==='promo'?p.promos:type==='system'||type==='stock'?p.system:true;}
+  function sheet(id,html){document.getElementById(id)?.remove();const w=document.createElement('div');w.id=id;w.innerHTML=html;document.body.appendChild(w);requestAnimationFrame(()=>w.querySelector('.notif-v42-backdrop')?.classList.add('show'));requestAnimationFrame(()=>w.querySelector('.notif-v42-sheet')?.classList.add('show'));}
+  function close(id){const w=document.getElementById(id);if(!w)return;w.querySelector('.notif-v42-backdrop')?.classList.remove('show');w.querySelector('.notif-v42-sheet')?.classList.remove('show');setTimeout(()=>w.remove(),220);}
+  function settingsHtml(role){const p=getPrefs();return `<div class="notif-v42-settings"><div style="font-weight:800;font-size:13px;margin-bottom:4px;">Préférences de notifications</div><div class="notif-v42-setting"><label>Commandes<small>Nouvelles commandes et changements</small></label><button class="notif-v42-switch ${p.orders?'on':''}" data-pref="orders"></button></div><div class="notif-v42-setting"><label>Livraisons<small>Suivi, affectation et réception</small></label><button class="notif-v42-switch ${p.delivery?'on':''}" data-pref="delivery"></button></div><div class="notif-v42-setting"><label>Promotions<small>Offres et nouveautés de la boutique</small></label><button class="notif-v42-switch ${p.promos?'on':''}" data-pref="promos"></button></div><div class="notif-v42-setting"><label>SIAMS & système<small>Alertes importantes et sécurité</small></label><button class="notif-v42-switch ${p.system?'on':''}" data-pref="system"></button></div><div class="notif-v42-setting"><label>Notifications téléphone<small>Afficher une alerte même hors de l’écran SIAMS</small></label><button class="notif-v42-switch ${p.push?'on':''}" data-pref="push"></button></div><div class="notif-v42-setting"><label>Son de notification<small>Jouer le son SIAMS à l’arrivée d’une nouvelle notification</small></label><button class="notif-v42-switch ${p.sound?'on':''}" data-pref="sound"></button></div><button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="window.SiamsV42AskPush()">Autoriser les notifications du téléphone</button><button class="btn btn-soft-green btn-block" style="margin-top:8px;" onclick="window.SiamsV44TestNotificationSound()">🔔 Tester le son de notification</button></div>`;}
+  function bindSettings(root){root.querySelectorAll('[data-pref]').forEach(b=>b.onclick=()=>{const p=getPrefs();const k=b.dataset.pref;p[k]=!p[k];savePrefs(p);b.classList.toggle('on',p[k]);});}
+  window.SiamsV42AskPush=askPush;
+
+  const NOTIF_TEMPLATES = [
+    {id:'flash', icon:'⚡', name:'Offre flash', tag:'Urgence', title:'Vente Flash : -20% sur tout ! 🔥', body:'Plus que quelques heures pour en profiter. Utilisez le code FLASH20 avant minuit. Ne ratez pas ça ! 👇'},
+    {id:'cart', icon:'🛒', name:'Panier abandonné', tag:'Rappel', title:'Vous avez oublié quelque chose ? 🤔', body:'Votre panier vous attend sagement. Finalisez votre commande maintenant et profitez de la livraison gratuite ! 📦'},
+    {id:'new', icon:'✨', name:'Nouveautés', tag:'Nouveaux produits', title:'Alerte Nouveautés ! 😍', body:'Notre nouvelle collection vient d’arriver en boutique. Soyez le premier à découvrir les dernières tendances avant la rupture de stock ! 🚀'},
+    {id:'loyalty', icon:'🎁', name:'Fidélisation', tag:'Cadeau / Récompense', title:'Merci pour votre fidélité ! ❤️', body:'Pour vous remercier, nous vous offrons 10 € de réduction sur votre prochain achat. Votre code promo : MERCI10.'}
+  ];
+  function notifTemplateText(t){ return `${t.title}\n${t.body}`; }
+  function openNotifComposer(){
+    const existing=document.getElementById('siams-v42-composer'); if(existing){existing.remove();return;}
+    const esc=x=>Utils.escapeHtml(x);
+    const html=`<div id="siams-v42-composer" class="notif-v42-composer-wrap"><div class="notif-v42-backdrop" onclick="closeNotifComposer()"></div><section class="notif-v42-sheet notif-v42-composer"><div class="notif-v42-head"><div><h3>Messages prêts à l’emploi</h3><div style="font-size:11px;color:var(--text-mid);margin-top:2px;">Choisissez un modèle, personnalisez-le puis partagez-le à vos clients.</div></div><button class="notif-v42-close" onclick="closeNotifComposer()">×</button></div><div class="notif-v42-template-list">${NOTIF_TEMPLATES.map(t=>`<button class="notif-v42-template" onclick="useNotifTemplate('${t.id}')"><span class="notif-v42-template-icon">${t.icon}</span><span><b>${esc(t.name)}</b><small>${esc(t.tag)}</small></span><span class="notif-v42-template-arrow">›</span></button>`).join('')}</div><div id="notif-v42-editor" style="display:none;padding:0 18px 20px;"></div></section></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);requestAnimationFrame(()=>document.querySelector('#siams-v42-composer .notif-v42-sheet')?.classList.add('show'));requestAnimationFrame(()=>document.querySelector('#siams-v42-composer .notif-v42-backdrop')?.classList.add('show'));
+  }
+  window.openNotifComposer=openNotifComposer;
+  window.closeNotifComposer=()=>{const w=document.getElementById('siams-v42-composer');if(!w)return;w.querySelector('.notif-v42-backdrop')?.classList.remove('show');w.querySelector('.notif-v42-sheet')?.classList.remove('show');setTimeout(()=>w.remove(),220);};
+  window.useNotifTemplate=(id)=>{const t=NOTIF_TEMPLATES.find(x=>x.id===id);if(!t)return;const e=document.getElementById('notif-v42-editor');if(!e)return;e.style.display='block';e.innerHTML=`<div style="font-size:12px;color:var(--text-mid);margin:4px 0 8px;">${Utils.escapeHtml(t.tag)}</div><label class="field"><span>Titre</span><input id="notif-template-title" value="${Utils.escapeHtml(t.title)}"></label><label class="field" style="margin-top:10px;"><span>Message</span><textarea id="notif-template-body" rows="5" style="width:100%;resize:vertical;">${Utils.escapeHtml(t.body)}</textarea></label><div class="notif-v42-preview"><div style="font-size:10px;color:var(--text-soft);margin-bottom:4px;">APERÇU</div><b id="notif-template-preview-title">${Utils.escapeHtml(t.title)}</b><p id="notif-template-preview-body">${Utils.escapeHtml(t.body)}</p></div><div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-outline" style="flex:1" onclick="closeNotifComposer()">Annuler</button><button class="btn btn-primary" style="flex:1" onclick="shareNotifTemplate()">Partager</button></div><div style="font-size:10.5px;color:var(--text-soft);line-height:1.4;margin-top:9px;">Le bouton Partager utilise les options de partage disponibles sur le téléphone (WhatsApp, Messages, etc.).</div>`;const a=e.querySelector('#notif-template-title'),b=e.querySelector('#notif-template-body'),pt=e.querySelector('#notif-template-preview-title'),pb=e.querySelector('#notif-template-preview-body');const sync=()=>{pt.textContent=a.value;pb.textContent=b.value;};a.oninput=sync;b.oninput=sync;};
+  window.shareNotifTemplate=()=>{const title=document.getElementById('notif-template-title')?.value.trim()||'Notification';const body=document.getElementById('notif-template-body')?.value.trim()||'';const text=`${title}\n${body}`;if(navigator.share){navigator.share({title,text}).catch(()=>{});}else{window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');}};
+
+  window.SiamsV42OpenMerchant=()=>{
+    const list=(Store.notifications||[]).slice().sort((a,b)=>b.createdAt-a.createdAt);let filter='all';
+    const render=()=>{const visible=list.filter(n=>filter==='all'||(filter==='order'&&n.type==='order')||(filter==='stock'&&n.type==='stock')||(filter==='system'&&n.type!=='order'&&n.type!=='stock'));return visible.length?visible.map(n=>`<div class="notif-v42-item ${n.read?'':'unread'}" onclick="SiamsV42ReadMerchant('${n.id}')"><div class="notif-v42-icon">${icon(n.type)}</div><div class="notif-v42-body"><b>${title(n.type)}</b><p>${Utils.escapeHtml(n.message)}</p><span>${Utils.timeAgo(n.createdAt)}</span></div></div>`).join(''):`<div class="notif-v42-empty">Aucune notification dans cette catégorie.</div>`;};
+    const html=`<div class="notif-v42-backdrop" onclick="SiamsV42CloseMerchant()"></div><section class="notif-v42-sheet"><div class="notif-v42-head"><div><h3>Notifications</h3><div style="font-size:11px;color:var(--text-mid);margin-top:2px;">Activité de votre boutique</div></div><button class="notif-v42-close" onclick="SiamsV42CloseMerchant()">×</button></div><div class="notif-v42-tabs"><button class="active" data-f="all">Toutes</button><button data-f="order">Commandes</button><button data-f="stock">Stock</button><button data-f="system">Système</button></div><div id="v42-merchant-list">${render()}</div><div class="notif-v42-actions"><button class="btn btn-outline" onclick="SiamsV42MarkMerchant()">Tout marquer lu</button><button class="btn btn-soft-green" onclick="openNotifComposer()">Créer un message</button><button class="btn btn-primary" onclick="SiamsV42ToggleMerchantSettings()">Préférences</button></div><div id="v42-merchant-settings" style="display:none">${settingsHtml('merchant')}</div></section>`;
+    sheet('siams-v42-merchant',html);const root=document.getElementById('siams-v42-merchant');root.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;root.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('active',x===b));root.querySelector('#v42-merchant-list').innerHTML=render();});
+  };
+  window.SiamsV42CloseMerchant=()=>close('siams-v42-merchant');
+  window.SiamsV42ToggleMerchantSettings=()=>{const x=document.getElementById('v42-merchant-settings');if(x){x.style.display=x.style.display==='none'?'block':'none';bindSettings(x);}};
+  window.SiamsV42ReadMerchant=id=>{Store.notifications=Store.notifications.map(n=>n.id===id?Object.assign({},n,{read:true}):n);Notify.renderBell();};
+  window.SiamsV42MarkMerchant=()=>{Store.notifications=Store.notifications.map(n=>Object.assign({},n,{read:true}));Notify.renderBell();};
+
+  const oldNotifyOpen=window.Notify?.openPanel;
+  if(window.Notify){window.Notify.openPanel=function(){SiamsV42OpenMerchant();};window.Notify.add=(function(orig){return function(type,message){if(!prefAllowed(type))return;orig.call(this,type,message);nativePush(title(type),message);};})(window.Notify.add);};
+
+  if(window.ClientNotify){
+    const originalAdd=ClientNotify.add.bind(ClientNotify);
+    ClientNotify.add=function(orderNumber,message,type){type=type||'order';if(!prefAllowed(type))return;this.load();this._list.unshift({id:Utils.uid(),orderNumber,message,type,read:false,createdAt:Date.now()});this.save();this.renderBadges();nativePush(title(type),message);};
+    ClientNotify.openPanel=function(){
+      this.load();let filter='all';const render=()=>{const arr=this._list.filter(n=>filter==='all'||n.type===filter);return arr.length?arr.map(n=>`<div class="notif-v42-item ${n.read?'':'unread'}" onclick="SiamsV42ReadClient('${n.id}')"><div class="notif-v42-icon">${icon(n.type)}</div><div class="notif-v42-body"><b>${title(n.type)}${n.orderNumber?' · #'+Utils.escapeHtml(n.orderNumber):''}</b><p>${Utils.escapeHtml(n.message)}</p><span>${Utils.timeAgo(n.createdAt)}</span></div></div>`).join(''):`<div class="notif-v42-empty">Aucune notification pour le moment.</div>`;};
+      const html=`<div class="notif-v42-backdrop" onclick="SiamsV42CloseClient()"></div><section class="notif-v42-sheet"><div class="notif-v42-head"><div><h3>Notifications</h3><div style="font-size:11px;color:var(--text-mid);margin-top:2px;">Commandes, livraisons et offres</div></div><button class="notif-v42-close" onclick="SiamsV42CloseClient()">×</button></div><div class="notif-v42-tabs"><button class="active" data-f="all">Toutes</button><button data-f="order">Commandes</button><button data-f="delivery">Livraisons</button><button data-f="promo">Offres</button></div><div id="v42-client-list">${render()}</div><div class="notif-v42-actions"><button class="btn btn-outline" onclick="SiamsV42MarkClient()">Tout marquer lu</button><button class="btn btn-primary" onclick="SiamsV42ToggleClientSettings()">Préférences</button></div><div id="v42-client-settings" style="display:none">${settingsHtml('client')}</div></section>`;
+      sheet('siams-v42-client',html);const root=document.getElementById('siams-v42-client');root.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;root.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('active',x===b));root.querySelector('#v42-client-list').innerHTML=render();});
+    };
+  }
+  window.SiamsV42CloseClient=()=>close('siams-v42-client');
+  window.SiamsV42ToggleClientSettings=()=>{const x=document.getElementById('v42-client-settings');if(x){x.style.display=x.style.display==='none'?'block':'none';bindSettings(x);}};
+  window.SiamsV42ReadClient=id=>{ClientNotify.load();ClientNotify._list=ClientNotify._list.map(n=>n.id===id?Object.assign({},n,{read:true}):n);ClientNotify.save();ClientNotify.renderBadges();};
+  window.SiamsV42MarkClient=()=>{ClientNotify.markAllRead();};
+
+  const CourierNotify={
+    _key(){const s=courierSession();return 'siams_courier_notifs_v42_'+(s?.id||s?.courier_id||'guest');},
+    load(){try{this._list=JSON.parse(localStorage.getItem(this._key())||'[]');}catch(e){this._list=[];}return this._list;},
+    save(){try{localStorage.setItem(this._key(),JSON.stringify(this._list));}catch(e){}},
+    add(type,message){if(!prefAllowed(type))return;this.load();this._list.unshift({id:Utils.uid(),type,message,read:false,createdAt:Date.now()});this._list=this._list.slice(0,50);this.save();this.badge();nativePush(title(type),message);},
+    unread(){this.load();return this._list.filter(n=>!n.read).length;},
+    badge(){const d=document.getElementById('courier-v42-dot');if(d)d.classList.toggle('show',this.unread()>0);},
+    open(){this.load();let filter='all';const render=()=>{const a=this._list.filter(n=>filter==='all'||n.type===filter);return a.length?a.map(n=>`<div class="notif-v42-item ${n.read?'':'unread'}" onclick="SiamsV42ReadCourier('${n.id}')"><div class="notif-v42-icon">${icon(n.type)}</div><div class="notif-v42-body"><b>${title(n.type)}</b><p>${Utils.escapeHtml(n.message)}</p><span>${Utils.timeAgo(n.createdAt)}</span></div></div>`).join(''):`<div class="notif-v42-empty">Aucune notification pour le moment.</div>`;};const html=`<div class="notif-v42-backdrop" onclick="SiamsV42CloseCourier()"></div><section class="notif-v42-sheet"><div class="notif-v42-head"><div><h3>Notifications</h3><div style="font-size:11px;color:var(--text-mid);margin-top:2px;">Votre activité de livraison</div></div><button class="notif-v42-close" onclick="SiamsV42CloseCourier()">×</button></div><div class="notif-v42-tabs"><button class="active" data-f="all">Toutes</button><button data-f="order">Livraisons</button><button data-f="system">SIAMS</button></div><div id="v42-courier-list">${render()}</div><div class="notif-v42-actions"><button class="btn btn-outline" onclick="SiamsV42MarkCourier()">Tout marquer lu</button><button class="btn btn-primary" onclick="SiamsV42ToggleCourierSettings()">Préférences</button></div><div id="v42-courier-settings" style="display:none">${settingsHtml('courier')}</div></section>`;sheet('siams-v42-courier',html);const root=document.getElementById('siams-v42-courier');root.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filter=b.dataset.f;root.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('active',x===b));root.querySelector('#v42-courier-list').innerHTML=render();});}
+  };
+  window.CourierNotify=CourierNotify;window.SiamsV42CloseCourier=()=>close('siams-v42-courier');window.SiamsV42ToggleCourierSettings=()=>{const x=document.getElementById('v42-courier-settings');if(x){x.style.display=x.style.display==='none'?'block':'none';bindSettings(x);}};window.SiamsV42ReadCourier=id=>{CourierNotify.load();CourierNotify._list=CourierNotify._list.map(n=>n.id===id?Object.assign({},n,{read:true}):n);CourierNotify.save();CourierNotify.badge();};window.SiamsV42MarkCourier=()=>{CourierNotify.load();CourierNotify._list=CourierNotify._list.map(n=>Object.assign({},n,{read:true}));CourierNotify.save();CourierNotify.badge();};
+
+  // Notifications livreur : détection d'une nouvelle affectation.
+  const oldLoadCourier=window.loadCourierDashboard;
+  if(oldLoadCourier){window.loadCourierDashboard=async function(){const before=(CourierNotify.load()||[]).map(n=>n.assignmentId).filter(Boolean);const r=await oldLoadCourier.apply(this,arguments);try{const sess=courierSession();if(!sess)return;const rows=await Cloud.courierAssignments(sess.session_token);rows.filter(a=>a.status==='offered').forEach(a=>{if(!before.includes(a.id)){CourierNotify.load();if(!CourierNotify._list.some(n=>n.assignmentId===a.id)){CourierNotify._list.unshift({id:Utils.uid(),assignmentId:a.id,type:'order',message:`Nouvelle livraison proposée pour la commande #${a.order_number||''}.`,read:false,createdAt:Date.now()});CourierNotify.save();nativePush('Nouvelle livraison',`Commande #${a.order_number||''} proposée.`);}}});CourierNotify.badge();}catch(e){console.error(e)}return r;};}
+
+  // Ajout des notifications de progression côté client et marchand.
+  function wrap(name,fn){const old=window[name];if(typeof old!=='function')return;window[name]=async function(){const args=arguments;const result=await old.apply(this,args);try{const id=args[0];const o=Store.orders.find(x=>x.id===id);if(o&&name==='adminConfirmOrder'){ClientNotify.add(o.number,`Bonne nouvelle : votre commande #${o.number} a été confirmée par le vendeur.`,'order');}if(o&&name==='adminMarkShipped'){ClientNotify.add(o.number,`Votre commande #${o.number} est maintenant en livraison.`,'delivery');if(o.courierId)CourierNotify.add('order',`La commande #${o.number} est maintenant en livraison.`);} }catch(e){}return result;};}
+  wrap('adminConfirmOrder');wrap('adminMarkShipped');
+  const oldAccept=window.acceptCourierDelivery;if(oldAccept)window.acceptCourierDelivery=async function(id){const r=await oldAccept.apply(this,arguments);try{const a=(await Cloud.courierAssignments(courierSession().session_token)).find(x=>x.id===id);if(a){CourierNotify.add('order',`Livraison #${a.order_number||''} acceptée. Préparez votre itinéraire.`);}}catch(e){}return r;};
+  const oldDelivered=window.courierDelivered;if(oldDelivered)window.courierDelivered=async function(id){const r=await oldDelivered.apply(this,arguments);try{CourierNotify.add('delivery','Livraison signalée comme effectuée. Merci !');}catch(e){}return r;};
+
+  // Remplace le tableau de bord livreur par une barre avec cloche + badge.
+  const oldCourierView=Views['courier-dashboard'];
+  if(oldCourierView){Views['courier-dashboard']=function(){const html=oldCourierView();return html.replace(/<button class="btn btn-outline btn-sm" onclick="setCourierSession\(null\);Router\.go\('courier-login'\)">Déconnexion<\/button>/,`<div style="display:flex;align-items:center;gap:8px;"><button class="courier-v42-notif" onclick="CourierNotify.open()" aria-label="Notifications"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="courier-v42-dot" id="courier-v42-dot"></span></button><button class="btn btn-outline btn-sm" onclick="setCourierSession(null);Router.go('courier-login')">Déconnexion</button></div>`);};}
+  setTimeout(()=>{try{Notify.renderBell();ClientNotify.renderBadges();CourierNotify.badge();}catch(e){}},0);
+})();
+
+
+/* ===== app-20.js ===== */
+/* ================= SIAMS V48 — corrections & modules demandés ================= */
+(function(){
+  const esc = s => { try{return Utils.escapeHtml(String(s ?? ''));}catch(e){return String(s ?? '');} };
+  const SUPPORT_EMAIL = (typeof PAYMENT_INFO!=='undefined' && PAYMENT_INFO.supportClientEmail) || 'serviceclientsiams.ci@gmail.com';
+  const ADMIN_EMAILS = [SUPPORT_EMAIL.toLowerCase()];
+  const isSiamsAdmin = () => {
+    try { const u = sb.auth.getUser ? null : null; } catch(e){}
+    const email = (window._siamsCurrentAdminEmail || '').toLowerCase();
+    return ADMIN_EMAILS.includes(email);
+  };
+
+  /* 1) Thème sombre/clair : fonctionnalité totalement retirée. */
+  const removeThemeUi = () => {
+    document.getElementById('siams-theme-fab')?.remove();
+    document.getElementById('siams-theme-overlay')?.remove();
+    document.querySelectorAll('[data-theme-mode-label]').forEach(x=>x.closest('.acc-row,section,.v39-settings-section')?.remove());
+  };
+  window.ThemeMode = { init(){}, open(){ removeThemeUi(); }, close(){ removeThemeUi(); }, ensureFab(){ removeThemeUi(); }, set(){}, apply(){}, effective(){return 'light';}, refreshLabels(){}, label(){return 'Clair';} };
+  removeThemeUi();
+
+  /* 2) Onboarding : chaque variante possède maintenant son propre track. */
+  const oldOnboardGo = Onboarding.go.bind(Onboarding);
+  Onboarding.go = function(i){
+    if(i<0 || i>=this.slides.length) return;
+    this.index=i;
+    const ids={admin:'onboard-track',public:'onboard-track__v46_2',client:'onboard-track__v46_3'};
+    const track=document.getElementById(ids[this.type]) || document.getElementById('onboard-track') || document.getElementById('onboard-track__v46_2') || document.getElementById('onboard-track__v46_3');
+    if(track) track.style.transform=`translate3d(-${i*100}%,0,0)`;
+    document.querySelectorAll('.onboard-slide').forEach(el=>el.classList.toggle('active',Number(el.dataset.oi)===i));
+    document.querySelectorAll('.onboard-dot').forEach((el,di)=>el.classList.toggle('active',di===i));
+    const btn=document.getElementById(this.type==='admin'?'onboard-next-btn':this.type==='public'?'onboard-next-btn__v46_2':'onboard-next-btn__v46_3');
+    if(btn) btn.innerHTML=(i===this.slides.length-1)?'Commencer <span style="float:right;font-size:20px;line-height:16px;">✦</span>':'Suivant <span style="float:right;font-size:20px;line-height:16px;">→</span>';
+    const cur=document.getElementById(this.type==='admin'?'onboard-progress-current':this.type==='public'?'onboard-progress-current__v46_2':null); if(cur) cur.textContent=String(i+1);
+    const bar=document.getElementById(this.type==='admin'?'onboard-progress-bar':this.type==='public'?'onboard-progress-bar__v46_2':null); if(bar) bar.style.width=((i+1)/this.slides.length*100)+'%';
+  };
+  const oldOnboardAttach=Onboarding.attach.bind(Onboarding);
+  Onboarding.attach=function(){ oldOnboardAttach(); this.go(this.index); };
+
+  /* 2bis) Défilement automatique : chaque slide reste affichée 10 secondes avant de
+     passer à la suivante (retour au début après la dernière). Toute navigation —
+     automatique ou manuelle (flèches, swipe, clavier) — repasse par Onboarding.go,
+     qui relance systématiquement le minuteur : chaque slide dispose donc toujours
+     de 10 secondes pleines, y compris après une interaction de l'utilisateur. */
+  const autoAdvanceGo = Onboarding.go;
+  Onboarding.go = function(i){
+    if(i<0 || i>=this.slides.length) return;
+    autoAdvanceGo.call(this, i);
+    clearInterval(this._autoTimer);
+    this._autoTimer = setInterval(()=>{
+      const next = this.index < this.slides.length-1 ? this.index+1 : 0;
+      this.go(next);
+    }, 10000);
+  };
+  const oldOnboardFinish=Onboarding.finish.bind(Onboarding);
+  Onboarding.finish=function(){ clearInterval(this._autoTimer); oldOnboardFinish(); };
+
+  /* 3) Espace client : accès direct + compte/messages toujours accessibles. */
+  const oldWelcome = Views.welcome;
+  Views.welcome = function(){
+    let h=oldWelcome();
+    if(!h.includes('Accéder à l’espace client')) h=h.replace('</div>`;', '<button class="btn btn-ghost btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:8px;" onclick="Router.go(\'shop\')">Accéder à l’espace client</button></div>`;');
+    return h;
+  };
+
+  /* 4) Email transactionnel : prêt pour une Supabase Edge Function. */
+  async function sendSiamsEmail(to, subject, html, text, template_key, variables){
+    try{
+      const body={to,subject,html,text}; if(template_key){body.template_key=template_key;body.variables=variables||{};} const {data,error}=await sb.functions.invoke('send-siams-email',{body});
+      if(error) throw error;
+      return {ok:true,data};
+    }catch(e){ console.warn('SIAMS email service:',e); return {ok:false,error:e}; }
+  }
+  window.sendSiamsEmail=sendSiamsEmail;
+
+  async function saveRegistrationRequest(payload){
+    const request={
+      id: Utils.uid(), name:payload.name||'', shop:payload.shop||'', email:payload.email||'', phone:payload.phone||'',
+      request:payload.request||'Création de compte SIAMS', status:'pending', created_at:new Date().toISOString(), source:payload.source||'registration'
+    };
+    try{
+      const {data,error}=await sb.from('registration_requests').insert(request).select().single();
+      if(error) throw error;
+      try{localStorage.setItem('siams_last_registration_request',JSON.stringify(data||request));}catch(e){}
+      return data||request;
+    }catch(e){
+      console.error('saveRegistrationRequest error:',e);
+      try{ Toast.show('Erreur enregistrement demande : '+(e.message||e.code||JSON.stringify(e))); }catch(t){}
+      try{
+        const arr=JSON.parse(localStorage.getItem('siams_registration_requests')||'[]');arr.unshift(request);localStorage.setItem('siams_registration_requests',JSON.stringify(arr.slice(0,100)));
+      }catch(x){}
+      return request;
+    }
+  }
+  window.saveRegistrationRequest=saveRegistrationRequest;
+
+  async function notifyRegistrationPending(payload){
+    return sendSiamsEmail(payload.email,'','','','registration_pending',{name:payload.name||'',email:payload.email||'',support_email:SUPPORT_EMAIL});
+  }
+
+  /* 5) Demande partenaire : dashboard admin + email automatique au demandeur. */
+  ActivationGate.sendPartnerRequest = async function(){
+    const name=(document.getElementById('partner-name')?.value||'').trim();
+    const shop=(document.getElementById('partner-shop')?.value||'').trim();
+    const phone=(document.getElementById('partner-phone')?.value||'').trim();
+    const request=(document.getElementById('partner-request')?.value||'').trim();
+    if(!name||!phone||!request){Toast.show('Renseignez votre nom, votre téléphone et votre requête.');return;}
+    const email=prompt('Votre e-mail pour recevoir la confirmation SIAMS :','');
+    if(!email || !email.includes('@')){Toast.show('Un e-mail valide est nécessaire.');return;}
+    const q={name,shop,phone,request,email,pending:true,createdAt:Date.now()}; this.saveRequest(q);
+    const saved=await saveRegistrationRequest({name,shop,phone,email,request,source:'partner'});
+    if(saved && saved.id){ q.requestId=saved.id; this.saveRequest(q); }
+    const mail=await notifyRegistrationPending(q);
+    Toast.show(mail.ok?'Demande enregistrée ✓ — e-mail envoyé':'Demande enregistrée ✓ — configurez le service e-mail SIAMS');
+    Router.go('activation-code');
+  };
+
+  /* 6) Création de compte : la requête est enregistrée dès la tentative d'inscription. */
+  window.doRegister = async function(){
+    const email=(document.getElementById('auth-email__v46_2')||document.getElementById('auth-email'))?.value.trim()||'';
+    const phone=document.getElementById('auth-phone')?.value.trim()||'';
+    const pass=(document.getElementById('auth-pass__v46_2')||document.getElementById('auth-pass'))?.value||'';
+    const pass2=document.getElementById('auth-pass2')?.value||'';
+    const err=document.getElementById('auth-error__v46_2')||document.getElementById('auth-error');
+    const btn=document.getElementById('auth-submit-btn__v46_2')||document.getElementById('auth-submit-btn');
+    if(!ActivationGate.getStored()){Router.go('activation-code');return;}
+    if(!email||!phone||!pass){err.textContent='Merci de remplir tous les champs';return;}
+    if(pass.length<6){err.textContent='Le mot de passe doit contenir au moins 6 caractères';return;}
+    if(pass!==pass2){err.textContent='Les mots de passe ne correspondent pas';return;}
+    err.textContent='';btn.disabled=true;btn.textContent='Création...';
+    /* ---- Une seule demande d'inscription par tentative de création : si l'utilisateur
+       retente (mot de passe refusé, email déjà pris, coupure réseau...) avec le même
+       e-mail, on réutilise la demande déjà enregistrée au lieu d'en créer une nouvelle
+       et de renvoyer un e-mail "demande en attente" en double. ---- */
+    const REQ_ID_KEY='siams_registration_request_id', REQ_EMAIL_KEY='siams_registration_request_email';
+    const storedReqEmail=(localStorage.getItem(REQ_EMAIL_KEY)||'').toLowerCase();
+    const storedReqId=localStorage.getItem(REQ_ID_KEY);
+    let request;
+    if(storedReqId && storedReqEmail===email.toLowerCase()){
+      request={id:storedReqId};
+    } else {
+      const requestPayload={name:'Nouveau marchand',shop:'À renseigner après activation',email,phone,request:'Demande de création de compte marchand SIAMS',source:'registration'};
+      request=await saveRegistrationRequest(requestPayload);
+      await notifyRegistrationPending(requestPayload);
+      try{ localStorage.setItem(REQ_ID_KEY,request.id||''); localStorage.setItem(REQ_EMAIL_KEY,email.toLowerCase()); }catch(e){}
+    }
+    const res=await Auth.register(email,pass,phone);
+    if(!res.ok){btn.disabled=false;btn.textContent='Créer mon compte';err.textContent=res.message||'Création impossible';return;}
+    try{sessionStorage.setItem('siams_activation_email',email.toLowerCase());}catch(e){}
+    if(res.needsConfirm) ConfirmEmail.show(res.email); else OtpGate.start('register',res.email);
+  };
+
+  /* 7) Mot de passe oublié : plus de redirection vers le support. */
+  window.contactSupportForgotPasswordCustom = async function(){
+    const identifier=(document.getElementById('auth-email')?.value||'').trim();
+    if(!identifier){Toast.show('Saisissez votre e-mail ou votre ID marchand.');return;}
+    let email=identifier;
+    if(!identifier.includes('@')){
+      const resolved=await Auth.resolveEmail(identifier);
+      if(!resolved.ok){Toast.show('ID marchand introuvable.');return;}
+      email=resolved.email;
+    }
+    try{
+      const redirectTo=location.origin+location.pathname+'#reset-password';
+      const mail=await sendSiamsEmail(email,'','','','password_reset',{email,redirect_to:redirectTo,support_email:SUPPORT_EMAIL});
+      if(!mail.ok) throw new Error('email');
+      Toast.show('E-mail de réinitialisation envoyé ✓');
+    }catch(e){console.error(e);Toast.show('Impossible d’envoyer l’e-mail de récupération.');}
+  };
+
+  window.contactSupportForgotPassword = async function(){
+    const identifier=(document.getElementById('auth-email')?.value||'').trim();
+    if(!identifier){Toast.show('Saisissez votre e-mail ou votre ID marchand.');return;}
+    let email=identifier;
+    if(!identifier.includes('@')){
+      const resolved=await Auth.resolveEmail(identifier);
+      if(!resolved.ok){Toast.show('ID marchand introuvable.');return;}
+      email=resolved.email;
+    }
+    try{
+      const redirectTo=location.origin+location.pathname+'#reset-password';
+      const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+      if(error) throw error;
+      Toast.show('Lien de réinitialisation envoyé par e-mail ✓');
+    }catch(e){console.error(e);Toast.show('Impossible d’envoyer l’e-mail de récupération.');}
+  };
+
+  /* 8) ID marchand oublié : récupération automatique et envoi direct par e-mail SIAMS. */
+  if(window.RecoverId){
+    RecoverId.submitEmail = async function(){
+      const email=document.getElementById('recover-value')?.value.trim().toLowerCase()||'';
+      const err=document.getElementById('recover-error');
+      const btn=document.getElementById('recover-submit-btn');
+      if(!email){err.textContent='Merci de renseigner l’adresse e-mail du compte';return;}
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.textContent='Veuillez saisir une adresse e-mail valide';return;}
+      err.textContent=''; btn.disabled=true; btn.textContent='Recherche de votre compte…';
+      try{
+        const {data,error}=await sb.rpc('find_login_id_by_email',{p_email:email});
+        if(error || !data){
+          err.textContent='Aucun compte marchand SIAMS trouvé avec cette adresse e-mail.';
+          return;
+        }
+        const merchantId=typeof data==='string' ? data : (data.login_id||data.id||data.loginId||'');
+        if(!merchantId){err.textContent='Impossible de récupérer votre ID marchand. Merci de réessayer.';return;}
+        btn.textContent='Envoi de l’e-mail…';
+        const mail=await sendSiamsEmail(email,'','','','merchant_id_recovery',{name:'Marchand',email,merchant_id:merchantId,support_email:SUPPORT_EMAIL});
+        if(!mail.ok){
+          err.textContent='Votre ID a été retrouvé, mais l’envoi automatique de l’e-mail n’est pas configuré. Configurez le service e-mail SIAMS.';
+          return;
+        }
+        btn.textContent='E-mail envoyé ✓';
+        Toast.show('Votre ID marchand a été envoyé par e-mail ✓');
+        setTimeout(()=>Router.go('login'),900);
+      }catch(e){
+        console.error(e);
+        err.textContent='Une erreur est survenue. Merci de réessayer.';
+      }finally{
+        if(btn && btn.textContent!=='E-mail envoyé ✓'){btn.disabled=false;btn.textContent='Recevoir mon ID par e-mail';}
+      }
+    };
+    RecoverId.submitWhatsapp = function(){ Toast.show('La récupération se fait désormais automatiquement par e-mail.'); };
+  }
+
+  /* 9) Messagerie marketing marchand → boîte client + popup à l’arrivée sur la vitrine. */
+  const MSG_KEY='siams_store_messages_';
+  const getSlug=()=>((Store.store&&Store.store.slug)||'default');
+  const getLocalMsgs=()=>{try{return JSON.parse(localStorage.getItem(MSG_KEY+getSlug())||'[]');}catch(e){return[];}};
+  const setLocalMsgs=a=>{try{localStorage.setItem(MSG_KEY+getSlug(),JSON.stringify(a.slice(0,50)));}catch(e){}};
+  async function publishStoreMessage(title,body,template){
+    const msg={id:Utils.uid(),store_id:Cloud.storeId||null,slug:getSlug(),title,body,template:template||'custom',created_at:new Date().toISOString(),active:true};
+    let remote=false;
+    try{const {error}=await sb.from('store_messages').insert(msg);if(!error)remote=true;}catch(e){}
+    setLocalMsgs([msg,...getLocalMsgs()]);
+    if(remote) Toast.show('Message publié dans les boîtes clients ✓'); else Toast.show('Message enregistré localement ✓ — configurez la table store_messages pour le multi-appareils.');
+    return msg;
+  }
+  window.publishStoreMessage=publishStoreMessage;
+
+  const NOTIF_TEMPLATES_V47=[
+    {id:'flash',icon:'⚡',name:'Offre flash',tag:'Urgence',title:'Vente Flash : -20% sur tout ! 🔥',body:'Plus que quelques heures pour en profiter. Utilisez le code FLASH20 avant minuit. Ne ratez pas ça !'},
+    {id:'cart',icon:'🛒',name:'Panier abandonné',tag:'Rappel',title:'Vous avez oublié quelque chose ?',body:'Votre panier vous attend. Finalisez votre commande maintenant et profitez de la livraison gratuite !'},
+    {id:'new',icon:'✨',name:'Nouveautés',tag:'Nouveaux produits',title:'Alerte Nouveautés ! 😍',body:'Notre nouvelle collection vient d’arriver en boutique. Découvrez les nouveaux produits disponibles dès maintenant.'},
+    {id:'loyalty',icon:'🎁',name:'Fidélisation',tag:'Cadeau / Récompense',title:'Merci pour votre fidélité ! ❤️',body:'Pour vous remercier, profitez de votre code promo MERCI10 sur votre prochaine commande.'}
+  ];
+  function openMarketingComposer(){
+    const old=document.getElementById('siams-v47-marketing');if(old){old.remove();return;}
+    const html=`<div id="siams-v47-marketing" class="notif-v42-composer-wrap"><div class="notif-v42-backdrop" onclick="closeMarketingComposer()"></div><section class="notif-v42-sheet notif-v42-composer"><div class="notif-v42-head"><div><h3>Créer un message client</h3><div style="font-size:11px;color:var(--text-mid);margin-top:2px;">Prêt à envoyer dans les boîtes de vos clients.</div></div><button class="notif-v42-close" onclick="closeMarketingComposer()">×</button></div><div class="notif-v42-template-list">${NOTIF_TEMPLATES_V47.map(t=>`<button class="notif-v42-template" onclick="useMarketingTemplate('${t.id}')"><span class="notif-v42-template-icon">${t.icon}</span><span><b>${esc(t.name)}</b><small>${esc(t.tag)}</small></span><span class="notif-v42-template-arrow">›</span></button>`).join('')}</div><div id="v47-marketing-editor" style="display:none;padding:0 18px 20px"></div></section></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);requestAnimationFrame(()=>document.querySelector('#siams-v47-marketing .notif-v42-sheet')?.classList.add('show'));requestAnimationFrame(()=>document.querySelector('#siams-v47-marketing .notif-v42-backdrop')?.classList.add('show'));
+  }
+  window.openMarketingComposer=openMarketingComposer;
+  window.closeMarketingComposer=()=>document.getElementById('siams-v47-marketing')?.remove();
+  window.useMarketingTemplate=id=>{
+    window._v47TemplateId=id;
+    const t=NOTIF_TEMPLATES_V47.find(x=>x.id===id);if(!t)return;const e=document.getElementById('v47-marketing-editor');if(!e)return;
+    e.style.display='block';e.innerHTML=`<div style="font-size:11px;color:var(--mango-dark);font-weight:800;margin-bottom:7px">${esc(t.tag)}</div><div class="field"><label>Titre</label><input id="v47-msg-title" value="${esc(t.title)}"></div><div class="field"><label>Message</label><textarea id="v47-msg-body" rows="5">${esc(t.body)}</textarea></div><div class="notif-v42-preview"><div style="font-size:10px;color:var(--text-soft);margin-bottom:4px">APERÇU CLIENT</div><b id="v47-preview-title">${esc(t.title)}</b><p id="v47-preview-body">${esc(t.body)}</p></div><div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-outline" style="flex:1" onclick="closeMarketingComposer()">Annuler</button><button class="btn btn-primary" style="flex:1" onclick="publishMarketingMessage()">Partager</button></div><div style="font-size:10.5px;color:var(--text-soft);line-height:1.4;margin-top:8px">Le message est ajouté à la boîte Messages du client et peut s’afficher à l’arrivée sur la vitrine.</div>`;
+    const a=e.querySelector('#v47-msg-title'),b=e.querySelector('#v47-msg-body');a.oninput=()=>document.getElementById('v47-preview-title').textContent=a.value;b.oninput=()=>document.getElementById('v47-preview-body').textContent=b.value;
+  };
+  window.publishMarketingMessage=async()=>{const t=document.getElementById('v47-msg-title')?.value.trim()||'Message SIAMS';const b=document.getElementById('v47-msg-body')?.value.trim()||'';await publishStoreMessage(t,b,window._v47TemplateId||'custom');closeMarketingComposer();};
+
+  /* Remplace le bouton de partage des anciens modèles par le nouveau système. */
+  window.shareNotifTemplate=async()=>{const title=document.getElementById('notif-template-title')?.value.trim()||'Notification';const body=document.getElementById('notif-template-body')?.value.trim()||'';await publishStoreMessage(title,body,'legacy');};
+
+  /* Bouton dans l’onglet Codes promo. */
+  const oldPromoView=Views.promos;
+  Views.promos=function(){
+    let h=oldPromoView();
+    const button='<div style="margin:0 20px 14px"><button class="btn btn-primary btn-block" onclick="openMarketingComposer()">✉ Créer un message client</button><div style="font-size:10.5px;color:var(--text-soft);margin-top:6px;text-align:center">Offres flash · paniers abandonnés · nouveautés · fidélisation</div></div>';
+    const marker='<div id="v15-promo-form" class="hidden"></div>';
+    return h.includes(marker)?h.replace(marker,marker+button):h+button;
+  };
+
+  /* 10) Boîte client : messages marketing distants + popup vitrine. */
+  const ClientMessages={
+    _list:[],
+    async load(){
+      const local=getLocalMsgs();let remote=[];
+      try{const {data,error}=await sb.from('store_messages').select('*').eq('store_id',Cloud.storeId).eq('active',true).order('created_at',{ascending:false}).limit(30);if(!error)remote=data||[];}catch(e){}
+      const map=new Map([...remote,...local].map(x=>[x.id,x]));this._list=[...map.values()].sort((a,b)=>new Date(b.created_at||b.createdAt)-new Date(a.created_at||a.createdAt));return this._list;
+    },
+    render(){return this._list.length?this._list.map(m=>`<div style="padding:14px 0;border-bottom:1px solid var(--line)"><div style="font-size:13.5px;font-weight:800">${esc(m.title)}</div><div style="font-size:12.5px;line-height:1.5;color:var(--text-mid);margin-top:5px">${esc(m.body)}</div><div style="font-size:10.5px;color:var(--text-soft);margin-top:6px">${Utils.timeAgo(new Date(m.created_at||m.createdAt).getTime())}</div></div>`).join(''):'<div style="text-align:center;color:var(--text-mid);padding:35px 10px">Aucun message pour le moment.</div>';},
+    async open(){await this.load();const w=document.getElementById('v47-client-messages');if(w){w.remove();return;}const html=`<div id="v47-client-messages" class="shop-sheet-overlay show" onclick="ClientMessages.close()"><div class="shop-sheet show" style="max-height:76vh" onclick="event.stopPropagation()"><div class="sheet-handle"></div><h3>Messages de la boutique</h3><p style="font-size:11.5px;color:var(--text-mid);margin-top:-5px">Offres, nouveautés et informations importantes.</p><div>${this.render()}</div><button class="btn btn-primary btn-block" style="margin-top:14px" onclick="ClientMessages.close()">Fermer</button></div></div>`;document.body.insertAdjacentHTML('beforeend',html);},
+    close(){document.getElementById('v47-client-messages')?.remove();},
+    async popup(){await this.load();const newest=this._list[0];if(!newest)return;const seenKey='siams_seen_message_'+newest.id;try{if(localStorage.getItem(seenKey))return;localStorage.setItem(seenKey,'1');}catch(e){}const el=document.createElement('div');el.id='v47-message-popup';el.innerHTML=`<div class="v47-message-backdrop"></div><div class="v47-message-pop"><div class="v47-message-icon">${newest.template==='flash'?'⚡':newest.template==='new'?'✨':newest.template==='loyalty'?'🎁':'✉'}</div><div style="font-size:10px;color:var(--indigo);font-weight:900;letter-spacing:.08em;text-transform:uppercase">Nouveau message</div><h3>${esc(newest.title)}</h3><p>${esc(newest.body)}</p><button class="btn btn-primary btn-block" onclick="document.getElementById('v47-message-popup')?.remove();ClientMessages.open()">Voir le message</button><button class="btn btn-ghost btn-block" onclick="document.getElementById('v47-message-popup')?.remove()">Plus tard</button></div>`;document.body.appendChild(el);}
+  };
+  window.ClientMessages=ClientMessages;
+  const oldShopAccount=Views['shop-account'];
+  Views['shop-account']=function(){
+    let h=oldShopAccount();
+    const marker=`<div class="acc-row" onclick="ClientNotify.openPanel()">`;
+    const row=`<div class="acc-row" onclick="ClientMessages.open()"><div class="acc-row-icon">✉</div><div class="acc-row-text"><h4>Messages de la boutique</h4><p>Offres, nouveautés et informations importantes</p></div><div class="acc-row-chev">›</div></div>`;
+    if(h.includes(marker)) h=h.replace(marker,row+marker);
+    else h+=`<div style="padding:0 20px 20px"><button class="btn btn-outline btn-block" onclick="ClientMessages.open()">✉ Messages de la boutique</button></div>`;
+    return h;
+  };
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=async function(opts){if(oldAfterShop)oldAfterShop(opts);try{await ClientMessages.popup();}catch(e){}};
+
+  /* 11) Notifications : bouton Vider la corbeille pour marchand + client + livreur. */
+  const clearNotifications=()=>{Store.notifications=[];try{Store.notifications=[];}catch(e){}Notify.renderBell();Toast.show('Notifications supprimées ✓');};
+  window.clearMerchantNotifications=clearNotifications;
+  const oldMerchantOpen=window.SiamsV42OpenMerchant;
+  if(oldMerchantOpen){window.SiamsV42OpenMerchant=function(){oldMerchantOpen();setTimeout(()=>{const root=document.getElementById('siams-v42-merchant');const actions=root?.querySelector('.notif-v42-actions');if(actions&&!actions.querySelector('.v47-trash')){actions.insertAdjacentHTML('afterbegin','<button class="btn btn-outline v47-trash" onclick="clearMerchantNotifications()">🗑 Vider la corbeille</button>');}},40);};}
+  const oldClientOpen=ClientNotify.openPanel.bind(ClientNotify);
+  ClientNotify.openPanel=function(){oldClientOpen();setTimeout(()=>{const root=document.getElementById('siams-v42-client');const actions=root?.querySelector('.notif-v42-actions');if(actions&&!actions.querySelector('.v47-trash'))actions.insertAdjacentHTML('afterbegin','<button class="btn btn-outline v47-trash" onclick="ClientNotify.clearAll()">🗑 Vider la corbeille</button>');},40);};
+  ClientNotify.clearAll=function(){this._list=[];this.save();this.renderBadges();this.closePanel?.();Toast.show('Notifications supprimées ✓');};
+  window.clearCourierNotifications=()=>{try{CourierNotify._list=[];CourierNotify.save();CourierNotify.badge();Toast.show('Notifications supprimées ✓');}catch(e){}};
+
+  /* 12) Dashboard admin SIAMS pour les demandes. */
+  async function loadAdminRequests(){
+    try{const {data,error}=await sb.from('registration_requests').select('*').order('created_at',{ascending:false}).limit(100);if(!error)return data||[];}catch(e){}
+    try{return JSON.parse(localStorage.getItem('siams_registration_requests')||'[]');}catch(e){return[];}
+  }
+  window.adminRequestStatus=async function(id,status){
+    try{
+      let row=null;
+      try{const {data}=await sb.from('registration_requests').select('*').eq('id',id).single();row=data||null;}catch(e){}
+      const {error}=await sb.from('registration_requests').update({status}).eq('id',id);if(error)throw error;
+      if(row?.email){
+        const key=status==='approved'?'account_approved':'account_rejected';
+        await sendSiamsEmail(row.email,'','','',key,{name:row.name||'Marchand',email:row.email,reason:status==='rejected'?'Demande non validée après examen.':'',support_email:SUPPORT_EMAIL});
+      }
+      Toast.show(status==='approved'?'Compte approuvé — e-mail envoyé ✓':'Demande refusée — e-mail envoyé ✓');
+    }catch(e){console.error(e);Toast.show('Statut mis à jour, mais l’e-mail n’a pas pu être envoyé.');}
+    Router.go('siams-admin-requests');
+  };
+  Views['siams-admin-requests']=function(){
+    if(!isSiamsAdmin())return `<div style="padding:30px 20px"><h2>Accès administrateur SIAMS</h2><p style="color:var(--text-mid)">Cette section est réservée au compte administrateur SIAMS.</p><button class="btn btn-primary btn-block" onclick="Router.go('dashboard')">Retour</button></div>`;
+    const cached=(()=>{try{return JSON.parse(localStorage.getItem('siams_registration_requests')||'[]')}catch(e){return[]}})();
+    return `<div class="topbar" style="padding-top:18px"><div><h1>Demandes SIAMS</h1><div style="font-size:11px;color:var(--text-mid)">Requêtes de création de compte</div></div><button class="bell-btn" onclick="Router.go('dashboard')">←</button></div><div id="v47-admin-requests" style="padding:0 20px 100px"><div style="padding:20px;text-align:center;color:var(--text-mid)">Chargement des demandes…</div></div>`;
+  };
+  Views._after_siams_admin_requests=async function(){
+    const root=document.getElementById('v47-admin-requests');if(!root)return;const rows=await loadAdminRequests();
+    if(!rows.length){root.innerHTML='<div style="padding:40px 10px;text-align:center;color:var(--text-mid)">Aucune demande pour le moment.</div>';return;}
+    root.innerHTML=rows.map(r=>`<article style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:10px;box-shadow:var(--shadow-sm)"><div style="display:flex;justify-content:space-between;gap:8px"><div><b>${esc(r.name||'Nouveau marchand')}</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px">${esc(r.shop||'Boutique non renseignée')}</div></div><span class="badge ${r.status==='pending'?'pending':'confirmed'}">${esc(r.status||'pending')}</span></div><div style="font-size:12px;line-height:1.5;margin-top:10px"><b>E-mail :</b> ${esc(r.email)}<br><b>Téléphone :</b> ${esc(r.phone)}<br><b>Requête :</b> ${esc(r.request)}</div><div style="display:flex;gap:7px;margin-top:12px"><button class="btn btn-primary" style="flex:1" onclick="adminRequestStatus('${esc(r.id)}','approved')">✓ Approuver</button><button class="btn btn-outline" style="flex:1" onclick="adminRequestStatus('${esc(r.id)}','rejected')">Refuser</button></div></article>`).join('');
+  };
+
+  /* Ajout d’un accès admin sur le dashboard SIAMS. */
+  const oldDash=Views.dashboard;
+  /* CORRECTIF : le bouton "Demandes de certification boutique" faisait doublon avec l'espace
+     unifié "Vérifications d'identité" (Marchands + Livreurs) ajouté plus loin dans le fichier
+     (voir siams-v64-identity-script). On ne garde ici que le raccourci propre à cet écran
+     (nouvelles demandes de compte), différent de la certification d'identité. */
+  if(oldDash) Views.dashboard=function(){let h=oldDash();if(isSiamsAdmin())h=h.replace('<div class="dashboard-v2-head">','<div style="margin:0 20px 10px"><button class="btn btn-primary btn-block" onclick="Router.go(\'siams-admin-requests\')">🛡️ Demandes de comptes SIAMS</button></div><div class="dashboard-v2-head">');return h;};
+
+  /* 12bis) Dashboard admin SIAMS pour les demandes de certification boutique
+     (pièce d'identité + photo en temps réel, voir Store.submitVerification). */
+  const VERIF_DOC_LABELS = { cni:'CNI (Carte Nationale d’Identité)', passeport:'Passeport', cmu:'Carte CMU', nationalite:'Certificat de nationalité', carte_scolaire:'Carte scolaire' };
+  window._siamsAdminVerifRows = [];
+  async function loadAdminVerifications(){
+    try{
+      const {data,error}=await sb.from('stores').select('id,name,phone,login_id,email,address,verification_status,verification_doc_type,verification_doc_url,verification_photo_url,verification_submitted_at').eq('verification_status','pending').order('verification_submitted_at',{ascending:true}).limit(100);
+      if(!error) return data||[];
+    }catch(e){console.error(e);}
+    return [];
+  }
+  window.adminVerificationStatus=async function(storeId,status,reason){
+    try{
+      const patch = status==='verified'
+        ? { verification_status:'verified', verified:true, verified_at:new Date().toISOString(), verification_reject_reason:null }
+        : { verification_status:'rejected', verified:false, verification_reject_reason:reason||'Document illisible ou non conforme. Merci de soumettre à nouveau.' };
+      const {error}=await sb.from('stores').update(patch).eq('id',storeId);
+      if(error) throw error;
+      Toast.show(status==='verified'?'Boutique certifiée ✓':'Demande refusée');
+    }catch(e){console.error(e);Toast.show('Erreur lors de la mise à jour');}
+    Router.go('siams-admin-verifications');
+  };
+  window.adminRejectVerification=function(storeId){
+    const reason=prompt('Motif du refus (visible par le marchand) :','Document illisible ou non conforme. Merci de soumettre à nouveau.');
+    if(reason===null) return;
+    adminVerificationStatus(storeId,'rejected',reason);
+  };
+  /* ---- Génère un PDF récapitulatif du dossier (infos boutique + pièce +
+     photo en temps réel), pour archivage ou envoi hors ligne. Réutilise jsPDF
+     et loadImageAsDataURL, déjà utilisés pour le contrat et les reçus. ---- */
+  window.adminDownloadVerificationPDF=async function(storeId){
+    const logoPdf = await loadImageAsDataURL(LOGO_DATA_URI);
+
+    const r=(window._siamsAdminVerifRows||[]).find(x=>x.id===storeId);
+    if(!r){ Toast.show('Dossier introuvable, rechargez la page'); return; }
+    if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
+    Toast.show('Préparation du PDF…');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'pt', format:'a4' });
+    const W = doc.internal.pageSize.getWidth();
+    const margin = 46;
+    const blueDeep=[0,96,217], mid=[92,107,122], ink=[22,35,47], line=[220,228,236];
+    let y = 0;
+    try{ doc.addImage(logoPdf, 'PNG', W-margin-40, 30, 40, 40); }catch(e){}
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(blueDeep[0],blueDeep[1],blueDeep[2]);
+    doc.text('Dossier de certification boutique', margin, 52);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(mid[0],mid[1],mid[2]);
+    doc.text('SIAMS — Vérification vendeur sérieux', margin, 68);
+    doc.setDrawColor(line[0],line[1],line[2]); doc.line(margin, 84, W-margin, 84);
+    y = 108;
+    const rows = [
+      ['Boutique', r.name||'—'],
+      ['ID de connexion', r.login_id||'—'],
+      ['Téléphone', r.phone||'—'],
+      ['E-mail', r.email||'—'],
+      ['Adresse', r.address||'—'],
+      ['Pièce fournie', VERIF_DOC_LABELS[r.verification_doc_type]||r.verification_doc_type||'—'],
+      ['Envoyé le', r.verification_submitted_at ? new Date(r.verification_submitted_at).toLocaleString('fr-FR') : '—']
+    ];
+    doc.setFontSize(11);
+    rows.forEach(([label,val])=>{
+      doc.setFont('helvetica','bold'); doc.setTextColor(ink[0],ink[1],ink[2]);
+      doc.text(label, margin, y);
+      doc.setFont('helvetica','normal'); doc.setTextColor(mid[0],mid[1],mid[2]);
+      doc.text(String(val), margin+150, y);
+      y += 20;
+    });
+    y += 10;
+    doc.setDrawColor(line[0],line[1],line[2]); doc.line(margin, y, W-margin, y);
+    y += 26;
+    const [docImg, photoImg] = await Promise.all([loadImageAsDataURL(r.verification_doc_url), loadImageAsDataURL(r.verification_photo_url)]);
+    const imgW = (W-margin*2-16)/2, imgH = imgW;
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(ink[0],ink[1],ink[2]);
+    doc.text('Pièce jointe', margin, y);
+    doc.text('Photo en temps réel', margin+imgW+16, y);
+    y += 10;
+    try{ if(docImg) doc.addImage(docImg, 'PNG', margin, y, imgW, imgH); }catch(e){}
+    try{ if(photoImg) doc.addImage(photoImg, 'PNG', margin+imgW+16, y, imgW, imgH); }catch(e){}
+    y += imgH + 30;
+    doc.setDrawColor(line[0],line[1],line[2]); doc.line(margin, y, W-margin, y);
+    y += 18;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(mid[0],mid[1],mid[2]);
+    doc.text("SIAMS — Yopougon, Abidjan, Côte d'Ivoire  •  0748964690  •  serviceclientsiams.ci@gmail.com", margin, y);
+    doc.save(`certification-${(r.login_id||r.name||'boutique').toString().replace(/[^a-z0-9]+/gi,'-')}.pdf`);
+  };
+  Views['siams-admin-verifications']=function(){
+    if(!isSiamsAdmin())return `<div style="padding:30px 20px"><h2>Accès administrateur SIAMS</h2><p style="color:var(--text-mid)">Cette section est réservée au compte administrateur SIAMS.</p><button class="btn btn-primary btn-block" onclick="Router.go('dashboard')">Retour</button></div>`;
+    return `<div class="topbar" style="padding-top:18px"><div><h1>Certifications</h1><div style="font-size:11px;color:var(--text-mid)">Demandes de badge certifié en attente</div></div><button class="bell-btn" onclick="Router.go('dashboard')">←</button></div><div id="v49-admin-verifs" style="padding:0 20px 100px"><div style="padding:20px;text-align:center;color:var(--text-mid)">Chargement des demandes…</div></div>`;
+  };
+  Views._after_siams_admin_verifications=async function(){
+    const root=document.getElementById('v49-admin-verifs');if(!root)return;const rows=await loadAdminVerifications();
+    window._siamsAdminVerifRows=rows;
+    if(!rows.length){root.innerHTML='<div style="padding:40px 10px;text-align:center;color:var(--text-mid)">Aucune demande en attente.</div>';return;}
+    root.innerHTML=rows.map(r=>`<article style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:12px;box-shadow:var(--shadow-sm)">
+      <div style="display:flex;justify-content:space-between;gap:8px"><div><b>${esc(r.name||'Boutique')}</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px">${esc(r.login_id||'')} · ${esc(r.phone||'')}</div></div><span class="badge pending">${esc(VERIF_DOC_LABELS[r.verification_doc_type]||r.verification_doc_type||'Pièce')}</span></div>
+      <div style="font-size:11.5px;line-height:1.7;margin-top:10px;color:var(--text-mid);">
+        ${r.email?`<div><b style="color:var(--text)">E-mail :</b> ${esc(r.email)}</div>`:''}
+        ${r.address?`<div><b style="color:var(--text)">Adresse :</b> ${esc(r.address)}</div>`:''}
+        <div><b style="color:var(--text)">Envoyé le :</b> ${r.verification_submitted_at?new Date(r.verification_submitted_at).toLocaleString('fr-FR'):''}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+        ${r.verification_doc_url?`<a href="${esc(r.verification_doc_url)}" target="_blank"><img src="${esc(r.verification_doc_url)}" style="width:100%;border-radius:12px;border:1px solid var(--line);object-fit:cover;aspect-ratio:1/1"></a>`:'<div></div>'}
+        ${r.verification_photo_url?`<a href="${esc(r.verification_photo_url)}" target="_blank"><img src="${esc(r.verification_photo_url)}" style="width:100%;border-radius:12px;border:1px solid var(--line);object-fit:cover;aspect-ratio:1/1"></a>`:'<div></div>'}
+      </div>
+      <div style="font-size:10.5px;color:var(--text-soft);margin-top:6px;">Pièce (gauche) · Photo en temps réel (droite) — envoyée le ${r.verification_submitted_at?new Date(r.verification_submitted_at).toLocaleDateString('fr-FR'):''}</div>
+      <div style="display:flex;gap:7px;margin-top:12px"><button class="btn btn-primary" style="flex:1" onclick="adminVerificationStatus('${esc(r.id)}','verified')">✓ Certifier (badge vert)</button><button class="btn btn-outline" style="flex:1" onclick="adminRejectVerification('${esc(r.id)}')">Refuser</button></div>
+      <button class="btn btn-ghost btn-block" style="margin-top:6px" onclick="adminDownloadVerificationPDF('${esc(r.id)}')">📄 Télécharger le dossier en PDF</button>
+    </article>`).join('');
+  };
+
+  /* Suivi de l’utilisateur courant pour l’admin allowlist. */
+  try{sb.auth.getUser().then(({data})=>{window._siamsCurrentAdminEmail=(data?.user?.email||'').toLowerCase();});}catch(e){}
+  const oldAuthLogin=Auth.login.bind(Auth);
+  Auth.login=async function(email,password){const r=await oldAuthLogin(email,password);if(r.ok)window._siamsCurrentAdminEmail=(r.email||email||'').toLowerCase();return r;};
+
+  /* 13) Reçu commande : version visuelle type reçu de transaction, identité SIAMS. */
+  window.buildReceiptDataURL=function(order){
+    const store=Store.store||{};const W=760;const pad=42;const lineH=34;const rows=order.items?.length||1;const H=920+rows*lineH;const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle='#f2f4f7';x.fillRect(0,0,W,H);
+    x.fillStyle='#fff';roundRect(x,38,28,W-76,H-56,22);x.fill();
+    x.fillStyle='#0a62c9';roundRect(x,38,28,W-76,170,22);x.fill();x.fillStyle='#0a62c9';x.fillRect(38,140,W-76,58);
+    x.fillStyle='#fff';x.font='800 28px Arial';x.textAlign='center';x.fillText('SIAMS',W/2,74);x.font='700 17px Arial';x.fillText('REÇU DE COMMANDE',W/2,105);x.font='500 12px Arial';x.fillText('Transaction confirmée par la boutique',W/2,128);
+    let y=228;x.textAlign='left';x.fillStyle='#657083';x.font='700 12px Arial';x.fillText('APERÇU',pad,y);y+=25;
+    const info=[['Type de transaction','Commande'],['Marchand',store.name||'Ma boutique'],['Montant',Utils.fmtFCFA(order.amount)],['Acheteur',`${order.customer?.name||'Client'} — ${order.customer?.phone||''}`]];
+    x.fillStyle='#fff';x.strokeStyle='#e1e6ee';roundRect(x,pad,y,W-pad*2,185,16);x.fill();x.stroke();let iy=y+35;info.forEach(r=>{x.fillStyle='#111827';x.font='700 15px Arial';x.fillText(r[0],pad+18,iy);x.fillStyle='#697386';x.font='700 14px Arial';x.textAlign='right';x.fillText(String(r[1]),W-pad-18,iy);x.textAlign='left';iy+=40;});y+=215;
+    x.fillStyle='#657083';x.font='700 12px Arial';x.fillText('DÉTAILS',pad,y);y+=22;x.fillStyle='#fff';roundRect(x,pad,y,W-pad*2,150,16);x.fill();x.stroke();
+    const details=[['Statut',order.status==='delivered'?'✓ Livrée':order.status==='confirmed'?'✓ Confirmée':'En attente'],['Mode de paiement',PAY_LABELS[order.paymentMethod]||order.paymentMethod||'—'],['Date et heure',new Date(order.createdAt).toLocaleString('fr-FR')],['ID de commande','#'+order.number]];iy=y+34;details.forEach(r=>{x.fillStyle='#111827';x.font='700 14px Arial';x.fillText(r[0],pad+18,iy);x.fillStyle='#697386';x.font='700 13px Arial';x.textAlign='right';x.fillText(String(r[1]),W-pad-18,iy);x.textAlign='left';iy+=30;});y+=180;
+    x.fillStyle='#0a62c9';x.font='800 14px Arial';x.fillText('ARTICLES',pad,y);y+=18;order.items.forEach(it=>{x.fillStyle='#fff';roundRect(x,pad,y,W-pad*2,lineH,9);x.fill();x.fillStyle='#111827';x.font='600 12px Arial';x.fillText(`${it.name} ×${it.qty}`,pad+12,y+22);x.textAlign='right';x.font='700 12px Arial';x.fillText(Utils.fmtFCFA(it.price*it.qty),W-pad-12,y+22);x.textAlign='left';y+=lineH+4;});
+    y+=14;x.strokeStyle='#dfe5ed';x.beginPath();x.moveTo(pad,y);x.lineTo(W-pad,y);x.stroke();y+=32;x.fillStyle='#111827';x.font='800 18px Arial';x.fillText('TOTAL',pad,y);x.textAlign='right';x.fillStyle='#0a62c9';x.font='800 21px Arial';x.fillText(Utils.fmtFCFA(order.amount),W-pad,y);x.textAlign='left';y+=55;
+    x.fillStyle='#eef6ff';roundRect(x,pad,y,W-pad*2,90,14);x.fill();x.fillStyle='#45627e';x.font='500 11px Arial';x.textAlign='center';x.fillText('Ce reçu est émis par SIAMS pour la commande indiquée.',W/2,y+32);x.fillText('Conservez-le comme preuve de votre transaction.',W/2,y+52);x.fillStyle='#0a62c9';x.font='800 12px Arial';x.fillText('SIAMS · '+(SUPPORT_EMAIL),W/2,y+72);return c.toDataURL('image/png');
+  };
+  function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):(ctx.rect(x,y,w,h));ctx.closePath();}
+
+  /* Re-rendu et nettoyage final. */
+  removeThemeUi();
+  setTimeout(removeThemeUi,0);setTimeout(removeThemeUi,250);
+})();
+
+
+/* ===== app-21.js ===== */
+/* SIAMS V48 — fiabilisation des commandes client ↔ marchand et des reçus.
+   Objectif : une commande validée ne doit jamais disparaître du client si une
+   lecture publique Supabase renvoie une liste vide, et le marchand ne doit pas
+   recevoir une confirmation locale avant la fin de l'écriture serveur. */
+(function(){
+  const CLIENT_ORDER_KEY = ()=> 'siams_client_orders_' + ((Store.store&&Store.store.slug)||'default');
+
+  window.ClientOrderCache = window.ClientOrderCache || {
+    load(){
+      try{ return JSON.parse(localStorage.getItem(CLIENT_ORDER_KEY())||'[]'); }
+      catch(e){ return []; }
+    },
+    save(order){
+      try{
+        const list=this.load().filter(o=>o&&o.id!==order.id);
+        list.unshift(JSON.parse(JSON.stringify(order)));
+        localStorage.setItem(CLIENT_ORDER_KEY(),JSON.stringify(list.slice(0,30)));
+      }catch(e){ console.warn('ClientOrderCache.save',e); }
+    },
+    get(id){
+      return this.load().find(o=>String(o.id)===String(id))||null;
+    },
+    remove(id){
+      try{
+        const list=this.load().filter(o=>String(o.id)!==String(id));
+        localStorage.setItem(CLIENT_ORDER_KEY(),JSON.stringify(list));
+      }catch(e){}
+    }
+  };
+
+  /* La lecture cloud publique peut légalement retourner zéro ligne lorsque les
+     policies RLS ne permettent pas de lire orders côté client. On fusionne alors
+     le cache local sans écraser une commande déjà mise à jour côté serveur. */
+  const originalLoadAll=Cloud.loadAll.bind(Cloud);
+  Cloud.loadAll=async function(){
+    const localBefore=this.publicMode ? ClientOrderCache.load() : [];
+    await originalLoadAll();
+    if(this.publicMode && localBefore.length){
+      const byId=new Map((Store.orders||[]).map(o=>[String(o.id),o]));
+      localBefore.forEach(local=>{
+        const server=byId.get(String(local.id));
+        if(!server){
+          byId.set(String(local.id),local);
+        }else{
+          byId.set(String(local.id),Object.assign({},local,server,{
+            items:(server.items&&server.items.length)?server.items:local.items
+          }));
+        }
+      });
+      _cache.orders=Array.from(byId.values()).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    }
+  };
+
+  /* Si le setter a déjà lancé une écriture cloud, waitForOrderPersisted attend
+     cette écriture. Pour une utilisation publique plus sûre, on réessaie aussi
+     explicitement si aucun job n'est encore enregistré. */
+  const originalWait=Cloud.waitForOrderPersisted.bind(Cloud);
+  Cloud.waitForOrderPersisted=async function(orderId){
+    if(this._orderWritePromises[orderId]) return originalWait(orderId);
+    const local=ClientOrderCache.get(orderId);
+    if(!local) return false;
+    await this.persistSingleOrder(local);
+    return true;
+  };
+
+  Cloud.persistSingleOrder=async function(order){
+    if(!this.storeId) throw new Error('Boutique non initialisée');
+    order.paymentProof = await this.ensureStoredUrl(order.paymentProof, 'payment-proofs');
+    order.deliveryPhoto = await this.ensureStoredUrl(order.deliveryPhoto, 'delivery-photos');
+    /* Un doublon (code 23505) sur une nouvelle tentative signifie que la
+       commande a déjà été enregistrée lors d'un essai précédent : on le
+       traite comme un succès plutôt qu'une erreur. On utilise insert() au
+       lieu de upsert() : une clause ON CONFLICT DO UPDATE exige que le rôle
+       ait aussi le droit SELECT sur la table (même sans conflit réel), ce
+       que les clients anonymes n'ont pas — d'où l'échec RLS systématique. */
+    const isDuplicateKey = e => e && (e.code==='23505' || /duplicate key/i.test(e.message||''));
+    let lastError=null;
+    for(let attempt=1;attempt<=3;attempt++){
+      const {error}=await sb.from('orders').insert({
+        id:order.id, store_id:this.storeId, number:order.number,
+        customer_name:order.customer?.name||'', customer_phone:order.customer?.phone||'',
+        customer_address:order.customer?.address||'',
+        customer_latitude:order.customerLat!=null?order.customerLat:null,
+        customer_longitude:order.customerLng!=null?order.customerLng:null,
+        subtotal:order.amount+(order.discount||0)-(order.deliveryFee||0),
+        discount:order.discount||0, promo_code:order.promoCode||null,
+        delivery_zone:order.deliveryZone||null, delivery_fee:order.deliveryFee||0,
+        amount:order.amount, payment_method:order.paymentMethod||'cash',
+        status:order.status||'pending', payment_proof_url:order.paymentProof||null,
+        confirmed_at:order.confirmedAt?new Date(order.confirmedAt).toISOString():null,
+        shipped:!!order.shipped, shipped_at:order.shippedAt?new Date(order.shippedAt).toISOString():null,
+        delivery_confirmed_at:order.deliveryConfirmedAt?new Date(order.deliveryConfirmedAt).toISOString():null,
+        delivery_photo_url:order.deliveryPhoto||null, delivery_token:order.deliveryToken||undefined, courier_id:order.courierId||null
+      });
+      if(!error || isDuplicateKey(error)){
+        if(order.items?.length){
+          const {error:itemError}=await sb.from('order_items').insert(
+            order.items.map(it=>({order_id:order.id,product_id:it.productId||null,name:it.name,price:it.price,qty:it.qty}))
+          );
+          if(itemError && !isDuplicateKey(itemError)) lastError=itemError; else return true;
+        }else return true;
+      }else lastError=error;
+      if(attempt<3) await new Promise(r=>setTimeout(r,600*attempt));
+    }
+    throw lastError||new Error('Échec de synchronisation');
+  };
+
+  /* Le bouton de reçu peut être utilisé après une actualisation : récupération
+     d'abord du cache local, puis du cloud, sans jamais afficher à tort "introuvable". */
+  const originalDownload=window.downloadReceiptPDF;
+  window.downloadReceiptPDF=async function(orderId){
+    let order=Store.orders.find(o=>String(o.id)===String(orderId))||ClientOrderCache.get(orderId);
+    if(!order && Cloud.storeId){
+      try{
+        const {data,error}=await sb.from('orders').select('*').eq('id',orderId).eq('store_id',Cloud.storeId).maybeSingle();
+        if(!error&&data){
+          order={
+            id:data.id,number:data.number,
+            customer:{name:data.customer_name,phone:data.customer_phone,address:data.customer_address},
+            amount:data.amount,discount:data.discount,deliveryZone:data.delivery_zone,deliveryFee:data.delivery_fee,
+            promoCode:data.promo_code,paymentMethod:data.payment_method,status:data.status,
+            createdAt:new Date(data.created_at).getTime(),paymentProof:data.payment_proof_url||null,
+            confirmedAt:data.confirmed_at?new Date(data.confirmed_at).getTime():0,
+            shipped:!!data.shipped,shippedAt:data.shipped_at?new Date(data.shipped_at).getTime():0,
+            deliveryConfirmedAt:data.delivery_confirmed_at?new Date(data.delivery_confirmed_at).getTime():0,
+            deliveryPhoto:data.delivery_photo_url||null,deliveryToken:data.delivery_token||null,items:[]
+          };
+          const {data:items}=await sb.from('order_items').select('*').eq('order_id',orderId);
+          order.items=(items||[]).map(it=>({productId:it.product_id,name:it.name,price:it.price,qty:it.qty}));
+        }
+      }catch(e){}
+    }
+    if(!order){ Toast.show('Commande introuvable'); return; }
+    ClientOrderCache.save(order);
+    /* Le moteur PDF existant reste inchangé : on lui donne temporairement
+       la commande résolue pour éviter toute régression visuelle. */
+    const previous=Store.orders;
+    if(!previous.some(o=>String(o.id)===String(order.id))) _cache.orders=[order].concat(previous||[]);
+    try{ return await originalDownload(order.id); }
+    finally{ _cache.orders=previous; }
+  };
+
+  /* Sur mobile, un retour d'application peut survenir avant le prochain cycle
+     AutoSync. On conserve toujours la dernière commande dans le cache client. */
+  const originalAfterConfirmation=Views._after_confirmation;
+  Views._after_confirmation=function(opts){
+    const order=Store.orders.find(o=>o.number===opts?.orderNumber);
+    if(order) ClientOrderCache.save(order);
+    if(originalAfterConfirmation) originalAfterConfirmation(opts);
+  };
+
+  /* Évite qu'une synchro publique vide ne fasse disparaître immédiatement la
+     commande du client. Les vues client restent locales pour leur historique. */
+  AutoSync.safeViews.add('shop-account');
+  AutoSync.safeViews.add('shop-orders-history');
+  AutoSync.safeViews.add('order-track');
+})();
+
+
+/* ===== app-22.js ===== */
+(function(){
+  'use strict';
+  const TABLE='store_showcase_items';
+  const BUCKET='siams-showcase';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const uid=()=>Utils.uid();
+  const getSid=()=>Cloud.storeId || (Store.store&&Store.store.id) || null;
+  const localKey=()=> 'siams_showcase_'+((Store.store&&Store.store.slug)||'default');
+  const localLoad=()=>{try{return JSON.parse(localStorage.getItem(localKey())||'[]')}catch(e){return[]}};
+  const localSave=a=>{try{localStorage.setItem(localKey(),JSON.stringify(a.slice(0,30)))}catch(e){}};
+  const typeLabel=t=>t==='video'?'Vidéo':t==='partnership'?'Partenariat':'Annonce';
+  const Showcase={
+    items:[], loading:false,
+    async load(){
+      const sid=getSid(); if(!sid){this.items=localLoad();return this.items;}
+      this.loading=true; let remote=[];
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).eq('active',true).order('position',{ascending:true}).order('created_at',{ascending:false}).limit(20);if(!error)remote=data||[];}catch(e){console.warn('Showcase load',e)}
+      const local=localLoad(); const map=new Map([...remote,...local].map(x=>[x.id,x]));
+      this.items=[...map.values()].filter(x=>x.active!==false).sort((a,b)=>(Number(a.position||0)-Number(b.position||0)) || (new Date(b.created_at||0)-new Date(a.created_at||0)));
+      return this.items;
+    },
+    async all(){
+      const sid=getSid(); if(!sid)return localLoad();
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).order('position',{ascending:true}).order('created_at',{ascending:false}).limit(50);if(!error){this.items=data||[];return this.items;}}catch(e){}
+      return localLoad();
+    },
+    async upload(file){
+      if(!file)throw new Error('Fichier manquant');
+      const isVideo=file.type.startsWith('video/');
+      let ext=(file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'');
+      if(!isVideo && file.type && file.type.startsWith('image/')){
+        const compressed = await siamsCompressImageFile(file);
+        if(compressed && compressed.size && compressed.size < file.size){ file = compressed; ext='jpg'; }
+      }
+      const max=isVideo?25*1024*1024:5*1024*1024;
+      if(file.size>max)throw new Error(isVideo?'Vidéo trop volumineuse (25 Mo maximum).':'Photo trop volumineuse (5 Mo maximum).');
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const path=sid+'/'+Date.now()+'-'+uid().replace(/-/g,'')+'.'+ext;
+      const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'31536000'});
+      if(error)throw error;
+      const {data}=sb.storage.from(BUCKET).getPublicUrl(path);
+      if(!data?.publicUrl)throw new Error('URL publique indisponible');
+      return data.publicUrl;
+    },
+    async create(item){
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const row={id:item.id||uid(),store_id:sid,type:item.type||'announcement',title:item.title||'',description:item.description||'',media_url:item.media_url||null,link_url:item.link_url||null,active:item.active!==false,position:Number(item.position||0)};
+      try{const {data,error}=await sb.from(TABLE).insert(row).select().single();if(error)throw error;this.items.unshift(data||row);localSave(this.items);return data||row;}catch(e){
+        localSave([row,...this.items]);
+        throw e;
+      }
+    },
+    async update(id,patch){
+      const idx=this.items.findIndex(x=>x.id===id); if(idx>=0)this.items[idx]={...this.items[idx],...patch};
+      try{const {error}=await sb.from(TABLE).update(patch).eq('id',id);if(error)throw error;}catch(e){localSave(this.items);throw e}
+      localSave(this.items);return true;
+    },
+    async remove(id){
+      try{const {error}=await sb.from(TABLE).delete().eq('id',id);if(error)throw error;}catch(e){localSave(this.items.filter(x=>x.id!==id));throw e}
+      this.items=this.items.filter(x=>x.id!==id);localSave(this.items);return true;
+    }
+  };
+  window.SIAMSShowcase=Showcase;
+
+  function mediaHtml(item,admin){
+    const isVideo=item.type==='video'||String(item.media_url||'').match(/\.(mp4|webm|mov|m4v)(\?|$)/i);
+    if(!item.media_url)return `<div style="height:150px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo);font-size:34px;">${item.type==='partnership'?'🤝':'📢'}</div>`;
+    return isVideo?`<video class="${admin?'v54-list-media':'siams-showcase-media'}" src="${esc(item.media_url)}" ${admin?'controls':''} muted playsinline preload="metadata"></video>`:`<img class="${admin?'v54-list-media':'siams-showcase-media'}" src="${esc(item.media_url)}" loading="lazy" alt="${esc(item.title||'Annonce')}">`;
+  }
+  function clientMarkup(items){
+    if(!items.length)return '';
+    return `<section class="siams-showcase" aria-label="Actualités et partenariats"><div class="siams-showcase-head"><h3>À la une</h3><span>Actualités · Partenariats</span></div><div class="siams-showcase-row">${items.map(x=>`<article class="siams-showcase-card" onclick="SIAMSShowcase.openItem('${esc(x.id)}')">${mediaHtml(x,false)}<div class="siams-showcase-shade"></div>${x.type==='video'?'<div class="siams-showcase-play">▶</div>':''}<div class="siams-showcase-content"><span class="siams-showcase-tag">${typeLabel(x.type)}</span><h4>${esc(x.title||'Nouvelle annonce')}</h4>${x.description?`<p>${esc(x.description)}</p>`:''}</div></article>`).join('')}</div></section>`;
+  }
+  Showcase.renderClient=async function(){const root=document.getElementById('siams-cournsel-client');if(!root)return;await Showcase.load();root.innerHTML=clientMarkup(Showcase.items);};
+  Showcase.openItem=async function(id){
+    const x=Showcase.items.find(i=>String(i.id)===String(id));if(!x)return;
+    const old=document.getElementById('v54-showcase-detail');if(old)old.remove();
+    const isVideo=x.type==='video';
+    const html=`<div id="v54-showcase-detail" class="shop-sheet-overlay show" onclick="this.remove()"><div class="shop-sheet show" style="max-height:88vh" onclick="event.stopPropagation()"><div class="sheet-handle"></div>${isVideo?`<video src="${esc(x.media_url||'')}" controls autoplay playsinline style="width:100%;max-height:48vh;border-radius:14px;background:#000;object-fit:contain"></video>`:x.media_url?`<img src="${esc(x.media_url)}" style="width:100%;max-height:48vh;object-fit:cover;border-radius:14px;">`:''}<div style="font-size:10px;color:var(--indigo);font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-top:12px">${typeLabel(x.type)}</div><h3 style="margin:5px 0 0">${esc(x.title||'Annonce')}</h3>${x.description?`<p style="font-size:12.5px;color:var(--text-mid);line-height:1.5">${esc(x.description)}</p>`:''}${x.link_url?`<button class="btn btn-primary btn-block" onclick="window.open('${esc(x.link_url)}','_blank','noopener,noreferrer')">En savoir plus</button>`:''}<button class="btn btn-ghost btn-block" onclick="this.closest('#v54-showcase-detail').remove()">Fermer</button></div></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+  };
+
+  /* Ajoute le Cournsel à l'accueil client sans déplacer la bannière existante. */
+  const oldShop=Views.shop;
+  Views.shop=function(){let h=oldShop();const marker='<div class="search-wrap"';if(!h.includes(marker))return h;return h.replace(marker,'<div id="siams-cournsel-client"></div>'+marker);};
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=async function(opts){if(oldAfterShop)await oldAfterShop(opts);try{await Showcase.renderClient();}catch(e){console.warn('Cournsel client',e)}};
+
+  /* Gestionnaire marchand */
+  let formState={type:'announcement',file:null,url:'',title:'',description:'',link:''};
+  function formHtml(){
+    return `<div class="v54-form"><div style="font-size:13px;font-weight:850;margin-bottom:10px">Ajouter au Cournsel client</div><div class="v54-type-grid"><button class="v54-type ${formState.type==='announcement'?'active':''}" onclick="setShowcaseType('announcement')">📢 Annonce</button><button class="v54-type ${formState.type==='partnership'?'active':''}" onclick="setShowcaseType('partnership')">🤝 Partenariat</button><button class="v54-type ${formState.type==='video'?'active':''}" onclick="setShowcaseType('video')">▶ Vidéo</button></div><div class="field" style="margin-top:11px"><label>Titre</label><input id="v54-title" maxlength="80" placeholder="Ex. Nouveau partenariat SIAMS" value="${esc(formState.title)}"></div><div class="field"><label>Description courte</label><textarea id="v54-desc" rows="3" maxlength="220" placeholder="Quelques mots pour informer vos clients...">${esc(formState.description)}</textarea></div><div class="v54-upload" onclick="document.getElementById('v54-file').click()"><input id="v54-file" class="hidden" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime" onchange="previewShowcaseFile(event)"><strong>＋ Ajouter une photo ou une vidéo</strong><small>Photo : 5 Mo max · Vidéo : 25 Mo max</small><div id="v54-file-name" style="font-size:10px;color:var(--indigo);margin-top:6px"></div></div><div id="v54-preview" class="v54-preview"></div><div class="field" style="margin-top:10px"><label>Lien (facultatif)</label><input id="v54-link" type="url" placeholder="https://..." value="${esc(formState.link)}"><small style="font-size:10px;color:var(--text-soft)">Le client pourra appuyer sur « En savoir plus ».</small></div><button class="btn btn-primary btn-block" style="margin-top:8px" onclick="publishShowcaseItem()">Publier sur la vitrine client</button></div>`;
+  }
+  function renderManager(){
+    const root=document.getElementById('v54-showcase-manager');if(!root)return;
+    const cards=Showcase.items.length ? Showcase.items.map(function(x){
+      return `<article class="v54-list-card"><div style="position:relative">${mediaHtml(x,true)}<span style="position:absolute;left:10px;top:10px;background:rgba(5,25,48,.75);color:#fff;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:850">${typeLabel(x.type)}</span></div><div class="v54-list-body"><h4>${esc(x.title||'Sans titre')}</h4>${x.description?`<p>${esc(x.description)}</p>`:''}<div class="v54-list-actions"><button class="btn btn-outline btn-sm" onclick="toggleShowcaseItem('${esc(x.id)}')">${x.active===false?'Afficher':'Masquer'}</button><button class="btn btn-ghost btn-sm" onclick="deleteShowcaseItem('${esc(x.id)}')">Supprimer</button></div></div></article>`;
+    }).join('') : `<div style="margin:0 20px 100px">${EmptyState(ICONS.box,'Aucun contenu','Ajoutez une annonce, une photo ou une vidéo : elle apparaîtra automatiquement dans le Cournsel client.')}</div>`;
+    root.innerHTML=formHtml()+`<div class="v54-count">${Showcase.items.filter(x=>x.active!==false).length} contenu(s) visible(s) actuellement sur la vitrine client.</div>${cards}`;
+  }
+  async function openManager(){
+    const root=document.getElementById('v54-showcase-manager');if(!root)return;root.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-mid)">Chargement…</div>';await Showcase.all();renderManager();
+  }
+  window.setShowcaseType=t=>{formState.type=t;renderManager();};
+  window.previewShowcaseFile=e=>{const f=e.target.files?.[0];if(!f)return;formState.file=f;const p=document.getElementById('v54-preview'),n=document.getElementById('v54-file-name');if(n)n.textContent=f.name;const u=URL.createObjectURL(f);if(p){p.style.display='block';p.innerHTML=f.type.startsWith('video/')?`<video src="${u}" controls muted playsinline></video>`:`<img src="${u}" alt="Aperçu">`;}};
+  window.publishShowcaseItem=async()=>{
+    const title=document.getElementById('v54-title')?.value.trim()||'';const description=document.getElementById('v54-desc')?.value.trim()||'';const link=document.getElementById('v54-link')?.value.trim()||'';
+    if(!title)return Toast.show('Ajoutez un titre');
+    if(!formState.file)return Toast.show('Ajoutez une photo ou une vidéo');
+    const btn=document.querySelector('#v54-showcase-manager .btn-primary');if(btn){btn.disabled=true;btn.textContent='Publication…';}
+    try{const media=await Showcase.upload(formState.file);await Showcase.create({type:formState.type,title,description,media_url:media,link_url:link,active:true,position:0});Toast.show('Contenu publié sur la vitrine client ✓');formState={type:'announcement',file:null,url:'',title:'',description:'',link:''};await Showcase.all();renderManager();}
+    catch(e){console.error(e);Toast.show('Impossible de publier. Vérifiez la configuration du stockage SIAMS.');if(btn){btn.disabled=false;btn.textContent='Publier sur la vitrine client';}}
+  };
+  window.toggleShowcaseItem=async id=>{const x=Showcase.items.find(i=>String(i.id)===String(id));if(!x)return;try{await Showcase.update(id,{active:x.active===false});Toast.show(x.active===false?'Contenu affiché ✓':'Contenu masqué ✓');renderManager();}catch(e){Toast.show('Impossible de modifier ce contenu');}};
+  window.deleteShowcaseItem=async id=>{if(!confirm('Supprimer définitivement ce contenu de la vitrine client ?'))return;try{await Showcase.remove(id);Toast.show('Contenu supprimé ✓');renderManager();}catch(e){Toast.show('Impossible de supprimer ce contenu');}};
+
+  Views['showcase']=function(){return `${TopBar('Cournsel client','Annonces & partenariats')}<div class="v54-admin-head"><h2>Contenus de la vitrine</h2><p>Ajoutez une annonce, une photo ou une vidéo de partenariat. Le contenu publié apparaît automatiquement dans l’accueil du client.</p></div><div id="v54-showcase-manager"><div style="padding:35px;text-align:center;color:var(--text-mid)">Chargement…</div></div>`;};
+  const oldDash=Views.dashboard;
+  Views.dashboard=function(){return oldDash();};
+  const oldAfter=Views._after_showcase;Views._after_showcase=async function(){if(oldAfter)await oldAfter();await openManager();};
+  const navKeyAdd=(()=>{try{const orig=Router.go;return orig}catch(e){return null}})();
+  /* La route reste volontairement hors navigation principale : accès depuis Dashboard. */
+  AutoSync.safeViews.add('showcase');
+  
+  /* Si le dashboard est reconstruit par un module ultérieur, réinjecte le raccourci au rendu. */
+  const originalDashboardQuick=window.dashboardQuickGo;
+  if(originalDashboardQuick){ /* aucun remplacement : le raccourci dédié utilise Router.go directement */ }
+})();
+
+
+/* ===== app-23.js ===== */
+(function(){
+  'use strict';
+  const TABLE='store_banners';
+  const BUCKET='siams-banners';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const uid=()=>Utils.uid();
+  const getSid=()=>Cloud.storeId || (Store.store&&Store.store.id) || null;
+  const localKey=()=> 'siams_banners_'+((Store.store&&Store.store.slug)||'default');
+  const localLoad=()=>{try{return JSON.parse(localStorage.getItem(localKey())||'[]')}catch(e){return[]}};
+  const localSave=a=>{try{localStorage.setItem(localKey(),JSON.stringify(a.slice(0,30)))}catch(e){}};
+
+  const Banners={
+    items:[], loading:false,
+    async load(){
+      const sid=getSid(); if(!sid){this.items=localLoad().filter(x=>x.active!==false);return this.items;}
+      this.loading=true; let remote=[];
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).eq('active',true).order('position',{ascending:true}).limit(20);if(!error)remote=data||[];}catch(e){console.warn('Banners load',e)}
+      const local=localLoad(); const map=new Map([...remote,...local].map(x=>[x.id,x]));
+      this.items=[...map.values()].filter(x=>x.active!==false).sort((a,b)=>Number(a.position||0)-Number(b.position||0));
+      return this.items;
+    },
+    async all(){
+      const sid=getSid(); if(!sid){this.items=localLoad();return this.items;}
+      try{const {data,error}=await sb.from(TABLE).select('*').eq('store_id',sid).order('position',{ascending:true}).limit(50);if(!error){this.items=data||[];return this.items;}}catch(e){}
+      this.items=localLoad();return this.items;
+    },
+    async upload(file){
+      if(!file)throw new Error('Fichier manquant');
+      let ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+      if(file.type && file.type.startsWith('image/')){
+        const compressed = await siamsCompressImageFile(file);
+        if(compressed && compressed.size && compressed.size < file.size){ file = compressed; ext='jpg'; }
+      }
+      const max=5*1024*1024;
+      if(file.size>max)throw new Error('Image trop volumineuse (5 Mo maximum).');
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const path=sid+'/'+Date.now()+'-'+uid().replace(/-/g,'')+'.'+ext;
+      const {error}=await sb.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'31536000'});
+      if(error)throw error;
+      const {data}=sb.storage.from(BUCKET).getPublicUrl(path);
+      if(!data?.publicUrl)throw new Error('URL publique indisponible');
+      return data.publicUrl;
+    },
+    async create(item){
+      const sid=getSid(); if(!sid)throw new Error('Boutique non identifiée');
+      const row={id:item.id||uid(),store_id:sid,image_url:item.image_url,link_type:item.link_type||'none',link_url:item.link_url||null,link_product_id:item.link_product_id||null,link_category_id:item.link_category_id||null,active:item.active!==false,position:Number(item.position||0)};
+      try{const {data,error}=await sb.from(TABLE).insert(row).select().single();if(error)throw error;this.items.push(data||row);localSave(this.items);return data||row;}catch(e){
+        this.items.push(row); localSave(this.items);
+        throw e;
+      }
+    },
+    async update(id,patch){
+      const idx=this.items.findIndex(x=>x.id===id); if(idx>=0)this.items[idx]={...this.items[idx],...patch};
+      try{const {error}=await sb.from(TABLE).update(patch).eq('id',id);if(error)throw error;}catch(e){localSave(this.items);throw e}
+      localSave(this.items);return true;
+    },
+    async remove(id){
+      try{const {error}=await sb.from(TABLE).delete().eq('id',id);if(error)throw error;}catch(e){localSave(this.items.filter(x=>x.id!==id));throw e}
+      this.items=this.items.filter(x=>x.id!==id);localSave(this.items);return true;
+    }
+  };
+  window.SIAMSBanners=Banners;
+
+  Banners.openBanner=function(id){
+    const x=Banners.items.find(i=>String(i.id)===String(id)); if(!x)return;
+    if(x.link_type==='external' && x.link_url){ window.open(x.link_url,'_blank','noopener,noreferrer'); }
+    else if(x.link_type==='product' && x.link_product_id){ Router.go('shop-product',{id:x.link_product_id}); }
+    else if(x.link_type==='category' && x.link_category_id){
+      const cat=(Store.categories||[]).find(c=>String(c.id)===String(x.link_category_id));
+      Router.go('shop-categories',{cat:cat?cat.name:''});
+    }
+  };
+
+  function bannerMarkup(items){
+    if(!items.length)return '';
+    return `<div class="siams-banner-carousel" id="siams-banner-carousel"><div class="siams-banner-track" id="siams-banner-track">${items.map(x=>`<div class="siams-banner-slide" onclick="SIAMSBanners.openBanner('${esc(x.id)}')"><img src="${esc(x.image_url)}" loading="lazy" alt="Bannière boutique"></div>`).join('')}</div>${items.length>1?`<div class="siams-banner-dots" id="siams-banner-dots">${items.map((_,i)=>`<span class="siams-banner-dot ${i===0?'active':''}"></span>`).join('')}</div>`:''}</div>`;
+  }
+  Banners.renderClient=async function(){
+    const root=document.getElementById('siams-banners-client'); if(!root)return;
+    await Banners.load(); root.innerHTML=bannerMarkup(Banners.items);
+    startBannerCarousel();
+  };
+  function startBannerCarousel(){
+    const track=document.getElementById('siams-banner-track'); if(!track)return;
+    const n=track.children.length; if(n<1)return;
+    const dots=document.getElementById('siams-banner-dots'); let i=0;
+    const render=()=>{track.style.transform=`translateX(-${i*100}%)`;if(dots)[...dots.children].forEach((d,j)=>d.classList.toggle('active',j===i));};
+    window.v56BannerTimer&&clearInterval(window.v56BannerTimer); render();
+    if(n>1) window.v56BannerTimer=setInterval(()=>{i=(i+1)%n;render();},5500);
+    let sx=0; track.ontouchstart=e=>{sx=e.touches[0].clientX}; track.ontouchend=e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40){i=(i+(dx<0?1:-1)+n)%n;render();}};
+  }
+  const oldShop=Views.shop;
+  Views.shop=function(){let h=oldShop();const marker='<div class="search-wrap"';if(!h.includes(marker))return h;return h.replace(marker,'<div id="siams-banners-client"></div>'+marker);};
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=async function(opts){if(oldAfterShop)await oldAfterShop(opts);try{await Banners.renderClient();}catch(e){console.warn('Banners client',e)}};
+
+  /* ---------- Gestionnaire marchand ---------- */
+  let bannerFormState={file:null,linkType:'none'};
+  function linkTypeLabel(x){
+    if(x.link_type==='external')return '🔗 Lien externe';
+    if(x.link_type==='product')return '🛍️ Vers un produit';
+    if(x.link_type==='category')return '▦ Vers une catégorie';
+    return 'Sans lien';
+  }
+  function bannerFormHtml(){
+    const products=Store.products||[]; const categories=Store.categories||[];
+    return `<div class="v54-form">
+      <div style="font-size:13px;font-weight:850;margin-bottom:10px">Ajouter une bannière</div>
+      <div class="v54-upload" onclick="document.getElementById('v56-file').click()"><input id="v56-file" class="hidden" type="file" accept="image/png,image/jpeg,image/webp" onchange="previewBannerFile(event)"><strong>＋ Ajouter une image</strong><small>Photo : 5 Mo maximum</small><div id="v56-file-name" style="font-size:10px;color:var(--indigo);margin-top:6px">${bannerFormState.file?esc(bannerFormState.file.name):''}</div></div>
+      <div id="v56-preview" class="v54-preview" style="${bannerFormState.file?'display:block':''}"></div>
+      <div class="field" style="margin-top:11px"><label>Lien au clic (facultatif)</label>
+        <div class="v56-link-type-grid">
+          <button class="v54-type ${bannerFormState.linkType==='none'?'active':''}" onclick="setBannerLinkType('none')">Aucun</button>
+          <button class="v54-type ${bannerFormState.linkType==='external'?'active':''}" onclick="setBannerLinkType('external')">🔗 Lien externe</button>
+          <button class="v54-type ${bannerFormState.linkType==='product'?'active':''}" onclick="setBannerLinkType('product')">🛍️ Produit</button>
+          <button class="v54-type ${bannerFormState.linkType==='category'?'active':''}" onclick="setBannerLinkType('category')">▦ Catégorie</button>
+        </div>
+      </div>
+      ${bannerFormState.linkType==='external'?`<div class="field"><label>Lien externe</label><input id="v56-link-url" type="url" placeholder="https://..."></div>`:''}
+      ${bannerFormState.linkType==='product'?`<div class="field"><label>Produit</label><select id="v56-link-product"><option value="">Choisir un produit</option>${products.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></div>`:''}
+      ${bannerFormState.linkType==='category'?`<div class="field"><label>Catégorie</label><select id="v56-link-category"><option value="">Choisir une catégorie</option>${categories.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></div>`:''}
+      <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="publishBannerItem()">Publier la bannière</button>
+    </div>`;
+  }
+  function renderManager(){
+    const root=document.getElementById('v56-banners-manager'); if(!root)return;
+    const cards=Banners.items.length ? Banners.items.map(function(x,idx){
+      return `<article class="v54-list-card"><div style="position:relative">${x.image_url?`<img class="v54-list-media" src="${esc(x.image_url)}" loading="lazy">`:`<div style="height:150px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo);font-size:34px;">🖼️</div>`}<span style="position:absolute;left:10px;top:10px;background:rgba(5,25,48,.75);color:#fff;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:850">${x.active===false?'Masquée':'Visible'}</span></div><div class="v54-list-body"><h4>${esc(linkTypeLabel(x))}</h4><div class="v54-list-actions"><button class="btn btn-outline btn-sm" ${idx===0?'disabled':''} onclick="moveBannerUp('${esc(x.id)}')">↑</button><button class="btn btn-outline btn-sm" ${idx===Banners.items.length-1?'disabled':''} onclick="moveBannerDown('${esc(x.id)}')">↓</button><button class="btn btn-outline btn-sm" onclick="toggleBannerItem('${esc(x.id)}')">${x.active===false?'Afficher':'Masquer'}</button><button class="btn btn-ghost btn-sm" onclick="deleteBannerItem('${esc(x.id)}')">Supprimer</button></div></div></article>`;
+    }).join('') : `<div style="margin:0 20px 100px">${EmptyState(ICONS.box,'Aucune bannière','Ajoutez une bannière : elle apparaîtra en haut de la boutique, au-dessus de la recherche.')}</div>`;
+    root.innerHTML=bannerFormHtml()+`<div class="v54-count">${Banners.items.filter(x=>x.active!==false).length} bannière(s) visible(s) actuellement sur la boutique.</div>${cards}`;
+  }
+  async function openManager(){
+    const root=document.getElementById('v56-banners-manager'); if(!root)return;
+    root.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-mid)">Chargement…</div>';
+    await Banners.all(); renderManager();
+  }
+  window.setBannerLinkType=t=>{bannerFormState.linkType=t;renderManager();};
+  window.previewBannerFile=e=>{const f=e.target.files?.[0];if(!f)return;bannerFormState.file=f;const p=document.getElementById('v56-preview'),n=document.getElementById('v56-file-name');if(n)n.textContent=f.name;const u=URL.createObjectURL(f);if(p){p.style.display='block';p.innerHTML=`<img src="${u}" alt="Aperçu">`;}};
+  window.publishBannerItem=async()=>{
+    const linkType=bannerFormState.linkType;
+    const linkUrl=document.getElementById('v56-link-url')?.value.trim()||'';
+    const linkProductId=document.getElementById('v56-link-product')?.value||'';
+    const linkCategoryId=document.getElementById('v56-link-category')?.value||'';
+    if(!bannerFormState.file)return Toast.show('Ajoutez une image');
+    if(linkType==='external' && !linkUrl)return Toast.show('Ajoutez le lien externe');
+    if(linkType==='product' && !linkProductId)return Toast.show('Choisissez un produit');
+    if(linkType==='category' && !linkCategoryId)return Toast.show('Choisissez une catégorie');
+    const btn=document.querySelector('#v56-banners-manager .btn-primary'); if(btn){btn.disabled=true;btn.textContent='Publication…';}
+    try{
+      const media=await Banners.upload(bannerFormState.file);
+      const maxPos=Banners.items.reduce((m,x)=>Math.max(m,Number(x.position||0)),0);
+      await Banners.create({image_url:media,link_type:linkType,link_url:linkType==='external'?linkUrl:null,link_product_id:linkType==='product'?linkProductId:null,link_category_id:linkType==='category'?linkCategoryId:null,active:true,position:maxPos+10});
+      Toast.show('Bannière publiée ✓');
+      bannerFormState={file:null,linkType:'none'};
+      await Banners.all(); renderManager();
+    }catch(e){console.error(e);Toast.show('Impossible de publier. Vérifiez la configuration du stockage SIAMS.');if(btn){btn.disabled=false;btn.textContent='Publier la bannière';}}
+  };
+  window.toggleBannerItem=async id=>{const x=Banners.items.find(i=>String(i.id)===String(id));if(!x)return;try{await Banners.update(id,{active:x.active===false});Toast.show(x.active===false?'Bannière affichée ✓':'Bannière masquée ✓');renderManager();}catch(e){Toast.show('Impossible de modifier cette bannière');}};
+  window.deleteBannerItem=async id=>{if(!confirm('Supprimer définitivement cette bannière ?'))return;try{await Banners.remove(id);Toast.show('Bannière supprimée ✓');renderManager();}catch(e){Toast.show('Impossible de supprimer cette bannière');}};
+  async function moveBanner(id,dir){
+    const items=Banners.items; const idx=items.findIndex(x=>String(x.id)===String(id)); const swapIdx=idx+dir;
+    if(idx<0||swapIdx<0||swapIdx>=items.length)return;
+    const a=items[idx], b=items[swapIdx];
+    const posA=Number(a.position||0), posB=Number(b.position||0);
+    try{await Banners.update(a.id,{position:posB});await Banners.update(b.id,{position:posA});}catch(e){Toast.show('Impossible de réordonner');return;}
+    items.sort((x,y)=>Number(x.position||0)-Number(y.position||0));
+    renderManager();
+  }
+  window.moveBannerUp=id=>moveBanner(id,-1);
+  window.moveBannerDown=id=>moveBanner(id,1);
+
+  Views['banners']=function(){return `${TopBar('Bannières','Vitrine boutique')}<div class="v54-admin-head"><h2>Bannières de la boutique</h2><p>Ajoutez, réordonnez ou masquez les bannières affichées en haut de la boutique, au-dessus de la recherche. Chaque bannière peut pointer vers un lien externe, un produit ou une catégorie.</p></div><div id="v56-banners-manager"><div style="padding:35px;text-align:center;color:var(--text-mid)">Chargement…</div></div>`;};
+  const oldAfterBanners=Views._after_banners;
+  Views._after_banners=async function(){if(oldAfterBanners)await oldAfterBanners();await openManager();};
+  /* La route reste volontairement hors navigation principale : accès depuis le Centre boutique. */
+  AutoSync.safeViews.add('banners');
+})();
+
+
+/* ===== app-24.js ===== */
+(function(){
+  'use strict';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+
+  window.closeV57Popup=function(id){const el=document.getElementById(id);if(el)el.remove();};
+
+  function openPendingOrderPopup(order){
+    if(document.getElementById('v57-pending-popup'))return;
+    const html=`<div id="v57-pending-popup" class="v57-popup-overlay" onclick="if(event.target===this)closeV57Popup('v57-pending-popup')"><div class="v57-popup-card"><button class="v57-popup-close" onclick="closeV57Popup('v57-pending-popup')">✕</button>
+      <div class="v57-pending-hero"><span class="v57-pending-badge">🕒 En attente</span><h2>Commande en attente de validation</h2><p>Le vendeur va bientôt confirmer votre commande #${esc(order.number)}.</p></div>
+      <div class="v57-trust-grid">
+        <div class="v57-trust-item"><div class="v57-trust-ico">🔒</div><div><b>Paiement sécurisé</b><span>Wave, OM, MTN, Moov ou cash</span></div></div>
+        <div class="v57-trust-item"><div class="v57-trust-ico">🚚</div><div><b>Livraison suivie</b><span>Statut mis à jour en temps réel</span></div></div>
+        <div class="v57-trust-item"><div class="v57-trust-ico">✔</div><div><b>Vendeur vérifié</b><span>Boutique active sur SIAMS</span></div></div>
+        <div class="v57-trust-item"><div class="v57-trust-ico">💬</div><div><b>Support disponible</b><span>En cas de question sur la commande</span></div></div>
+      </div>
+      <div class="v57-popup-cta"><button class="btn btn-primary btn-block" onclick="closeV57Popup('v57-pending-popup');Router.go('order-track',{id:'${esc(order.id)}'})">SUIVRE MA COMMANDE</button></div>
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+    requestAnimationFrame(()=>document.getElementById('v57-pending-popup')?.classList.add('show'));
+  }
+
+  function openDealsPopup(products){
+    if(document.getElementById('v57-deals-popup'))return;
+    let i=0;
+    const slideHtml=p=>{const discount=p.oldPrice?Math.round((1-p.price/p.oldPrice)*100):0;return `<div class="v57-deals-slide"><img src="${esc(p.photo||'')}" alt="${esc(p.name)}">${discount?`<div class="v57-deals-badge">-${discount}%</div>`:''}<div class="v57-deals-name">${esc(p.name)}</div><div class="v57-deals-price-row"><span class="v57-deals-price">${Utils.fmtFCFA(p.price)}</span>${p.oldPrice?`<span class="v57-deals-old-price">${Utils.fmtFCFA(p.oldPrice)}</span>`:''}</div><button class="btn btn-mango btn-block" onclick="closeV57Popup('v57-deals-popup');Router.go('shop-product',{id:'${esc(p.id)}'})">Voir l'article →</button></div>`;};
+    const html=`<div id="v57-deals-popup" class="v57-popup-overlay" onclick="if(event.target===this)closeV57Popup('v57-deals-popup')"><div class="v57-popup-card" style="position:relative;">
+      <button class="v57-popup-close" onclick="closeV57Popup('v57-deals-popup')">✕</button>
+      <div class="v57-deals-head"><span style="font-size:16px;">⚡</span><b>Offres du jour</b></div>
+      ${products.length>1?`<button class="v57-deals-arrow prev" onclick="moveV57DealsSlide(-1)">‹</button><button class="v57-deals-arrow next" onclick="moveV57DealsSlide(1)">›</button>`:''}
+      <div class="v57-deals-track" id="v57-deals-track">${products.map(slideHtml).join('')}</div>
+      ${products.length>1?`<div class="v57-deals-dots" id="v57-deals-dots">${products.map((_,j)=>`<span class="v57-deals-dot ${j===0?'active':''}"></span>`).join('')}</div>`:''}
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
+    requestAnimationFrame(()=>document.getElementById('v57-deals-popup')?.classList.add('show'));
+    const track=document.getElementById('v57-deals-track');
+    const dots=document.getElementById('v57-deals-dots');
+    const setActiveDot=j=>{if(dots)[...dots.children].forEach((d,k)=>d.classList.toggle('active',k===j));};
+    window.moveV57DealsSlide=dir=>{
+      if(!track)return;
+      i=Math.max(0,Math.min(products.length-1,i+dir));
+      const slide=track.children[i];
+      if(slide)track.scrollTo({left:slide.offsetLeft-18,behavior:'smooth'});
+      setActiveDot(i);
+    };
+    if(track){
+      let scrollTimer=null;
+      track.addEventListener('scroll',()=>{
+        clearTimeout(scrollTimer);
+        scrollTimer=setTimeout(()=>{
+          const slideW=track.children[1]?track.children[1].offsetLeft-track.children[0].offsetLeft:track.clientWidth;
+          i=Math.round(track.scrollLeft/slideW);
+          setActiveDot(i);
+        },80);
+      },{passive:true});
+    }
+  }
+
+  function maybeShowHomePopups(){
+    const sid=(Store.store&&Store.store.slug)||'default';
+    const pendingKey='siams_popup_pending_'+sid;
+    const dealsKey='siams_popup_deals_'+sid;
+    let orders=[];
+    try{orders=(window.ClientOrderCache?ClientOrderCache.load():[])||[];}catch(e){}
+    const pendingOrder=orders.find(o=>o&&o.status==='pending');
+    if(pendingOrder && !sessionStorage.getItem(pendingKey)){
+      sessionStorage.setItem(pendingKey,'1');
+      setTimeout(()=>openPendingOrderPopup(pendingOrder),600);
+      return;
+    }
+    if(!sessionStorage.getItem(dealsKey)){
+      const discounted=(Store.products||[]).filter(p=>p.oldPrice && Number(p.oldPrice)>Number(p.price)).sort((a,b)=>(1-b.price/b.oldPrice)-(1-a.price/a.oldPrice)).slice(0,10);
+      if(discounted.length){
+        sessionStorage.setItem(dealsKey,'1');
+        setTimeout(()=>openDealsPopup(discounted),600);
+      }
+    }
+  }
+
+  const oldAfterShop=Views._after_shop;
+  Views._after_shop=async function(opts){if(oldAfterShop)await oldAfterShop(opts);try{maybeShowHomePopups();}catch(e){console.warn('Home popups',e)}};
+})();
+
+
+/* ===== app-25.js ===== */
+(function(){
+  const esc = s => { try{return Utils.escapeHtml(String(s ?? ''));}catch(e){return String(s ?? '');} };
+  const DOC_TYPES = [
+    {key:'cni', label:'CNI (Carte Nationale d’Identité)'},
+    {key:'passeport', label:'Passeport'},
+    {key:'cmu', label:'Carte CMU'},
+    {key:'nationalite', label:'Certificat de nationalité'},
+    {key:'carte_scolaire', label:'Carte scolaire'}
+  ];
+  function docLabel(key){ const d=DOC_TYPES.find(x=>x.key===key); return d?d.label:"Pièce d'identité"; }
+
+  window.VerificationForm = {
+    _docFile:null, _photoFile:null, _docType:'cni',
+    selectDoc(key){ this._docType=key; if(Router.current==='verification') Router.go('verification'); },
+    handleDocFile(evt){
+      const f=evt.target.files&&evt.target.files[0]; if(!f) return;
+      siamsPrepareImageDataURL(f,{maxDim:1600}).then(dataUrl=>{
+        VerificationForm._docFile=dataUrl;
+        const prev=document.getElementById('verif-doc-preview');
+        if(prev) prev.innerHTML=`<img src="${dataUrl}" style="width:100%;border-radius:12px;display:block;">`;
+      }).catch(()=>Toast.show('Impossible de traiter ce fichier'));
+    },
+    handlePhotoFile(evt){
+      const f=evt.target.files&&evt.target.files[0]; if(!f) return;
+      siamsPrepareImageDataURL(f,{maxDim:1200}).then(dataUrl=>{
+        VerificationForm._photoFile=dataUrl;
+        const prev=document.getElementById('verif-photo-preview');
+        if(prev) prev.innerHTML=`<img src="${dataUrl}" style="width:100%;border-radius:12px;display:block;">`;
+      }).catch(()=>Toast.show('Impossible de traiter cette photo'));
+    },
+    async submit(){
+      if(!this._docFile){ Toast.show('Ajoutez une photo ou un scan de votre pièce'); return; }
+      if(!this._photoFile){ Toast.show('Prenez la photo en temps réel demandée'); return; }
+      const btn=document.getElementById('verif-submit-btn');
+      if(btn){ btn.disabled=true; btn.textContent='Envoi en cours…'; }
+      try{
+        await Store.submitVerification(this._docType, this._docFile, this._photoFile);
+        Toast.show('Demande de certification envoyée ✓');
+        this._docFile=null; this._photoFile=null;
+        Router.go('verification');
+      }catch(e){
+        console.error(e);
+        Toast.show("Erreur lors de l'envoi, réessayez.");
+        if(btn){ btn.disabled=false; btn.textContent='Envoyer ma demande de certification'; }
+      }
+    }
+  };
+
+  Views.verification = function(){
+    const v = (Store.store && Store.store.verification) || {status:'none'};
+    if(v.status==='verified'){
+      return `${TopBar('Certification boutique','')}<div style="padding:20px;">
+        <div style="border:1.5px solid #1FAA59;border-radius:20px;padding:22px;background:#EAFBF1;text-align:center;">
+          <div style="font-size:38px;">✅</div>
+          <h2 style="margin:10px 0 6px;">Boutique certifiée</h2>
+          <p style="color:var(--text-mid);font-size:13px;margin:0;">Le badge vert de certification s'affiche désormais à côté du nom de votre boutique, pour rassurer vos clients.</p>
+        </div>
+      </div>`;
+    }
+    if(v.status==='pending'){
+      return `${TopBar('Certification boutique','')}<div style="padding:20px;">
+        <div style="border:1.5px solid var(--gold);border-radius:20px;padding:22px;background:var(--gold-tint);text-align:center;">
+          <div style="font-size:38px;">⏳</div>
+          <h2 style="margin:10px 0 6px;">Vérification en cours</h2>
+          <p style="color:var(--text-mid);font-size:13px;margin:0;">Votre dossier (${esc(docLabel(v.docType))}) a été transmis le ${v.submittedAt?new Date(v.submittedAt).toLocaleDateString('fr-FR'):''}. L'équipe SIAMS l'examine et vous notifiera dès validation.</p>
+        </div>
+      </div>`;
+    }
+    const rejected = v.status==='rejected';
+    return `${TopBar('Certification boutique','')}
+    <div style="padding:0 20px 100px;">
+      ${rejected?`<div style="border:1.5px solid var(--red);border-radius:16px;padding:14px;background:#FDEDED;margin-bottom:14px;"><b style="color:var(--red);font-size:13px;">Demande refusée</b><p style="margin:6px 0 0;font-size:12.5px;color:var(--text-mid);">${esc(v.rejectReason||"Document illisible ou non conforme. Merci de soumettre à nouveau.")}</p></div>`:''}
+      <div class="v15-merchant-card" style="margin:0 0 16px;">
+        <div class="v15-kicker">SERVICE SIAMS · CERTIFICATION</div>
+        <h2>Obtenez le badge vert certifié</h2>
+        <p>Fournissez une pièce officielle (CNI, Passeport, CMU, Certificat de nationalité ou Carte scolaire) et une photo prise en temps réel pour être identifié comme vendeur sérieux auprès de vos clients.</p>
+      </div>
+      <div class="section-title">1. Choisissez votre pièce</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 20px 0;">
+        ${DOC_TYPES.map(d=>`<button type="button" onclick="VerificationForm.selectDoc('${d.key}')" style="text-align:left;padding:11px;border-radius:13px;border:1.5px solid ${VerificationForm._docType===d.key?'var(--indigo)':'var(--line)'};background:${VerificationForm._docType===d.key?'var(--indigo-tint)':'#fff'};font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;">${esc(d.label)}</button>`).join('')}
+      </div>
+      <div class="section-title">2. Photo ou scan de la pièce</div>
+      <div style="margin:8px 20px 0;">
+        <label class="btn btn-outline btn-block" style="cursor:pointer;">📎 Ajouter la pièce jointe<input type="file" accept="image/*" class="hidden" onchange="VerificationForm.handleDocFile(event)"></label>
+        <div id="verif-doc-preview" style="margin-top:10px;"></div>
+      </div>
+      <div class="section-title">3. Photo prise en temps réel</div>
+      <div style="margin:8px 20px 0;">
+        <label class="btn btn-outline btn-block" style="cursor:pointer;">🤳 Prendre la photo maintenant<input type="file" accept="image/*" capture="user" class="hidden" onchange="VerificationForm.handlePhotoFile(event)"></label>
+        <p style="font-size:11px;color:var(--text-soft);margin:6px 0 0;">L'appareil photo s'ouvre directement — cette photo ne peut pas être choisie depuis la galerie.</p>
+        <div id="verif-photo-preview" style="margin-top:10px;"></div>
+      </div>
+      <div style="margin:20px 20px 0;">
+        <button id="verif-submit-btn" type="button" class="btn btn-primary btn-block" onclick="VerificationForm.submit()">Envoyer ma demande de certification</button>
+      </div>
+    </div>`;
+  };
+})();
+
+
+/* ===== app-26.js ===== */
+(function(){
+  'use strict';
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const DURATION_MS = 10*60*1000; // même délai que COURIER_OFFER_TIMEOUT_MS (vue liste)
+  const deadlineKey = id => 'siams_mission_deadline_'+id;
+  const handledKey = id => 'siams_mission_handled_'+id; /* évite de reproposer la même offre au livreur pendant la session en cours, le temps que le backend reflète le refus/l'expiration */
+
+  window.MissionOfferPopup = {
+    _id:null, _deadline:0, _timer:null, _declining:false,
+
+    /* Appelée après chaque chargement du tableau de bord livreur : ouvre la
+       popup pour la première mission "proposée" qui n'a pas déjà été traitée
+       par ce livreur sur cet appareil pendant la session en cours. Si une
+       popup est déjà affichée, on ne l'interrompt pas pour une autre offre. */
+    maybeShow(rows){
+      if(this._id) return;
+      const offer = (rows||[]).find(a=>a && a.status==='offered' && !sessionStorage.getItem(handledKey(a.id)));
+      if(offer) this.open(offer);
+    },
+
+    open(a){
+      if(document.getElementById('v58-mission-popup')) return;
+      this._id = a.id;
+      let deadline = Number(sessionStorage.getItem(deadlineKey(a.id))||0);
+      if(!deadline || deadline < Date.now()){ deadline = Date.now()+DURATION_MS; }
+      sessionStorage.setItem(deadlineKey(a.id), String(deadline));
+      this._deadline = deadline;
+      const html = `<div id="v58-mission-popup" class="v57-popup-overlay"><div class="v57-popup-card" style="max-width:380px;">
+        <div class="v58-mission-hero">
+          <span class="v58-mission-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:3px;"><circle cx="6" cy="18" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.6" stroke="currentColor" stroke-width="1.7"/><path d="M6 18h6l1.8-6H10M13.8 12l1.7-3.5h3M17 18l-1.6-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.5" cy="7" r="1.3" fill="currentColor"/></svg>Nouvelle mission</span>
+          <span id="v58-mission-countdown" class="v58-mission-countdown">10:00</span>
+          <div class="v58-mission-bar-track"><div id="v58-mission-bar-fill" class="v58-mission-bar-fill" style="width:100%;"></div></div>
+        </div>
+        <div class="v58-mission-body">
+          <div class="v58-mission-order">Commande #${esc(a.order_number||'')}</div>
+          <div class="v58-mission-client"><b>${esc(a.customer_name||'')}</b><span>${esc(a.customer_address||'')}</span></div>
+          ${a.amount!=null?`<div class="v58-mission-amount">${Utils.fmtFCFA(a.amount)}</div>`:''}
+          <div class="v58-mission-eta-row"><label>Délai estimé de livraison</label><select id="v58-mission-eta"><option value="30">30 min</option><option value="45">45 min</option><option value="60" selected>1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div>
+        </div>
+        <div class="v58-mission-actions">
+          <button class="btn btn-outline btn-block" onclick="MissionOfferPopup.decline()">Refuser</button>
+          <button class="btn btn-primary btn-block" onclick="MissionOfferPopup.accept()">Accepter la livraison</button>
+        </div>
+      </div></div>`;
+      document.body.insertAdjacentHTML('beforeend', html);
+      requestAnimationFrame(()=>document.getElementById('v58-mission-popup')?.classList.add('show'));
+      this.tick();
+      this._timer = setInterval(()=>this.tick(), 1000);
+    },
+
+    tick(){
+      const remaining = this._deadline - Date.now();
+      if(remaining<=0){ this.expire(); return; }
+      const el = document.getElementById('v58-mission-countdown');
+      const bar = document.getElementById('v58-mission-bar-fill');
+      const m = Math.floor(remaining/60000);
+      const s = Math.floor((remaining%60000)/1000);
+      if(el){ el.textContent = m+':'+String(s).padStart(2,'0'); el.classList.toggle('low', remaining<60000); }
+      if(bar){ bar.style.width = Math.max(0,(remaining/DURATION_MS*100)).toFixed(1)+'%'; }
+    },
+
+    _cleanup(){
+      if(this._timer){ clearInterval(this._timer); this._timer=null; }
+      const el=document.getElementById('v58-mission-popup'); if(el) el.remove();
+      if(this._id) sessionStorage.removeItem(deadlineKey(this._id));
+      this._id=null;
+    },
+
+    async accept(){
+      const id=this._id; if(!id) return;
+      const eta=document.getElementById('v58-mission-eta')?.value||60;
+      document.querySelectorAll('#v58-mission-popup .v58-mission-actions .btn').forEach(b=>b.disabled=true);
+      try{
+        const sess=courierSession();
+        if(!sess) throw new Error('Session livreur expirée');
+        await Cloud.courierAcceptAssignment(sess.session_token, id, eta);
+        Toast.show('Livraison acceptée ✓');
+        sessionStorage.setItem(handledKey(id),'1');
+        this._cleanup();
+        loadCourierDashboard();
+      }catch(e){
+        console.error('Acceptation mission',e);
+        Toast.show('⚠️ '+((e&&e.message)||'Impossible d’accepter la mission'));
+        document.querySelectorAll('#v58-mission-popup .v58-mission-actions .btn').forEach(b=>b.disabled=false);
+      }
+    },
+
+    async decline(){
+      const id=this._id; if(!id || this._declining) return;
+      this._declining=true;
+      document.querySelectorAll('#v58-mission-popup .v58-mission-actions .btn').forEach(b=>b.disabled=true);
+      await this._sendDecline(id);
+      sessionStorage.setItem(handledKey(id),'1');
+      this._declining=false;
+      this._cleanup();
+      Toast.show('Mission refusée');
+      loadCourierDashboard();
+    },
+
+    /* Compte à rebours écoulé sans réponse : refus silencieux, la commande
+       redevient "non affectée" côté marchand qui peut réaffecter un livreur. */
+    async expire(){
+      const id=this._id; if(!id) return;
+      await this._sendDecline(id);
+      sessionStorage.setItem(handledKey(id),'1');
+      this._cleanup();
+      loadCourierDashboard();
+    },
+
+    async _sendDecline(id){
+      try{
+        const sess=courierSession();
+        if(sess) await Cloud.courierDeclineAssignment(sess.session_token, id);
+      }catch(e){ console.error('Refus mission',e); }
+    }
+  };
+
+  const oldLoadForMissionPopup = window.loadCourierDashboard;
+  if(oldLoadForMissionPopup){
+    window.loadCourierDashboard = async function(){
+      const r = await oldLoadForMissionPopup.apply(this, arguments);
+      try{
+        const sess = courierSession();
+        if(sess && Router.current==='courier-dashboard'){
+          const rows = await Cloud.courierAssignments(sess.session_token);
+          MissionOfferPopup.maybeShow(rows);
+        }
+      }catch(e){ console.error('Vérification popup mission',e); }
+      return r;
+    };
+  }
+})();
+
+
+/* ===== app-27.js ===== */
+(function(){
+  'use strict';
+  const esc = s => { try{ return Utils.escapeHtml(String(s??'')); }catch(e){ return String(s??''); } };
+
+  const COURIER_DOC_TYPES = [
+    {key:'cni', label:"CNI / Carte d'identité", svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="12" r="2.1" stroke="currentColor" stroke-width="1.5"/><path d="M12.5 9.5h6M12.5 12.5h6M12.5 15.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'},
+    {key:'permis', label:'Permis de conduire', svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12h6M9 15.5h6M9 8.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'},
+    {key:'carte_grise', label:'Carte grise du véhicule', svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 8h11v9H4zM15 11h3l3 3v3h-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="7.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.4"/><circle cx="17.5" cy="19" r="1.6" stroke="currentColor" stroke-width="1.4"/></svg>'},
+    {key:'assurance', label:'Assurance véhicule', svg:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3.5 19 6.5v5c0 5-3 8.3-7 9.5-4-1.2-7-4.5-7-9.5v-5L12 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2.2 2.2L15.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+  ];
+
+  const STATUS_CHIP = {
+    none:     {label:'À fournir',        bg:'var(--mango-tint)', fg:'var(--mango-dark)'},
+    pending:  {label:'En vérification',  bg:'var(--gold-tint)',  fg:'var(--gold-dark)'},
+    verified: {label:'Validé ✓',         bg:'var(--green-tint)', fg:'var(--green)'},
+    rejected: {label:'Refusé',           bg:'var(--red-tint)',   fg:'var(--red)'}
+  };
+  function statusChip(status){
+    const m = STATUS_CHIP[status] || STATUS_CHIP.none;
+    return `<span style="font-size:10.5px;font-weight:800;padding:5px 11px;border-radius:999px;background:${m.bg};color:${m.fg};white-space:nowrap;flex:none;">${m.label}</span>`;
+  }
+
+  window.CourierDocs = {
+    _data: null,
+    async load(){
+      const sess = courierSession();
+      const mount = document.getElementById('courier-docs-list');
+      if(!sess || !mount) return;
+      try{
+        const r = await Cloud.courierDocuments(sess.session_token);
+        this._data = Array.isArray(r) ? r[0] : r;
+        this.render();
+        this.renderBadge();
+      }catch(e){
+        console.error('Chargement documents livreur', e);
+        mount.innerHTML = `<div class="courier-tab-empty-note" style="padding:24px 10px;">
+          <div style="margin-bottom:6px;display:flex;justify-content:center;color:var(--text-soft);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          Cette fonctionnalité attend une mise à jour côté serveur. Contactez l'assistant SIAMS si ce message persiste.
+        </div>`;
+      }
+    },
+    render(){
+      const mount = document.getElementById('courier-docs-list'); if(!mount) return;
+      const c = this._data || {};
+      mount.innerHTML = COURIER_DOC_TYPES.map(d=>{
+        const status = c['doc_'+d.key+'_status'] || 'none';
+        const rejectReason = status==='rejected' ? (c.doc_reject_reason||'') : '';
+        return `<label class="courier-doc-row">
+          <div style="width:38px;height:38px;border-radius:12px;background:var(--panel);display:flex;align-items:center;justify-content:center;color:var(--ink);flex:none;">${d.svg}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:13.5px;">${esc(d.label)}</div>
+            ${rejectReason?`<div style="font-size:11px;color:var(--red);margin-top:2px;">${esc(rejectReason)}</div>`:''}
+          </div>
+          ${statusChip(status)}
+          <input type="file" accept="image/*" onchange="CourierDocs.handleFile('${d.key}', event)">
+        </label>`;
+      }).join('') + `<p style="font-size:11px;color:var(--text-soft);margin:6px 4px 0;">Touchez un document pour l'ajouter ou le remplacer. Une fois vos 4 pièces validées par SIAMS, votre badge certifié s'affiche automatiquement.</p>`;
+    },
+    renderBadge(){
+      const verified = !!(this._data && this._data.documents_verified);
+      const html = verified ? CertifiedBadge(16) : '';
+      const a = document.getElementById('courier-cert-badge'); if(a) a.innerHTML = html;
+      const b = document.getElementById('courier-cert-badge-hero'); if(b) b.innerHTML = html;
+    },
+    async handleFile(docKey, evt){
+      const f = evt.target.files && evt.target.files[0]; if(!f) return;
+      const sess = courierSession(); if(!sess) return;
+      try{
+        const dataUrl = await siamsPrepareImageDataURL(f, {maxDim:1600});
+        Toast.show('Envoi du document…');
+        await Cloud.courierSubmitDocument(sess.session_token, docKey, dataUrl);
+        Toast.show('Document envoyé ✓ En cours de vérification');
+        this.load();
+      }catch(e){
+        console.error('Envoi document livreur', e);
+        Toast.show("⚠️ Impossible d'envoyer ce document, réessayez.");
+      }
+    }
+  };
+
+  function renderCourierSettingsSection(){
+    const notifOn = localStorage.getItem('siams_courier_notif_pref')!=='0';
+    const gpsOn = localStorage.getItem('siams_courier_gps_pref')!=='0';
+    const toggleSw = on => `<span style="display:inline-flex;align-items:center;width:38px;height:22px;border-radius:999px;background:${on?'var(--green)':'var(--line)'};position:relative;transition:background .2s;flex:none;"><span style="position:absolute;top:2px;left:${on?'18px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s;"></span></span>`;
+    const icoBell='<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 19.5a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+    const icoPin='<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="1.6"/></svg>';
+    const icoChat='<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 1 3.5 6.6L4 20l1.2-3.6A7.9 7.9 0 0 1 4 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+    const icoWrap = svg => `<div style="width:38px;height:38px;border-radius:12px;background:var(--panel);display:flex;align-items:center;justify-content:center;color:var(--ink);flex:none;">${svg}</div>`;
+    return `
+    <div class="courier-doc-row" onclick="CourierSettings.toggleNotif()" style="cursor:pointer;">
+      ${icoWrap(icoBell)}
+      <div style="flex:1;font-weight:800;font-size:13.5px;">Notifications missions</div>
+      ${toggleSw(notifOn)}
+    </div>
+    <div class="courier-doc-row" onclick="CourierSettings.toggleGps()" style="cursor:pointer;">
+      ${icoWrap(icoPin)}
+      <div style="flex:1;font-weight:800;font-size:13.5px;">Partage de position</div>
+      ${toggleSw(gpsOn)}
+    </div>
+    <div class="courier-doc-row" onclick="window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent('Bonjour SIAMS, j’ai besoin d’assistance depuis mon espace livreur.'),'_blank')" style="cursor:pointer;">
+      ${icoWrap(icoChat)}
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:800;font-size:13.5px;">Assistance SIAMS</div>
+        <div style="font-size:11px;color:var(--text-mid);margin-top:2px;">0748964690 · serviceclientsiams.ci@gmail.com</div>
+      </div>
+      <span style="color:var(--text-soft);font-size:16px;">›</span>
+    </div>`;
+  }
+
+  window.CourierSettings = {
+    toggleNotif(){
+      const cur = localStorage.getItem('siams_courier_notif_pref')!=='0';
+      localStorage.setItem('siams_courier_notif_pref', cur?'0':'1');
+      const mount=document.getElementById('courier-settings-list'); if(mount) mount.innerHTML=renderCourierSettingsSection();
+      Toast.show(cur?'Notifications désactivées':'Notifications activées');
+    },
+    toggleGps(){
+      const cur = localStorage.getItem('siams_courier_gps_pref')!=='0';
+      localStorage.setItem('siams_courier_gps_pref', cur?'0':'1');
+      const mount=document.getElementById('courier-settings-list'); if(mount) mount.innerHTML=renderCourierSettingsSection();
+      Toast.show(cur?'Partage de position désactivé':'Partage de position activé (utilisé pendant vos livraisons)');
+    }
+  };
+
+  /* ---- Statistiques de l'onglet Profil (Acceptation / Missions / Ce mois-ci) : réutilise
+     les mêmes appels Cloud que les onglets Missions et Gains, sans dupliquer de logique. ---- */
+  async function loadCourierProfileStats(){
+    const sess = courierSession();
+    const mount = document.getElementById('courier-profile-stats');
+    if(!sess || !mount) return;
+    try{
+      const rows = await Cloud.courierAssignments(sess.session_token);
+      const total = rows.length;
+      const accepted = rows.filter(a=>a.status==='accepted'||a.status==='delivered').length;
+      const declined = rows.filter(a=>a.status==='declined').length;
+      const rate = (accepted+declined)>0 ? Math.round(accepted/(accepted+declined)*100)+'%' : '—';
+      let monthTotal = '—';
+      try{
+        const earn = await Cloud.courierEarnings(sess.session_token);
+        const e = Array.isArray(earn) ? earn[0] : earn;
+        if(e && e.month!=null) monthTotal = Utils.fmtFCFA(Number(e.month||0));
+      }catch(e2){ /* écran Gains gère déjà l'absence de la fonction SQL ; ici on garde le tiret */ }
+      mount.innerHTML = `<div class="courier-stats-row">
+        <div class="courier-stat"><b>${rate}</b><span>Acceptation</span></div>
+        <div class="courier-stat"><b>${total}</b><span>Missions</span></div>
+        <div class="courier-stat"><b>${monthTotal}</b><span>Ce mois-ci</span></div>
+      </div>`;
+    }catch(e){ console.error('Statistiques profil livreur', e); }
+  }
+
+  /* ---- Panneau admin SIAMS : validation des pièces d'identité du livreur (CNI, permis,
+     carte grise, assurance) — même logique que la certification boutique existante
+     (Views['siams-admin-verifications']), mais document par document puisqu'un livreur
+     envoie 4 pièces distinctes. Mise à jour directe de la ligne "couriers" ; le trigger
+     SQL courier_recompute_documents_verified (migration_courier_documents.sql) active
+     seul le badge vert dès que les 4 statuts passent à 'verified'. ---- */
+  const ADMIN_EMAIL_V60 = 'serviceclientsiams.ci@gmail.com';
+  function isSiamsAdminV60(){
+    return (window._siamsCurrentAdminEmail||'').toLowerCase() === ADMIN_EMAIL_V60;
+  }
+
+  async function loadAdminCourierVerifications(){
+    try{
+      const {data,error} = await sb.from('couriers')
+        .select('id,name,phone,doc_cni_status,doc_cni_url,doc_permis_status,doc_permis_url,doc_carte_grise_status,doc_carte_grise_url,doc_assurance_status,doc_assurance_url,documents_submitted_at,documents_verified,doc_reject_reason')
+        .or('doc_cni_status.eq.pending,doc_permis_status.eq.pending,doc_carte_grise_status.eq.pending,doc_assurance_status.eq.pending')
+        .order('documents_submitted_at',{ascending:true}).limit(100);
+      if(!error) return data||[];
+      console.error(error);
+    }catch(e){ console.error(e); }
+    return [];
+  }
+  window.adminCourierDocStatus = async function(courierId, docKey, status, reason){
+    try{
+      const patch = { ['doc_'+docKey+'_status']: status, doc_reject_reason: status==='rejected' ? (reason||'Document illisible ou non conforme. Merci de renvoyer une pièce nette.') : null };
+      const {error} = await sb.from('couriers').update(patch).eq('id', courierId);
+      if(error) throw error;
+      Toast.show(status==='verified' ? 'Document validé ✓' : 'Document refusé');
+    }catch(e){ console.error(e); Toast.show('Erreur lors de la mise à jour'); }
+    Router.go('siams-admin-courier-verifications');
+  };
+  window.adminRejectCourierDoc = function(courierId, docKey){
+    const reason = prompt('Motif du refus (visible par le livreur) :', 'Document illisible ou non conforme. Merci de renvoyer une pièce nette.');
+    if(reason===null) return;
+    adminCourierDocStatus(courierId, docKey, 'rejected', reason);
+  };
+  Views['siams-admin-courier-verifications'] = function(){
+    if(!isSiamsAdminV60()) return `<div style="padding:30px 20px"><h2>Accès administrateur SIAMS</h2><p style="color:var(--text-mid)">Cette section est réservée au compte administrateur SIAMS.</p><button class="btn btn-primary btn-block" onclick="Router.go('dashboard')">Retour</button></div>`;
+    return `<div class="topbar" style="padding-top:18px"><div><h1>Certifications livreurs</h1><div style="font-size:11px;color:var(--text-mid)">Documents en attente de vérification</div></div><button class="bell-btn" onclick="Router.go('dashboard')">←</button></div><div id="v60-admin-courier-verifs" style="padding:0 20px 100px"><div style="padding:20px;text-align:center;color:var(--text-mid)">Chargement des documents…</div></div>`;
+  };
+  Views._after_siams_admin_courier_verifications = async function(){
+    const root = document.getElementById('v60-admin-courier-verifs'); if(!root) return;
+    const rows = await loadAdminCourierVerifications();
+    if(!rows.length){ root.innerHTML = '<div style="padding:40px 10px;text-align:center;color:var(--text-mid)">Aucun document en attente.</div>'; return; }
+    root.innerHTML = rows.map(r=>{
+      const pendingDocs = COURIER_DOC_TYPES.filter(d=>r['doc_'+d.key+'_status']==='pending');
+      return `<article style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:12px;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div><b>${esc(r.name||'Livreur')}</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px">${esc(r.phone||'')}</div></div>
+          ${r.documents_verified?CertifiedBadge(18):''}
+        </div>
+        ${pendingDocs.map(d=>{
+          const url = r['doc_'+d.key+'_url'];
+          return `<div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);">
+            <div style="font-size:12.5px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:7px;"><span style="color:var(--ink);display:inline-flex;">${d.svg}</span>${esc(d.label)}</div>
+            ${url?`<a href="${esc(url)}" target="_blank"><img src="${esc(url)}" style="width:100%;max-width:220px;border-radius:12px;border:1px solid var(--line);object-fit:cover;display:block;"></a>`:'<div style="font-size:11px;color:var(--text-soft);">Aucun fichier</div>'}
+            <div style="display:flex;gap:7px;margin-top:10px"><button class="btn btn-primary" style="flex:1" onclick="adminCourierDocStatus('${esc(r.id)}','${d.key}','verified')">✓ Valider</button><button class="btn btn-outline" style="flex:1" onclick="adminRejectCourierDoc('${esc(r.id)}','${d.key}')">Refuser</button></div>
+          </div>`;
+        }).join('')}
+      </article>`;
+    }).join('');
+  };
+  /* Ajoute l'accès depuis le dashboard admin SIAMS, à côté des demandes de comptes et
+     de la certification boutique déjà présentes. */
+  const oldDashV60 = Views.dashboard;
+  if(oldDashV60) Views.dashboard = function(){
+    let h = oldDashV60();
+    if(isSiamsAdminV60() && !h.includes('siams-admin-courier-verifications')){
+      h = h.replace('<div class="dashboard-v2-head">', '<div style="margin:0 20px 10px;"><button class="btn btn-outline btn-block" onclick="Router.go(\'siams-admin-courier-verifications\')">🛡️ Demandes de certification livreur</button></div><div class="dashboard-v2-head">');
+    }
+    return h;
+  };
+
+  window.loadCourierProfileExtras = function(){
+    const settingsMount = document.getElementById('courier-settings-list');
+    if(settingsMount) settingsMount.innerHTML = renderCourierSettingsSection();
+    CourierDocs.load();
+    loadCourierProfileStats();
+    if(window.loadCourierPayoutSection) loadCourierPayoutSection();
+  };
+
+  /* ---- Le badge certifié doit aussi apparaître dès l'ouverture du tableau de bord (pas
+     seulement quand le livreur va sur l'onglet Profil) : on le charge une fois en tâche de
+     fond dès que le tableau de bord livreur est prêt. ---- */
+  const oldLoadForCourierDocs = window.loadCourierDashboard;
+  if(oldLoadForCourierDocs){
+    window.loadCourierDashboard = async function(){
+      const r = await oldLoadForCourierDocs.apply(this, arguments);
+      try{
+        const sess = courierSession();
+        if(sess && Router.current==='courier-dashboard' && !CourierDocs._data){
+          const data = await Cloud.courierDocuments(sess.session_token);
+          CourierDocs._data = Array.isArray(data) ? data[0] : data;
+          CourierDocs.renderBadge();
+        }
+      }catch(e){ /* fonction SQL pas encore déployée : on n'affiche simplement pas le badge */ }
+      return r;
+    };
+  }
+})();
+
+
+/* ===== app-28.js ===== */
+(function(){
+  'use strict';
+
+  /* ---------- Badges vitrine client ----------
+     Le code calculait le badge avec isPaidSubscriptionActive(), ce qui pouvait
+     masquer le badge dans l'aperçu lorsque l'état d'identité/abonnement n'était
+     pas encore chargé au même instant. On utilise maintenant access.badge comme
+     source d'affichage, sans changer les règles d'accès marchand. */
+  const oldShop = Views.shop;
+  if(typeof oldShop==='function'){
+    Views.shop=function(){
+      let html=oldShop.apply(this,arguments);
+      try{
+        const access=Store.access ? Store.access() : {};
+        const badge=access && access.badge;
+        if(badge && typeof VerifiedBadge==='function'){
+          const plan=access.plan || (
+            badge==='GOLDEN'?'golden':
+            badge==='PLATINE'?'platinum':
+            badge==='TOUTE BOUTIQUE'?'all':
+            badge==='DOYA'?'doya':'doyen'
+          );
+          const chip=VerifiedBadge(16,plan);
+          /* Si l'ancien rendu n'a pas affiché de badge, l'ajouter au nom de boutique. */
+          if(chip && !/svg[^>]*VerifiedBadge/.test(html) && !html.includes(chip)){
+            const safeName=Utils.escapeHtml(Store.store?.name||'Boutique');
+            const escapedName=safeName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+            const re=new RegExp('('+escapedName+')(</h1>)');
+            if(re.test(html)) html=html.replace(re,'$1'+chip+'$2');
+          }
+        }
+      }catch(e){ console.warn('V62 badge vitrine',e); }
+      return html;
+    };
+  }
+
+  /* ---------- Promo robuste ----------
+     Le champ promo a changé d'id plusieurs fois (co-promo / __v46_2).
+     La fonction originale ne trouvait donc parfois pas l'input/message.
+     On remplace par une version tolérante et on recharge les promos cloud si
+     nécessaire avant validation. */
+  window.applyPromoCode = async function(){
+    const input=document.getElementById('co-promo') || document.getElementById('co-promo__v46_2');
+    const msg=document.getElementById('co-promo-msg') || document.getElementById('co-promo-msg__v46_3');
+    if(!input || !msg){ Toast.show('Champ code promo introuvable.'); return; }
+    const code=(input.value||'').trim().toUpperCase();
+    if(!code){ msg.textContent=''; appliedPromo=null; recalcCheckoutTotal(); return; }
+
+    let promos=Store.promos||[];
+    try{
+      if(!promos.length && Cloud.storeId) await Cloud.loadAll();
+    }catch(e){}
+
+    const promo=promos.map(p=>PromoLocal.merge(p)).find(p=>
+      String(p.code||'').trim().toUpperCase()===code &&
+      p.active!==false &&
+      (!Number(p.maxUses||0) || Number(p.usedCount||0)<Number(p.maxUses||0)) &&
+      Number(p.value||0)>0
+    );
+    if(!promo){
+      msg.textContent='Code invalide, inactif ou épuisé';
+      msg.style.color='var(--red)';
+      appliedPromo=null; recalcCheckoutTotal(); return;
+    }
+    appliedPromo=promo;
+    msg.textContent=`✓ Code appliqué : ${promo.type==='percent' ? Number(promo.value)+'% de réduction' : Utils.fmtFCFA(Number(promo.value))+' de réduction'}`;
+    msg.style.color='var(--green)';
+    recalcCheckoutTotal();
+  };
+
+  /* ---------- RPC arrivée ----------
+     Le SQL V62 crée courier_mark_arrived. Le livreur ne peut donc plus
+     terminer directement la commande : il signale seulement son arrivée. */
+  Cloud.courierMarkArrived = async function(sessionToken,assignmentId){
+    const {data,error}=await sb.rpc('courier_mark_arrived',{
+      p_session_token:sessionToken,
+      p_assignment_id:assignmentId
+    });
+    if(error) throw error;
+    return data;
+  };
+
+  async function courierArrived(id){
+    const sess=courierSession();
+    if(!sess){ Toast.show('Session livreur expirée.'); return; }
+    const btn=document.querySelector(`[onclick="courierArrived('${id}')"]`);
+    if(btn){btn.disabled=true;btn.textContent='Arrivée…';}
+    try{
+      await Cloud.courierMarkArrived(sess.session_token,id);
+      CourierNotify?.add?.('delivery',`Vous êtes arrivé chez le client pour la commande #${(CourierMission.find(id)||{}).order_number||''}.`);
+      Toast.show('📍 Arrivée enregistrée ✓ — attente de la confirmation du client');
+      await loadCourierDashboard();
+      if(CourierMission && CourierMission.openId) CourierMission.refresh();
+    }catch(e){
+      console.error('courierArrived',e);
+      Toast.show('⚠️ '+((e&&e.message)||'Impossible d’enregistrer l’arrivée'));
+      if(btn){btn.disabled=false;btn.textContent='📍 Arrivé';}
+    }
+  }
+  window.courierArrived=courierArrived;
+
+  /* Remplace la carte livreur pour distinguer accepted / arrived / delivered. */
+  const oldCard=window.courierAssignmentCard;
+  if(typeof oldCard==='function'){
+    window.courierAssignmentCard=function(a){
+      const status=String(a.status||'');
+      if(status!=='accepted' && status!=='arrived') return oldCard(a);
+      const delivered=status==='delivered';
+      const name=Utils.escapeHtml(a.customer_name||'');
+      const addr=Utils.escapeHtml(a.customer_address||'');
+      return `<div class="courier-card accepted">
+        <div class="courier-card-head"><div>
+          <div class="courier-card-order">Commande #${Utils.escapeHtml(a.order_number||'')}</div>
+          <div class="courier-card-meta">${name} · ${addr}</div>
+        </div><span class="courier-card-status accepted">${delivered?'Livrée':status==='arrived'?'Arrivé':'Acceptée'}</span></div>
+        <div class="courier-card-info-row">
+          <div class="courier-card-info-chip"><span class="ico-round green">${ICO_MONEY_SVG}</span><div class="txt"><b>${a.amount!=null?Utils.fmtFCFA(a.amount):'—'}</b><span>Montant</span></div></div>
+          <div class="courier-card-info-chip"><span class="ico-round blue">${ICO_PIN_SVG}</span><div class="txt"><b id="courier-dist-${a.id}">…</b><span>Distance</span></div></div>
+        </div>
+        <div class="courier-card-actions">
+          ${status==='accepted'?`<div class="courier-progress-note">✓ Livraison acceptée. En route vers le client.</div>
+            <button class="btn btn-primary btn-courier-primary btn-block" onclick="CourierMission.open('${a.id}')">Voir la mission ›</button>
+            <button class="btn btn-soft-indigo btn-block" onclick="startCourierLiveGps('${a.id}')">Démarrer mon GPS</button>
+            <button class="btn btn-soft-green btn-block" onclick="courierArrived('${a.id}')">📍 Arrivé chez le client</button>`:''}
+          ${status==='arrived'?`<div class="courier-arrived-note">📍 Vous êtes arrivé. La commande sera terminée uniquement lorsque le client confirme la réception.</div>
+            <button class="btn btn-primary btn-courier-primary btn-block" onclick="CourierMission.open('${a.id}')">Voir la mission ›</button>`:''}
+          <button class="btn btn-outline btn-block" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent((a.customer_latitude||'')+','+(a.customer_longitude||'')),'_blank')">Itinéraire</button>
+        </div>
+      </div>`;
+    };
+  }
+
+  /* ---------- Mission plein écran : bandeau + carte live (Leaflet/OSM) + fiche client
+     façon "Track Package". La carte n'est initialisée qu'après insertion du HTML dans
+     le DOM (CourierMission.open/refresh sont enveloppés plus bas pour appeler
+     CourierMission._initMap juste après avoir posé le innerHTML). ---------- */
+  if(typeof CourierMission!=='undefined'){
+    const oldRender=CourierMission._render.bind(CourierMission);
+    CourierMission._render=function(a){
+      const status=String(a.status||'');
+      if(status!=='accepted' && status!=='arrived') return oldRender(a);
+      const name=Utils.escapeHtml(a.customer_name||'Client');
+      const addr=Utils.escapeHtml(a.customer_address||'Adresse non renseignée');
+      const phone=(a.customer_phone||'').trim();
+      const gpsOn=courierWatchId!==null && String(courierTrackingId)===String(a.id);
+      const mapsUrl='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent((a.customer_latitude||'')+','+(a.customer_longitude||''));
+      const initials=(a.customer_name||'C').trim().split(/\s+/).map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'C';
+      const hasGeo=a.customer_latitude!=null && a.customer_longitude!=null;
+      return `<div class="courier-mission-head">
+        <div class="courier-mission-head-row">
+          <button class="courier-mission-back" onclick="CourierMission.close()" aria-label="Retour">←</button>
+          <div><div class="courier-mission-title">Commande #${Utils.escapeHtml(a.order_number||'')}</div>
+          <div class="courier-mission-sub">${status==='arrived'?'Arrivé chez le client':'Livraison en cours'}</div></div>
+        </div>
+        <div class="courier-mission-steps">
+          <div class="courier-mission-step done"><div class="courier-mission-step-dot">✓</div><span>Acceptée</span></div>
+          <div class="courier-mission-step-line done"></div>
+          <div class="courier-mission-step ${status==='arrived'?'done':'current'}"><div class="courier-mission-step-dot">${status==='arrived'?'✓':'2'}</div><span>${status==='arrived'?'Arrivé':'En route'}</span></div>
+          <div class="courier-mission-step-line ${status==='arrived'?'done':''}"></div>
+          <div class="courier-mission-step"><div class="courier-mission-step-dot">3</div><span>Client confirme</span></div>
+        </div>
+      </div>
+      <div class="courier-track-map-wrap">
+        <div class="courier-track-map-badge ${gpsOn?'':'off'}"><span class="dot"></span>${gpsOn?'GPS en direct':'GPS non démarré'}</div>
+        ${hasGeo?`<div class="courier-track-eta-badge" id="courier-mission-dist">…</div>`:''}
+        <div id="courier-mission-map" class="courier-track-map loading"></div>
+      </div>
+      <div class="courier-mission-body" style="padding-top:0;">
+        <div class="courier-track-card">
+          <div class="courier-track-card-top">
+            <div class="courier-track-avatar">${Utils.escapeHtml(initials)}</div>
+            <div class="courier-track-id">
+              <div class="courier-track-name">${name}</div>
+              <div class="courier-track-sub">📍 ${addr}</div>
+            </div>
+            <div class="courier-track-contact">
+              ${phone?`<a class="call" href="tel:${Utils.escapeHtml(phone)}" aria-label="Appeler">${typeof ICO_PHONE_SVG!=='undefined'?ICO_PHONE_SVG:'📞'}</a><a class="msg" href="https://wa.me/${Utils.escapeHtml(phone.replace(/\\D/g,''))}" target="_blank" aria-label="WhatsApp">💬</a>`:''}
+            </div>
+          </div>
+          <div class="courier-track-status-row ${status==='arrived'?'done':''}">
+            ${status==='arrived'?'📍 Arrivé — en attente de confirmation du client':'🛵 En route vers le client'}
+          </div>
+          <div class="courier-track-route">
+            <div class="courier-track-route-rail"><span class="rdot a"></span><span class="rline"></span><span class="rdot b"></span></div>
+            <div class="courier-track-route-pts">
+              <div class="courier-track-route-pt"><span>Départ</span><b>Votre position (GPS)</b></div>
+              <div class="courier-track-route-pt"><span>Arrivée</span><b>${addr}</b></div>
+            </div>
+          </div>
+          <div class="courier-track-foot">
+            <div class="courier-track-foot-chip">Commande <b>#${Utils.escapeHtml(a.order_number||'')}</b></div>
+            <div class="courier-track-foot-amount">${a.amount!=null?Utils.fmtFCFA(a.amount):'—'}</div>
+          </div>
+        </div>
+        ${status==='arrived'?`<div class="courier-arrived-note">📍 Arrivée enregistrée. Demandez au client de confirmer la réception depuis son téléphone.</div>`:''}
+      </div>
+      <div class="courier-mission-actions">
+        <button class="btn btn-outline btn-block" onclick="window.open('${mapsUrl}','_blank')">Itinéraire (Google Maps)</button>
+        <button class="btn btn-soft-indigo btn-block" onclick="startCourierLiveGps('${a.id}')">${gpsOn?'GPS actif — relancer':'Démarrer mon GPS'}</button>
+        ${status==='accepted'?`<button class="btn btn-primary btn-courier-primary btn-block" onclick="courierArrived('${a.id}')">📍 Je suis arrivé</button>`:`<button class="btn btn-outline btn-block" onclick="CourierMission.close()">Attendre la confirmation du client</button>`}
+      </div>`;
+    };
+
+    /* ---- Cycle de vie de la carte Leaflet : init après insertion du DOM, mise à jour
+       légère de la position sans tout re-rendre, nettoyage à la fermeture. ---- */
+    let courierMissionMapObj=null, courierMissionCourierMarker=null, courierMissionClientMarker=null, courierMissionRouteLine=null;
+    let courierMissionRouteFetchAt=0;
+    window.courierLastGpsCoords=window.courierLastGpsCoords||null;
+
+    CourierMission._destroyMap=function(){
+      if(courierMissionMapObj){ try{courierMissionMapObj.remove();}catch(e){} }
+      courierMissionMapObj=null; courierMissionCourierMarker=null; courierMissionClientMarker=null; courierMissionRouteLine=null;
+    };
+
+    CourierMission._drawRoute=function(lat1,lng1,lat2,lng2){
+      const map=courierMissionMapObj; if(!map) return;
+      const drawStraight=()=>{
+        if(courierMissionRouteLine){ try{map.removeLayer(courierMissionRouteLine);}catch(e){} }
+        courierMissionRouteLine=L.polyline([[lat1,lng1],[lat2,lng2]],{color:'#ff7a00',weight:4,opacity:.85,dashArray:'2 10',lineCap:'round'}).addTo(map);
+      };
+      const now=Date.now();
+      if(now-courierMissionRouteFetchAt<15000){ if(!courierMissionRouteLine) drawStraight(); return; }
+      courierMissionRouteFetchAt=now;
+      fetch(`https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson`)
+        .then(r=>r.ok?r.json():Promise.reject())
+        .then(d=>{
+          const coords=d && d.routes && d.routes[0] && d.routes[0].geometry && d.routes[0].geometry.coordinates;
+          if(!coords || !coords.length) return drawStraight();
+          const latlngs=coords.map(c=>[c[1],c[0]]);
+          if(courierMissionRouteLine){ try{map.removeLayer(courierMissionRouteLine);}catch(e){} }
+          courierMissionRouteLine=L.polyline(latlngs,{color:'#ff7a00',weight:5,opacity:.9,lineCap:'round',lineJoin:'round'}).addTo(map);
+        })
+        .catch(drawStraight);
+    };
+
+    CourierMission._initMap=function(a){
+      const mapEl=document.getElementById('courier-mission-map');
+      if(!mapEl || typeof L==='undefined') return;
+      CourierMission._destroyMap();
+      mapEl.classList.remove('loading');
+      const clientLat=Number(a.customer_latitude), clientLng=Number(a.customer_longitude);
+      const hasClient=isFinite(clientLat) && isFinite(clientLng);
+      const start=window.courierLastGpsCoords;
+      const center = start?[start.lat,start.lng]:(hasClient?[clientLat,clientLng]:[5.3599,-4.0083]);
+      const map=L.map(mapEl,{zoomControl:false,attributionControl:false}).setView(center,14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+      courierMissionMapObj=map;
+      if(hasClient) courierMissionClientMarker=L.marker([clientLat,clientLng],{icon:L.divIcon({className:'',html:'<div class="cm-pin cm-pin-client"><span>🏠</span></div>',iconSize:[32,32],iconAnchor:[16,32]})}).addTo(map);
+      if(start) courierMissionCourierMarker=L.marker([start.lat,start.lng],{icon:L.divIcon({className:'',html:'<div class="cm-pin cm-pin-courier"><span>🛵</span></div>',iconSize:[36,36],iconAnchor:[18,18]})}).addTo(map);
+      if(hasClient && start){
+        map.fitBounds(L.latLngBounds([[start.lat,start.lng],[clientLat,clientLng]]),{padding:[44,44]});
+        CourierMission._drawRoute(start.lat,start.lng,clientLat,clientLng);
+      }
+      CourierMission._updateDistanceBadge(a);
+      setTimeout(()=>{ try{map.invalidateSize();}catch(e){} },80);
+    };
+
+    CourierMission._updateDistanceBadge=function(a){
+      const el=document.getElementById('courier-mission-dist'); if(!el) return;
+      const start=window.courierLastGpsCoords;
+      const clientLat=Number(a.customer_latitude), clientLng=Number(a.customer_longitude);
+      if(!start || !isFinite(clientLat) || !isFinite(clientLng)){ el.textContent='—'; return; }
+      const km=courierHaversineKm(start.lat,start.lng,clientLat,clientLng);
+      el.textContent = km<1 ? Math.round(km*1000)+' m' : km.toFixed(1)+' km';
+    };
+
+    CourierMission.updateCourierPosition=function(lat,lng){
+      window.courierLastGpsCoords={lat,lng};
+      const map=courierMissionMapObj; if(!map) return;
+      if(courierMissionCourierMarker) courierMissionCourierMarker.setLatLng([lat,lng]);
+      else courierMissionCourierMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div class="cm-pin cm-pin-courier"><span>🛵</span></div>',iconSize:[36,36],iconAnchor:[18,18]})}).addTo(map);
+      const a=CourierMission.find(CourierMission.openId);
+      if(a){
+        CourierMission._updateDistanceBadge(a);
+        const clientLat=Number(a.customer_latitude), clientLng=Number(a.customer_longitude);
+        if(isFinite(clientLat) && isFinite(clientLng)) CourierMission._drawRoute(lat,lng,clientLat,clientLng);
+      }
+    };
+
+    const oldOpen=CourierMission.open.bind(CourierMission);
+    CourierMission.open=function(id){
+      oldOpen(id);
+      const a=CourierMission.find(id);
+      if(a && (a.status==='accepted'||a.status==='arrived')) setTimeout(()=>CourierMission._initMap(a),30);
+    };
+    const oldRefresh=CourierMission.refresh.bind(CourierMission);
+    CourierMission.refresh=function(){
+      oldRefresh();
+      if(!CourierMission.openId) return;
+      const a=CourierMission.find(CourierMission.openId);
+      if(a && (a.status==='accepted'||a.status==='arrived')) setTimeout(()=>CourierMission._initMap(a),30);
+    };
+    const oldClose=CourierMission.close.bind(CourierMission);
+    CourierMission.close=function(){ CourierMission._destroyMap(); oldClose(); };
+  }
+
+  /* ---------- Empêche l'ancien bouton livreur "Marquer livrée" d'apparaître. */
+  window.courierDelivered = async function(id){
+    Toast.show('La livraison ne peut plus être clôturée par le livreur. Le client doit confirmer la réception.');
+  };
+
+  /* ---------- Client : afficher le bouton de confirmation après "arrivé". */
+  const oldTrack=Views['order-track'];
+  if(typeof oldTrack==='function'){
+    Views['order-track']=function(opts){
+      let html=oldTrack.apply(this,arguments);
+      try{
+        const order=Store.orders.find(o=>String(o.id)===String(opts?.id));
+        if(order && order.status!=='delivered' && order.shipped && order.delivery_arrived_at){
+          const marker='</div>';
+          const box=`<div class="client-confirm-delivery">
+            <div style="font-weight:800;font-size:13.5px;">📍 Votre livreur est arrivé</div>
+            <div style="font-size:12px;color:var(--text-mid);margin-top:4px;line-height:1.45;">Vérifiez votre commande puis confirmez la réception. Une fois confirmée, le livreur et la boutique seront automatiquement informés.</div>
+            <div style="margin-top:10px;"><button class="btn btn-primary btn-block" onclick="confirmDeliveryFromClient('${order.id}')">✓ Confirmer la réception</button></div>
+          </div>`;
+          const pos=html.indexOf('<div style="padding:0 20px 20px;">');
+          html=pos>=0?html.slice(0,pos)+box+html.slice(pos):box+html;
+        }
+      }catch(e){console.warn('V62 order track',e)}
+      return html;
+    };
+  }
+
+  window.confirmDeliveryFromClient=async function(orderId){
+    const order=Store.orders.find(o=>String(o.id)===String(orderId));
+    if(!order){Toast.show('Commande introuvable');return;}
+    if(order.status==='delivered'){Toast.show('Cette commande est déjà livrée.');return;}
+    if(!order.deliveryToken){
+      const t=await ensureDeliverySecurityToken(order);
+      if(!t){Toast.show('Impossible de sécuriser la confirmation.');return;}
+    }
+    try{
+      /* V62 : la confirmation définitive est faite par le client après l'arrivée.
+         La photo n'est plus obligatoire dans ce parcours. */
+      const {error}=await sb.rpc('client_confirm_order_delivery',{
+        p_order_id:orderId,
+        p_token:order.deliveryToken
+      });
+      if(error) throw error;
+      const now=Date.now();
+      const updated={...order,status:'delivered',deliveryConfirmedAt:now};
+      _cache.orders=(_cache.orders||[]).map(o=>String(o.id)===String(orderId)?updated:o);
+      ClientOrderCache.save(updated);
+      Notify.add('order',`Commande #${order.number} livrée : réception confirmée par le client.`);
+      ClientNotify.add(order.number,`✓ Commande #${order.number} livrée. Merci pour votre confiance.`);
+      try{await AutoSync.refresh(true);}catch(e){}
+      Toast.show('✓ Réception confirmée — commande livrée');
+      Router.go('order-track',{id:orderId});
+    }catch(e){
+      console.error('confirmDeliveryFromClient',e);
+      Toast.show('⚠️ '+((e&&e.message)||'Impossible de confirmer la réception'));
+    }
+  };
+
+  /* ---------- Polling client : recharge les changements d'état sans clic. */
+  let clientDeliveryPoll=null, lastClientDeliveryState={};
+  function startClientDeliveryPolling(){
+    if(clientDeliveryPoll) clearInterval(clientDeliveryPoll);
+    clientDeliveryPoll=setInterval(async()=>{
+      if(!Cloud.storeId || Router.current!=='order-track') return;
+      try{
+        await Cloud.loadAll();
+        const id=Router.currentOpts?.id;
+        const o=Store.orders.find(x=>String(x.id)===String(id));
+        if(!o) return;
+        const sig=[o.status,o.shipped,o.delivery_arrived_at,o.delivery_confirmed_at].join('|');
+        if(lastClientDeliveryState[id] && lastClientDeliveryState[id]!==sig){
+          if(o.delivery_arrived_at && o.status!=='delivered') ClientNotify.add(o.number,`📍 Votre livreur est arrivé pour la commande #${o.number}.`);
+          if(o.status==='delivered') ClientNotify.add(o.number,`✓ Commande #${o.number} livrée et réception confirmée.`);
+          Router.go('order-track',{id});
+        }
+        lastClientDeliveryState[id]=sig;
+      }catch(e){}
+    },5000);
+  }
+  const oldGo=Router.go;
+  Router.go=function(name,opts){
+    const r=oldGo.apply(this,arguments);
+    if(name==='order-track') startClientDeliveryPolling();
+    else if(clientDeliveryPoll){clearInterval(clientDeliveryPoll);clientDeliveryPoll=null;}
+    return r;
+  };
+
+  /* ---------- Marchand : notifications lors des changements d'état. */
+  let merchantDeliveryState={};
+  const oldRefresh=AutoSync.refresh.bind(AutoSync);
+  AutoSync.refresh=async function(force){
+    const r=await oldRefresh(force);
+    try{
+      if(Router.current==='order-track' || courierSession()) return r;
+      (Store.orders||[]).forEach(o=>{
+        const sig=[o.status,o.shipped,o.delivery_arrived_at,o.delivery_confirmed_at].join('|');
+        const old=merchantDeliveryState[o.id];
+        if(old && old!==sig){
+          if(o.delivery_arrived_at && o.status!=='delivered') Notify.add('order',`📍 Le livreur est arrivé pour la commande #${o.number}.`);
+          if(o.status==='delivered') Notify.add('order',`✓ Commande #${o.number} livrée — réception confirmée par le client.`);
+        }
+        merchantDeliveryState[o.id]=sig;
+      });
+    }catch(e){}
+    return r;
+  };
+
+})();
+
+
+/* ===== app-29.js ===== */
+(function(){
+  function safe(s){try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}}
+  window.courierAssignmentCard=function(a){
+    const offered=a.status==='offered', accepted=a.status==='accepted', arrived=a.status==='arrived';
+    const active=accepted||arrived;
+    const label=offered?'Nouvelle mission':accepted?'En route':arrived?'Arrivé':'Terminée';
+    const cls=offered?'offer':arrived?'arrived':active?'active':'done';
+    return `<article class="courier-pro-card ${cls}">
+      <div class="courier-pro-card-top"><div class="courier-order-badge"><span>#</span>${safe(a.order_number||'—')}</div><span class="courier-pro-status ${cls}"><i></i>${label}</span></div>
+      <div class="courier-destination"><div class="courier-destination-icon">${ICO_PIN_SVG}</div><div class="courier-destination-copy"><span>DESTINATION</span><b>${safe(a.customer_name||'Client')}</b><p>${safe(a.customer_address||'Adresse non renseignée')}</p></div></div>
+      <div class="courier-pro-metrics"><div><span>RÉMUNÉRATION</span><b>${a.amount!=null?Utils.fmtFCFA(a.amount):'—'}</b></div><div><span>DISTANCE</span><b id="courier-dist-${a.id}">…</b></div></div>
+      ${offered?`<div class="courier-offer-timer" data-courier-timer="${a.id}">${ICO_CLOCK_SVG}<span>Réponse sous 10:00</span></div>
+      <div class="courier-pro-actions"><div class="courier-eta-field"><label>ARRIVÉE ESTIMÉE</label><select id="eta-${a.id}"><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div><div class="courier-action-row"><button class="courier-secondary-btn" onclick="declineCourierDelivery('${a.id}')">Refuser</button><button class="courier-primary-btn" onclick="acceptCourierDelivery('${a.id}')">Accepter <span>→</span></button></div></div>`:''}
+      ${accepted?`<div class="courier-confirmed-strip"><span>✓</span><div><b>Mission acceptée</b><small>Rendez-vous à l'adresse du client.</small></div></div><button class="courier-primary-btn full" onclick="courierArrived('${a.id}')">📍 Je suis arrivé</button><div class="courier-action-row"><button class="courier-secondary-btn" onclick="CourierMission.open('${a.id}')">Mission</button><button class="courier-secondary-btn" onclick="startCourierLiveGps('${a.id}')">GPS</button></div>`:''}
+      ${arrived?`<div class="courier-arrived-panel"><div class="courier-arrived-icon">✓</div><div><b>Vous êtes arrivé</b><small>Attendez la confirmation de réception du client.</small></div></div><button class="courier-primary-btn full" onclick="CourierMission.open('${a.id}')">Ouvrir la mission</button>`:''}
+      <button class="courier-route-btn" onclick="window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent((a.customer_latitude||'')+','+(a.customer_longitude||'')),'_blank')">⌖ Ouvrir l'itinéraire</button>
+    </article>`;
+  };
+
+  Views['courier-dashboard']=function(){
+    const sess=courierSession(); if(!sess) return Views['courier-login']();
+    const name=safe(sess.name||'Livreur'), initials=((sess.name||'L').trim().split(/\s+/).map(w=>w[0]).filter(Boolean).slice(0,2).join('')||'L').toUpperCase(), online=CourierApp.isOnline();
+    return `<div class="courier-premium-shell">
+      <header class="courier-premium-header"><div class="courier-premium-head-row"><div class="courier-profile-mini"><div class="courier-avatar premium-avatar">${initials}</div><div class="courier-profile-copy"><div class="courier-kicker">ESPACE LIVREUR</div><div class="courier-premium-name">${name}<span id="courier-cert-badge-hero"></span></div></div></div>
+      <div class="courier-head-actions"><button class="courier-icon-btn" onclick="CourierNotify.open()" aria-label="Notifications">♧<span class="courier-notif-dot" id="courier-v42-dot"></span></button><button class="courier-icon-btn" onclick="setCourierSession(null);Router.go('courier-login')" aria-label="Déconnexion">↪</button></div></div>
+      <div class="courier-availability-card"><div><div class="courier-availability-label">Disponibilité</div><div class="courier-availability-sub">${online?'Vous pouvez recevoir de nouvelles missions':'Vous ne recevrez pas de nouvelles missions'}</div></div><button id="courier-online-btn" class="courier-premium-online ${online?'online':'offline'}" onclick="CourierApp.toggleOnline()"><span class="courier-live-dot"></span>${online?'EN LIGNE':'HORS LIGNE'}</button></div></header>
+      <main id="courier-page-body" class="courier-premium-body">
+        <div class="courier-tab-panel active" data-tab="dashboard"><div class="courier-welcome"><div><div class="courier-eyebrow">TABLEAU DE BORD</div><h1>Bonjour ${name.split(' ')[0]} 👋</h1><p>Suivez vos livraisons en temps réel.</p></div><div class="courier-route-mark">⌖</div></div>
+        <div id="courier-stats-mount" class="courier-premium-stats"><div class="courier-premium-stat"><span>À TRAITER</span><b>—</b></div><div class="courier-premium-stat active"><span>EN COURS</span><b>—</b></div></div>
+        <div class="courier-section-head"><div><div class="courier-eyebrow">PRIORITÉ</div><h2>Livraisons à traiter</h2></div><button class="courier-see-all" onclick="CourierApp.setTab('missions')">Tout voir ›</button></div><div id="courier-dashboard-list"><div class="wd-spinner"></div></div></div>
+        <div class="courier-tab-panel" data-tab="missions"><div class="courier-section-head solo"><div><div class="courier-eyebrow">ACTIVITÉ</div><h2>Toutes mes missions</h2></div></div><div id="courier-missions-list"><div class="wd-spinner"></div></div></div>
+        <div class="courier-tab-panel" data-tab="gains"><div class="courier-section-head solo"><div><div class="courier-eyebrow">FINANCES</div><h2>Mes gains</h2></div></div><div id="courier-earnings-mount"><div class="wd-spinner"></div></div></div>
+        <div class="courier-tab-panel" data-tab="profil"><div class="courier-profile-hero"><div class="courier-avatar premium-avatar large">${initials}</div><div><div class="courier-eyebrow">MON PROFIL</div><div class="courier-profile-big-name">${name}<span id="courier-cert-badge"></span></div><div class="courier-profile-role">Livreur SIAMS</div></div></div><div id="courier-profile-stats" class="courier-premium-stats triple"><div class="courier-premium-stat"><span>ACCEPTATION</span><b>—</b></div><div class="courier-premium-stat"><span>MISSIONS</span><b>—</b></div><div class="courier-premium-stat"><span>CE MOIS</span><b>—</b></div></div><div class="courier-section-head solo"><div><div class="courier-eyebrow">VERSEMENTS</div><h2>Solde à verser</h2></div></div><div id="courier-payout-list"><div class="wd-spinner"></div></div><div class="courier-section-head solo"><div><div class="courier-eyebrow">VÉRIFICATION</div><h2>Documents</h2></div></div><div id="courier-docs-list"><div class="wd-spinner"></div></div><div class="courier-section-head solo"><div><div class="courier-eyebrow">PRÉFÉRENCES</div><h2>Paramètres</h2></div></div><div id="courier-settings-list"></div><button class="courier-logout-wide" onclick="setCourierSession(null);Router.go('courier-login')">Se déconnecter</button></div>
+      </main>
+      <nav class="courier-premium-nav"><button class="courier-nav-btn active" data-tab="dashboard" onclick="CourierApp.setTab('dashboard')"><span class="courier-nav-ico">⌂</span><span>Accueil</span></button><button class="courier-nav-btn" data-tab="missions" onclick="CourierApp.setTab('missions')"><span class="courier-nav-ico">▤</span><span>Missions</span></button><button class="courier-nav-btn" data-tab="gains" onclick="CourierApp.setTab('gains')"><span class="courier-nav-ico">↗</span><span>Gains</span></button><button class="courier-nav-btn" data-tab="profil" onclick="CourierApp.setTab('profil')"><span class="courier-nav-ico">◯</span><span>Profil</span></button></nav>
+    </div>`;
+  };
+})();
+
+
+/* ===== app-30.js ===== */
+(function(){
+  'use strict';
+  const DOCS=[
+    ['cni','CNI / Carte nationale d’identité'],
+    ['passeport','Passeport'],
+    ['cmu','Carte CMU'],
+    ['nationalite','Certificat de nationalité'],
+    ['carte_scolaire','Carte scolaire']
+  ];
+  const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+  const label=k=>(DOCS.find(x=>x[0]===k)||['','Pièce d’identité'])[1];
+
+  /* ---------- LIVREUR : remplacement de l'ancien bloc CNI/permis/carte grise/assurance ---------- */
+  let courierIdDoc=null, courierPhoto=null, courierDocType='cni';
+
+  window.CourierIdentity={
+    data:null,
+    async load(){
+      const sess=courierSession(), mount=document.getElementById('courier-docs-list');
+      if(!sess||!mount)return;
+      try{
+        const r=await sb.rpc('courier_get_documents',{p_session_token:sess.session_token});
+        const old=Array.isArray(r.data)?r.data[0]:r.data;
+        /* Si la migration V64 est installée, récupérer les champs d'identité directement. */
+        const {data,error}=await sb.from('couriers').select('identity_status,identity_doc_type,identity_doc_url,identity_photo_url,identity_submitted_at,identity_verified_at,identity_reject_reason').eq('id',sess.courier_id||sess.id).maybeSingle();
+        this.data=!error&&data?data:(old||{});
+        this.render();
+        this.renderBadge();
+      }catch(e){
+        console.error(e);
+        this.render();
+      }
+    },
+    render(){
+      const mount=document.getElementById('courier-docs-list');if(!mount)return;
+      const d=this.data||{}, status=d.identity_status||'none';
+      if(status==='verified'){
+        mount.innerHTML=`<div class="siams-id-status verified"><span>✓</span><div><b>Identité vérifiée par SIAMS</b><br><small>Votre badge vert certifié est actif.</small></div></div>`;
+        return;
+      }
+      if(status==='pending'){
+        mount.innerHTML=`<div class="siams-id-status pending"><span>⏳</span><div><b>Vérification en cours</b><br><small>Votre dossier est en cours d’examen par SIAMS.</small></div></div>`;
+        return;
+      }
+      const rejected=status==='rejected';
+      mount.innerHTML=`<div class="siams-id-card">
+        <div style="font-size:8.5px;font-weight:900;letter-spacing:.12em;color:#0b67d8">SIAMS · IDENTIFICATION DU COMPTE</div>
+        <div style="font-size:17px;font-weight:900;margin-top:5px">Obtenir le badge certifié</div>
+        <p style="font-size:11px;color:#667085;line-height:1.5;margin:6px 0 0">Choisissez une pièce officielle, envoyez sa photo puis prenez une photo de vous avec l’appareil photo. Après approbation par l’administration SIAMS, le badge vert apparaît automatiquement.</p>
+        ${rejected?`<div class="siams-id-status rejected"><span>!</span><div><b>Dossier refusé</b><br>${esc(d.identity_reject_reason||'Document non conforme. Merci de soumettre à nouveau.')}</div></div>`:''}
+        <div style="font-size:9px;font-weight:900;letter-spacing:.08em;margin-top:15px">1 · CHOISIR LA PIÈCE</div>
+        <div class="siams-id-doc-grid">${DOCS.map(x=>`<button class="siams-id-doc ${courierDocType===x[0]?'selected':''}" onclick="CourierIdentity.selectDoc('${x[0]}')">${esc(x[1])}</button>`).join('')}</div>
+        <div style="font-size:9px;font-weight:900;letter-spacing:.08em;margin-top:15px">2 · PHOTO / SCAN DE LA PIÈCE</div>
+        <label class="siams-id-upload">📄<b>Ajouter ma pièce</b><small>Image nette et lisible</small><input type="file" accept="image/*" style="display:none" onchange="CourierIdentity.docFile(event)"></label>
+        <div id="courier-id-doc-preview" class="siams-id-preview"></div>
+        <div style="font-size:9px;font-weight:900;letter-spacing:.08em;margin-top:15px">3 · PHOTO DE VÉRIFICATION</div>
+        <label class="siams-id-upload">🤳<b>Prendre ma photo maintenant</b><small>La caméra frontale est utilisée</small><input type="file" accept="image/*" capture="user" style="display:none" onchange="CourierIdentity.photoFile(event)"></label>
+        <div id="courier-id-photo-preview" class="siams-id-preview"></div>
+        <button class="courier-primary-btn full" style="margin-top:13px" onclick="CourierIdentity.submit()">Envoyer mon dossier</button>
+      </div>`;
+    },
+    selectDoc(k){courierDocType=k;this.render();},
+    async docFile(e){
+      const f=e.target.files&&e.target.files[0];if(!f)return;
+      courierIdDoc=await siamsPrepareImageDataURL(f,{maxDim:1600});
+      const p=document.getElementById('courier-id-doc-preview');if(p)p.innerHTML=`<img src="${courierIdDoc}">`;
+    },
+    async photoFile(e){
+      const f=e.target.files&&e.target.files[0];if(!f)return;
+      courierPhoto=await siamsPrepareImageDataURL(f,{maxDim:1200});
+      const p=document.getElementById('courier-id-photo-preview');if(p)p.innerHTML=`<img src="${courierPhoto}">`;
+    },
+    async submit(){
+      const sess=courierSession();if(!sess)return;
+      if(!courierIdDoc||!courierPhoto){Toast.show('Ajoutez la pièce et la photo de vérification.');return;}
+      try{
+        const docUrl=await Cloud.ensureStoredUrl(courierIdDoc,'identity-documents');
+        const photoUrl=await Cloud.ensureStoredUrl(courierPhoto,'identity-photos');
+        const {error}=await sb.rpc('courier_submit_identity',{p_session_token:sess.session_token,p_doc_type:courierDocType,p_doc_url:docUrl,p_photo_url:photoUrl});
+        if(error)throw error;
+        courierIdDoc=null;courierPhoto=null;
+        Toast.show('Dossier envoyé à SIAMS ✓');
+        this.load();
+      }catch(e){console.error(e);Toast.show('Impossible d’envoyer le dossier. Vérifiez la configuration Supabase.');}
+    },
+    renderBadge(){
+      const v=this.data&&this.data.identity_status==='verified';
+      const html=v?CertifiedBadge(16):'';
+      const a=document.getElementById('courier-cert-badge');if(a)a.innerHTML=html;
+      const b=document.getElementById('courier-cert-badge-hero');if(b)b.innerHTML=html;
+    }
+  };
+
+  /* On réutilise le point d'entrée déjà appelé par l'espace livreur. */
+  window.CourierDocs=window.CourierIdentity;
+
+  /* ---------- ADMIN : une seule boîte de réception pour marchands + livreurs ----------
+     CORRECTIF : la version précédente dépendait des RPC Supabase "siams_identity_pending"
+     et "siams_review_identity", jamais créées côté base — chaque ouverture échouait donc
+     silencieusement. On repasse par des lectures/écritures directes des tables "stores"
+     et "couriers", exactement comme le fait déjà (avec succès) l'écran de certification
+     boutique existant. */
+  window.SiamsIdentityAdmin={
+    merchants:[], couriers:[],
+    async load(){
+      const root=document.getElementById('siams-unified-id-list');if(!root)return;
+      root.innerHTML='<div style="padding:30px;text-align:center;color:var(--text-mid)">Chargement…</div>';
+      try{
+        const [mRes,cRes]=await Promise.all([
+          sb.from('stores').select('id,name,phone,email,verification_doc_type,verification_doc_url,verification_photo_url,verification_submitted_at').eq('verification_status','pending').order('verification_submitted_at',{ascending:true}).limit(100),
+          sb.from('couriers').select('id,name,phone,identity_doc_type,identity_doc_url,identity_photo_url,identity_submitted_at').eq('identity_status','pending').order('identity_submitted_at',{ascending:true}).limit(100)
+        ]);
+        this.merchants=mRes.data||[]; this.couriers=cRes.data||[];
+        root.innerHTML=this.renderSection('🏪 Marchands',this.merchants,'merchant')+this.renderSection('🚴 Livreurs',this.couriers,'courier');
+      }catch(e){console.error(e);root.innerHTML='<div style="padding:25px;text-align:center;color:#b42318">Impossible de charger les dossiers.</div>';}
+    },
+    renderSection(title,rows,type){
+      const head=`<div style="font-size:11px;font-weight:900;letter-spacing:.06em;color:var(--text-mid);margin:16px 4px 8px">${title} · ${rows.length} en attente</div>`;
+      if(!rows.length) return head+'<div style="padding:18px 10px 4px;text-align:center;color:var(--text-mid);font-size:11.5px">✓ Aucun dossier en attente.</div>';
+      return head+rows.map(r=>`
+        <article class="siams-admin-id-card">
+          <div class="siams-admin-id-head"><div><div class="siams-admin-id-name">${esc(r.name||'Compte')}</div><div class="siams-admin-id-meta">${esc(r.phone||'')}${r.email?' · '+esc(r.email):''}</div></div><span class="siams-id-status pending" style="margin:0;padding:6px 9px">À vérifier</span></div>
+          <div style="margin-top:11px;font-size:10.5px;color:#667085"><b>Pièce :</b> ${esc(label(type==='merchant'?r.verification_doc_type:r.identity_doc_type))}<br><b>Envoyée :</b> ${(type==='merchant'?r.verification_submitted_at:r.identity_submitted_at)?new Date(type==='merchant'?r.verification_submitted_at:r.identity_submitted_at).toLocaleString('fr-FR'):'—'}</div>
+          <div class="siams-admin-id-images">
+            ${(type==='merchant'?r.verification_doc_url:r.identity_doc_url)?`<a href="${esc(type==='merchant'?r.verification_doc_url:r.identity_doc_url)}" target="_blank"><img src="${esc(type==='merchant'?r.verification_doc_url:r.identity_doc_url)}" alt="Pièce d'identité"></a>`:'<div style="border:1px dashed #cbd5e1;border-radius:13px;display:grid;place-items:center;font-size:10px;color:#98a2b3">Pièce absente</div>'}
+            ${(type==='merchant'?r.verification_photo_url:r.identity_photo_url)?`<a href="${esc(type==='merchant'?r.verification_photo_url:r.identity_photo_url)}" target="_blank"><img src="${esc(type==='merchant'?r.verification_photo_url:r.identity_photo_url)}" alt="Photo de vérification"></a>`:'<div style="border:1px dashed #cbd5e1;border-radius:13px;display:grid;place-items:center;font-size:10px;color:#98a2b3">Photo absente</div>'}
+          </div>
+          <div style="font-size:9px;color:#98a2b3;margin-top:5px">Gauche : document · Droite : photo de vérification</div>
+          <div class="siams-admin-id-actions"><button class="ok" onclick="SiamsIdentityAdmin.review('${type}','${esc(r.id)}','verified')">✓ APPROUVER · BADGE VERT</button><button class="no" onclick="SiamsIdentityAdmin.review('${type}','${esc(r.id)}','rejected')">Refuser</button></div>
+        </article>`).join('');
+    },
+    async review(type,id,status){
+      let reason=null;
+      if(status==='rejected'){reason=prompt('Motif du refus :','Document illisible ou non conforme. Merci de soumettre à nouveau.');if(reason===null)return;}
+      try{
+        if(type==='merchant'){
+          const patch=status==='verified'
+            ?{verification_status:'verified',verified:true,verified_at:new Date().toISOString(),verification_reject_reason:null}
+            :{verification_status:'rejected',verified:false,verification_reject_reason:reason};
+          const {error}=await sb.from('stores').update(patch).eq('id',id); if(error)throw error;
+        }else{
+          const patch=status==='verified'
+            ?{identity_status:'verified',identity_verified_at:new Date().toISOString(),identity_reject_reason:null}
+            :{identity_status:'rejected',identity_reject_reason:reason};
+          const {error}=await sb.from('couriers').update(patch).eq('id',id); if(error)throw error;
+        }
+        Toast.show(status==='verified'?'Compte certifié ✓ Badge vert activé':'Dossier refusé');
+        this.load();
+      }catch(e){console.error(e);Toast.show('Erreur lors de la décision SIAMS.');}
+    }
+  };
+
+  Views['siams-admin-identity-verifications']=function(){
+    if(typeof isSiamsAdmin==='function'&&!isSiamsAdmin())return `<div style="padding:30px 20px"><h2>Accès administrateur SIAMS</h2><p style="color:var(--text-mid)">Cette section est réservée au compte administrateur SIAMS.</p></div>`;
+    return `<div class="topbar" style="padding-top:18px"><div><h1>Identification des comptes</h1><div style="font-size:11px;color:var(--text-mid)">Marchands et livreurs · dossiers à vérifier</div></div><button class="bell-btn" onclick="Router.go('dashboard')">←</button></div><div style="padding:0 20px 100px"><div class="siams-id-hero"><div style="font-size:9px;font-weight:900;letter-spacing:.12em;opacity:.7">CENTRE DE VÉRIFICATION SIAMS</div><h2>Identités à contrôler</h2><p>Examinez la pièce officielle et la photo de vérification. L’approbation active automatiquement le badge vert certifié.</p></div><div id="siams-unified-id-list">Chargement…</div></div>`;
+  };
+  Views._after_siams_admin_identity_verifications=()=>SiamsIdentityAdmin.load();
+
+  /* Accès direct depuis le dashboard administrateur. */
+  const oldDash=Views.dashboard;
+  if(oldDash && !oldDash.__v64Identity){
+    const wrapped=function(){
+      let h=oldDash();
+      if(typeof isSiamsAdmin==='function'&&isSiamsAdmin()&&!h.includes('siams-admin-identity-verifications')){
+        h=h.replace('<div class="dashboard-v2-head">','<div style="margin:0 20px 10px"><button class="btn btn-primary btn-block" onclick="Router.go(\'siams-admin-identity-verifications\')">🛡️ Identification · Marchands + Livreurs</button></div><div class="dashboard-v2-head">');
+      }
+      return h;
+    };
+    wrapped.__v64Identity=true;Views.dashboard=wrapped;
+  }
+
+  /* Synchronise le badge livreur quand il ouvre son profil. */
+  const oldLoad=window.loadCourierProfileExtras;
+  if(oldLoad && !oldLoad.__v64Identity){
+    const f=function(){
+      const r=oldLoad.apply(this,arguments);
+      setTimeout(()=>CourierIdentity.load(),120);
+      return r;
+    };
+    f.__v64Identity=true;window.loadCourierProfileExtras=f;
+  }
+})();
+

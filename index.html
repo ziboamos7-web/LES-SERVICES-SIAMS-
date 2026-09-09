@@ -1,0 +1,323 @@
+<!-- SIAMS V46: technical cleanup; visual design preserved -->
+<!-- Audio roles: notification sound and presentation sound are intentionally separate. -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SIAMS – Boutique en ligne</title>
+<meta name="description" content="Les services SIAMS de boutique en ligne. Créez, gérez et développez votre boutique en ligne en toute simplicité : commandes, livraison en temps réel, paiements et notifications.">
+<meta name="theme-color" content="#111111">
+
+<!-- Carte livreur (suivi GPS en temps réel) : Leaflet + tuiles OpenStreetMap, gratuites, sans clé API. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<!-- Nom affiché quand le site est ajouté à l'écran d'accueil -->
+<meta name="apple-mobile-web-app-title" content="SIAMS">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="SIAMS">
+<link rel="manifest" href="/manifest.json">
+
+<!-- Partage social (WhatsApp, Facebook, etc.) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="SIAMS – Boutique en ligne">
+<meta property="og:description" content="Créez, gérez et développez votre boutique en ligne en toute simplicité.">
+<meta property="og:image" content="https://lesservicessiams.vercel.app/og-image.png">
+<meta property="og:url" content="https://lesservicessiams.vercel.app">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Favicon -->
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+
+
+  <link rel="stylesheet" href="css/siams.css">
+</head>
+<body>
+<div id="app">
+  <main id="page-root"></main>
+
+  <!-- ============ BOTTOM NAV (admin) ============ -->
+  <nav class="bottom-nav siams-admin-nav" id="bottom-nav" aria-label="Navigation principale">
+    <button class="nav-item active" data-nav="dashboard" onclick="Router.go('dashboard')">
+      <div class="nav-indicator"></div>
+      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span>Accueil</span>
+    </button>
+    <button class="nav-item" data-nav="orders" onclick="Router.go('orders')">
+      <div class="nav-indicator"></div>
+      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span>Commandes</span>
+    </button>
+    <button class="nav-item" data-nav="products" onclick="Router.go('products')">
+      <div class="nav-indicator"></div>
+      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M3 8v8l9 5 9-5V8M12 13v8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+      <span>Produits</span>
+    </button>
+    <button class="nav-item nav-more" data-nav="plus" onclick="Sheet.open()">
+      <div class="nav-indicator"></div>
+      <div class="nav-icon-wrap"><svg viewBox="0 0 24 24" fill="none"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg></div>
+      <span>Plus</span>
+    </button>
+  </nav>
+
+  <!-- ============ BOTTOM NAV (client, 5 onglets, panier flottant) ============ -->
+  <nav class="client-nav hidden" id="client-nav">
+    <button class="nav-item" data-nav="home" onclick="Router.go('shop')">
+      <div class="nav-indicator"></div>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 11 12 4l8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Accueil</span>
+    </button>
+    <button class="nav-item" data-nav="categories" onclick="Router.go('shop-categories')">
+      <div class="nav-indicator"></div>
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.6" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span class="nav-label">Catégories</span>
+    </button>
+
+    <div class="nav-spacer"></div>
+
+    <button class="nav-item" data-nav="favorites" onclick="Router.go('shop-favorites')">
+      <div class="nav-indicator"></div>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Favoris</span>
+    </button>
+    <button class="nav-item" data-nav="account" onclick="Router.go('shop-account')">
+      <div class="nav-indicator"></div>
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c1-4.2 4-6.5 7.5-6.5s6.5 2.3 7.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span class="nav-label">Compte</span>
+    </button>
+
+    <button class="nav-item fab" data-nav="cart" onclick="Router.go('cart')">
+      <span class="cn-badge" id="cn-cart-badge">0</span>
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="fab-label" onclick="Router.go('cart')">Panier</div>
+  </nav>
+
+  <!-- ============ SHEET "PLUS" ============ -->
+  <div class="overlay" id="overlay" onclick="Sheet.close()"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-store">
+      <div class="store-logo" id="sheet-store-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="var(--indigo)" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="var(--indigo)" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+      <div class="sheet-store-info">
+        <h4 id="sheet-store-name">AMOS STORE</h4>
+        <span id="sheet-store-phone">0506172317</span>
+      </div>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('boutique')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Boutique</span><span class="menu-item-desc">Nom, logo, lien et informations de votre boutique</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('verification')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Certification boutique</span><span class="menu-item-desc">Vérifiez votre pièce d'identité pour obtenir le badge certifié</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('commissions-apercu')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 12h6M9 16h6M9 8h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Aperçu de mon contrat</span><span class="menu-item-desc">Commissions applicables — points importants à connaître</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('stats')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Statistiques</span><span class="menu-item-desc">Ventes, revenus et performance de votre boutique</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('team')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 20c.6-3.4 3-5.5 5.5-5.5s4.9 2.1 5.5 5.5M16 9.5c1.6.2 2.8 1.6 2.8 3.2M16 5.3a3 3 0 0 1 0 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Équipe</span><span class="menu-item-desc">Invitez des collaborateurs et gérez leurs accès</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('payment')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.8"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Paiement</span><span class="menu-item-desc">Vos moyens de réception des paiements clients</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('categories')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Catégories</span><span class="menu-item-desc">Organisez vos produits pour faciliter la navigation</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('promos')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 12 12 20l-8-8V5a1 1 0 0 1 1-1h7l8 8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Codes promo</span><span class="menu-item-desc">Créez des réductions pour booster vos ventes</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('reviews')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Avis clients</span><span class="menu-item-desc">Consultez et répondez aux avis de vos clients</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('customers')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.8-4 3.6-6.2 7.5-6.2s6.7 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Clients</span><span class="menu-item-desc">Liste et historique d'achats de vos clients</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('courier-login')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="menu-item-text"><span class="menu-item-title">Espace livreur</span><span class="menu-item-desc">Connexion et suivi des livraisons</span></div></div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('settings')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.5-2-3.5-2.4.6a7.5 7.5 0 0 0-1.7-1L15 3h-4l-.3 2.5a7.5 7.5 0 0 0-1.7 1l-2.4-.6-2 3.5L6.6 11a7.7 7.7 0 0 0 0 2l-2 1.5 2 3.5 2.4-.6a7.5 7.5 0 0 0 1.7 1L11 21h4l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.4.6 2-3.5-2-1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Paramètres</span><span class="menu-item-desc">Préférences générales de l'application</span></div>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('delivery')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Livraison</span><span class="menu-item-desc">Zones, délais et tarifs de livraison</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); exportSalesReportPDF();">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Exporter mes rapports</span><span class="menu-item-desc">Rapport de ventes et statistiques en PDF</span></div>
+    </div>
+    <div class="menu-item" onclick="Sheet.close(); AccountId.open();">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M7 9h10M7 13h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Mon ID marchand SIAMS</span><span class="menu-item-desc">Consultez ou copiez votre identifiant de connexion</span></div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="menu-item danger" onclick="Sheet.close(); if(confirm('Se déconnecter ?')) Auth.logout();">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="menu-item-text"><span class="menu-item-title">Déconnexion</span><span class="menu-item-desc">Fermer votre session en toute sécurité</span></div>
+    </div>
+  </div>
+
+  <!-- ============ NOTIFICATION PANEL ============ -->
+  <div class="overlay" id="notif-overlay" onclick="Notify.closePanel()"></div>
+  <div class="notif-panel" id="notif-panel">
+    <div class="notif-head">
+      <h4>Notifications</h4>
+      <button class="link-btn" onclick="Notify.markAllRead()">Tout marquer lu</button>
+    </div>
+    <div id="notif-list"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <script src="js/siams.js"></script>
+</body>
+</html>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- SIAMS V67 — Fusion finale : identité livreur 5 pièces + promos persistantes + espace affiches produit -->
+
+
+
+
+</body>
+
+<!-- ================= SIAMS V38 — sécurité partenaire + panorama sans AMS ================= -->
+
+
+</html>
+
+
+
+
+<!-- ================= SIAMS V38 — sécurité partenaire + panorama final ================= -->
+
+
+
+
+<!-- ================= SIAMS V39/V40 — ID marchand, paramètres et espace client ================= -->
+
+
+
+<!-- ================= SIAMS V40 — client storefront visual upgrade ================= -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- SIAMS Cournsel client V54 : annonces / partenariats / photos / vidéos -->
+
+
+
+<!-- SIAMS V56 : bannières multiples (vitrine client) -->
+
+
+
+<!-- SIAMS V57 : popups accueil client (commande en attente / offres du jour) -->
+
+
+
+
+<!-- SIAMS V58 : popup mission (livraison proposée) avec compte à rebours de 10 min -->
+
+
+
+<!-- SIAMS V60 : espace profil livreur — documents vérifiés (CNI, permis, carte grise,
+     assurance) + badge certifié vert automatique + paramètres (notifications, partage
+     de position, assistance SIAMS). Nécessite la fonction SQL courier_get_documents et
+     courier_submit_document (voir migration_courier_documents.sql, à exécuter côté
+     Supabase) : tant qu'elles ne sont pas déployées, la section affiche un message
+     d'attente au lieu d'inventer un statut. -->
+
+
+
+
+<!-- ================= SIAMS V62 — livraison: arrivé → confirmation client ================= -->
+
+
+
+
+
+
+
+
+<!-- SIAMS V64 — Identification compte Marchand + Livreur, validation admin unifiée -->
+
+
+
