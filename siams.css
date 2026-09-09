@@ -1,5 +1,5 @@
 
-/* ===== style-01.css ===== */
+/* ===== SIAMS original style block 1 ===== */
 :root{
     /* ---- Design tokens : identité "SIAMS" — couleurs extraites directement du logo ---- */
     --ink:#0B0E17;
@@ -1268,12 +1268,283 @@
 .ams-avatar svg{overflow:visible;}
 .ams-avatar .ams-female-detail{display:block;}
 
+/* ===== SIAMS original style block 2 ===== */
+@keyframes siams-spin{to{transform:rotate(360deg)}}
 
-/* ===== style-05.css ===== */
+/* ===== SIAMS original style block 3 ===== */
+:root{
+    --ink:#0B0E17;
+    --panel:#F1EFE7;
+    --blue:#0091FD;
+    --blue-tint:#DFF2FF;
+    --mango:#FF7A1A;
+    --mango-dark:#DE5E00;
+    --mango-tint:#FFEADA;
+    --green:#12B76A;
+    --green-tint:#DFF7EB;
+    --red:#F04438;
+    --text:#0B0E17;
+    --text-mid:#5B6479;
+    --text-soft:#9BA3B8;
+    --line:#E7E2D6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#EDEAE0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:40px 16px;
+  }
+  .siams-lp-phone{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    height:auto;
+    background:#fff;
+    border-radius:0;
+    box-shadow:none;
+    overflow:hidden;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+  }
+  .siams-lp-hero{
+    position:relative;
+    height:340px;
+    flex:none;
+    background:
+      radial-gradient(120% 90% at 50% 0%, var(--mango-tint) 0%, #FDE3CC 45%, var(--panel) 100%);
+    overflow:hidden;
+  }
+  .siams-lp-hero::after{
+    content:'';
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:70px;
+    background:linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 100%);
+    pointer-events:none;
+  }
+  .siams-lp-hero-top{
+    position:relative;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:20px 20px 0;
+  }
+  .siams-lp-back-btn{
+    width:38px;height:38px;border-radius:12px;
+    background:rgba(255,255,255,.75);
+    backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink);
+    box-shadow:0 4px 14px -6px rgba(11,14,23,.25);
+  }
+  .siams-lp-brand{
+    display:flex;align-items:center;gap:8px;
+    font-weight:800;font-size:15px;color:var(--ink);
+    letter-spacing:-.2px;
+  }
+  .siams-lp-brand .siams-lp-dot{width:8px;height:8px;border-radius:50%;background:var(--mango);}
+  .siams-lp-mascot-wrap{
+    position:absolute;
+    left:2px;
+    bottom:0;
+    width:190px;
+    height:250px;
+    pointer-events:none;
+  }
+
+  .siams-lp-mascot-img{
+    position:absolute;
+    z-index:2;
+    left:50%;
+    bottom:0;
+    width:190px;
+    height:auto;
+    max-height:250px;
+    object-fit:contain;
+    transform:translateX(-50%);
+    filter:drop-shadow(0 14px 16px rgba(11,14,23,.16));
+  }
+
+  .siams-lp-msg-board{
+    position:absolute;
+    right:14px;
+    top:56px;
+    width:172px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    z-index:2;
+  }
+  .siams-lp-msg-card{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:#fff;
+    border-radius:16px;
+    padding:10px 12px;
+    box-shadow:0 10px 22px -8px rgba(11,14,23,.25);
+  }
+  .siams-lp-msg-ico{
+    width:32px;height:32px;border-radius:50%;
+    flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .siams-lp-msg-ico.mango{background:var(--mango-tint);}
+  .siams-lp-msg-ico.blue{background:var(--blue-tint);}
+  .siams-lp-msg-ico.green{background:var(--green-tint);}
+  .siams-lp-msg-text{font-size:11.5px;line-height:1.3;color:var(--ink);min-width:0;}
+  .siams-lp-msg-text b{display:block;font-size:12px;}
+  .siams-lp-msg-text span{color:var(--text-mid);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+
+  .siams-lp-card{
+    flex:1;
+    background:#fff;
+    border-radius:28px 28px 0 0;
+    margin-top:-28px;
+    position:relative;
+    z-index:3;
+    padding:26px 24px 28px;
+    overflow-y:auto;
+  }
+  .siams-login-preview h1{
+    font-size:23px;
+    margin:0 0 5px;
+    color:var(--ink);
+    letter-spacing:-.3px;
+  }
+  .siams-lp-sub{
+    color:var(--text-mid);
+    font-size:13.5px;
+    margin:0 0 22px;
+    line-height:1.4;
+  }
+  .siams-lp-field{margin-bottom:14px;}
+  .siams-lp-field label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--text-mid);
+    margin-bottom:6px;
+  }
+  .siams-lp-input-wrap{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    background:var(--blue-tint);
+    border:1.5px solid var(--blue);
+    border-radius:14px;
+    padding:0 14px;
+    height:52px;
+    transition:border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  .siams-lp-input-wrap:focus-within{
+    border-color:var(--blue);
+    background:#EAF6FF;
+    box-shadow:0 0 0 3px rgba(0,145,253,.12);
+  }
+  .siams-lp-input-wrap svg{flex:none;color:#0B67D8;}
+  .siams-lp-input-wrap input{
+    border:none;outline:none;background:transparent;
+    flex:1;font-size:14.5px;color:#0B67D8;
+    font-family:inherit;height:100%;
+  }
+  .siams-lp-input-wrap input::placeholder{color:#0B67D8;opacity:.82;}
+  .siams-lp-eye-btn{background:none;border:none;padding:2px;color:#0B67D8;display:flex;cursor:pointer;}
+
+  .siams-lp-row-between{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:10px 0 22px;
+    font-size:12.5px;
+  }
+  .siams-lp-remember{display:flex;align-items:center;gap:7px;color:var(--text-mid);}
+  .siams-lp-checkbox{
+    width:17px;height:17px;border-radius:6px;
+    border:1.6px solid var(--blue);
+    display:flex;align-items:center;justify-content:center;
+    background:var(--blue);
+    color:#fff;
+  }
+  .siams-lp-link{color:#0B67D8;font-weight:700;text-decoration:none;}
+
+  .siams-lp-btn-primary{
+    display:block;width:100%;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#0866FF 0%, var(--blue) 100%);
+    color:#fff;font-size:15.5px;font-weight:800;
+    padding:16px;border-radius:16px;
+    box-shadow:0 14px 26px -10px rgba(0,102,255,.35);
+    letter-spacing:.1px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .siams-lp-btn-primary:hover{
+    box-shadow:0 16px 30px -10px rgba(0,102,255,.45);
+  }
+  .siams-lp-btn-primary:active{transform:translateY(1px);}
+
+  .siams-lp-id-note{
+    margin-top:16px;
+    padding:12px 13px;
+    border-radius:13px;
+    background:var(--panel);
+    color:var(--text-mid);
+    font-size:11.5px;
+    line-height:1.5;
+  }
+
+  .siams-lp-divider{
+    display:flex;align-items:center;gap:12px;
+    margin:22px 0 16px;
+    color:var(--text-soft);
+    font-size:12px;
+  }
+  .siams-lp-divider::before,.siams-lp-divider::after{content:'';flex:1;height:1px;background:var(--line);}
+
+  .siams-lp-social-row{display:flex;gap:12px;}
+  .siams-lp-social-btn{
+    flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:13px;border-radius:14px;
+    background:var(--panel);border:1.5px solid transparent;
+    font-size:13.5px;font-weight:700;color:var(--text);
+    opacity:.85;
+  }
+
+  .siams-lp-id-recover{margin-top:16px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;padding:14px;border-radius:14px;
+    background:var(--blue-tint);color:#0b67d8;
+    font-size:13.5px;font-weight:700;border:none;
+  }
+
+  .siams-lp-footer-link{
+    text-align:center;
+    margin-top:20px;
+    font-size:13px;
+    color:var(--text-mid);
+  }
+  .siams-lp-footer-link b{color:var(--ink);}
+
+/* ===== SIAMS original style block 4 ===== */
+body{font-family:-apple-system,Inter,Arial,sans-serif;padding:28px;color:#15131F;}
+        .h{text-align:center;margin-bottom:18px;}
+        .h .co{font-weight:800;font-size:15px;letter-spacing:.5px;color:#332B8C;}
+        .h .sub{font-size:12px;color:#6C6875;margin-top:2px;}
+        .row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;}
+        .lbl{color:#6C6875;}
+        hr{border:none;border-top:1px dashed #E7E3DA;margin:14px 0;}
+        .total{display:flex;justify-content:space-between;font-size:17px;font-weight:800;margin-top:6px;}
+        .status{color:#1E9E6B;font-weight:700;}
+
+/* ===== SIAMS original style block 5 ===== */
 .v14-merchant-panel{margin:14px 20px;padding:16px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#fff,#f8fbff);box-shadow:var(--shadow-sm)}.v14-kicker{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:5px}.v14-title{font-size:18px;font-weight:800;margin:0;color:var(--ink)}.v14-sub{font-size:12px;color:var(--text-mid);margin:5px 0 13px;line-height:1.45}.v14-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.v14-stat{padding:12px;border:1px solid var(--line);border-radius:13px;background:#fff}.v14-stat b{display:block;font-size:16px}.v14-stat span{font-size:10.5px;color:var(--text-mid)}.v14-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.v14-action{border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px;text-align:left;font:inherit;cursor:pointer}.v14-action strong{display:block;font-size:12px}.v14-action small{display:block;color:var(--text-mid);font-size:10px;margin-top:2px}
 
-
-/* ===== style-06.css ===== */
+/* ===== SIAMS original style block 6 ===== */
 /* V15 — correction accès promos + finition Service SIAMS */
 .v15-promo-form{margin:0 20px 16px;padding:15px;border:1px solid var(--line);border-radius:17px;background:#fff;box-shadow:0 6px 20px rgba(20,40,80,.055)}
 .v15-promo-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:10px}.v15-promo-grid .field{margin:0}
@@ -1288,8 +1559,7 @@
 .v15-service-item b{color:var(--text);font-size:10.5px}
 @media(max-width:390px){.v15-promo-grid,.v15-promo-row{grid-template-columns:1fr}.v15-service-list{grid-template-columns:1fr}}
 
-
-/* ===== style-07.css ===== */
+/* ===== SIAMS original style block 7 ===== */
 .v15-merchant-card{margin:14px 20px 10px;padding:18px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,#fff,#f8fbff);box-shadow:0 8px 24px rgba(20,40,80,.07)}
 .v15-kicker{font-size:10px;font-weight:850;letter-spacing:.09em;color:var(--indigo);margin-bottom:5px}.v15-merchant-card h2{margin:0;font-size:20px;letter-spacing:-.03em}.v15-merchant-card p{margin:5px 0 14px;color:var(--text-mid);font-size:12px;line-height:1.45}
 .v15-stats4,.v15-promo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.v15-stat{padding:10px 8px;border:1px solid var(--line);border-radius:12px;background:#fff}.v15-stat b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v15-stat span{display:block;margin-top:3px;color:var(--text-mid);font-size:9.5px}
@@ -1300,8 +1570,7 @@
 .v15-services-bottom{margin:30px 20px 90px;padding:14px;border:1px solid var(--line);border-radius:18px;background:rgba(247,249,253,.72);opacity:.8}.v15-services-label{font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft)}.v15-services-bottom p{margin:5px 0 10px;color:var(--text-soft);font-size:10px}.v15-service-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.v15-service-chips button{border:1px solid var(--line);background:rgba(255,255,255,.75);border-radius:10px;padding:8px 4px;cursor:pointer;color:var(--text-mid);font-size:10px}.v15-service-chips button svg{display:block;margin:0 auto 4px;width:16px;height:16px}.v15-service-chips span{display:block}
 @media(max-width:390px){.v15-stats4,.v15-promo-stats{grid-template-columns:repeat(2,1fr)}.v15-form-grid{grid-template-columns:1fr}.v15-service-chips{grid-template-columns:repeat(2,1fr)}}
 
-
-/* ===== style-08.css ===== */
+/* ===== SIAMS original style block 8 ===== */
 /* V16.1 — Les centres marchands ne doivent plus encombrer le haut des pages.
    Ils restent accessibles depuis « Plus » dans le groupe Gestion marchand. */
 .v16-merchant-cleanup{margin:14px 20px 4px;padding:14px 14px 16px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,#fff,#f8fbff);box-shadow:var(--shadow-sm)}
@@ -1316,8 +1585,7 @@
 .v16-plus-section{margin:8px 16px 5px;padding:7px 4px 3px;border-top:1px solid var(--line);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.08em;color:var(--text-soft)}
 @media(max-width:390px){.v16-merchant-grid{grid-template-columns:1fr}}
 
-
-/* ===== style-09.css ===== */
+/* ===== SIAMS original style block 9 ===== */
 /* V35 — audit panorama 360–412 px : structure, respiration, AMS et écran final */
 .onboard-merchant-pro{min-height:100svh;height:100svh;overflow:hidden;}
 .onboard-merchant-slides{height:calc(100svh - 174px);max-height:none;min-height:0;}
@@ -1357,8 +1625,7 @@
   .onboard-side-phone{transform:scale(.78);}
 }
 
-
-/* ===== style-10.css ===== */
+/* ===== SIAMS original style block 10 ===== */
 .dashboard-v2-quick{margin-bottom:10px}
 .dashboard-v2-quick .quick-nav-card{min-height:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px}
 .dashboard-v2-quick .quick-nav-card .qicon{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;flex:none}
@@ -1374,8 +1641,7 @@
 .v21-home-service span{display:block;font-size:9.5px;font-weight:750;line-height:1.2}
 @media(max-width:390px){.v21-home-services{margin-left:14px;margin-right:14px}.v21-home-services-grid{grid-template-columns:repeat(2,1fr)}}
 
-
-/* ===== style-11.css ===== */
+/* ===== SIAMS original style block 11 ===== */
 /* Correctif interface client — écran Catégories mobile */
 .categories-hero{padding:20px 20px 14px;box-sizing:border-box;}
 .categories-hero .eyebrow{font-size:12px;color:var(--text-mid);margin-bottom:10px;}
@@ -1396,16 +1662,14 @@
   .category-card h4{font-size:13px;}
 }
 
-
-/* ===== style-12.css ===== */
+/* ===== SIAMS original style block 12 ===== */
 .category-card{position:relative;cursor:pointer;min-height:118px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:5px}
 .category-card .cc-icon{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo)}
 .category-card h4{margin:0;font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .category-card .category-count{font-size:10.5px;color:var(--text-mid)}
 .category-card .cc-arrow{position:absolute;right:10px;top:10px;color:var(--text-soft)}
 
-
-/* ===== style-13.css ===== */
+/* ===== SIAMS original style block 13 ===== */
 /* V35 — audit panorama 360–412 px : structure, respiration, AMS et écran final */
 .onboard-merchant-pro{min-height:100svh;height:100svh;overflow:hidden;}
 .onboard-merchant-slides{height:calc(100svh - 174px);max-height:none;min-height:0;}
@@ -1445,8 +1709,7 @@
   .onboard-side-phone{transform:scale(.78);}
 }
 
-
-/* ===== style-14.css ===== */
+/* ===== SIAMS original style block 14 ===== */
 .siams-v67-card{background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:18px;padding:15px;margin:10px 20px;box-shadow:var(--shadow-sm,0 6px 20px rgba(0,0,0,.05))}
 .siams-v67-kicker{font-size:9px;font-weight:900;letter-spacing:.1em;color:var(--indigo,#155eef);text-transform:uppercase}.siams-v67-card h3{margin:5px 0;font-size:16px}.siams-v67-card p{font-size:11px;line-height:1.5;color:var(--text-mid,#667085);margin:5px 0 10px}
 .siams-v67-docs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.siams-v67-doc{padding:11px 9px;border:1px solid var(--line,#e5e7eb);background:#fff;border-radius:12px;text-align:left;font:inherit;cursor:pointer}.siams-v67-doc.active{border-color:var(--indigo,#155eef);background:var(--indigo-tint,#eef4ff)}.siams-v67-doc b{display:block;font-size:10.5px}.siams-v67-doc small{display:block;font-size:8.5px;color:var(--text-mid,#667085);margin-top:3px}
@@ -1457,8 +1720,7 @@
 .siams-v67-ad-preview img{width:100%;aspect-ratio:16/7;object-fit:cover;border-radius:13px;display:block;margin-top:9px}
 @media(max-width:380px){.siams-v67-card{margin-left:14px;margin-right:14px}.siams-v67-ad-grid{grid-template-columns:1fr}}
 
-
-/* ===== style-15.css ===== */
+/* ===== SIAMS original style block 15 ===== */
 /* Panorama marchand/public : chaque étape occupe largement l'écran. */
 .onboard-merchant-pro .onboard-merchant-slides{height:calc(100svh - 154px)!important;min-height:0!important;}
 .onboard-merchant-pro .merchant-slide{padding:12px 18px 10px!important;justify-content:center!important;}
@@ -1479,8 +1741,7 @@
 }
 /* Sécurité inscription : aucune création de compte depuis l'écran de connexion. */
 
-
-/* ===== style-16.css ===== */
+/* ===== SIAMS original style block 16 ===== */
 /* V36 — finition finale du panorama mobile */
 .onboard-merchant-pro{width:100%;max-width:100vw;box-sizing:border-box;}
 .onboard-merchant-slides{overflow:hidden;}
@@ -1508,8 +1769,7 @@
   .ams-final-brand{max-width:calc(100vw - 30px)!important;}
 }
 
-
-/* ===== style-17.css ===== */
+/* ===== SIAMS original style block 17 ===== */
 /* V37 — suppression des en-têtes répétés quand une page possède déjà son vrai titre */
 #app[data-v37-clean-head="1"] #page-root > .topbar:first-child{display:none!important;}
 /* Fallback pour les vues dont le TopBar est imbriqué après un centre marchand */
@@ -1535,8 +1795,7 @@
 .v37-team-couriers{margin:0 20px 28px;padding:15px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}.v37-team-couriers h3{margin:0 0 9px;font-size:14px}.v37-courier-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line)}.v37-courier-row:first-child{border-top:0}.v37-courier-avatar{width:38px;height:38px;border-radius:12px;background:var(--green-tint);display:grid;place-items:center;flex:none}.v37-courier-main{min-width:0;flex:1}.v37-courier-main b{display:block;font-size:12px}.v37-courier-main span{display:block;font-size:10.5px;color:var(--text-mid);margin-top:2px}.v37-courier-remove{flex:none;min-height:32px;padding:0 12px;border:1px solid var(--red-tint);background:var(--red-tint);color:var(--red);border-radius:9px;font-size:10.5px;font-weight:800;cursor:pointer}
 @media(max-width:380px){.v37-team-head{padding-left:14px;padding-right:14px}.v37-team-summary{padding-left:14px;padding-right:14px;gap:6px}.v37-team-list{padding-left:14px;padding-right:14px}.v37-team-add,.v37-team-couriers{margin-left:14px;margin-right:14px}.v37-team-info{grid-template-columns:1fr}.v37-team-info-item.full{grid-column:auto}.v37-client-promo-cta{margin-left:14px;margin-right:14px}}
 
-
-/* ===== style-18.css ===== */
+/* ===== SIAMS original style block 18 ===== */
 .v39-id-card{background:linear-gradient(145deg,#f7fbff,#eef5ff);border:1.5px solid rgba(17,17,17,.18);border-radius:24px;padding:20px;box-shadow:0 18px 42px -26px rgba(17,17,17,.35);margin:4px 0 18px;}
   .v39-id-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
   .v39-id-label{font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--indigo);text-transform:uppercase;}
@@ -1566,8 +1825,7 @@
   .v39-profile-grid .field{margin-bottom:0;}.v39-profile-grid .full{grid-column:1/-1;}
   @media(max-width:380px){.v39-id-value{font-size:22px}.v39-id-actions{grid-template-columns:1fr}.v39-cat-head,.v39-cat-search,.v39-cat-chips,.v39-cat-results{padding-left:14px;padding-right:14px}.v39-profile-grid{grid-template-columns:1fr}.v39-profile-grid .full{grid-column:auto}.v39-location-actions{grid-template-columns:1fr}}
 
-
-/* ===== style-19.css ===== */
+/* ===== SIAMS original style block 19 ===== */
 .v40-promo-carousel{margin:14px 20px 2px;position:relative;overflow:hidden;border-radius:20px;display:none;box-shadow:0 8px 28px rgba(20,40,80,.08)}
 .v40-promo-track{display:flex;transition:transform .45s ease;will-change:transform}
 .v40-promo-slide{min-width:100%;box-sizing:border-box;position:relative;overflow:hidden;aspect-ratio:16/6.5;background:var(--panel)}
@@ -1584,8 +1842,7 @@
 .v40-cat-page-head{padding:18px 20px 10px}.v40-cat-page-head h1{margin:0;font-size:25px;letter-spacing:-.03em}.v40-cat-page-head p{margin:5px 0 0;color:var(--text-mid);font-size:12px;line-height:1.4}.v40-cat-search{padding:0 20px 12px}.v40-cat-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 20px 12px;scrollbar-width:none}.v40-cat-chips::-webkit-scrollbar{display:none}.v40-cat-chip{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 13px;font:inherit;font-size:11px;font-weight:750;color:var(--text-mid);cursor:pointer}.v40-cat-chip.active{background:var(--indigo);border-color:var(--indigo);color:#fff}
 @media(max-width:380px){.v40-promo-carousel{margin-left:14px;margin-right:14px}.v40-category-row{padding-left:14px;padding-right:14px}.v40-cat-page-head,.v40-cat-search,.v40-cat-chips{padding-left:14px;padding-right:14px}.v40-promo-copy b{font-size:19px}}
 
-
-/* ===== style-20.css ===== */
+/* ===== SIAMS original style block 20 ===== */
 .notif-v44-sound-note{font-size:10.5px;color:var(--text-soft);line-height:1.4;margin:8px 18px 14px;}
 
 .notif-v42-sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,105%);width:min(100%,480px);max-height:82vh;background:var(--panel,#fff);border-radius:24px 24px 0 0;box-shadow:0 -18px 55px rgba(20,25,50,.18);z-index:120;transition:transform .22s ease;overflow:auto;border:1px solid var(--line,#e5e9f2)}
@@ -1601,12 +1858,10 @@
 html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .notif-v42-head{background:var(--panel,#151922)}
 .notif-v42-composer-wrap{position:relative;z-index:130}.notif-v42-composer{max-height:88vh}.notif-v42-template-list{padding:2px 18px 14px}.notif-v42-template{width:100%;display:flex;align-items:center;gap:11px;padding:12px 0;border:0;border-bottom:1px solid var(--line,#e5e9f2);background:transparent;color:var(--text);text-align:left}.notif-v42-template-icon{width:40px;height:40px;border-radius:13px;background:var(--panel-soft,#f4f6fa);display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}.notif-v42-template b{display:block;font-size:13px}.notif-v42-template small{display:block;margin-top:2px;color:var(--text-mid);font-size:10.5px}.notif-v42-template-arrow{margin-left:auto;font-size:22px;color:var(--text-soft)}.notif-v42-preview{margin-top:12px;padding:13px;border-radius:14px;background:var(--panel-soft,#f7f9fc);border:1px solid var(--line,#e5e9f2)}.notif-v42-preview b{font-size:13px}.notif-v42-preview p{font-size:12px;line-height:1.45;margin:5px 0 0;color:var(--text-mid)}
 
-
-/* ===== style-21.css ===== */
+/* ===== SIAMS original style block 21 ===== */
 .v47-message-backdrop{position:fixed;inset:0;background:rgba(9,22,42,.42);z-index:130}.v47-message-pop{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,390px);background:#fff;border-radius:24px;padding:22px;z-index:131;box-shadow:0 24px 70px rgba(9,22,42,.28);text-align:center}.v47-message-icon{width:58px;height:58px;border-radius:18px;background:var(--indigo-tint);display:grid;place-items:center;font-size:27px;margin:0 auto 12px}.v47-message-pop h3{margin:6px 0;font-size:20px}.v47-message-pop p{color:var(--text-mid);font-size:13px;line-height:1.55;margin:0 0 16px}.v47-trash{min-width:130px}.notif-v42-actions{flex-wrap:wrap}.notif-v42-actions .v47-trash{flex:1 1 100%}@media(min-width:480px){.notif-v42-actions .v47-trash{flex:1}}
 
-
-/* ===== style-22.css ===== */
+/* ===== SIAMS original style block 22 ===== */
 .siams-showcase{margin:14px 20px 8px}
 .siams-showcase-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
 .siams-showcase-head h3{margin:0;font-size:15px;font-weight:850;color:var(--text)}
@@ -1631,8 +1886,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 .v54-admin-head{padding:16px 20px 8px}.v54-admin-head h2{margin:0;font-size:23px}.v54-admin-head p{margin:5px 0 0;font-size:11.5px;color:var(--text-mid);line-height:1.45}.v54-count{margin:0 20px 13px;padding:11px 13px;border-radius:13px;background:var(--indigo-tint);color:var(--indigo);font-size:11px;font-weight:800}
 @media(max-width:380px){.siams-showcase,.v54-list-card,.v54-form{margin-left:14px;margin-right:14px}.siams-showcase-card{flex-basis:91%}.v54-admin-head{padding-left:14px;padding-right:14px}.v54-count{margin-left:14px;margin-right:14px}}
 
-
-/* ===== style-23.css ===== */
+/* ===== SIAMS original style block 23 ===== */
 .siams-banner-carousel{margin:4px 20px 12px;position:relative;border-radius:18px;overflow:hidden;box-shadow:0 9px 24px rgba(18,54,90,.12)}
 .siams-banner-track{display:flex;transition:transform .45s ease}
 .siams-banner-slide{flex:0 0 100%;cursor:pointer}
@@ -1643,8 +1897,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 .v56-link-type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
 @media(max-width:380px){.siams-banner-carousel{margin-left:14px;margin-right:14px}}
 
-
-/* ===== style-24.css ===== */
+/* ===== SIAMS original style block 24 ===== */
 .v57-popup-overlay{position:fixed;inset:0;background:rgba(10,10,20,.55);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .22s ease}
 .v57-popup-overlay.show{opacity:1;pointer-events:auto}
 .v57-popup-card{background:#fff;border-radius:22px;max-width:400px;width:100%;max-height:86vh;overflow-y:auto;position:relative;box-shadow:0 30px 60px -20px rgba(0,0,0,.4)}
@@ -1676,8 +1929,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 .v57-deals-dot{width:6px;height:6px;border-radius:50%;background:var(--line)}
 .v57-deals-dot.active{background:var(--indigo);width:16px;border-radius:4px}
 
-
-/* ===== style-25.css ===== */
+/* ===== SIAMS original style block 25 ===== */
 .v58-mission-hero{background:linear-gradient(135deg,#0b67d8,#16b6ff);padding:24px 22px 20px;border-radius:22px 22px 0 0;color:#fff;text-align:center}
 .v58-mission-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);padding:6px 12px;border-radius:999px;font-size:10.5px;font-weight:850;letter-spacing:.04em;text-transform:uppercase}
 .v58-mission-countdown{display:block;font-family:var(--font-mono);font-size:36px;font-weight:800;margin-top:12px;letter-spacing:.02em;transition:color .2s ease}
@@ -1696,18 +1948,15 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 .v58-mission-actions{display:flex;gap:9px;padding:18px 20px calc(18px + env(safe-area-inset-bottom))}
 .v58-mission-actions .btn{flex:1}
 
-
-/* ===== style-26.css ===== */
+/* ===== SIAMS original style block 26 ===== */
 .courier-doc-row{display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:13px 14px;margin-bottom:10px;box-shadow:var(--shadow-sm);}
 .courier-doc-row input[type="file"]{display:none;}
 
-
-/* ===== style-27.css ===== */
+/* ===== SIAMS original style block 27 ===== */
 .courier-arrived-note{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--gold-tint);color:var(--gold-dark);font-size:12px;font-weight:700;line-height:1.4}
   .client-confirm-delivery{margin:12px 20px 16px;padding:14px;border:1.5px solid var(--green);background:var(--green-tint);border-radius:16px}
 
-
-/* ===== style-28.css ===== */
+/* ===== SIAMS original style block 28 ===== */
 .courier-premium-shell{min-height:100vh;background:#f5f7fa;padding-bottom:82px;color:#172033}
 .courier-premium-header{background:linear-gradient(145deg,#071a33,#0b3b70 58%,#0b67d8);color:#fff;padding:18px;border-radius:0 0 28px 28px;box-shadow:0 12px 35px rgba(7,26,51,.18)}
 .courier-premium-head-row,.courier-availability-card,.courier-section-head,.courier-welcome{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -1739,8 +1988,7 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 .courier-profile-hero{display:flex;align-items:center;gap:13px;background:linear-gradient(135deg,#0b67d8,#084d9f);color:#fff;border-radius:21px;padding:18px;margin-bottom:12px}.premium-avatar.large{width:58px!important;height:58px!important;border-radius:17px!important;font-size:19px!important}.courier-profile-big-name{font-size:17px;font-weight:900;margin-top:3px}.courier-profile-role{font-size:10.5px;opacity:.7;margin-top:3px}.courier-logout-wide{width:100%;height:45px;margin:20px 0 10px;border:1px solid #e1e6ec;border-radius:13px;background:#fff;color:#c0392b;font-size:11px;font-weight:850}
 .courier-premium-nav{position:fixed;left:0;right:0;bottom:0;z-index:45;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-top:1px solid #e8ecf1;display:flex;padding:8px 8px calc(7px + env(safe-area-inset-bottom));box-shadow:0 -8px 25px rgba(15,23,42,.07)}.courier-premium-nav .courier-nav-btn{min-height:51px;border-radius:14px}.courier-premium-nav .courier-nav-btn.active{background:#edf5ff;color:#0b67d8}.courier-premium-nav .courier-nav-ico{width:29px;height:25px}.courier-premium-nav .courier-nav-btn span:last-child{font-size:9px;font-weight:850}
 
-
-/* ===== style-29.css ===== */
+/* ===== SIAMS original style block 29 ===== */
 .siams-id-card{background:#fff;border:1px solid #e3e8ef;border-radius:20px;padding:17px;margin:0 0 13px;box-shadow:0 8px 25px rgba(15,23,42,.05)}
   .siams-id-hero{background:linear-gradient(135deg,#071a33,#0b67d8);color:#fff;border-radius:20px;padding:19px;margin-bottom:13px}
   .siams-id-hero h2{margin:5px 0;font-size:19px}.siams-id-hero p{margin:0;opacity:.76;font-size:11.5px;line-height:1.5}
@@ -1760,4 +2008,3 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
   .siams-admin-id-actions button{min-height:42px;border-radius:12px;font-size:10.5px;font-weight:850;cursor:pointer}
   .siams-admin-id-actions .ok{border:0;background:#16a36b;color:#fff}.siams-admin-id-actions .no{border:1px solid #f0caca;background:#fff;color:#b42318}
   .siams-certified-pill{display:inline-flex;align-items:center;gap:5px;background:#e9f8f0;color:#087a4d;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900}
-

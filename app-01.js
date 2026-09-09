@@ -2451,7 +2451,7 @@ Views['activation-code'] = function(){
     <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--indigo);text-transform:uppercase;margin-bottom:5px;">ACCÈS PARTENAIRE</div>
     <h1 style="font-size:25px;margin:0 0 8px;">Votre code partenaire</h1>
     <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 22px;">${q.pending?'Votre demande a bien été enregistrée. Vous recevrez automatiquement un e-mail de serviceclientsiams.ci@gmail.com contenant votre code d’activation dès que le service client SIAMS aura approuvé votre compte.':'Saisissez le code personnel transmis par le service client SIAMS pour commencer votre inscription.'}</p>
-    ${q.pending?`<div id="activation-pending-panel" style="padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);margin-bottom:16px;display:flex;align-items:center;gap:12px;"><div class="spinner" style="width:20px;height:20px;border:2.5px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:siams-spin .8s linear infinite;flex:none;"></div><div><b style="font-size:12.5px;">Activation en cours…</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px;">Votre demande est en cours d’examen par le service client SIAMS.</div></div></div><link rel="stylesheet" href="css/style-02.css">`:''}
+    ${q.pending?`<div id="activation-pending-panel" style="padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);margin-bottom:16px;display:flex;align-items:center;gap:12px;"><div class="spinner" style="width:20px;height:20px;border:2.5px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:siams-spin .8s linear infinite;flex:none;"></div><div><b style="font-size:12.5px;">Activation en cours…</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px;">Votre demande est en cours d’examen par le service client SIAMS.</div></div></div>`:''}
     <div class="field"><label>Code d’activation</label><input id="activation-code-input" type="text" autocomplete="off" autocapitalize="characters" placeholder="SIAMS-XXXXXX" value="${Utils.escapeHtml(ActivationGate.getStored())}" oninput="document.getElementById('activation-code-error').textContent=''"></div>
     <div id="activation-code-error" style="color:var(--red);font-size:12.5px;min-height:20px;margin:-6px 0 14px;"></div>
     <button id="activation-code-btn" class="btn btn-primary btn-block" onclick="ActivationGate.validate()">Valider le code</button>
@@ -2465,7 +2465,7 @@ Views.login = function(){
   authMode='login';
   return `
   <div class="siams-login-preview">
-    <link rel="stylesheet" href="css/style-03.css">
+    
 <div class="siams-lp-phone">
   <div class="siams-lp-hero">
     <div class="siams-lp-siams-lp-hero-top">
@@ -4582,7 +4582,7 @@ const Withdraw = {
     const w = window.open('', '_blank', 'width=420,height=640');
     if(!w){ Toast.show('Autorisez les pop-ups pour imprimer le reçu'); return; }
     w.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Reçu ${r.id}</title>
-      <link rel="stylesheet" href="css/style-04.css"></head><body>
+      </head><body>
       <div class="h"><div class="co">SIAMS PROTOTYPE</div><div class="sub">Reçu de transaction — \${Utils.escapeHtml(store.name)}</div></div>
       <hr>
       <div class="row"><span class="lbl">N° transaction</span><span>\${r.id}</span></div>
