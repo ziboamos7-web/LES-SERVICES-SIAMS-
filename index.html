@@ -555,90 +555,13 @@
   .dashboard-v2-section h3{margin:0;font-size:15px;font-weight:800;letter-spacing:-.25px;}
   .dashboard-v2-section button{border:0;background:none;color:var(--indigo);font:800 11px var(--font-body);cursor:pointer;}
   .dashboard-v2-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px;}
-  .dashboard-v2-quick button{border:1px solid var(--line);background:#fff;border-radius:17px;padding:12px 6px 10px;box-shadow:var(--shadow-sm);font-family:var(--font-body);cursor:pointer;min-height:86px;transition:transform .12s ease,box-shadow .12s ease;}
-  .dashboard-v2-quick button:active{transform:scale(.94);box-shadow:none;}
+  .dashboard-v2-quick button{border:1px solid var(--line);background:#fff;border-radius:17px;padding:12px 6px 10px;box-shadow:var(--shadow-sm);font-family:var(--font-body);cursor:pointer;min-height:86px;}
   .dashboard-v2-quick .qicon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 7px;}
   .dashboard-v2-quick span{display:block;font-size:9.5px;font-weight:800;line-height:1.25;}
   .dashboard-v2-service-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px;}
-  .dashboard-v2-service{border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px 8px;min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-shadow:var(--shadow-sm);cursor:pointer;font-family:var(--font-body);transition:transform .12s ease,box-shadow .12s ease;}
-  .dashboard-v2-service:active{transform:scale(.94);box-shadow:none;}
+  .dashboard-v2-service{border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px 8px;min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-shadow:var(--shadow-sm);cursor:pointer;font-family:var(--font-body);}
   .dashboard-v2-service .sicon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;}
   .dashboard-v2-service span{font-size:10.5px;font-weight:800;text-align:center;line-height:1.2;}
-
-  /* ---------- Widget « Essai en cours » : expérience vivante (anneau, compteur animé,
-     countdown temps réel, étapes) — remplace l'ancienne carte texte statique. ---------- */
-  .trial-xp{margin:10px 20px 0;border-radius:22px;overflow:hidden;position:relative;
-    background:radial-gradient(480px 220px at 100% -10%, rgba(255,201,74,.22), transparent 60%),
-      linear-gradient(160deg,#14141A 0%,#1E1E26 55%,#26262F 100%);
-    color:#fff;box-shadow:var(--shadow-lg);padding:20px 18px 18px;}
-  .trial-xp::before{content:'';position:absolute;inset:0;pointer-events:none;
-    background-image:radial-gradient(rgba(255,255,255,.07) 1px, transparent 1px);background-size:16px 16px;opacity:.6;}
-  .trial-xp.ended{background:radial-gradient(480px 220px at 100% -10%, rgba(240,68,56,.25), transparent 60%),
-      linear-gradient(160deg,#1B0F10 0%,#26161A 55%,#301B1F 100%);}
-  .trial-xp-top{display:flex;align-items:center;justify-content:space-between;gap:14px;position:relative;z-index:1;}
-  .trial-xp-eyebrow{font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:4px;}
-  .trial-xp-title{font-size:15px;font-weight:800;}
-  .trial-xp-badge{flex:none;font-size:10px;font-weight:900;letter-spacing:.04em;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);}
-  .trial-ring-wrap{position:relative;width:66px;height:66px;flex:none;}
-  .trial-ring-wrap svg{transform:rotate(-90deg);width:66px;height:66px;}
-  .trial-ring-bg{fill:none;stroke:rgba(255,255,255,.14);stroke-width:6;}
-  .trial-ring-fg{fill:none;stroke:#FFC94A;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);}
-  .trial-xp.ended .trial-ring-fg{stroke:#F04438;}
-  .trial-ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-  .trial-ring-label b{font-size:17px;font-weight:900;line-height:1;font-family:var(--font-mono);}
-  .trial-ring-label span{font-size:7px;text-transform:uppercase;letter-spacing:.04em;color:rgba(255,255,255,.6);margin-top:2px;}
-  .trial-xp-amount{margin-top:16px;position:relative;z-index:1;}
-  .trial-xp-amount .lbl{font-size:11px;color:rgba(255,255,255,.6);font-weight:600;}
-  .trial-xp-amount .val{font-size:28px;font-weight:900;font-family:var(--font-mono);letter-spacing:-.5px;margin-top:2px;}
-  .trial-xp-countdown{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;
-    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:13px;padding:10px 13px;position:relative;z-index:1;}
-  .trial-xp-countdown .lab{font-size:11px;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:6px;}
-  .trial-xp-countdown .val{font-family:var(--font-mono);font-size:13px;font-weight:800;color:#FFC94A;}
-  .trial-xp.ended .trial-xp-countdown .val{color:#FF8A80;}
-  .trial-xp-steps{display:flex;align-items:center;margin-top:16px;position:relative;z-index:1;}
-  .trial-xp-step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;position:relative;}
-  .trial-xp-step .dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;
-    background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.22);color:rgba(255,255,255,.55);}
-  .trial-xp-step.done .dot{background:#FFC94A;border-color:#FFC94A;color:#1a1a1a;}
-  .trial-xp-step.active .dot{background:#fff;border-color:#fff;color:#1a1a1a;box-shadow:0 0 0 4px rgba(255,255,255,.15);}
-  .trial-xp-step span{font-size:8.5px;font-weight:800;text-align:center;color:rgba(255,255,255,.55);line-height:1.2;}
-  .trial-xp-step.done span, .trial-xp-step.active span{color:#fff;}
-  .trial-xp-step-line{position:absolute;top:12px;left:50%;width:100%;height:1.5px;background:rgba(255,255,255,.16);z-index:-1;}
-  .trial-xp-step.done .trial-xp-step-line{background:#FFC94A;}
-  .trial-xp-actions{margin-top:16px;position:relative;z-index:1;display:flex;flex-direction:column;gap:8px;}
-  .trial-xp-btn{display:flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:13px;padding:13px 14px;font-size:13px;font-weight:800;font-family:var(--font-body);cursor:pointer;transition:transform .12s ease;}
-  .trial-xp-btn:active{transform:scale(.97);}
-  .trial-xp-btn.primary{background:#FFC94A;color:#1a1400;}
-  .trial-xp.ended .trial-xp-btn.primary{background:#F04438;color:#fff;}
-  .trial-xp-btn.ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.18);}
-  .trial-xp-note{display:flex;align-items:flex-start;gap:8px;margin-top:12px;background:rgba(255,159,10,.14);border:1px solid rgba(255,159,10,.3);border-radius:12px;padding:9px 11px;position:relative;z-index:1;}
-  .trial-xp-note span{font-size:10.5px;color:rgba(255,255,255,.85);line-height:1.5;}
-  .trial-xp-note a{color:#FFC94A;font-weight:800;}
-
-  /* ---- Thème bleu (vérification / paiement échelonné) et variantes du widget d'essai ---- */
-  .trial-xp.theme-blue{background:radial-gradient(480px 220px at 100% -10%, rgba(79,168,255,.24), transparent 60%),
-    linear-gradient(160deg,#0E1520 0%,#131E2C 55%,#182337 100%);}
-  .trial-xp.theme-blue .trial-ring-fg{stroke:#4FA8FF;}
-  .trial-xp.theme-blue .trial-xp-countdown .val{color:#4FA8FF;}
-  .trial-xp.theme-blue .trial-xp-btn.primary{background:#4FA8FF;color:#04141f;}
-  .trial-xp.theme-blue .trial-xp-step.done .dot{background:#4FA8FF;border-color:#4FA8FF;color:#04141f;}
-  .trial-xp.theme-blue .trial-xp-step.active .dot{box-shadow:0 0 0 4px rgba(79,168,255,.22);}
-  .trial-xp .pending-spinner{width:52px;height:52px;border-radius:50%;border:5px solid rgba(255,255,255,.14);border-top-color:#4FA8FF;animation:xpSpin 1s linear infinite;flex:none;}
-  @keyframes xpSpin{to{transform:rotate(360deg);}}
-  .trial-xp .pass-bar-track{width:100%;height:9px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:14px;position:relative;z-index:1;}
-  .trial-xp .pass-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#4FA8FF,#8ED1FF);transition:width 1s cubic-bezier(.4,0,.2,1);}
-  .trial-xp .pass-perks{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;position:relative;z-index:1;}
-  .trial-xp .pass-perk{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 11px;}
-
-  /* ---- Carte Pass actif : anneau de renouvellement + compteurs animés ---- */
-  .plan-ring-wrap{position:relative;width:56px;height:56px;flex:none;}
-  .plan-ring-wrap svg{transform:rotate(-90deg);width:56px;height:56px;}
-  .plan-ring-bg{fill:none;stroke:rgba(0,0,0,.08);stroke-width:5;}
-  .plan-ring-fg{fill:none;stroke:var(--indigo);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);}
-  .plan-card.tier-doya .plan-ring-bg,.plan-card.tier-all .plan-ring-bg{stroke:rgba(255,255,255,.18);}
-  .plan-card.tier-doya .plan-ring-fg,.plan-card.tier-all .plan-ring-fg{stroke:#fff;}
-  .plan-ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;font-family:var(--font-mono);}
-
   .dashboard-v2-command-card{margin:0 20px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:var(--shadow-sm);overflow:hidden;}
   .dashboard-v2-command-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #eef2f8;cursor:pointer;}
   .dashboard-v2-command-row:last-child{border-bottom:0;}
@@ -5073,7 +4996,7 @@ Views.dashboard = function(){
     <section class="dashboard-v18-finance" aria-label="Tableau de bord financier">
       <div class="finance-main">
         <div class="finance-main-label">Ventes livrées</div>
-        <div class="finance-total count-up-val" id="finance-total-val" data-target="${deliveredRevenue}">0 FCFA</div>
+        <div class="finance-total" id="finance-total-val" data-target="${deliveredRevenue}">0 FCFA</div>
       </div>
       <div class="finance-two-col">
         <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
@@ -5117,31 +5040,23 @@ Views.dashboard = function(){
     
     ${CommissionCard()}
     ${SubCommissionCard()}
+    <div class="section-title">Abonnement</div>
     ${SubscriptionCard(access)}
     <div style="height:16px;"></div>`;
 };
 Views._after_dashboard = function(){
-  document.querySelectorAll('.count-up-val').forEach(el=>{
-    const target=Number(el.getAttribute('data-target'))||0;
-    const dur=700; const start=performance.now();
-    function step(now){
-      const p=Math.min(1,(now-start)/dur);
-      const eased=1-Math.pow(1-p,3);
-      el.textContent=Utils.fmtFCFA(Math.round(target*eased));
-      if(p<1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  });
+  const el=document.getElementById('finance-total-val');
+  if(!el) return;
+  const target=Number(el.getAttribute('data-target'))||0;
+  const dur=700; const start=performance.now();
+  function step(now){
+    const p=Math.min(1,(now-start)/dur);
+    const eased=1-Math.pow(1-p,3);
+    el.textContent=Utils.fmtFCFA(Math.round(target*eased));
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 };
-setInterval(()=>{
-  ['commission-trial-countdown-val','pass-trial-countdown-val'].forEach(id=>{
-    const val = document.getElementById(id);
-    if(val){
-      const endsAt = Number(val.dataset.endsAt);
-      val.textContent = fmtRenewCountdown(Math.abs(endsAt - Date.now()));
-    }
-  });
-}, 1000);
 
 /* ---------- Récapitulatif des badges débloqués par formule d'abonnement :
    BON MOOD → aucun badge · DOYEN → badge noir · DOYA → badge bleu ·
@@ -5167,9 +5082,7 @@ function CommissionBadgeRecap(){
   </div>`;
 }
 
-/* ---------- Carte « Commission » (dashboard) — période d'essai de 20 jours ----------
-   V47 : widget vivant (anneau de progression animé, montant compté en temps réel,
-   countdown précis, étapes de parcours) au lieu d'un simple bloc de texte statique. */
+/* ---------- Carte « Commission » (dashboard) — période d'essai de 20 jours ---------- */
 function CommissionCard(){
   const due = Store.commissionDue();
   const settled = Store.commissionSettled;
@@ -5177,44 +5090,36 @@ function CommissionCard(){
   const inTrial = Date.now() < trialEnd;
   const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
   if(settled || (due<=0 && !inTrial)) return '';
-  const verified = !!(Store.store && Store.store.verification && Store.store.verification.verified);
-  const R = 27, C = 2*Math.PI*R;
-  const progress = inTrial ? Math.max(0, Math.min(1, daysLeft/TRIAL_DAYS)) : 0;
-  const offset = C*(1-progress);
-  const steps = inTrial
-    ? [ ['1','Essai en cours','active'], ['2','Validation', ''], ['3','Pass actif',''] ]
-    : [ ['1','Essai terminé','done'], ['2','Paiement à envoyer','active'], ['3','Pass actif',''] ];
   return `
-  <div class="trial-xp ${inTrial?'':'ended'}" data-trial-end="${trialEnd}">
-    <div class="trial-xp-top">
-      <div>
-        <div class="trial-xp-eyebrow">Commission SIAMS · essai</div>
-        <div class="trial-xp-title">${inTrial?'Votre essai gratuit est en cours':'Votre essai est terminé'}</div>
+  <div class="section-title">Commission (période d'essai)</div>
+  <div style="margin:8px 20px 0;border:1.5px solid ${inTrial?'var(--gold)':'var(--ruby)'};border-radius:var(--radius-md);overflow:hidden;background:#fff;box-shadow:var(--shadow-sm);">
+    <div style="padding:16px 16px 14px;background:${inTrial?'var(--gold-tint)':'var(--ruby-tint)'};">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span style="width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:${inTrial?'var(--gold)':'var(--ruby)'};flex:none;">💰</span>
+          <span style="font-size:12.5px;font-weight:800;color:${inTrial?'var(--gold-dark)':'var(--ruby-dark)'};">Commission SIAMS</span>
+        </div>
+        <span style="font-size:10.5px;font-weight:800;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:${inTrial?'var(--gold)':'var(--ruby)'};color:#fff;">${inTrial?'ESSAI · 5%':'ESSAI TERMINÉ'}</span>
       </div>
-      <div class="trial-ring-wrap">
-        <svg viewBox="0 0 66 66">
-          <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
-          <circle class="trial-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"></circle>
-        </svg>
-        <div class="trial-ring-label"><b>${inTrial?daysLeft:0}</b><span>${inTrial?(daysLeft>1?'jours':'jour'):'terminé'}</span></div>
-      </div>
+      <div style="font-size:24px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-top:6px;line-height:1.5;">${inTrial
+        ? `Calculée en temps réel sur le montant total de vos commandes livrées, pendant vos 20 jours d'essai (encore ${daysLeft} jour${daysLeft>1?'s':''}). Elle augmente à chaque commande livrée. Elle disparaît dès l'activation de votre Pass.`
+        : `Vos 20 jours d'essai sont terminés. Ce montant reste dû et doit être réglé avec votre abonnement pour continuer à vendre sans interruption.`}</div>
     </div>
-    <div class="trial-xp-amount">
-      <div class="lbl">Commission cumulée (5% sur vos ventes livrées)</div>
-      <div class="val count-up-val" data-target="${due}">0 FCFA</div>
-    </div>
-    <div class="trial-xp-countdown">
-      <span class="lab">⏱ ${inTrial?"Fin de l'essai dans":'Essai terminé depuis'}</span>
-      <span class="val" id="commission-trial-countdown-val" data-ends-at="${trialEnd}">${fmtRenewCountdown(Math.abs(trialEnd-Date.now()))}</span>
-    </div>
-    <div class="trial-xp-steps">
-      ${steps.map((s,i)=>`<div class="trial-xp-step ${s[2]}">${i>0?'<span class="trial-xp-step-line"></span>':''}<span class="dot">${s[2]==='done'?'✓':s[0]}</span><span>${s[1]}</span></div>`).join('')}
-    </div>
-    <div class="trial-xp-actions">
-      <button type="button" class="trial-xp-btn primary" onclick="SubscriptionSheet.openCommissionOnly()">${inTrial?'Suivre ma commission':'Régler ma commission'}</button>
-      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()">Voir les formules d'abonnement</button>
-    </div>
-    ${!verified ? `<div class="trial-xp-note"><span>🛡️</span><span>Le badge de votre formule ne se débloque qu'une fois votre <a href="#" onclick="Router.go('verification');return false;">identification validée</a> par SIAMS — même avec un Pass payé et actif.</span></div>` : ''}
+    ${!inTrial ? `
+    <div style="padding:14px 16px 16px;border-top:1px solid var(--line);">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:4px;">Gérer ma commission</div>
+      <p style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;line-height:1.5;">Réglez uniquement ce montant, ou activez un Pass pour que la commission d'essai disparaisse définitivement.</p>
+      <button type="button" class="btn btn-primary btn-block" onclick="SubscriptionSheet.openCommissionOnly()">Gérer ma commission</button>
+      <button type="button" class="btn btn-outline btn-block" style="margin-top:8px;" onclick="SubscriptionSheet.open()">Voir les formules d'abonnement</button>
+      ${(()=>{ const verified = !!(Store.store && Store.store.verification && Store.store.verification.verified);
+        return !verified ? `
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;border:1px solid var(--mango);background:var(--mango-tint);border-radius:var(--radius-sm);padding:9px 11px;">
+        <span style="flex:none;">🛡️</span>
+        <div style="font-size:11px;color:var(--text-mid);line-height:1.5;">Le badge de votre formule ne se débloque qu'une fois votre <a href="#" onclick="Router.go('verification');return false;" style="color:var(--mango-dark);font-weight:700;">identification validée</a> par SIAMS — même avec un Pass payé et actif.</div>
+      </div>` : ''; })()}
+      ${CommissionBadgeRecap()}
+    </div>` : ''}
   </div>`;
 }
 
@@ -5260,52 +5165,24 @@ setInterval(()=>{
 }, 1000);
 function SubscriptionCard(access){
   if(access.status==='trial'){
-    const total = TRIAL_DAYS;
-    const R=27, C=2*Math.PI*R;
-    const progress = Math.max(0, Math.min(1, access.daysLeft/total));
-    const offset = C*(1-progress);
-    const perks = [['📦','Produits illimités'],['📊','Statistiques'],['🏷️','Promotions']];
     return `
-    <div class="trial-xp">
-      <div class="trial-xp-top">
+    <div style="margin:8px 20px 0;border:1.5px solid var(--mango);border-radius:var(--radius-md);padding:16px;background:var(--mango-tint);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
-          <div class="trial-xp-eyebrow">🎁 Pass gratuit de découverte</div>
-          <div class="trial-xp-title">Toutes les fonctionnalités sont débloquées</div>
+          <div style="font-size:12px;color:var(--mango-dark);font-weight:700;margin-bottom:2px;">🎁 PASS GRATUIT DE DÉCOUVERTE</div>
+          <div style="font-size:16px;font-weight:700;">${access.daysLeft} jour${access.daysLeft>1?'s':''} restant${access.daysLeft>1?'s':''}</div>
+          <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Toutes les fonctionnalités sont débloquées. Choisissez votre formule avant la fin de l'essai.</div>
         </div>
-        <div class="trial-ring-wrap">
-          <svg viewBox="0 0 66 66">
-            <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
-            <circle class="trial-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"></circle>
-          </svg>
-          <div class="trial-ring-label"><b>${access.daysLeft}</b><span>${access.daysLeft>1?'jours':'jour'}</span></div>
-        </div>
-      </div>
-      <div class="trial-xp-countdown">
-        <span class="lab">⏱ Fin du Pass gratuit dans</span>
-        <span class="val" id="pass-trial-countdown-val" data-ends-at="${access.endsAt}">${fmtRenewCountdown(access.endsAt-Date.now())}</span>
-      </div>
-      <div class="pass-perks">${perks.map(p=>`<span class="pass-perk">${p[0]} ${p[1]}</span>`).join('')}</div>
-      <div class="trial-xp-actions">
-        <button type="button" class="trial-xp-btn primary" onclick="SubscriptionSheet.open()">Choisir ma formule</button>
+        <button class="btn btn-mango" style="padding:9px 14px;font-size:12.5px;flex:none;" onclick="SubscriptionSheet.open()">Voir les formules</button>
       </div>
     </div>`;
   }
   if(access.status==='pending'){
     return `
-    <div class="trial-xp theme-blue">
-      <div class="trial-xp-top">
-        <div>
-          <div class="trial-xp-eyebrow">⏳ Vérification du paiement</div>
-          <div class="trial-xp-title">Formule ${Utils.escapeHtml(access.label)} en cours d'activation</div>
-        </div>
-        <div class="pending-spinner"></div>
-      </div>
-      <div class="trial-xp-steps">
-        <div class="trial-xp-step done"><span class="dot">✓</span><span>Paiement envoyé</span></div>
-        <div class="trial-xp-step active"><span class="trial-xp-step-line"></span><span class="dot">2</span><span>Vérification SIAMS</span></div>
-        <div class="trial-xp-step"><span class="trial-xp-step-line"></span><span class="dot">3</span><span>Pass actif</span></div>
-      </div>
-      <div class="trial-xp-note" style="background:rgba(79,168,255,.14);border-color:rgba(79,168,255,.3);"><span>📨</span><span>Votre preuve de paiement a été transmise. Le déblocage se fait dès que SIAMS valide votre paiement — vous recevrez une notification.</span></div>
+    <div style="margin:8px 20px 0;border:1.5px solid var(--blue);border-radius:var(--radius-md);padding:16px;background:var(--blue-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:2px;">⏳ VÉRIFICATION DU PAIEMENT</div>
+      <div style="font-size:15px;font-weight:700;">Formule ${access.label} en cours d'activation</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Votre preuve de paiement a été transmise. Le déblocage se fait dès que SIAMS valide votre paiement — vous recevrez une notification.</div>
     </div>`;
   }
   if(access.status==='building'){
@@ -5313,27 +5190,17 @@ function SubscriptionCard(access){
     const pct = Math.min(100, Math.round((totalConfirmed/access.price)*100));
     const remaining = Math.max(0, access.price - totalConfirmed - (access.pendingAmount||0));
     return `
-    <div class="trial-xp theme-blue">
-      <div class="trial-xp-top">
-        <div>
-          <div class="trial-xp-eyebrow">💳 Paiement ${access.mode==='daily'?'journalier':'mensuel'} en cours</div>
-          <div class="trial-xp-title">Formule ${Utils.escapeHtml(access.label)} — ${Utils.fmtFCFA(access.price)}</div>
-        </div>
+    <div style="margin:8px 20px 0;border:1.5px solid var(--blue);border-radius:var(--radius-md);padding:16px;background:var(--blue-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:2px;">💳 PAIEMENT ${access.mode==='daily'?'JOURNALIER':'MENSUEL'} EN COURS</div>
+      <div style="font-size:15px;font-weight:700;">Formule ${access.label} — ${Utils.fmtFCFA(access.price)}</div>
+      <div class="installment-bar-track" style="margin-top:10px;"><div class="installment-bar-fill" style="width:${pct}%;"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <span style="font-size:11.5px;color:var(--text-mid);">${Utils.fmtFCFA(totalConfirmed)} confirmé sur ${Utils.fmtFCFA(access.price)}</span>
+        <span class="mono" style="font-size:11.5px;font-weight:700;color:var(--blue);">${pct}%</span>
       </div>
-      <div class="trial-xp-amount">
-        <div class="lbl">Montant confirmé</div>
-        <div class="val count-up-val" data-target="${totalConfirmed}">0 FCFA</div>
-      </div>
-      <div class="pass-bar-track"><div class="pass-bar-fill" style="width:${pct}%;"></div></div>
-      <div style="display:flex;justify-content:space-between;margin-top:7px;position:relative;z-index:1;">
-        <span style="font-size:11px;color:rgba(255,255,255,.65);">sur ${Utils.fmtFCFA(access.price)}</span>
-        <span class="mono" style="font-size:11.5px;font-weight:800;color:#4FA8FF;">${pct}%</span>
-      </div>
-      ${access.pendingAmount ? `<div class="trial-xp-countdown"><span class="lab">⏳ ${Utils.fmtFCFA(access.pendingAmount)} en attente de validation</span><span class="val mono" id="sub-pending-countdown">${fmtMsLeft(access.msLeft)}</span></div>` : ''}
-      ${remaining>0 ? `<div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:10px;position:relative;z-index:1;">Reste à payer avant le socle : <strong style="color:#fff;">${Utils.fmtFCFA(remaining)}</strong></div>` : ''}
-      <div class="trial-xp-actions">
-        <button type="button" class="trial-xp-btn primary" onclick="SubscriptionSheet.openBuilding()">${access.mode==='daily'?'Déclarer un versement du jour':'Envoyer ma preuve de paiement'}</button>
-      </div>
+      ${access.pendingAmount ? `<div style="font-size:11.5px;color:var(--text-mid);margin-top:6px;">⏳ ${Utils.fmtFCFA(access.pendingAmount)} en attente de validation SIAMS (<span class="mono" id="sub-pending-countdown">${fmtMsLeft(access.msLeft)}</span>)</div>` : ''}
+      ${remaining>0 ? `<div style="font-size:11.5px;color:var(--text-mid);margin-top:2px;">Reste à payer avant le socle : <strong>${Utils.fmtFCFA(remaining)}</strong></div>` : ''}
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="SubscriptionSheet.openBuilding()">${access.mode==='daily'?'Déclarer un versement du jour':'Envoyer ma preuve de paiement'}</button>
     </div>`;
   }
   if(access.status==='active'){
@@ -5351,27 +5218,14 @@ function SubscriptionCard(access){
     const maxP = access.features.maxProducts;
     const ordersMonth = Store.orders.filter(o=>o.createdAt>=periods.month).length;
     const revMonth = Store.revenueSince(periods.month);
-    const cycleStart = access.activatedAt || (access.renewsAt - 30*86400000);
-    const cycleTotal = Math.max(1, access.renewsAt - cycleStart);
-    const cycleLeft = Math.max(0, access.renewsAt - Date.now());
-    const R=24, C=2*Math.PI*R;
-    const ringOffset = C*(1-Math.max(0,Math.min(1, cycleLeft/cycleTotal)));
-    const daysToRenew = Math.max(0, Math.ceil(cycleLeft/86400000));
     return `
     <div class="plan-card ${isAll?'tier-all':isDoya?'tier-doya':isDoyen?'tier-doyen':'tier-free'}" style="margin:8px 20px 0;cursor:default;">
       ${isAll ? '<div class="plan-ribbon" style="background:#EA580C;">TOUT INCLUS</div>' : isDoya ? '<div class="plan-ribbon" style="background:var(--gold);">PREMIUM</div>' : ''}
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
           <div style="font-size:12px;color:${isPremiumTier?'rgba(255,255,255,.75)':'var(--text-mid)'};margin-bottom:2px;">✓ Abonnement en cours</div>
           <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px;color:${isPremiumTier?'#fff':'var(--text)'};">${crown}${access.label}</div>
           ${access.contractRef ? `<div style="font-size:10.5px;color:${isPremiumTier?'rgba(255,255,255,.6)':'var(--text-soft)'};margin-top:4px;" class="mono">Réf. ${access.contractRef}</div>` : ''}
-        </div>
-        <div class="plan-ring-wrap">
-          <svg viewBox="0 0 56 56">
-            <circle class="plan-ring-bg" cx="28" cy="28" r="${R}"></circle>
-            <circle class="plan-ring-fg" cx="28" cy="28" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${ringOffset}" style="transform:rotate(-90deg);transform-origin:28px 28px;"></circle>
-          </svg>
-          <div class="plan-ring-label" style="color:${isPremiumTier?'#fff':'var(--text)'};">${daysToRenew}j</div>
         </div>
       </div>
       <div data-renews-at="${access.renewsAt}" id="sub-renew-countdown" style="margin-top:14px;padding:10px 12px;border-radius:10px;background:${isPremiumTier?'rgba(255,255,255,.14)':'var(--indigo-tint)'};display:flex;justify-content:space-between;align-items:center;">
@@ -5389,29 +5243,17 @@ function SubscriptionCard(access){
         </div>
         <div style="flex:1;padding:9px 10px;border-radius:10px;background:${isPremiumTier?'rgba(255,255,255,.1)':'var(--panel)'};">
           <div style="font-size:10px;color:${isPremiumTier?'rgba(255,255,255,.7)':'var(--text-soft)'};">Ventes (mois)</div>
-          <div style="font-size:12.5px;font-weight:800;color:${isPremiumTier?'#fff':'var(--text)'};" class="mono count-up-val" data-target="${revMonth}">0 FCFA</div>
+          <div style="font-size:12.5px;font-weight:800;color:${isPremiumTier?'#fff':'var(--text)'};" class="mono">${Utils.fmtFCFA(revMonth)}</div>
         </div>
       </div>
       ${access.contractRef ? `<button class="btn ${isPremiumTier?'btn-ghost':'btn-outline'} btn-block" style="margin-top:12px;padding:9px 14px;font-size:12px;${isPremiumTier?'background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3);':''}" onclick="downloadSubscriptionReceiptPDF()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Télécharger le reçu (PDF)</button>` : ''}
     </div>`;
   }
   return `
-    <div class="trial-xp ended">
-      <div class="trial-xp-top">
-        <div>
-          <div class="trial-xp-eyebrow">🔒 Aucun abonnement actif</div>
-          <div class="trial-xp-title">Vos fonctionnalités boutique sont verrouillées</div>
-        </div>
-      </div>
-      <div class="trial-xp-note" style="margin-top:14px;"><span>🔒</span><span>Produits illimités, statistiques et promotions sont indisponibles tant qu'aucun Pass n'est actif.</span></div>
-      <div class="trial-xp-steps">
-        <div class="trial-xp-step active"><span class="dot">1</span><span>Aucun Pass</span></div>
-        <div class="trial-xp-step"><span class="trial-xp-step-line"></span><span class="dot">2</span><span>Choisir une formule</span></div>
-        <div class="trial-xp-step"><span class="trial-xp-step-line"></span><span class="dot">3</span><span>Pass actif</span></div>
-      </div>
-      <div class="trial-xp-actions">
-        <button type="button" class="trial-xp-btn primary" onclick="SubscriptionSheet.open()">S'abonner maintenant</button>
-      </div>
+    <div style="margin:8px 20px 0;border:1.5px solid var(--red);border-radius:var(--radius-md);padding:16px;background:var(--red-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--red);font-weight:700;margin-bottom:2px;">🔒 AUCUN ABONNEMENT ACTIF</div>
+      <div style="font-size:13.5px;color:var(--text);margin:4px 0 12px;">Les fonctionnalités boutique (produits illimités, statistiques, promos...) sont verrouillées.</div>
+      <button class="btn btn-primary btn-block" onclick="SubscriptionSheet.open()">S'abonner maintenant</button>
     </div>`;
 }
 
@@ -14886,5 +14728,129 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
     };
     f.__v64Identity=true;window.loadCourierProfileExtras=f;
   }
+})();
+</script>
+
+<!-- SIAMS V70 : accès à la banderole depuis les Codes promo + reformatage automatique des affiches -->
+<script id="siams-v70-promo-banner-link">
+/* Reformatage d'une image au format exact de la banderole (recadrage centré "cover",
+   sans déformation), réutilisable partout où une affiche doit respecter ce format. */
+function siamsFitBannerImage(file, opts){
+  opts = opts || {};
+  const ratio = opts.ratio || (16/7);
+  const maxWidth = opts.maxWidth || 1280;
+  const maxBytes = opts.maxBytes || (typeof SIAMS_IMAGE_MAX_BYTES!=='undefined' ? SIAMS_IMAGE_MAX_BYTES : 5*1024*1024);
+  return new Promise((resolve,reject)=>{
+    if(!file || !file.type || !file.type.startsWith('image/')){ reject(new Error('Fichier image requis')); return; }
+    const objUrl = URL.createObjectURL(file);
+    const imgEl = new Image();
+    imgEl.onload = async ()=>{
+      URL.revokeObjectURL(objUrl);
+      try{
+        const iw = imgEl.naturalWidth || imgEl.width, ih = imgEl.naturalHeight || imgEl.height;
+        if(!iw || !ih){ reject(new Error('Image illisible')); return; }
+        const targetW = Math.min(maxWidth, iw);
+        const targetH = Math.max(1, Math.round(targetW / ratio));
+        /* Recadrage "cover" centré : on prélève dans la source une zone à la même
+           proportion que la banderole, puis on la redimensionne à la taille cible. */
+        let sw = iw, sh = Math.round(iw / ratio);
+        if(sh > ih){ sh = ih; sw = Math.round(ih * ratio); }
+        const sx = Math.round((iw - sw) / 2), sy = Math.round((ih - sh) / 2);
+        let quality = 0.9, blob = null;
+        for(let attempt=0; attempt<6; attempt++){
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW; canvas.height = targetH;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0,0,targetW,targetH);
+          ctx.drawImage(imgEl, sx, sy, sw, sh, 0, 0, targetW, targetH);
+          blob = await new Promise(res=>canvas.toBlob(res,'image/jpeg',quality));
+          if(!blob) break;
+          if(blob.size <= maxBytes) break;
+          quality = quality > 0.55 ? quality - 0.12 : quality;
+        }
+        if(!blob){ reject(new Error('Traitement impossible')); return; }
+        resolve({blob:blob, width:targetW, height:targetH});
+      }catch(err){ reject(err); }
+    };
+    imgEl.onerror = ()=>{ URL.revokeObjectURL(objUrl); reject(new Error('Image invalide')); };
+    imgEl.src = objUrl;
+  });
+}
+window.siamsFitBannerImage = siamsFitBannerImage;
+
+(function(){
+  'use strict';
+  let v70AdProcessed = null;
+
+  /* 1) L'affiche envoyée par le marchand est désormais recadrée automatiquement
+        au format exact de la banderole avant l'envoi, avec un aperçu fidèle. */
+  if(window.SIAMSPromoBanners){
+    const originalRenderV70 = SIAMSPromoBanners.render.bind(SIAMSPromoBanners);
+    SIAMSPromoBanners.render = function(){
+      originalRenderV70();
+      v70AdProcessed = null;
+      const small = document.querySelector('#siams-v67-promo-banner-root .siams-v67-upload small');
+      if(small) small.textContent = 'Ajustée automatiquement au format banderole (16:7) · 5 Mo maximum';
+    };
+
+    SIAMSPromoBanners.file = async function(e){
+      const f = e.target.files && e.target.files[0]; if(!f) return;
+      const preview = document.getElementById('siams-v67-ad-preview');
+      if(preview) preview.innerHTML = '<div style="padding:16px;text-align:center;font-size:10.5px;color:var(--text-mid)">Ajustement au format banderole…</div>';
+      try{
+        const result = await siamsFitBannerImage(f, {ratio:16/7, maxWidth:1280});
+        v70AdProcessed = result;
+        const url = URL.createObjectURL(result.blob);
+        if(preview) preview.innerHTML = `<img src="${url}"><div style="font-size:9.5px;color:var(--green);font-weight:800;margin-top:6px;text-align:center">✓ Image ajustée automatiquement au format banderole</div>`;
+      }catch(err){
+        console.error(err);
+        v70AdProcessed = null;
+        if(preview) preview.innerHTML = '';
+        Toast.show('Impossible de traiter cette image. Essayez un autre fichier.');
+      }
+    };
+
+    SIAMSPromoBanners.publish = async function(){
+      const product = document.getElementById('siams-v67-ad-product')?.value; if(!product) return Toast.show('Choisissez un article');
+      if(!v70AdProcessed) return Toast.show('Ajoutez une affiche');
+      const title = (document.getElementById('siams-v67-ad-title')?.value || '').trim() || 'Promotion';
+      const sub = (document.getElementById('siams-v67-ad-sub')?.value || '').trim();
+      try{
+        const file = new File([v70AdProcessed.blob], 'affiche-'+Date.now()+'.jpg', {type:'image/jpeg'});
+        const image = await SIAMSBanners.upload(file);
+        const items = SIAMSBanners.items || [], pos = items.reduce((m,x)=>Math.max(m,Number(x.position||0)),0)+10;
+        await SIAMSBanners.create({id:Utils.uid(), image_url:image, link_type:'product', link_product_id:product, active:true, position:pos, promo_product:true, promo_title:title, promo_subtitle:sub});
+        v70AdProcessed = null;
+        Toast.show('Promotion publiée ✓ (format banderole appliqué)');
+        await this.load(); this.render();
+      }catch(err){ console.error(err); Toast.show('Impossible de publier. Vérifiez le stockage et le SQL V67.'); }
+    };
+  }
+
+  /* 2) Carte d'accès rapide vers la banderole, ajoutée dans l'écran Codes promo. */
+  const styleV70 = document.createElement('style');
+  styleV70.textContent = `.v70-banner-cta{margin:0 20px 16px;padding:16px;border-radius:18px;background:linear-gradient(135deg,var(--mango-tint),#fff);border:1px solid var(--mango);box-shadow:var(--shadow-sm)}.v70-banner-cta-top{display:flex;align-items:center;gap:11px}.v70-banner-cta-icon{width:42px;height:42px;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none;box-shadow:var(--shadow-sm)}.v70-banner-cta-text b{display:block;font-size:13.5px;color:var(--text)}.v70-banner-cta-text span{display:block;font-size:11px;color:var(--text-mid);margin-top:3px;line-height:1.4}.v70-banner-cta-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}.v70-banner-cta-count{font-size:10.5px;color:var(--mango-dark);font-weight:800}.v70-banner-cta-btn{border:none;background:var(--mango);color:#fff;font-weight:800;font-size:11.5px;padding:10px 14px;border-radius:11px;cursor:pointer;white-space:nowrap}@media(max-width:380px){.v70-banner-cta{margin-left:14px;margin-right:14px}}`;
+  document.head.appendChild(styleV70);
+
+  const BANNER_CTA_HTML = `<div class="v70-banner-cta"><div class="v70-banner-cta-top"><div class="v70-banner-cta-icon">🖼️</div><div class="v70-banner-cta-text"><b>Affiches promotionnelles</b><span>Créez une affiche liée à un article et publiez-la dans la banderole visible par vos clients. Le visuel est recadré automatiquement au bon format ; ajoutez-en autant que vous le souhaitez.</span></div></div><div class="v70-banner-cta-foot"><span class="v70-banner-cta-count" id="v70-banner-count">Chargement…</span><button class="v70-banner-cta-btn" type="button" onclick="Router.go('product-promotions')">Ajouter une affiche ›</button></div></div>`;
+
+  const oldPromosV70 = Views.promos;
+  Views.promos = function(){
+    let h = oldPromosV70();
+    const marker = '<section class="v22-create">';
+    if(typeof h === 'string' && h.includes(marker)) h = h.replace(marker, BANNER_CTA_HTML + marker);
+    return h;
+  };
+
+  const oldAfterPromosV70 = Views._after_promos;
+  Views._after_promos = async function(){
+    if(oldAfterPromosV70) await oldAfterPromosV70();
+    try{
+      await SIAMSBanners.all();
+      const n = (SIAMSBanners.items||[]).filter(x=>x.promo_product===true && x.active!==false).length;
+      const el = document.getElementById('v70-banner-count');
+      if(el) el.textContent = n>0 ? (n+(n>1?' affiches publiées':' affiche publiée')) : 'Aucune affiche publiée pour le moment';
+    }catch(e){}
+  };
 })();
 </script>
