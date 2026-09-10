@@ -11790,7 +11790,7 @@ window.SIAMSPromoBanners={
  render(){
   const root=document.getElementById('siams-v67-promo-banner-root');if(!root)return;
   const products=Store.products||[],ads=(SIAMSBanners.items||[]).filter(x=>x.promo_product===true);
-  root.innerHTML=`<div class="siams-v67-card"><div class="siams-v67-kicker">MARKETING · BANDEROLE CLIENT</div><h3>Promouvoir un article</h3><p>Créez une affiche liée à un produit. Elle sera ajoutée au carrousel déjà visible en haut de l'espace client.</p><div class="siams-v67-ad-grid"><div><label style="font-size:9px;font-weight:800">ARTICLE</label><select id="siams-v67-ad-product"><option value="">Choisir un article</option>${products.map(p=>`<option value="${v67esc(p.id)}">${v67esc(p.name)} · ${Utils.fmtFCFA(Number(p.price)||0)}</option>`).join('')}</select></div><div><label style="font-size:9px;font-weight:800">TITRE</label><input id="siams-v67-ad-title" maxlength="60" placeholder="Ex. Offre spéciale"></div><div class="siams-v67-full"><label style="font-size:9px;font-weight:800">SOUS-TITRE</label><input id="siams-v67-ad-sub" maxlength="90" placeholder="Profitez de cette offre"></div></div><label class="siams-v67-upload">🖼️<b>Ajouter l'affiche</b><small>Format recommandé 16:7 · 5 Mo maximum</small><input type="file" accept="image/*" onchange="SIAMSPromoBanners.file(event)"></label><div id="siams-v67-ad-preview" class="siams-v67-ad-preview"></div><button class="btn btn-primary btn-block" style="margin-top:10px" onclick="SIAMSPromoBanners.publish()">Publier dans la banderole client</button></div>
+  root.innerHTML=`<div class="siams-v67-card"><div class="siams-v67-kicker">MARKETING · BANDEROLE CLIENT</div><h3>Promouvoir un article</h3><p>Créez une affiche liée à un produit. Elle sera ajoutée au carrousel déjà visible en haut de l'espace client.</p><div class="siams-v67-ad-grid"><div><label style="font-size:9px;font-weight:800">ARTICLE</label><select id="siams-v67-ad-product"><option value="">Choisir un article</option>${products.map(p=>`<option value="${v67esc(p.id)}">${v67esc(p.name)} · ${Utils.fmtFCFA(Number(p.price)||0)}</option>`).join('')}</select></div><div><label style="font-size:9px;font-weight:800">TITRE</label><input id="siams-v67-ad-title" maxlength="60" placeholder="Ex. Offre spéciale"></div><div class="siams-v67-full"><label style="font-size:9px;font-weight:800">SOUS-TITRE</label><input id="siams-v67-ad-sub" maxlength="90" placeholder="Profitez de cette offre"></div></div><div class="siams-v67-upload" onclick="document.getElementById('v67-ad-file').click()">🖼️<b>Ajouter l'affiche</b><small>Format recommandé 16:7 · 5 Mo maximum</small><input id="v67-ad-file" type="file" accept="image/*" onchange="SIAMSPromoBanners.file(event)"></div><div id="siams-v67-ad-preview" class="siams-v67-ad-preview"></div><button class="btn btn-primary btn-block" style="margin-top:10px" onclick="SIAMSPromoBanners.publish()">Publier dans la banderole client</button></div>
   <div class="siams-v67-card"><div class="siams-v67-kicker">VOS PROMOTIONS</div><h3>Affiches publiées</h3>${ads.length?ads.map(x=>`<div style="border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-top:9px"><img src="${v67esc(x.image_url)}" style="width:100%;aspect-ratio:16/7;object-fit:cover;display:block"><div style="padding:9px;font-size:10px"><b>${v67esc(x.promo_title||'Promotion')}</b><div style="color:var(--text-mid);margin-top:3px">${x.active===false?'Masquée':'Visible'} · ${x.link_product_id?'Article lié':'Sans lien'}</div><div style="display:flex;gap:6px;margin-top:7px"><button class="btn btn-outline btn-sm" onclick="SIAMSPromoBanners.toggle('${v67esc(x.id)}')">${x.active===false?'Afficher':'Masquer'}</button><button class="btn btn-ghost btn-sm" onclick="SIAMSPromoBanners.remove('${v67esc(x.id)}')">Supprimer</button></div></div></div>`).join(''):'<div style="padding:18px;text-align:center;color:var(--text-mid);font-size:10px">Aucune affiche promotionnelle.</div>'}</div>`;
  },
  file(e){const f=e.target.files&&e.target.files[0];if(!f)return;v67AdFile=f;const p=document.getElementById('siams-v67-ad-preview');if(p)p.innerHTML=`<img src="${URL.createObjectURL(f)}">`},
@@ -13611,6 +13611,9 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
         const caption=(s.title||s.description)?`<div class="siams-banner-slide-caption">${s.title?`<b>${esc(s.title)}</b>`:''}${s.description?`<span>${esc(s.description)}</span>`:''}</div>`:'';
         return `<div class="siams-banner-slide" onclick="SIAMSShowcase.openItem('${esc(s.id)}')">${media}${video?'<div class="siams-banner-slide-play">▶</div>':''}${caption}</div>`;
       }
+      if(s.kind==='promo'){
+        return `<div class="siams-banner-slide" style="aspect-ratio:16/7;background:linear-gradient(135deg,var(--indigo),#5b6fe8);display:flex;align-items:center;"><div style="padding:18px 20px;color:#fff;"><span style="font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;background:rgba(255,255,255,.2);padding:5px 8px;border-radius:999px;">${esc(s.tag)}</span><div style="font-size:23px;font-weight:800;line-height:1.05;margin-top:8px;">${esc(s.discount)}</div><div style="font-size:11px;margin-top:6px;opacity:.92;">Code <strong>${esc(s.code)}</strong> · offre proposée par la boutique</div></div></div>`;
+      }
       /* kind==='legacy' : ancienne bannière unique de la boutique (Store.store.banner) */
       return `<div class="siams-banner-slide"><img src="${esc(s.image)}" loading="lazy" alt="Bannière boutique"></div>`;
     }
@@ -13659,6 +13662,26 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
       }
       wrap.innerHTML=html;
     }
+    /* Neutralise l'ancien carrousel "V40" (bannière boutique + codes promo actifs)
+       qui s'affichait dans son propre encadré, séparément de tout le reste. Son
+       contenu (bannière boutique + codes promo) est repris ci-dessous dans le
+       carrousel unique. */
+    function disableV40Carousel(){
+      window.v40PromoTimer&&clearInterval(window.v40PromoTimer);
+      const el=document.getElementById('v40-promo-carousel');
+      if(el)el.style.display='none';
+    }
+    function activePromoSlides(){
+      try{
+        const promos=(Store.promos||[]).map(p=>PromoLocal.merge(p)).filter(p=>p.active!==false && (!p.maxUses || Number(p.usedCount||0)<Number(p.maxUses||0)));
+        return promos.slice(0,5).map(p=>({
+          kind:'promo',
+          tag:p.type==='percent'?'Réduction':'Offre spéciale',
+          discount:p.type==='percent'?`-${p.value}%`:`-${Number(p.value||0).toLocaleString('fr-FR')} FCFA`,
+          code:p.code
+        }));
+      }catch(e){ return []; }
+    }
     Banners.renderClient=async function(){
       await Banners.load();
       let showcaseItems=[];
@@ -13668,8 +13691,10 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
       if(legacy)slides.push({kind:'legacy',image:legacy});
       (Banners.items||[]).forEach(b=>{if(b.image_url)slides.push({kind:'banner',id:b.id,image:b.image_url});});
       (showcaseItems||[]).forEach(x=>{if(x.media_url)slides.push({kind:'showcase',id:x.id,image:x.media_url,type:x.type,title:x.title,description:x.description});});
+      slides.push(...activePromoSlides());
       placeInOriginalSpot(buildMarkup(slides));
       startCarousel();
+      disableV40Carousel();
     };
   });
 })();
