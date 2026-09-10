@@ -14890,155 +14890,121 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 </script>
 
 
-<!-- SIAMS V73 — Banderole unifiée : bannière principale + affiches promotionnelles -->
-<style id="siams-v73-unified-banner-css">
-  .siams-banner-carousel{
-    position:relative;margin:14px 20px 0;border-radius:var(--radius-lg);
-    overflow:hidden;aspect-ratio:16/7;background:var(--panel);
-    border:1px solid var(--line);box-shadow:var(--shadow-sm);
+<!-- SIAMS V74 : action "Ajouter une bannière" dans l'espace Marketing / Codes promo -->
+<style id="siams-v74-banner-action-css">
+  .siams-v74-banner-action{
+    margin:0 34px 18px;
+    border:1px solid var(--line);
+    border-radius:20px;
+    background:var(--paper);
+    box-shadow:var(--shadow-sm);
+    overflow:hidden;
   }
-  .siams-banner-track{
-    display:flex;width:100%;height:100%;transition:transform .38s cubic-bezier(.22,.61,.36,1);
-    will-change:transform;
+  .siams-v74-banner-action button{
+    width:100%;
+    border:0;
+    background:transparent;
+    padding:17px 16px;
+    display:flex;
+    align-items:center;
+    gap:13px;
+    text-align:left;
+    cursor:pointer;
+    font-family:var(--font-body);
   }
-  .siams-banner-slide{
-    flex:0 0 100%;width:100%;height:100%;position:relative;cursor:pointer;
-    touch-action:pan-y;
+  .siams-v74-banner-action .ico{
+    width:48px;height:48px;flex:none;
+    border-radius:15px;
+    display:grid;place-items:center;
+    background:var(--mango-tint);
+    color:var(--mango-dark);
+    font-size:25px;font-weight:900;
   }
-  .siams-banner-slide img{width:100%;height:100%;object-fit:cover;display:block;}
-  .siams-banner-slide.no-link{cursor:default;}
-  .siams-banner-dots{
-    position:absolute;left:0;right:0;bottom:9px;display:flex;justify-content:center;
-    gap:5px;z-index:3;pointer-events:none;
+  .siams-v74-banner-action .txt{min-width:0;flex:1}
+  .siams-v74-banner-action .txt b{
+    display:block;
+    font-family:var(--font-display);
+    font-size:15px;
+    color:var(--text);
+    margin-bottom:3px;
   }
-  .siams-banner-dot{
-    width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.65);
-    box-shadow:0 1px 4px rgba(0,0,0,.2);transition:width .2s ease,background .2s ease;
+  .siams-v74-banner-action .txt span{
+    display:block;
+    font-size:11.5px;
+    line-height:1.45;
+    color:var(--text-mid);
   }
-  .siams-banner-dot.active{width:18px;border-radius:8px;background:#fff;}
-  @media(max-width:390px){.siams-banner-carousel{margin-left:14px;margin-right:14px;}}
+  .siams-v74-banner-action .arr{
+    flex:none;
+    font-size:25px;
+    line-height:1;
+    color:var(--text-soft);
+  }
+  @media(max-width:380px){
+    .siams-v74-banner-action{margin-left:20px;margin-right:20px}
+  }
 </style>
-<script id="siams-v73-unified-banner-js">
+<script id="siams-v74-banner-action-js">
 (function(){
-  const escV73 = s => {
-    try { return Utils.escapeHtml(String(s ?? '')); }
-    catch(e) { return String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  };
+  function injectBannerAction(){
+    if(typeof Views==='undefined' || typeof Router==='undefined') return;
+    const old=Views.promos;
+    if(!old || old.__siamsV74Wrapped) return;
 
-  function getUnifiedItems(){
-    const store = Store.store || {};
-    const tableItems = (window.SIAMSBanners && Array.isArray(SIAMSBanners.items))
-      ? SIAMSBanners.items.filter(x => x && x.active !== false)
-      : [];
+    function addAction(html){
+      if(typeof html!=='string' || html.includes('siams-v74-banner-action')) return html;
 
-    /* La bannière principale est toujours le premier visuel.
-       Les affiches promotionnelles suivent dans le même carrousel. */
-    const out = [];
-    if(store.banner){
-      out.push({
-        id:'__store_main_banner_v73',
-        image_url:store.banner,
-        link_type:'none',
-        _main:true
-      });
-    }
-    tableItems.forEach(x => out.push(x));
-    return out;
-  }
+      const action =
+        '<section class="siams-v74-banner-action" aria-label="Ajouter une bannière">'+
+          '<button type="button" onclick="Router.go(\\'banners\\')">'+
+            '<span class="ico">＋</span>'+
+            '<span class="txt">'+
+              '<b>Ajouter une bannière</b>'+
+              '<span>Ajoutez une affiche au carrousel de votre boutique. Le lien au clic reste facultatif.</span>'+
+            '</span>'+
+            '<span class="arr">›</span>'+
+          '</button>'+
+        '</section>';
 
-  function unifiedMarkup(items){
-    if(!items.length) return '';
-    return `<div class="siams-banner-carousel" id="siams-banner-carousel">
-      <div class="siams-banner-track" id="siams-banner-track">
-        ${items.map(x=>{
-          const linked = x.link_type && x.link_type !== 'none' &&
-            ((x.link_type==='external' && x.link_url) ||
-             (x.link_type==='product' && x.link_product_id) ||
-             (x.link_type==='category' && x.link_category_id));
-          const click = linked ? `onclick="SIAMSBanners.openBanner('${escV73(x.id)}')"` : '';
-          return `<div class="siams-banner-slide ${linked?'':'no-link'}" ${click}>
-            <img src="${escV73(x.image_url)}" loading="lazy" alt="${x._main?'Bannière principale de la boutique':'Affiche promotionnelle'}">
-          </div>`;
-        }).join('')}
-      </div>
-      ${items.length>1 ? `<div class="siams-banner-dots" id="siams-banner-dots">
-        ${items.map((_,i)=>`<span class="siams-banner-dot ${i===0?'active':''}"></span>`).join('')}
-      </div>` : ''}
-    </div>`;
-  }
-
-  function startUnifiedCarousel(){
-    const root=document.getElementById('siams-banner-carousel');
-    const track=document.getElementById('siams-banner-track');
-    if(!root||!track)return;
-    const n=track.children.length;
-    if(n<1)return;
-    const dots=document.getElementById('siams-banner-dots');
-    let i=0;
-    const render=()=>{
-      track.style.transform=`translateX(-${i*100}%)`;
-      if(dots) [...dots.children].forEach((d,j)=>d.classList.toggle('active',j===i));
-    };
-    if(window.v73BannerTimer) clearInterval(window.v73BannerTimer);
-    render();
-    if(n>1) window.v73BannerTimer=setInterval(()=>{i=(i+1)%n;render()},5500);
-    let sx=0;
-    track.ontouchstart=e=>{sx=e.touches[0].clientX};
-    track.ontouchend=e=>{
-      const dx=e.changedTouches[0].clientX-sx;
-      if(Math.abs(dx)>40){i=(i+(dx<0?1:-1)+n)%n;render();}
-    };
-  }
-
-  /* Les liens restent optionnels :
-     - none = aucun clic
-     - product = produit
-     - category = catégorie
-     - external = lien externe
-     La bannière principale reste volontairement sans lien. */
-  const oldOpenBanner = window.SIAMSBanners && SIAMSBanners.openBanner;
-  if(window.SIAMSBanners){
-    SIAMSBanners.openBanner=function(id){
-      const x=(SIAMSBanners.items||[]).find(a=>String(a.id)===String(id));
-      if(!x)return;
-      if(x.link_type==='external' && x.link_url) window.open(x.link_url,'_blank','noopener,noreferrer');
-      else if(x.link_type==='product' && x.link_product_id) Router.go('shop-product',{id:x.link_product_id});
-      else if(x.link_type==='category' && x.link_category_id){
-        const cat=(Store.categories||[]).find(c=>String(c.id)===String(x.link_category_id));
-        Router.go('shop-categories',{cat:cat?cat.name:''});
+      /* Placement prioritaire : juste après le bloc de statistiques. */
+      const statMarkers=[
+        '</div><div class="v22-create">',
+        '</div><div class="promo-create">',
+        '</div><div class="v20-promo-create">'
+      ];
+      for(const marker of statMarkers){
+        const pos=html.indexOf(marker);
+        if(pos>=0){
+          return html.slice(0,pos+6)+action+html.slice(pos+6);
+        }
       }
-    };
 
-    SIAMSBanners.renderClientV73=async function(){
-      const root=document.getElementById('siams-banners-client');
-      if(!root)return;
-      try{ await SIAMSBanners.load(); }catch(e){}
-      root.innerHTML=unifiedMarkup(getUnifiedItems());
-      startUnifiedCarousel();
-    };
+      /* Fallback : avant "Vos codes". */
+      const markers=[
+        '<div class="section-title">Vos codes</div>',
+        '<div class="v20-section-title">Vos codes</div>',
+        '<div class="section-title" style="padding-top:2px;">Vos campagnes</div>'
+      ];
+      for(const marker of markers){
+        const pos=html.indexOf(marker);
+        if(pos>=0) return html.slice(0,pos)+action+html.slice(pos);
+      }
+
+      return html;
+    }
+
+    function wrapped(){
+      return addAction(old.apply(this,arguments));
+    }
+    wrapped.__siamsV74Wrapped=true;
+    Views.promos=wrapped;
   }
 
-  /* Supprime le second système V40 et conserve une seule zone de banderole. */
-  const previousShopV73 = Views.shop;
-  Views.shop=function(){
-    let h=previousShopV73();
-    h=h.replace(/<div class="v40-promo-carousel"[\s\S]*?<\/div>\s*(?=<div class="home-section-row"|<div class="fab|$)/,'');
-    if(!h.includes('id="siams-banners-client"')){
-      const marker='<div class="search-wrap"';
-      if(h.includes(marker)) h=h.replace(marker,'<div id="siams-banners-client"></div>'+marker);
-      else h='<div id="siams-banners-client"></div>'+h;
-    }
-    return h;
-  };
-
-  const previousAfterShopV73=Views._after_shop;
-  Views._after_shop=async function(opts){
-    if(previousAfterShopV73) await previousAfterShopV73(opts);
-    try{
-      if(window.SIAMSBanners && SIAMSBanners.renderClientV73)
-        await SIAMSBanners.renderClientV73();
-    }catch(e){console.warn('V73 unified banner',e)}
-  };
+  /* Les versions précédentes peuvent réécrire Views.promos après le chargement. */
+  injectBannerAction();
+  setTimeout(injectBannerAction,0);
+  setTimeout(injectBannerAction,100);
+  setTimeout(injectBannerAction,500);
+  setTimeout(injectBannerAction,1200);
 })();
 </script>
-
