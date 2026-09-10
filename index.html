@@ -13557,6 +13557,124 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 })();
 </script>
 
+<!-- SIAMS V80 : fusion de toutes les bannières dans UN SEUL carrousel client -->
+<!-- CORRECTIF : jusqu'ici, la "bannière boutique" (Store.store.banner), le carrousel
+     "Bannières" (SIAMSBanners / bouton "Ajouter une bannière" y compris depuis Codes
+     promo et Promotions d'articles) et le "Cournsel client" (annonces/partenariats,
+     SIAMSShowcase) s'affichaient chacun dans leur propre encadré, ce qui donnait
+     l'impression de deux (ou trois) banderoles différentes à la suite. Ce module ne
+     supprime aucune fonctionnalité ni aucune donnée existante : il fusionne
+     simplement l'affichage final côté client en un seul carrousel, qui reprend
+     TOUTES les sources (bannière boutique, bannières ajoutées manuellement,
+     promotions d'articles, bannière ajoutée depuis Codes promo, annonces et
+     partenariats). Les écrans d'administration ("Bannières", "Promotions
+     articles", "Cournsel client", "Codes promo") restent inchangés. -->
+<style id="siams-v80-unified-banner-style">
+.siams-banner-slide video{width:100%;display:block;aspect-ratio:16/7;object-fit:cover;background:#000;}
+.siams-banner-slide{position:relative;}
+.siams-banner-slide-caption{position:absolute;left:0;right:0;bottom:0;padding:16px 16px 13px;color:#fff;background:linear-gradient(180deg,rgba(5,25,48,0) 30%,rgba(5,25,48,.82) 100%);pointer-events:none;}
+.siams-banner-slide-caption b{font-size:14px;display:block;}
+.siams-banner-slide-caption span{font-size:11.5px;opacity:.9;display:block;margin-top:2px;}
+.siams-banner-slide-play{position:absolute;right:14px;top:14px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.25);backdrop-filter:blur(6px);color:#fff;font-size:12px;}
+</style>
+<script id="siams-v80-unified-banner-script">
+(function(){
+  'use strict';
+  function whenReady(check,cb,tries){
+    tries=tries||0;
+    if(check())return cb();
+    if(tries>50)return; /* abandon silencieux si les modules ne se chargent jamais */
+    setTimeout(()=>whenReady(check,cb,tries+1),100);
+  }
+  whenReady(()=>window.SIAMSBanners && window.SIAMSShowcase, function(){
+    const Banners=window.SIAMSBanners;
+    const Showcase=window.SIAMSShowcase;
+    const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
+
+    /* Le Cournsel client n'a plus son propre encadré séparé : son contenu
+       (annonces, partenariats, vidéos) est désormais fusionné dans le carrousel
+       unique ci-dessous. On vide simplement son ancien conteneur. */
+    Showcase.renderClient=async function(){
+      const root=document.getElementById('siams-cournsel-client');
+      if(root)root.innerHTML='';
+    };
+
+    function isVideoUrl(u){return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(String(u||''));}
+
+    function slideMarkup(s){
+      if(s.kind==='banner'){
+        return `<div class="siams-banner-slide" onclick="SIAMSBanners.openBanner('${esc(s.id)}')"><img src="${esc(s.image)}" loading="lazy" alt="Bannière boutique"></div>`;
+      }
+      if(s.kind==='showcase'){
+        const video=s.type==='video'||isVideoUrl(s.image);
+        const media=video?`<video src="${esc(s.image)}" muted playsinline preload="metadata"></video>`:`<img src="${esc(s.image)}" loading="lazy" alt="${esc(s.title||'Annonce')}">`;
+        const caption=(s.title||s.description)?`<div class="siams-banner-slide-caption">${s.title?`<b>${esc(s.title)}</b>`:''}${s.description?`<span>${esc(s.description)}</span>`:''}</div>`:'';
+        return `<div class="siams-banner-slide" onclick="SIAMSShowcase.openItem('${esc(s.id)}')">${media}${video?'<div class="siams-banner-slide-play">▶</div>':''}${caption}</div>`;
+      }
+      /* kind==='legacy' : ancienne bannière unique de la boutique (Store.store.banner) */
+      return `<div class="siams-banner-slide"><img src="${esc(s.image)}" loading="lazy" alt="Bannière boutique"></div>`;
+    }
+
+    function buildMarkup(slides){
+      if(!slides.length)return '';
+      return `<div class="siams-banner-carousel" id="siams-banner-carousel"><div class="siams-banner-track" id="siams-banner-track">${slides.map(slideMarkup).join('')}</div>${slides.length>1?`<div class="siams-banner-dots" id="siams-banner-dots">${slides.map((_,i)=>`<span class="siams-banner-dot ${i===0?'active':''}"></span>`).join('')}</div>`:''}</div>`;
+    }
+
+    function startCarousel(){
+      const track=document.getElementById('siams-banner-track');if(!track)return;
+      const n=track.children.length;if(n<1)return;
+      const dots=document.getElementById('siams-banner-dots');let i=0;
+      const render=()=>{track.style.transform=`translateX(-${i*100}%)`;if(dots)[...dots.children].forEach((d,j)=>d.classList.toggle('active',j===i));};
+      window.v56BannerTimer&&clearInterval(window.v56BannerTimer);render();
+      if(n>1)window.v56BannerTimer=setInterval(()=>{i=(i+1)%n;render();},5500);
+      let sx=0;track.ontouchstart=e=>{sx=e.touches[0].clientX};track.ontouchend=e=>{const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40){i=(i+(dx<0?1:-1)+n)%n;render();}};
+    }
+
+    /* Fusionne : bannière historique de la boutique + bannières "Bannières"
+       (manuelles, promotions d'articles, ajout depuis Codes promo) + annonces et
+       partenariats (Cournsel client) — dans un seul carrousel, replacé dans
+       l'espace d'origine du "Cournsel client" (sous la barre de recherche),
+       au lieu de l'emplacement du carrousel "Bannières" (au-dessus de la
+       recherche). */
+    function placeInOriginalSpot(html){
+      /* Les deux anciens conteneurs restent vides pour ne rien casser. */
+      const legacyBannersSlot=document.getElementById('siams-banners-client');
+      if(legacyBannersSlot)legacyBannersSlot.innerHTML='';
+      const cournselSlot=document.getElementById('siams-cournsel-client');
+      if(cournselSlot)cournselSlot.innerHTML='';
+      let wrap=document.getElementById('siams-unified-banner-wrap');
+      if(!html){ if(wrap)wrap.remove(); return; }
+      if(!wrap){
+        wrap=document.createElement('div');
+        wrap.id='siams-unified-banner-wrap';
+        const searchWrap=document.querySelector('.search-wrap');
+        if(searchWrap && searchWrap.parentNode){
+          searchWrap.parentNode.insertBefore(wrap, searchWrap.nextSibling);
+        }else if(cournselSlot && cournselSlot.parentNode){
+          /* Repli : si la recherche est introuvable, on garde l'ancien emplacement. */
+          cournselSlot.parentNode.insertBefore(wrap, cournselSlot.nextSibling);
+        }else{
+          return;
+        }
+      }
+      wrap.innerHTML=html;
+    }
+    Banners.renderClient=async function(){
+      await Banners.load();
+      let showcaseItems=[];
+      try{showcaseItems=await Showcase.load();}catch(e){}
+      const slides=[];
+      const legacy=Store.store&&Store.store.banner;
+      if(legacy)slides.push({kind:'legacy',image:legacy});
+      (Banners.items||[]).forEach(b=>{if(b.image_url)slides.push({kind:'banner',id:b.id,image:b.image_url});});
+      (showcaseItems||[]).forEach(x=>{if(x.media_url)slides.push({kind:'showcase',id:x.id,image:x.media_url,type:x.type,title:x.title,description:x.description});});
+      placeInOriginalSpot(buildMarkup(slides));
+      startCarousel();
+    };
+  });
+})();
+</script>
+
 <!-- SIAMS V57 : popups accueil client (commande en attente / offres du jour) -->
 <style id="siams-v57-popups-style">
 .v57-popup-overlay{position:fixed;inset:0;background:rgba(10,10,20,.55);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .22s ease}
