@@ -14890,121 +14890,202 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 </script>
 
 
-<!-- SIAMS V74 : action "Ajouter une bannière" dans l'espace Marketing / Codes promo -->
-<style id="siams-v74-banner-action-css">
-  .siams-v74-banner-action{
-    margin:0 34px 18px;
-    border:1px solid var(--line);
-    border-radius:20px;
-    background:var(--paper);
-    box-shadow:var(--shadow-sm);
-    overflow:hidden;
-  }
-  .siams-v74-banner-action button{
-    width:100%;
-    border:0;
-    background:transparent;
-    padding:17px 16px;
-    display:flex;
-    align-items:center;
-    gap:13px;
-    text-align:left;
-    cursor:pointer;
-    font-family:var(--font-body);
-  }
-  .siams-v74-banner-action .ico{
-    width:48px;height:48px;flex:none;
-    border-radius:15px;
-    display:grid;place-items:center;
-    background:var(--mango-tint);
-    color:var(--mango-dark);
-    font-size:25px;font-weight:900;
-  }
-  .siams-v74-banner-action .txt{min-width:0;flex:1}
-  .siams-v74-banner-action .txt b{
-    display:block;
-    font-family:var(--font-display);
-    font-size:15px;
-    color:var(--text);
-    margin-bottom:3px;
-  }
-  .siams-v74-banner-action .txt span{
-    display:block;
-    font-size:11.5px;
-    line-height:1.45;
-    color:var(--text-mid);
-  }
-  .siams-v74-banner-action .arr{
-    flex:none;
-    font-size:25px;
-    line-height:1;
-    color:var(--text-soft);
-  }
-  @media(max-width:380px){
-    .siams-v74-banner-action{margin-left:20px;margin-right:20px}
-  }
+<style id="siams-v76-marketing-ui">
+/* ===== SIAMS V76 — Marketing Boutique / Codes promo ===== */
+.siams-v76-page{padding:0 0 125px;background:#fff;min-height:100%}
+.siams-v76-head{padding:22px 20px 16px}
+.siams-v76-kicker{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:850;color:var(--text-mid);margin-bottom:5px}
+.siams-v76-head h2{margin:0;color:#0d1220;font-size:30px;line-height:1.08;letter-spacing:-.045em}
+.siams-v76-head p{margin:7px 0 0;color:#6d7482;font-size:13px;line-height:1.45;max-width:620px}
+
+/* stats */
+.siams-v76-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px 18px}
+.siams-v76-stat{min-width:0;border:1px solid #e7eaf0;border-radius:17px;padding:13px 10px 12px;background:#fff;box-shadow:0 4px 16px rgba(18,28,55,.035)}
+.siams-v76-stat .ico{width:31px;height:31px;border-radius:11px;display:grid;place-items:center;font-size:15px;margin-bottom:9px}
+.siams-v76-stat:nth-child(1) .ico{background:#eaf2ff;color:#1769e8}
+.siams-v76-stat:nth-child(2) .ico{background:#e5faf2;color:#08a16c}
+.siams-v76-stat:nth-child(3) .ico{background:#f0edff;color:#5d3eea}
+.siams-v76-stat:nth-child(4) .ico{background:#fff0e5;color:#ef700e}
+.siams-v76-stat .n{font-size:22px;line-height:1;font-weight:850;color:#111827}
+.siams-v76-stat .t{margin-top:6px;font-size:9.5px;line-height:1.2;color:#697386}
+
+/* main banner CTA */
+.siams-v76-banner-cta{margin:0 20px 16px;border:1px solid #ff8a24;border-radius:21px;background:linear-gradient(120deg,#fff1df,#fffaf5);box-shadow:0 8px 22px rgba(255,125,25,.12);overflow:hidden}
+.siams-v76-banner-cta button{width:100%;border:0;background:transparent;padding:18px 17px;display:flex;align-items:center;gap:13px;text-align:left;cursor:pointer;font:inherit}
+.siams-v76-banner-cta .pic{width:58px;height:58px;min-width:58px;border-radius:17px;background:#ffe3cb;color:#e96708;display:grid;place-items:center;font-size:28px}
+.siams-v76-banner-cta .copy{flex:1;min-width:0}
+.siams-v76-banner-cta .copy b{display:block;font-size:16px;color:#101522;letter-spacing:-.02em}
+.siams-v76-banner-cta .copy span{display:block;margin-top:4px;color:#667085;font-size:11.5px;line-height:1.4}
+.siams-v76-banner-cta .go{width:42px;height:42px;min-width:42px;border-radius:50%;background:#ff790d;color:#fff;display:grid;place-items:center;font-size:24px;box-shadow:0 6px 16px rgba(255,121,13,.25)}
+
+/* create form */
+.siams-v76-card{margin:0 20px 16px;border:1px solid #e8ebf0;border-radius:21px;background:#fff;box-shadow:0 8px 25px rgba(18,28,55,.055);padding:18px}
+.siams-v76-card-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.siams-v76-card-head .round{width:40px;height:40px;border-radius:13px;background:#fff0e4;color:#ee700c;display:grid;place-items:center;font-size:20px;flex:none}
+.siams-v76-card-head b{display:block;font-size:17px;line-height:1.15;color:#111827}
+.siams-v76-card-head span{display:block;margin-top:3px;font-size:11px;color:#747d8d;line-height:1.35}
+.siams-v76-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.siams-v76-field label{display:block;font-size:10.5px;font-weight:800;color:#151b27;margin:0 0 6px}
+.siams-v76-field input,.siams-v76-field select{width:100%;box-sizing:border-box;height:48px;border:1px solid #dfe4ec;border-radius:13px;background:#fff;padding:0 13px;color:#171d29;font:inherit;font-size:13px;outline:none;pointer-events:auto}
+.siams-v76-field input:focus,.siams-v76-field select:focus{border-color:var(--indigo);box-shadow:0 0 0 3px var(--indigo-tint)}
+.siams-v76-field small{display:block;margin-top:5px;color:#7a8495;font-size:9.5px}
+.siams-v76-submit{width:100%;height:52px;margin-top:15px;border:0;border-radius:15px;background:linear-gradient(90deg,#ff760c,#ff9a3d);color:#fff;font-size:14px;font-weight:850;cursor:pointer;box-shadow:0 10px 22px rgba(255,119,12,.2)}
+.siams-v76-submit:active{transform:translateY(1px)}
+
+/* list */
+.siams-v76-list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 20px 10px}
+.siams-v76-list-head .title{display:flex;align-items:center;gap:9px}
+.siams-v76-list-head .mini{width:34px;height:34px;border-radius:11px;background:#edf3fb;color:#315d91;display:grid;place-items:center;font-size:16px}
+.siams-v76-list-head b{font-size:17px;color:#101722}
+.siams-v76-filter{border:1px solid #dfe5ee;border-radius:999px;background:#fff;padding:8px 11px;font:inherit;font-size:10px;color:#273142}
+.siams-v76-code{margin:0 20px 10px;padding:14px;border:1px solid #e6e9ef;border-radius:18px;background:#fff;box-shadow:0 5px 18px rgba(18,28,55,.035)}
+.siams-v76-code-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.siams-v76-code-left{display:flex;gap:10px;min-width:0}
+.siams-v76-code-icon{width:40px;height:40px;border-radius:13px;background:#e8faf3;color:#0aa16d;display:grid;place-items:center;font-size:18px;flex:none}
+.siams-v76-code-name{font-family:var(--font-mono);font-size:15px;font-weight:900;color:#111827;letter-spacing:.04em}
+.siams-v76-code-desc{font-size:10.5px;color:#637083;margin-top:3px}
+.siams-v76-status{padding:6px 9px;border-radius:999px;background:#dff7ec;color:#08a16c;font-size:9.5px;font-weight:850;white-space:nowrap}
+.siams-v76-status.off{background:#eef0f4;color:#687386}
+.siams-v76-usage{display:flex;justify-content:space-between;gap:8px;margin:12px 0 7px;color:#687386;font-size:10.5px}
+.siams-v76-usage b{color:#111827}
+.siams-v76-progress{height:7px;background:#e9ecf1;border-radius:99px;overflow:hidden}
+.siams-v76-progress i{display:block;height:100%;background:#9fc5ee;border-radius:inherit}
+.siams-v76-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:11px}
+.siams-v76-actions button{height:39px;border:1px solid #e4e7ed;border-radius:12px;background:#fff;font:inherit;font-size:10px;font-weight:800;cursor:pointer}
+.siams-v76-actions .edit{color:#1769e8;background:#f3f8ff;border-color:#dbeaff}
+.siams-v76-actions .pause{color:#29364a;background:#f5f7fa}
+.siams-v76-actions .delete{color:#e23d3d;background:#fff6f6;border-color:#f4dede}
+.siams-v76-empty{margin:0 20px;border:1px dashed #dfe4eb;border-radius:17px;padding:22px;text-align:center;color:#758093;font-size:11px}
+
+/* smaller phones */
+@media(max-width:390px){
+ .siams-v76-head{padding-left:20px;padding-right:20px}
+ .siams-v76-head h2{font-size:28px}
+ .siams-v76-stats{gap:6px;padding-left:20px;padding-right:20px}
+ .siams-v76-stat{padding:11px 8px}
+ .siams-v76-stat .n{font-size:20px}
+ .siams-v76-stat .t{font-size:8.8px}
+ .siams-v76-card{padding:15px}
+ .siams-v76-grid{gap:8px}
+ .siams-v76-actions{gap:5px}
+ .siams-v76-actions button{font-size:9px}
+}
 </style>
-<script id="siams-v74-banner-action-js">
+
+
+<script id="siams-v76-marketing-ui-js">
 (function(){
-  function injectBannerAction(){
-    if(typeof Views==='undefined' || typeof Router==='undefined') return;
-    const old=Views.promos;
-    if(!old || old.__siamsV74Wrapped) return;
+  'use strict';
+  const e=v=>{try{return Utils.escapeHtml(String(v??''))}catch(_){return String(v??'')}};
 
-    function addAction(html){
-      if(typeof html!=='string' || html.includes('siams-v74-banner-action')) return html;
-
-      const action =
-        '<section class="siams-v74-banner-action" aria-label="Ajouter une bannière">'+
-          '<button type="button" onclick="Router.go(\\'banners\\')">'+
-            '<span class="ico">＋</span>'+
-            '<span class="txt">'+
-              '<b>Ajouter une bannière</b>'+
-              '<span>Ajoutez une affiche au carrousel de votre boutique. Le lien au clic reste facultatif.</span>'+
-            '</span>'+
-            '<span class="arr">›</span>'+
-          '</button>'+
-        '</section>';
-
-      /* Placement prioritaire : juste après le bloc de statistiques. */
-      const statMarkers=[
-        '</div><div class="v22-create">',
-        '</div><div class="promo-create">',
-        '</div><div class="v20-promo-create">'
-      ];
-      for(const marker of statMarkers){
-        const pos=html.indexOf(marker);
-        if(pos>=0){
-          return html.slice(0,pos+6)+action+html.slice(pos+6);
-        }
-      }
-
-      /* Fallback : avant "Vos codes". */
-      const markers=[
-        '<div class="section-title">Vos codes</div>',
-        '<div class="v20-section-title">Vos codes</div>',
-        '<div class="section-title" style="padding-top:2px;">Vos campagnes</div>'
-      ];
-      for(const marker of markers){
-        const pos=html.indexOf(marker);
-        if(pos>=0) return html.slice(0,pos)+action+html.slice(pos);
-      }
-
-      return html;
-    }
-
-    function wrapped(){
-      return addAction(old.apply(this,arguments));
-    }
-    wrapped.__siamsV74Wrapped=true;
-    Views.promos=wrapped;
+  function bannerAction(){
+    if(window.Router && typeof Router.go==='function') Router.go('banners');
+    else location.hash='#banners';
   }
 
-  /* Les versions précédentes peuvent réécrire Views.promos après le chargement. */
-  injectBannerAction();
-  setTimeout(injectBannerAction,0);
-  setTimeout(injectBannerAction,100);
-  setTimeout(injectBannerAction,500);
-  setTimeout(injectBannerAction,1200);
+  function promoFormAlwaysVisible(){
+    return `
+      <div class="siams-v76-card">
+        <div class="siams-v76-card-head">
+          <div class="round">％</div>
+          <div><b>Créer un code promo</b><span>Le code sera disponible immédiatement dans votre boutique.</span></div>
+        </div>
+        <div class="siams-v76-grid">
+          <div class="siams-v76-field">
+            <label>Code promo</label>
+            <input id="v15-promo-code" type="text" maxlength="30" autocomplete="off" placeholder="EXEMPLE10" oninput="this.value=this.value.toUpperCase().replace(/\\s/g,'')">
+          </div>
+          <div class="siams-v76-field">
+            <label>Type</label>
+            <select id="v15-promo-type"><option value="percent">Pourcentage (%)</option><option value="fixed">Montant fixe (FCFA)</option></select>
+          </div>
+          <div class="siams-v76-field">
+            <label>Valeur</label>
+            <input id="v15-promo-value" type="number" min="1" step="1" placeholder="10">
+          </div>
+          <div class="siams-v76-field">
+            <label>Utilisations max</label>
+            <input id="v15-promo-max" type="number" min="0" step="1" value="0" placeholder="0">
+            <small>0 = illimité</small>
+          </div>
+        </div>
+        <button class="siams-v76-submit" type="button" onclick="createPromoV15()">＋ &nbsp;Créer le code promo&nbsp; →</button>
+      </div>`;
+  }
+
+  function render(){
+    const promos=(Store.promos||[]).map(p=>PromoLocal.merge(p));
+    const active=promos.filter(p=>p.active&&(!p.maxUses||Number(p.usedCount||0)<Number(p.maxUses))).length;
+    const uses=promos.reduce((n,p)=>n+Number(p.usedCount||0),0);
+    const rate=promos.reduce((n,p)=>n+Number(p.usedCount||0),0);
+    const max=promos.reduce((n,p)=>n+Number(p.maxUses||0),0);
+    const ratePct=max?Math.min(100,Math.round(rate/max*100)):0;
+
+    const cards=promos.map(function(p){
+      const exhausted=p.maxUses>0&&Number(p.usedCount||0)>=Number(p.maxUses);
+      const pct=p.maxUses?Math.min(100,Math.round(Number(p.usedCount||0)/Number(p.maxUses)*100)):0;
+      const discount=p.type==='percent'?p.value+'% de réduction':Utils.fmtFCFA(p.value)+' de réduction';
+      return `
+        <article class="siams-v76-code">
+          <div class="siams-v76-code-top">
+            <div class="siams-v76-code-left">
+              <div class="siams-v76-code-icon">%</div>
+              <div><div class="siams-v76-code-name">${e(p.code)}</div><div class="siams-v76-code-desc">${discount}</div></div>
+            </div>
+            <span class="siams-v76-status ${p.active&&!exhausted?'':'off'}">${exhausted?'Épuisé':p.active?'Actif':'Inactif'}</span>
+          </div>
+          <div class="siams-v76-usage"><span>Utilisations</span><span><b>${Number(p.usedCount||0)}${p.maxUses?' / '+p.maxUses:''}</b> &nbsp; ${p.maxUses?pct+'%':''}</span></div>
+          ${p.maxUses?`<div class="siams-v76-progress"><i style="width:${pct}%"></i></div>`:''}
+          <div class="siams-v76-actions">
+            <button class="edit" onclick="setPromoLimitV15('${e(p.id)}')">✎ &nbsp; Modifier</button>
+            <button class="pause" onclick="togglePromoV15('${e(p.id)}')">${p.active?'Ⅱ':'▶'} &nbsp; ${p.active?'Désactiver':'Activer'}</button>
+            <button class="delete" onclick="deletePromoV15('${e(p.id)}')">♜ &nbsp; Supprimer</button>
+          </div>
+        </article>`;
+    }).join('');
+
+    return `
+      ${TopBar('Marketing Boutique','Codes promo')}
+      <main class="siams-v76-page">
+        <header class="siams-v76-head">
+          <div class="siams-v76-kicker">Marketing boutique</div>
+          <h2>Codes promo</h2>
+          <p>Créez, activez et limitez vos réductions directement depuis votre boutique.</p>
+        </header>
+
+        <section class="siams-v76-stats" aria-label="Statistiques">
+          <div class="siams-v76-stat"><div class="ico">⌑</div><div class="n">${promos.length}</div><div class="t">Codes créés</div></div>
+          <div class="siams-v76-stat"><div class="ico">ϟ</div><div class="n">${active}</div><div class="t">Actifs</div></div>
+          <div class="siams-v76-stat"><div class="ico">♙</div><div class="n">${uses}</div><div class="t">Utilisations</div></div>
+          <div class="siams-v76-stat"><div class="ico">%</div><div class="n">${ratePct}%</div><div class="t">Taux d’utilisation</div></div>
+        </section>
+
+        <section class="siams-v76-banner-cta">
+          <button type="button" onclick="(${bannerAction.toString()})()">
+            <span class="pic">▧＋</span>
+            <span class="copy"><b>Ajouter une bannière</b><span>Ajoutez une affiche au carrousel de votre boutique. Le lien au clic est facultatif.</span></span>
+            <span class="go">→</span>
+          </button>
+        </section>
+
+        ${promoFormAlwaysVisible()}
+
+        <div class="siams-v76-list-head">
+          <div class="title"><span class="mini">%</span><b>Vos codes</b></div>
+          <select class="siams-v76-filter" onchange="window.__siamsV76Filter=this.value;Views.promos&&Router.go('promos')">
+            <option value="all">Tous</option><option value="active">Actifs</option><option value="off">Inactifs</option>
+          </select>
+        </div>
+
+        <section id="siams-v76-codes">
+          ${cards || '<div class="siams-v76-empty">Aucun code promo. Créez votre premier code ci-dessus.</div>'}
+        </section>
+      </main>`;
+  }
+
+  /* Override final de la vue, après toutes les versions précédentes. */
+  const v76=render;
+  Views.promos=v76;
+  window.SIAMSMarketingV76={render};
 })();
 </script>
