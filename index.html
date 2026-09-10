@@ -7208,6 +7208,14 @@ const Withdraw = {
     return order && order.status==='pending' && !order.shipped;
   }
 
+  /* ---------- Edition / complément d'une commande client ----------
+     Le panier peut représenter soit une nouvelle commande, soit une commande
+     existante en attente. Dans le second cas, le checkout conserve le même
+     ID/numéro de commande et utilise le RPC sécurisé côté Supabase. ---------- */
+  window.SiamsOrderEdit = window.SiamsOrderEdit || {
+    id:null, token:null, mode:null, original:null
+  };
+
   function restoreOrderToCart(order){
     if(!order || !Array.isArray(order.items)) return false;
     Store.cart = order.items.map(it=>({
@@ -7231,6 +7239,7 @@ const Withdraw = {
       Toast.show('Impossible de recharger les articles de cette commande.');
       return;
     }
+    window.SiamsOrderEdit={id:order.id,token:order.deliveryToken||order.delivery_token||null,mode:'modify',original:JSON.parse(JSON.stringify(order))};
     Toast.show('Commande chargée dans votre panier — vous pouvez la modifier.');
     Router.go('cart');
   };
@@ -7241,7 +7250,11 @@ const Withdraw = {
       Toast.show('⚠️ Cette commande ne peut plus être complétée après confirmation ou expédition.');
       return;
     }
-    restoreOrderToCart(order);
+    if(!restoreOrderToCart(order)){
+      Toast.show('Impossible de recharger les articles de cette commande.');
+      return;
+    }
+    window.SiamsOrderEdit={id:order.id,token:order.deliveryToken||order.delivery_token||null,mode:'complete',original:JSON.parse(JSON.stringify(order))};
     Toast.show('Ajoutez les articles souhaités puis revenez au panier.');
     Router.go('shop');
   };
@@ -10947,16 +10960,29 @@ document.addEventListener('click', e=>{
   setTimeout(()=>{ btn.classList.remove('added'); btn.textContent = original; delete btn.dataset.animLock; }, 900);
 });
 
+window.cancelSiamsOrderEdit=function(){
+  window.SiamsOrderEdit={id:null,token:null,mode:null,original:null};
+  Store.cart=[];
+  appliedPromo=null;
+  checkoutPaymentProof=null;
+  Toast.show('Modification annulée');
+  Router.go('shop');
+};
+
 /* ---------- Panier ---------- */
 Views.cart = function(){
   const cart = Store.cart;
   const products = Store.sellables;
   const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
   const total = items.reduce((s,i)=>s+i.product.price*i.qty,0);
+  const editMode = window.SiamsOrderEdit && window.SiamsOrderEdit.id;
+  const editTitle = editMode ? (window.SiamsOrderEdit.mode==='complete' ? 'Compléter la commande' : 'Modifier la commande') : 'Mon panier';
+  const editNumber = editMode && window.SiamsOrderEdit.original ? window.SiamsOrderEdit.original.number : '';
   return `
   <div class="topbar" style="padding-top:18px;">
-    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>Mon panier</h1></div>
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>${editTitle}</h1></div>
   </div>
+  ${editMode ? `<div style="margin:10px 20px 0;padding:11px 13px;border-radius:14px;background:var(--indigo-tint);color:var(--indigo);font-size:12px;font-weight:700;">Commande #${Utils.escapeHtml(editNumber)} · ${window.SiamsOrderEdit.mode==='complete'?'Ajoutez ou retirez des articles avant de confirmer.':'Modifiez les quantités avant de confirmer.'}<button type="button" onclick="window.cancelSiamsOrderEdit()" style="display:block;margin-top:8px;border:0;background:none;color:inherit;font:inherit;padding:0;text-decoration:underline;cursor:pointer;">Quitter sans enregistrer</button></div>` : ''}
   ${items.length===0 ? EmptyState(ICONS.cart,'Panier vide','Ajoutez des produits depuis la boutique pour commencer.',
     `<button class="btn btn-primary" onclick="Router.go('shop')">Voir la boutique</button>`) : `
   <div style="padding:8px 20px 0;">
@@ -10978,7 +11004,7 @@ Views.cart = function(){
   <div style="margin:20px 20px 0;padding:18px;border-radius:var(--radius-md);background:var(--panel);display:flex;justify-content:space-between;align-items:center;">
     <span style="font-weight:700;font-size:15px;">Total</span><span class="mono" style="font-weight:700;font-size:17px;">${Utils.fmtFCFA(total)}</span>
   </div>
-  <div style="padding:16px 20px 24px;"><button class="btn btn-mango btn-block" onclick="Router.go('checkout')">Passer la commande</button></div>
+  <div style="padding:16px 20px 24px;"><button class="btn btn-mango btn-block" onclick="Router.go('checkout')">${editMode ? (window.SiamsOrderEdit.mode==='complete' ? 'Enregistrer les ajouts' : 'Enregistrer les modifications') : 'Passer la commande'}</button></div>
   `}`;
 };
 function changeCartQty(key, delta){
@@ -11005,7 +11031,7 @@ Views.checkout = function(){
   ].filter(Boolean);
   return `
   <div class="topbar" style="padding-top:18px;">
-    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('cart')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>Finaliser la commande</h1></div>
+    <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('cart')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>${(window.SiamsOrderEdit&&window.SiamsOrderEdit.id)?(window.SiamsOrderEdit.mode==='complete'?'Compléter la commande':'Modifier la commande'):'Finaliser la commande'}</h1></div>
   </div>
   <div class="form-wrap">
     <div class="field"><label>Nom complet</label><input id="co-name" type="text" placeholder="Votre nom" value="${Utils.escapeHtml(ClientLocal.profile.name||'')}"></div>
@@ -11044,13 +11070,22 @@ Views.checkout = function(){
       <div id="co-delivery-row" class="hidden" style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13.5px;color:var(--text-mid);"><span>Livraison</span><span class="mono" id="co-delivery"></span></div>
       <div style="display:flex;justify-content:space-between;"><span style="font-weight:700;">Total à payer</span><span class="mono" style="font-weight:700;" id="co-total">${Utils.fmtFCFA(total)}</span></div>
     </div>
-    <button class="btn btn-mango btn-block" style="margin-bottom:24px;" onclick="confirmOrder()">Confirmer la commande</button>
+    <button class="btn btn-mango btn-block" style="margin-bottom:24px;" onclick="confirmOrder()">${(window.SiamsOrderEdit&&window.SiamsOrderEdit.id)?(window.SiamsOrderEdit.mode==='complete'?'Enregistrer les ajouts':'Enregistrer les modifications'):'Confirmer la commande'}</button>
   </div>
   `;
 };
 let appliedPromo = null;
 let checkoutPaymentProof = null;
-Views._after_checkout = function(){ appliedPromo = null; checkoutPaymentProof = null; ClientLocal.load(); onCheckoutPayChange(); };
+Views._after_checkout = function(){
+  appliedPromo = null; checkoutPaymentProof = null; ClientLocal.load();
+  const edit=window.SiamsOrderEdit;
+  if(edit && edit.id && edit.original && edit.original.promoCode){
+    const p=Store.promos.map(x=>PromoLocal.merge(x)).find(x=>x.code===edit.original.promoCode);
+    if(p) appliedPromo=p;
+  }
+  onCheckoutPayChange();
+  recalcCheckoutTotal();
+};
 function onCheckoutPayChange(){
   const payRadio = document.querySelector('input[name="co-pay"]:checked');
   const wrap = document.getElementById('co-pay-details');
@@ -11223,6 +11258,70 @@ async function confirmOrder(){
   const deliveryZone = zoneEl && zoneEl.value ? zoneEl.value : null;
   const deliveryFee = zoneEl && zoneEl.value ? Number(zoneEl.selectedOptions[0].dataset.fee||0) : 0;
   const amount = subtotal - discount + deliveryFee;
+
+  /* Une commande existante en attente est réellement modifiée/complétée :
+     on conserve son ID, son numéro et son jeton de sécurité. Le serveur
+     recalcule les prix et remplace atomiquement les lignes de commande. */
+  const edit=window.SiamsOrderEdit;
+  if(edit && edit.id){
+    const original=edit.original || getOrder(edit.id);
+    const token=edit.token || (original && (original.deliveryToken||original.delivery_token));
+    if(!original || !token){ Toast.show('⚠️ Impossible de sécuriser la modification de cette commande.'); return; }
+    try{
+      let proof=checkoutPaymentProof||null;
+      if(proof && Cloud.ensureStoredUrl) proof=await Cloud.ensureStoredUrl(proof,'payment-proofs');
+      const payloadItems=items.map(i=>({product_id:i.productId,name:i.name,price:i.price,qty:i.qty}));
+      const {data,error}=await sb.rpc('client_update_order',{
+        p_order_id:edit.id,
+        p_delivery_token:token,
+        p_customer_name:name,
+        p_customer_phone:phone,
+        p_customer_address:address,
+        p_customer_latitude:checkoutLocation?checkoutLocation.lat:null,
+        p_customer_longitude:checkoutLocation?checkoutLocation.lng:null,
+        p_delivery_zone:deliveryZone,
+        p_delivery_fee:deliveryFee,
+        p_promo_code:appliedPromo?appliedPromo.code:null,
+        p_payment_method:payMethod,
+        p_payment_proof_url:proof,
+        p_items:payloadItems
+      });
+      if(error) throw error;
+      if(!data || data.success!==true) throw new Error((data&&data.message)||'Modification refusée');
+      const updated={...original,
+        customer:{name,phone,address},items,
+        amount:Number(data.amount!=null?data.amount:amount),
+        discount:Number(data.discount!=null?data.discount:discount),
+        deliveryZone,deliveryFee,
+        promoCode:appliedPromo?appliedPromo.code:null,
+        paymentMethod:payMethod,paymentProof:proof,status:'pending',shipped:false,
+        customerLat:checkoutLocation?checkoutLocation.lat:null,
+        customerLng:checkoutLocation?checkoutLocation.lng:null
+      };
+      _cache.orders=(_cache.orders||[]).map(o=>String(o.id)===String(edit.id)?updated:o);
+      if(window.ClientOrderCache) ClientOrderCache.save(updated);
+      Store.orders=_cache.orders;
+      Store.cart=[]; appliedPromo=null; checkoutPaymentProof=null; checkoutLocation=null;
+      ClientLocal.save({name,phone,address});
+      ClientNotify.add(updated.number, edit.mode==='complete' ? 'Commande complétée avec succès — les nouveaux articles ont été ajoutés.' : 'Commande modifiée avec succès.');
+      Notify.add('order', edit.mode==='complete' ? `Commande #${updated.number} complétée par le client.` : `Commande #${updated.number} modifiée par le client.`);
+      const store=Store.store;
+      const lines=items.map(i=>`• ${i.name} ×${i.qty} — ${Utils.fmtFCFA(i.price*i.qty)}`).join('\n');
+      const waText=(edit.mode==='complete'?'Commande complétée':'Commande modifiée')+` #${updated.number}\nClient : ${name} (${phone})\nAdresse : ${address}${deliveryZone?`\nZone : ${deliveryZone}`:''}\n\n${lines}\n\nTotal : ${Utils.fmtFCFA(updated.amount)}`;
+      const waLink=`https://wa.me/225${(store.phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(waText)}`;
+      window.open(waLink,'_blank');
+      window.SiamsOrderEdit={id:null,token:null,mode:null,original:null};
+      try{ await AutoSync.refresh(true); }catch(e){}
+      Toast.show(edit.mode==='complete'?'✓ Commande complétée':'✓ Commande modifiée');
+      Router.go('order-track',{id:updated.id});
+      return;
+    }catch(e){
+      console.error('client_update_order',e);
+      Toast.show('⚠️ '+((e&&e.message)||'Impossible d’enregistrer la modification.'));
+      return;
+    }
+  }
+
   const orders = Store.orders.slice();
   const isFirstOrderEver = orders.length===0;
   let number = Utils.genOrderCode(Store.store.name);
