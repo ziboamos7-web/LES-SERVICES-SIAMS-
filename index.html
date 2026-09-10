@@ -14890,121 +14890,109 @@ html[data-siams-theme="dark"] .notif-v42-sheet,html[data-siams-theme="dark"] .no
 </script>
 
 
-<!-- SIAMS V74 : action "Ajouter une bannière" dans l'espace Marketing / Codes promo -->
-<style id="siams-v74-banner-action-css">
-  .siams-v74-banner-action{
-    margin:0 34px 18px;
-    border:1px solid var(--line);
-    border-radius:20px;
-    background:var(--paper);
-    box-shadow:var(--shadow-sm);
-    overflow:hidden;
-  }
-  .siams-v74-banner-action button{
-    width:100%;
-    border:0;
-    background:transparent;
-    padding:17px 16px;
-    display:flex;
-    align-items:center;
-    gap:13px;
-    text-align:left;
-    cursor:pointer;
-    font-family:var(--font-body);
-  }
-  .siams-v74-banner-action .ico{
-    width:48px;height:48px;flex:none;
-    border-radius:15px;
-    display:grid;place-items:center;
-    background:var(--mango-tint);
-    color:var(--mango-dark);
-    font-size:25px;font-weight:900;
-  }
-  .siams-v74-banner-action .txt{min-width:0;flex:1}
-  .siams-v74-banner-action .txt b{
-    display:block;
-    font-family:var(--font-display);
-    font-size:15px;
-    color:var(--text);
-    margin-bottom:3px;
-  }
-  .siams-v74-banner-action .txt span{
-    display:block;
-    font-size:11.5px;
-    line-height:1.45;
-    color:var(--text-mid);
-  }
-  .siams-v74-banner-action .arr{
-    flex:none;
-    font-size:25px;
-    line-height:1;
-    color:var(--text-soft);
-  }
-  @media(max-width:380px){
-    .siams-v74-banner-action{margin-left:20px;margin-right:20px}
-  }
+<!-- SIAMS V75 : bouton AJOUTER UNE BANNIÈRE réellement injecté dans l'écran Codes promo -->
+<style id="siams-v75-banner-action-css">
+.siams-v75-banner-action{
+  margin:0 34px 18px;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:var(--paper);
+  box-shadow:var(--shadow-sm);
+  overflow:hidden;
+}
+.siams-v75-banner-action button{
+  appearance:none;-webkit-appearance:none;
+  width:100%;border:0;background:transparent;
+  padding:16px;display:flex;align-items:center;gap:13px;
+  text-align:left;cursor:pointer;
+  font-family:var(--font-body);
+}
+.siams-v75-banner-action .v75-ico{
+  width:50px;height:50px;min-width:50px;border-radius:15px;
+  display:grid;place-items:center;
+  background:var(--mango-tint);color:var(--mango-dark);
+  font-size:27px;font-weight:900;
+}
+.siams-v75-banner-action .v75-txt{flex:1;min-width:0}
+.siams-v75-banner-action .v75-txt b{
+  display:block;font-family:var(--font-display);
+  font-size:15px;font-weight:800;color:var(--text);margin-bottom:3px;
+}
+.siams-v75-banner-action .v75-txt span{
+  display:block;font-size:11.5px;line-height:1.4;color:var(--text-mid);
+}
+.siams-v75-banner-action .v75-arr{
+  font-size:27px;line-height:1;color:var(--text-soft);padding-left:4px;
+}
+@media(max-width:380px){
+ .siams-v75-banner-action{margin-left:20px;margin-right:20px}
+}
 </style>
-<script id="siams-v74-banner-action-js">
+<script id="siams-v75-banner-action-js">
 (function(){
-  function injectBannerAction(){
-    if(typeof Views==='undefined' || typeof Router==='undefined') return;
-    const old=Views.promos;
-    if(!old || old.__siamsV74Wrapped) return;
+  function addBannerButton(){
+    const app=document.getElementById('app');
+    if(!app)return;
 
-    function addAction(html){
-      if(typeof html!=='string' || html.includes('siams-v74-banner-action')) return html;
+    /* Uniquement sur l'écran Codes promo. */
+    const heading=[...app.querySelectorAll('h1,h2,h3,.section-title,.topbar-title,.top-title')]
+      .find(el=>/codes promo/i.test((el.textContent||'').trim()));
+    if(!heading)return;
+    if(app.querySelector('.siams-v75-banner-action'))return;
 
-      const action =
-        '<section class="siams-v74-banner-action" aria-label="Ajouter une bannière">'+
-          '<button type="button" onclick="Router.go(\\'banners\\')">'+
-            '<span class="ico">＋</span>'+
-            '<span class="txt">'+
-              '<b>Ajouter une bannière</b>'+
-              '<span>Ajoutez une affiche au carrousel de votre boutique. Le lien au clic reste facultatif.</span>'+
-            '</span>'+
-            '<span class="arr">›</span>'+
-          '</button>'+
-        '</section>';
+    const box=document.createElement('section');
+    box.className='siams-v75-banner-action';
+    box.setAttribute('aria-label','Ajouter une bannière');
+    box.innerHTML=
+      '<button type="button" aria-label="Ajouter une bannière">'+
+        '<span class="v75-ico">＋</span>'+
+        '<span class="v75-txt">'+
+          '<b>Ajouter une bannière</b>'+
+          '<span>Ajoutez une affiche au carrousel de votre boutique. Le lien au clic est facultatif.</span>'+
+        '</span>'+
+        '<span class="v75-arr">›</span>'+
+      '</button>';
 
-      /* Placement prioritaire : juste après le bloc de statistiques. */
-      const statMarkers=[
-        '</div><div class="v22-create">',
-        '</div><div class="promo-create">',
-        '</div><div class="v20-promo-create">'
-      ];
-      for(const marker of statMarkers){
-        const pos=html.indexOf(marker);
-        if(pos>=0){
-          return html.slice(0,pos+6)+action+html.slice(pos+6);
-        }
+    box.querySelector('button').addEventListener('click',function(){
+      if(window.Router && typeof Router.go==='function'){
+        Router.go('banners');
+      }else{
+        location.hash='#banners';
       }
+    });
 
-      /* Fallback : avant "Vos codes". */
-      const markers=[
-        '<div class="section-title">Vos codes</div>',
-        '<div class="v20-section-title">Vos codes</div>',
-        '<div class="section-title" style="padding-top:2px;">Vos campagnes</div>'
-      ];
-      for(const marker of markers){
-        const pos=html.indexOf(marker);
-        if(pos>=0) return html.slice(0,pos)+action+html.slice(pos);
-      }
-
-      return html;
+    /*
+      On place le bouton juste après le bloc de statistiques,
+      avant le formulaire "Créer un code promo" ou, à défaut,
+      avant la liste des codes.
+    */
+    const create=app.querySelector('.v22-create,.promo-create,.v15-promo-form');
+    const stats=app.querySelector('.v22-stats,.promo-summary');
+    if(stats && stats.parentNode){
+      stats.parentNode.insertBefore(box,stats.nextSibling);
+    }else if(create && create.parentNode){
+      create.parentNode.insertBefore(box,create);
+    }else{
+      heading.parentNode.insertBefore(box,heading.nextSibling);
     }
-
-    function wrapped(){
-      return addAction(old.apply(this,arguments));
-    }
-    wrapped.__siamsV74Wrapped=true;
-    Views.promos=wrapped;
   }
 
-  /* Les versions précédentes peuvent réécrire Views.promos après le chargement. */
-  injectBannerAction();
-  setTimeout(injectBannerAction,0);
-  setTimeout(injectBannerAction,100);
-  setTimeout(injectBannerAction,500);
-  setTimeout(injectBannerAction,1200);
+  /* Le routeur reconstruit #app à chaque navigation : observer garantit
+     que le bouton est recréé à chaque ouverture de Codes promo. */
+  function start(){
+    addBannerButton();
+    const app=document.getElementById('app');
+    if(!app)return;
+    const observer=new MutationObserver(function(){
+      addBannerButton();
+    });
+    observer.observe(app,{childList:true,subtree:true});
+    window.__siamsV75BannerObserver=observer;
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',start,{once:true});
+  }else start();
+  window.addEventListener('load',addBannerButton);
 })();
 </script>
