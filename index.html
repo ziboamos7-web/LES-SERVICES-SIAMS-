@@ -10318,12 +10318,24 @@ Views['shop-orders-history'] = function(){
   <div style="padding:12px 20px 24px;">
     ${!p.phone ? EmptyState(ICONS.box,'Renseignez vos informations',"Ajoutez votre numéro de téléphone dans « Mes informations » pour retrouver vos commandes.",`<button class="btn btn-primary" onclick="openAccountProfileEditor()">Renseigner mes informations</button>`) :
       myOrders.length===0 ? EmptyState(ICONS.box,'Aucune commande',"Vous n'avez pas encore passé de commande.",`<button class="btn btn-primary" onclick="Router.go('shop-categories',{cat:'__all__'})">Découvrir la boutique</button>`) :
-      myOrders.map(o=>`
-      <div class="order-row" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:10px;padding:14px 16px;background:#fff;cursor:pointer;" onclick="Router.go('order-track',{id:'${o.id}'})">
-        <div class="order-status ${o.status}"></div>
-        <div class="order-info"><h4>Commande #${o.number}</h4><div class="meta">${o.items.length} article(s) · ${new Date(o.createdAt).toLocaleDateString('fr-FR')}</div></div>
-        <div style="text-align:right;"><div class="order-amount">${Utils.fmtFCFA(o.amount)}</div><span class="badge ${o.status}">${badgeLabel[o.status]}</span></div>
-      </div>`).join('')}
+      myOrders.map(o=>{
+        const editable = o.status==='pending' && !o.shipped;
+        const statusText = badgeLabel[o.status] || (o.status==='shipped'?'En livraison':o.status==='cancelled'?'Annulée':o.status||'En attente');
+        return `
+      <div class="order-row siams-client-order-card" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:12px;padding:14px 16px;background:#fff;">
+        <div class="siams-order-main" onclick="Router.go('order-track',{id:'${o.id}'})" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <div class="order-status ${o.status}"></div>
+          <div class="order-info" style="flex:1;min-width:0;"><h4>Commande #${Utils.escapeHtml(o.number||'')}</h4><div class="meta">${Array.isArray(o.items)?o.items.length:0} article(s) · ${new Date(o.createdAt||Date.now()).toLocaleDateString('fr-FR')}</div></div>
+          <div style="text-align:right;"><div class="order-amount">${Utils.fmtFCFA(o.amount)}</div><span class="badge ${o.status}">${statusText}</span></div>
+        </div>
+        <div class="siams-order-actions" style="display:flex;gap:8px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line);">
+          <button type="button" class="btn btn-outline btn-sm" style="flex:1;" onclick="event.stopPropagation();Router.go('order-track',{id:'${o.id}'})">Suivre</button>
+          ${editable ? `<button type="button" class="btn btn-soft-indigo btn-sm" style="flex:1;" onclick="event.stopPropagation();siamsModifyOrder('${o.id}')">Modifier</button>
+          <button type="button" class="btn btn-mango btn-sm" style="flex:1;" onclick="event.stopPropagation();siamsCompleteOrder('${o.id}')">Compléter</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="event.stopPropagation();siamsCancelOrder('${o.id}')">Annuler</button>` : ''}
+        </div>
+      </div>`;
+      }).join('')}
   </div>
   `;
 };
