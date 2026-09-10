@@ -6769,7 +6769,14 @@ const Withdraw = {
       <div class="row"><span class="lbl">Statut</span><span class="status">Effectué</span></div>
       <hr>
       <div class="total"><span>Montant retiré</span><span>\${Utils.fmtFCFA(r.amount)}</span></div>
+</body>
+</html>`);
+    w.document.close();
+    setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 350);
+  }
+};
 
+</script>
 <script id="siams-v51-cockpit-js">
 (function(){
   function esc(v){ return String(v ?? '').replace(/[&<>"']/g, function(c){
