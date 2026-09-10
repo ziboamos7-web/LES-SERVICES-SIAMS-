@@ -4622,90 +4622,95 @@ Views['activation-code'] = function(){
   </div>`;
 };
 
+/* ---------- Authentification — rendu robuste sans template literal ----------
+   Les écrans d'authentification utilisent volontairement des chaînes concaténées.
+   Cela évite qu'un fragment de source JS (${...}, commentaires ou backticks) puisse
+   être rendu comme du texte dans le DOM si un navigateur rencontre un contexte
+   HTML/JS atypique pendant le chargement de cette page monolithique.
+   ------------------------------------------------------------------------- */
 Views.login = function(){
   authMode='login';
-  return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">
-    <button onclick="Router.go('welcome')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
-    <h1 style="font-size:24px;margin:0 0 6px;">Connexion</h1>
-    <p style="color:var(--text-mid);font-size:14px;margin:0 0 26px;">Connectez-vous pour gérer votre boutique.</p>
-    <div class="field"><label>E-mail ou ID marchand SIAMS</label><input id="auth-email" type="text" placeholder="vous@exemple.com ou SIAMS-XXXXXX" autocomplete="username"></div>
-    <div class="field"><label>Mot de passe</label>
-      <div class="pass-field-wrap"><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass', this)">${EYE_SVG}</button></div>
-      <div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go('recover-id')">ID marchand oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button></div>
-    </div>
-    <div id="auth-error" style="font-size:13px;margin-bottom:14px;"></div>
-    <button class="btn btn-primary btn-block" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>
-    <div style="margin-top:14px;padding:12px 13px;border-radius:13px;background:var(--panel);color:var(--text-mid);font-size:11.5px;line-height:1.45;">L’accès aux nouvelles inscriptions est réservé aux personnes ayant reçu un code partenaire du service client SIAMS.</div>
-  </div>`;
+  return ''+
+  '<div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">'+
+    '<button onclick="Router.go(\'welcome\')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">'+
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+    '</button>'+
+    '<div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="'+LOGO_DATA_URI+'" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>'+
+    '<h1 style="font-size:24px;margin:0 0 6px;">Connexion</h1>'+
+    '<p style="color:var(--text-mid);font-size:14px;margin:0 0 26px;">Connectez-vous pour gérer votre boutique.</p>'+
+    '<div class="field"><label>E-mail ou ID marchand SIAMS</label><input id="auth-email" type="text" placeholder="vous@exemple.com ou SIAMS-XXXXXX" autocomplete="username"></div>'+
+    '<div class="field"><label>Mot de passe</label>'+ 
+      '<div class="pass-field-wrap"><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass\', this)">'+EYE_SVG+'</button></div>'+ 
+      '<div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go(\'recover-id\')">ID marchand oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button></div>'+ 
+    '</div>'+ 
+    '<div id="auth-error" style="font-size:13px;margin-bottom:14px;"></div>'+ 
+    '<button class="btn btn-primary btn-block" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>'+ 
+    '<div style="margin-top:14px;padding:12px 13px;border-radius:13px;background:var(--panel);color:var(--text-mid);font-size:11.5px;line-height:1.45;">L’accès aux nouvelles inscriptions est réservé aux personnes ayant reçu un code partenaire du service client SIAMS.</div>'+ 
+  '</div>';
 };
+
 Views.register = function(){
   if(!ActivationGate.getStored()) return Views['activation-code']();
   authMode='register';
-  return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">
-    <button onclick="Router.go('activation-code')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">←</button>
-    <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>
-    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--green);text-transform:uppercase;margin-bottom:5px;">CODE PARTENAIRE VALIDÉ</div>
-    <h1 style="font-size:24px;margin:0 0 6px;">Créer votre compte</h1>
-    <p style="color:var(--text-mid);font-size:14px;margin:0 0 22px;">Votre inscription est autorisée par le code SIAMS validé.</p>
-    <div class="field"><label>Adresse e-mail</label><input id="auth-email__v46_2" type="email" placeholder="vous@exemple.com" autocomplete="email"></div>
-    <div class="field"><label>Numéro de téléphone</label><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"></div>
-    <div class="field"><label>Mot de passe</label><div class="pass-field-wrap"><input id="auth-pass__v46_2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass__v46_2', this)">${EYE_SVG}</button></div><div style="font-size:12px;color:var(--text-mid);margin-top:5px;">Au moins 6 caractères</div></div>
-    <div class="field"><label>Confirmer le mot de passe</label><div class="pass-field-wrap"><input id="auth-pass2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility('auth-pass2', this)">${EYE_SVG}</button></div></div>
-    <div id="auth-error__v46_2" style="font-size:13px;margin-bottom:14px;"></div>
-    <button class="btn btn-primary btn-block" id="auth-submit-btn__v46_2" onclick="doRegister()">Créer mon compte</button>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go('activation-code')">Retour au code partenaire</button>
-  </div>`;
+  return ''+
+  '<div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">'+
+    '<button onclick="Router.go(\'activation-code\')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">←</button>'+
+    '<div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="'+LOGO_DATA_URI+'" alt="SIAMS" style="width:100%;height:100%;object-fit:cover;"></div>'+
+    '<div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--green);text-transform:uppercase;margin-bottom:5px;">CODE PARTENAIRE VALIDÉ</div>'+
+    '<h1 style="font-size:24px;margin:0 0 6px;">Créer votre compte</h1>'+
+    '<p style="color:var(--text-mid);font-size:14px;margin:0 0 22px;">Votre inscription est autorisée par le code SIAMS validé.</p>'+
+    '<div class="field"><label>Adresse e-mail</label><input id="auth-email__v46_2" type="email" placeholder="vous@exemple.com" autocomplete="email"></div>'+
+    '<div class="field"><label>Numéro de téléphone</label><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"></div>'+
+    '<div class="field"><label>Mot de passe</label><div class="pass-field-wrap"><input id="auth-pass__v46_2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass__v46_2\', this)">'+EYE_SVG+'</button></div><div style="font-size:12px;color:var(--text-mid);margin-top:5px;">Au moins 6 caractères</div></div>'+ 
+    '<div class="field"><label>Confirmer le mot de passe</label><div class="pass-field-wrap"><input id="auth-pass2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass2\', this)">'+EYE_SVG+'</button></div></div>'+ 
+    '<div id="auth-error__v46_2" style="font-size:13px;margin-bottom:14px;"></div>'+ 
+    '<button class="btn btn-primary btn-block" id="auth-submit-btn__v46_2" onclick="doRegister()">Créer mon compte</button>'+ 
+    '<button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go(\'activation-code\')">Retour au code partenaire</button>'+ 
+  '</div>';
 };
 
-/* ---------- Vérification par code (E-MAIL) ---------- */
+/* ---------- Vérification par code (E-MAIL) — rendu robuste ---------- */
 Views['verify-otp'] = function(){
-  return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;">
-    <div class="otp-topbar">
-      <button class="otp-back" onclick="OtpGate.changeAccount()" aria-label="Retour">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <button class="otp-help" onclick="Toast.show('Contactez le support pour être aidé')">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 13a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
-        Besoin d'aide ?
-      </button>
-    </div>
-
-    <h1 class="otp-title">Entrez le code reçu par e-mail</h1>
-    <div class="otp-resend-label" style="margin:0 20px 8px;text-align:left;">Un code a été envoyé à <b>${OtpGate.email}</b></div>
-
-    <div class="otp-boxes">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" autofocus oninput="otpBoxHandle(this,0)" onkeydown="otpBoxKeydown(event,0)" onpaste="otpBoxPaste(event)">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,1)" onkeydown="otpBoxKeydown(event,1)" onpaste="otpBoxPaste(event)">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,2)" onkeydown="otpBoxKeydown(event,2)" onpaste="otpBoxPaste(event)">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,3)" onkeydown="otpBoxKeydown(event,3)" onpaste="otpBoxPaste(event)">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,4)" onkeydown="otpBoxKeydown(event,4)" onpaste="otpBoxPaste(event)">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,5)" onkeydown="otpBoxKeydown(event,5)" onpaste="otpBoxPaste(event)">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,6)" onkeydown="otpBoxKeydown(event,6)" onpaste="otpBoxPaste(event)">
-      <input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,7)" onkeydown="otpBoxKeydown(event,7)" onpaste="otpBoxPaste(event)">
-    </div>
-
-    <div class="otp-resend-label" id="otp-timer-label">Renvoyer le code dans <b>00:${String(OTP_RESEND_SECONDS).padStart(2,'0')}</b></div>
-
-    <div class="otp-channels">
-      <button class="otp-channel active" id="otp-resend-btn" disabled onclick="OtpGate.resend()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 1 3 6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 17v-4h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Renvoyer le code par e-mail
-      </button>
-    </div>
-
-    <div class="otp-error" id="otp-error"></div>
-
-    <button class="otp-changenum" onclick="OtpGate.changeAccount()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M11 18.5h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      Utiliser un autre compte
-    </button>
-  </div>`;
+  const email = Utils.escapeHtml(OtpGate.email || '');
+  const timerSeconds = Math.max(0, Number(OtpGate.secondsLeft || OTP_RESEND_SECONDS));
+  const timerMin = String(Math.floor(timerSeconds/60)).padStart(2,'0');
+  const timerSec = String(timerSeconds%60).padStart(2,'0');
+  return ''+
+  '<div style="min-height:100vh;display:flex;flex-direction:column;">'+
+    '<div class="otp-topbar">'+
+      '<button class="otp-back" onclick="OtpGate.changeAccount()" aria-label="Retour">'+
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+      '</button>'+
+      '<button class="otp-help" onclick="Toast.show(\'Contactez le support pour être aidé\')">'+
+        '<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 13a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>'+ 
+        'Besoin d\'aide ?'+
+      '</button>'+ 
+    '</div>'+ 
+    '<h1 class="otp-title">Entrez le code reçu par e-mail</h1>'+ 
+    '<div class="otp-resend-label" style="margin:0 20px 8px;text-align:left;">Un code a été envoyé à <b>'+email+'</b></div>'+ 
+    '<div class="otp-boxes">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" autofocus oninput="otpBoxHandle(this,0)" onkeydown="otpBoxKeydown(event,0)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,1)" onkeydown="otpBoxKeydown(event,1)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,2)" onkeydown="otpBoxKeydown(event,2)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,3)" onkeydown="otpBoxKeydown(event,3)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,4)" onkeydown="otpBoxKeydown(event,4)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,5)" onkeydown="otpBoxKeydown(event,5)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,6)" onkeydown="otpBoxKeydown(event,6)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,7)" onkeydown="otpBoxKeydown(event,7)" onpaste="otpBoxPaste(event)">'+
+    '</div>'+ 
+    '<div class="otp-resend-label" id="otp-timer-label">Renvoyer le code dans <b>'+timerMin+':'+timerSec+'</b></div>'+ 
+    '<div class="otp-channels">'+
+      '<button class="otp-channel active" id="otp-resend-btn" disabled onclick="OtpGate.resend()">'+
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 1 3 6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 17v-4h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+ 
+        'Renvoyer le code par e-mail'+
+      '</button>'+ 
+    '</div>'+ 
+    '<div class="otp-error" id="otp-error"></div>'+ 
+    '<button class="otp-changenum" onclick="OtpGate.changeAccount()">'+
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M11 18.5h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'+ 
+      'Utiliser un autre compte'+
+    '</button>'+ 
+  '</div>';
 };
 Views._after_verify_otp = function(){
   OtpGate.tickUI();
