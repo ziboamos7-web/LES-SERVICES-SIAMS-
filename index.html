@@ -1384,6 +1384,105 @@
 </style>
 
 
+
+<style id="siams-v47-dashboard-premium">
+/* SIAMS V47 — Home marchand premium : amélioration frontend uniquement */
+#page-root:has(.dashboard-v5-head){
+  background:linear-gradient(180deg,#fbfcff 0%,var(--bg,#f7f8fb) 42%,#f6f7fb 100%);
+  min-height:100%;
+  padding-bottom:8px;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v5-head{
+  padding:18px 20px 8px;
+  position:relative;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v5-heading{min-width:0;}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-title{
+  font-size:23px;letter-spacing:-.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#page-root:has(.dashboard-v5-head) .bell-btn,
+#page-root:has(.dashboard-v5-head) .dashboard-v2-profile{
+  width:42px;height:42px;border-radius:14px;border:1px solid var(--line);background:#fff;
+  box-shadow:0 5px 18px rgba(25,30,55,.07);
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v18-finance{
+  margin-top:12px;border-radius:27px;padding:21px 20px 17px;
+  box-shadow:0 22px 48px -24px rgba(0,50,130,.48),0 5px 18px rgba(0,0,0,.06);
+  transform:translateZ(0);transition:transform .2s ease,box-shadow .2s ease;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v18-finance:active{transform:scale(.992);}
+#page-root:has(.dashboard-v5-head) .finance-main-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;opacity:.8;}
+#page-root:has(.dashboard-v5-head) .finance-total{font-size:31px;line-height:1.08;margin-top:7px;}
+#page-root:has(.dashboard-v5-head) .finance-two-col{margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.16);}
+#page-root:has(.dashboard-v5-head) .finance-two-col-item b{font-size:14px;}
+#page-root:has(.dashboard-v5-head) .finance-trust-note{margin-top:13px;padding-top:11px;font-size:9.5px;opacity:.9;}
+
+#page-root:has(.dashboard-v5-head) .dashboard-v2-section{
+  padding:20px 20px 10px;align-items:flex-end;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-section h3{font-size:14px;letter-spacing:-.2px;}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-section button{
+  padding:4px 0;font-size:10.5px;font-weight:850;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-quick{
+  gap:9px;padding:0 20px;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-quick .quick-nav-card{
+  min-height:82px;border-radius:18px;padding:11px 7px 9px;
+  background:rgba(255,255,255,.92);border:1px solid rgba(20,25,45,.07);
+  box-shadow:0 7px 22px rgba(25,30,55,.055);
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-quick .qicon{
+  width:36px;height:36px;border-radius:11px;margin-bottom:6px;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-quick span{font-size:9.5px;}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-quick button:active{transform:translateY(1px) scale(.975);}
+
+#page-root:has(.dashboard-v5-head) .v21-home-services{
+  margin:0 20px 2px;padding:14px;border-radius:20px;background:rgba(255,255,255,.82);
+  border:1px solid rgba(20,25,45,.07);box-shadow:0 8px 26px rgba(25,30,55,.045);
+}
+#page-root:has(.dashboard-v5-head) .v21-home-services-head{margin-bottom:11px;}
+#page-root:has(.dashboard-v5-head) .v21-home-services-title{font-size:12.5px;}
+#page-root:has(.dashboard-v5-head) .v21-home-services-sub{font-size:9.5px;}
+#page-root:has(.dashboard-v5-head) .v21-home-service{
+  min-height:76px;border-radius:14px;background:#fff;border-color:rgba(20,25,45,.065);
+  box-shadow:0 4px 14px rgba(25,30,55,.035);transition:transform .15s ease,box-shadow .15s ease;
+}
+#page-root:has(.dashboard-v5-head) .v21-home-service:active{transform:scale(.965);box-shadow:none;}
+#page-root:has(.dashboard-v5-head) .v21-home-service .si{width:32px;height:32px;border-radius:10px;}
+#page-root:has(.dashboard-v5-head) .v21-home-service span{font-size:9px;}
+
+#page-root:has(.dashboard-v5-head) .dashboard-v2-command-card{
+  margin:0 20px;border-radius:20px;border-color:rgba(20,25,45,.07);
+  box-shadow:0 8px 24px rgba(25,30,55,.045);
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-command-row{
+  padding:13px 14px;transition:background .15s ease;
+}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-command-row:active{background:#f8f9fc;}
+#page-root:has(.dashboard-v5-head) .dashboard-v2-command-count{
+  min-width:27px;height:27px;padding:0 7px;display:grid;place-items:center;border-radius:9px;background:var(--panel);font-size:11px;
+}
+#page-root:has(.dashboard-v5-head) .stat-grid{gap:9px;padding:0 20px;}
+#page-root:has(.dashboard-v5-head) .stat-card{
+  border-radius:18px;padding:14px;background:rgba(255,255,255,.9);border:1px solid rgba(20,25,45,.07);
+  box-shadow:0 7px 20px rgba(25,30,55,.04);
+}
+#page-root:has(.dashboard-v5-head) .stat-card .lbl{font-size:10px;margin-bottom:7px;}
+#page-root:has(.dashboard-v5-head) .stat-card .val{font-size:16px;letter-spacing:-.4px;}
+
+@media(max-width:390px){
+  #page-root:has(.dashboard-v5-head) .dashboard-v5-head{padding-left:14px;padding-right:14px;}
+  #page-root:has(.dashboard-v5-head) .dashboard-v18-finance{margin-left:14px;margin-right:14px;}
+  #page-root:has(.dashboard-v5-head) .dashboard-v2-quick{padding-left:14px;padding-right:14px;}
+  #page-root:has(.dashboard-v5-head) .dashboard-v2-section{padding-left:14px;padding-right:14px;}
+  #page-root:has(.dashboard-v5-head) .v21-home-services{margin-left:14px;margin-right:14px;}
+  #page-root:has(.dashboard-v5-head) .dashboard-v2-command-card{margin-left:14px;margin-right:14px;}
+  #page-root:has(.dashboard-v5-head) .stat-grid{padding-left:14px;padding-right:14px;}
+}
+</style>
+
 </head>
 <body>
 <div id="app">
