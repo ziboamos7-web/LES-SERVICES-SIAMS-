@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>MA BOUTIQUE – Boutique en ligne</title>
 <meta name="description" content="Les services MA BOUTIQUE de boutique en ligne. Créez, gérez et développez votre boutique en ligne en toute simplicité : commandes, livraison en temps réel, paiements et notifications.">
-<meta name="theme-color" content="#FF7A33">
+<meta name="theme-color" content="#0B0E17">
 
 <!-- Carte livreur (suivi GPS en temps réel) : Leaflet + tuiles OpenStreetMap, gratuites, sans clé API. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -46,19 +46,19 @@
     --panel:#F7F7F8;
     --line:#E7E7EA;
 
-    --indigo:#FF7A33;
-    --indigo-dark:#DE5A12;
-    --indigo-tint:#FFE9DB;
-    --cyan:#FF9558;
+    --indigo:#111111;
+    --indigo-dark:#000000;
+    --indigo-tint:#ECECEE;
+    --cyan:#2E2E2E;
 
     --blue:#1C7EF2;
     --blue-tint:#E4EFFE;
     --gray-cancel:#4A473C;
     --gray-cancel-tint:#E7E4D9;
 
-    --mango:#FF7A1A;
-    --mango-dark:#DE5E00;
-    --mango-tint:#FFEADA;
+    --mango:#111111;
+    --mango-dark:#000000;
+    --mango-tint:#ECECEE;
 
     --green:#12B76A;
     --green-tint:#DFF7EB;
@@ -2412,7 +2412,7 @@ const Cloud = {
     _cache.store = { name:s.name||'Ma boutique', phone:s.phone||'', slug:s.slug||'', photo:s.photo_url||null, banner:s.banner_url||null,
       description:s.description||"Boutique en ligne spécialisée dans la vente d'articles de qualité, avec livraison rapide et paiement sécurisé à la livraison.",
       address:s.address||'Abidjan, Côte d’Ivoire', email:s.email||'', hours:s.hours||'Lundi – Samedi, 8h – 19h', loginId:s.login_id||'', businessType:s.business_type||'vente-ligne',
-      uiTheme: s.ui_theme==='black' ? 'black' : 'blue',
+      uiTheme: s.ui_theme==='blue' ? 'blue' : 'black',
       verification: { status:s.verification_status||'none', docType:s.verification_doc_type||'', docUrl:s.verification_doc_url||null, photoUrl:s.verification_photo_url||null,
         submittedAt:s.verification_submitted_at?new Date(s.verification_submitted_at).getTime():0, verified:!!s.verified,
         verifiedAt:s.verified_at?new Date(s.verified_at).getTime():0, rejectReason:s.verification_reject_reason||'' } };
@@ -3027,7 +3027,7 @@ const Store = {
      pour être identique sur tous les appareils et côté client. Avant ce chargement (tout
      début d'ouverture de l'app), on retombe sur la copie locale pour éviter un flash de
      thème par défaut. ---- */
-  get uiTheme(){ return (_cache.store && _cache.store.uiTheme) || Utils.getLocal('ui_theme', 'blue'); },
+  get uiTheme(){ return (_cache.store && _cache.store.uiTheme) || Utils.getLocal('ui_theme', 'black'); },
   set uiTheme(v){
     if(_cache.store) _cache.store.uiTheme = v;
     Utils.setLocal('ui_theme', v);
