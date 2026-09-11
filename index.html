@@ -4319,7 +4319,9 @@ if(!document.getElementById('maboutique-splash-anim-style')){
     .maboutique-splash-wrap{
       min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
       padding:32px 24px;text-align:center;position:relative;overflow:hidden;
-      background:linear-gradient(160deg,var(--indigo) 0%,var(--indigo-dark) 100%);
+      /* Bleu marine dédié à l'écran de chargement uniquement — variables volontairement
+         locales (et non --indigo/--indigo-dark) pour ne jamais affecter le reste de l'app. */
+      background:linear-gradient(160deg,#132A4F 0%,#0A1830 100%);
       isolation:isolate;
     }
     .maboutique-splash-wrap::before{
