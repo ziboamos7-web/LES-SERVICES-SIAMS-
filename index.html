@@ -164,6 +164,10 @@
   .btn:active{transform:scale(.97);}
   .btn-primary{background:linear-gradient(135deg,var(--accent-1) 0%,var(--accent-2) 55%,var(--accent-3) 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(17,17,17,.5);}
   .btn-mango{background:linear-gradient(135deg,var(--mango) 0%,#FF9A4D 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(255,122,26,.5);}
+  /* Couleur bleu pur unique (sans dégradé) réservée aux boutons « Aperçu client » et
+     « Contacter le vendeur ». Volontairement séparée de .btn-mango pour ne pas changer
+     les autres boutons de l'app qui utilisent ce style orange/noir. */
+  .btn-pure-blue{background:#1C7EF2;color:#fff;box-shadow:0 10px 22px -8px rgba(28,126,242,.5);}
   .btn-block{width:100%;}
   .btn-ghost{background:var(--panel);color:var(--text);}
   .btn-outline{background:#fff;border:1.5px solid var(--gray-cancel-tint);color:var(--gray-cancel);}
@@ -9873,7 +9877,7 @@ Views.boutique = function(){
         <button class="btn btn-outline" onclick="copyLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V6a2 2 0 0 1 2-2h9" stroke="currentColor" stroke-width="1.7"/></svg>Copier le lien</button>
         <button class="btn btn-outline" onclick="shareLink()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v10m0-10 4 4m-4-4-4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Partager</button>
       </div>
-      <button class="btn btn-mango btn-block" onclick="openStorePreview()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="#fff" stroke-width="1.7"/></svg>Aperçu client</button>
+      <button class="btn btn-pure-blue btn-block" onclick="openStorePreview()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="#fff" stroke-width="1.7"/></svg>Aperçu client</button>
     </div>
   </div>
 
@@ -10579,7 +10583,7 @@ Views['shop-help'] = function(){
   <div class="help-contact-card">
     <h4>Vous ne trouvez pas de réponse ?</h4>
     <p>Notre équipe vous répond directement sur WhatsApp.</p>
-    <button class="btn btn-mango btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="#fff"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter le vendeur</button>
+    <button class="btn btn-pure-blue btn-block" onclick="openWhatsapp()"><svg width="16" height="16" viewBox="0 0 448 512" fill="#fff"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg>Contacter le vendeur</button>
   </div>
   <div style="height:12px;"></div>
   `;
@@ -13928,7 +13932,7 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
 .v40-promo-copy b{font-size:23px;line-height:1.05;margin-top:8px;max-width:75%}.v40-promo-copy span{font-size:11px;margin-top:6px;max-width:70%;opacity:.92;line-height:1.35}
 .v40-promo-dots{position:absolute;bottom:9px;left:0;right:0;display:flex;justify-content:center;gap:5px}.v40-promo-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.55)}.v40-promo-dot.active{width:18px;border-radius:8px;background:#fff}
 .v40-category-row{display:flex;gap:14px;overflow-x:auto;padding:3px 20px 12px;scrollbar-width:none}.v40-category-row::-webkit-scrollbar{display:none}
-.v40-category-item{flex:0 0 72px;text-align:center;cursor:pointer;touch-action:manipulation}.v40-category-img{width:68px;height:68px;border-radius:50%;overflow:hidden;background:var(--panel);border:1px solid var(--line);box-shadow:0 4px 12px rgba(20,40,80,.07);margin:auto;display:grid;place-items:center}.v40-category-img img{width:100%;height:100%;object-fit:cover}.v40-category-item span{display:block;margin-top:7px;font-size:10.5px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v40-category-item{flex:0 0 72px;text-align:center;cursor:pointer;touch-action:manipulation}.v40-category-img{width:68px;height:68px;border-radius:50%;overflow:hidden;background:var(--panel);border:1px solid var(--line);box-shadow:0 4px 12px rgba(20,40,80,.07);margin:auto;display:grid;place-items:center}.v40-category-img img{width:100%;height:100%;object-fit:cover}.v40-cat-auto-ico{width:100%;height:100%;display:grid;place-items:center}.v40-category-item span{display:block;margin-top:7px;font-size:10.5px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v40-client-profile-photo{width:92px;height:92px;border-radius:50%;overflow:hidden;background:var(--panel);border:2px solid #fff;box-shadow:0 5px 18px rgba(20,40,80,.12);position:relative;margin:0 auto 9px}.v40-client-profile-photo img{width:100%;height:100%;object-fit:cover}.v40-client-photo-btn{display:flex;justify-content:center;margin-bottom:14px}.v40-client-photo-btn button{border:0;background:var(--indigo-tint);color:var(--indigo);border-radius:999px;padding:8px 13px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
 .v40-profile-photo-note{text-align:center;color:var(--text-soft);font-size:9.5px;margin:-7px 0 12px}
 .v40-promo-entry{display:flex;gap:9px;margin-top:7px}.v40-promo-entry input{flex:1;min-width:0;min-height:50px;padding:0 14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;font:inherit;font-size:16px;text-transform:uppercase;pointer-events:auto;touch-action:manipulation}.v40-promo-entry button{min-width:98px;min-height:50px;border:0;border-radius:14px;background:var(--indigo);color:#fff;font:inherit;font-weight:800;cursor:pointer;touch-action:manipulation}
@@ -13943,6 +13947,56 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
     if(custom) return custom;
     const p=(Store.products||[]).find(x=>String(x.category||'')===String(name) && (x.photo || (x.photos&&x.photos[0])));
     return p ? (p.photo || p.photos[0]) : '';
+  }
+  /* ---------- Visuels de catégorie « déjà intégrés » ----------
+     Tant qu'aucune photo n'est définie pour une catégorie (photo personnalisée ou photo
+     du premier produit qu'elle contient), on affiche une icône illustrée + une couleur au
+     lieu du pictogramme gris générique. Une bibliothèque d'icônes couvre les catégories
+     les plus courantes d'une boutique (mode, chaussures, sacs, montres, bijoux, électronique,
+     etc.). Si le nom d'une catégorie ne correspond à aucune icône connue (ex : nouvelle
+     catégorie créée par le vendeur), un visuel est généré automatiquement : une couleur et
+     une lettre déterminées à partir du nom, toujours identiques pour la même catégorie —
+     aucune intervention manuelle n'est nécessaire quand une catégorie est ajoutée.
+  */
+  function catKey(name){
+    return String(name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+  }
+  const CATEGORY_VISUALS=[
+    {match:['vetement','mode','habit','pret a porter','robe','chemise'],bg:'#EAF1FF',fg:'#2E63E8',icon:'<path d="M9 4 12 6l3-2 4 3-2 3-2-1v9a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-9l-2 1-2-3 4-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>'},
+    {match:['chaussure','basket','sneaker','sandale'],bg:'#FFF3E0',fg:'#D9770A',icon:'<path d="M3 17c0-2 1.5-3 3-3l3-4 2 2 3-1 4 3c1.5 1 3 1.8 3 3v1H3v-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3 17h18" stroke="currentColor" stroke-width="1.7"/>'},
+    {match:['sac','maroquinerie','bagagerie','valise'],bg:'#F3E8FF',fg:'#8B34D6',icon:'<path d="M7 9V7a5 5 0 0 1 10 0v2" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="9" width="16" height="12" rx="2.2" stroke="currentColor" stroke-width="1.7"/>'},
+    {match:['montre','horlogerie'],bg:'#E9FBF3',fg:'#12946A',icon:'<circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="1.7"/><path d="M12 9v3l2 1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9 3h6M9 21h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
+    {match:['bijou','accessoire','joaillerie'],bg:'#FDF0F6',fg:'#C22A78',icon:'<path d="m12 3 3 4H9l3-4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 9h16l-8 11L4 9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'},
+    {match:['electronique','tv','television','high tech','hightech'],bg:'#EAF3FF',fg:'#1665C4',icon:'<rect x="4" y="5" width="16" height="11" rx="1.6" stroke="currentColor" stroke-width="1.7"/><path d="M9 20h6M12 16v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
+    {match:['telephone','telephonie','smartphone','portable','gsm'],bg:'#EFFAF0',fg:'#1E9E4E',icon:'<rect x="7" y="3" width="10" height="18" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M11 18h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
+    {match:['beaute','cosmetique','parfum','maquillage'],bg:'#FFF0F4',fg:'#D6336C',icon:'<path d="M10 2h4v4h-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 6h6l1 4v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V10l1-4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'},
+    {match:['maison','deco','meuble','ameublement'],bg:'#FFF7E6',fg:'#B8790F',icon:'<path d="M4 11 12 4l8 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.7"/>'},
+    {match:['sport','fitness','musculation'],bg:'#EAFBF1',fg:'#0E9A54',icon:'<path d="M3 12h3m12 0h3M6 8v8m12-8v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M8 12h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
+    {match:['alimentation','epicerie','nourriture','boisson'],bg:'#FFF4E9',fg:'#C2660D',icon:'<path d="M12 3c2 2 3 4 3 6a3 3 0 1 1-6 0c0-2 1-4 3-6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
+    {match:['enfant','bebe','jouet'],bg:'#FFF0EF',fg:'#E0522F',icon:'<circle cx="12" cy="7" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M5 21c1-4 3.5-6 7-6s6 2 7 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
+    {match:['informatique','ordinateur','pc','laptop'],bg:'#EEF1FF',fg:'#4A3FD1',icon:'<rect x="4" y="5" width="16" height="10" rx="1.6" stroke="currentColor" stroke-width="1.7"/><path d="M2 19h20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
+    {match:['livre','papeterie','librairie'],bg:'#F1F5FF',fg:'#3653C4',icon:'<path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21.5v-16Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'},
+    {match:['auto','moto','vehicule','voiture'],bg:'#EAF6FF',fg:'#1279B8',icon:'<path d="M4 16v-3l2-4h12l2 4v3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M4 16h16v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="7.5" cy="16" r="1.3" fill="currentColor"/><circle cx="16.5" cy="16" r="1.3" fill="currentColor"/>'},
+    {match:['sante','pharmacie','bien etre'],bg:'#FFF0F0',fg:'#D6303E',icon:'<path d="M12 21s-7-4.5-9.3-9A5.2 5.2 0 0 1 12 6.5 5.2 5.2 0 0 1 21.3 12c-2.3 4.5-9.3 9-9.3 9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12h2v-2h2v2h2v2h-2v2h-2v-2H9v-2Z" fill="currentColor"/>'},
+    {match:['jardin','plante'],bg:'#EEFBF0',fg:'#189A4B',icon:'<path d="M12 21V9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M12 9c0-4-3-6-7-6 0 4 3 6 7 6Zm0 0c0-4 3-6 7-6 0 4-3 6-7 6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'}
+  ];
+  const CATEGORY_AUTO_PALETTE=[{bg:'#EAF1FF',fg:'#2E63E8'},{bg:'#EEFBF0',fg:'#189A4B'},{bg:'#FFF3E0',fg:'#D9770A'},{bg:'#F3E8FF',fg:'#8B34D6'},{bg:'#FDF0F6',fg:'#C22A78'},{bg:'#EAF6FF',fg:'#1279B8'},{bg:'#FFF7E6',fg:'#B8790F'},{bg:'#F1F5FF',fg:'#3653C4'}];
+  function categoryFallbackVisual(name){
+    const key=catKey(name);
+    const found=CATEGORY_VISUALS.find(v=>v.match.some(m=>key.includes(m)));
+    if(found) return found;
+    let h=0; for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
+    const c=CATEGORY_AUTO_PALETTE[h%CATEGORY_AUTO_PALETTE.length];
+    const letter=(String(name||'?').trim()[0]||'?').toUpperCase();
+    return {bg:c.bg,fg:c.fg,icon:null,letter};
+  }
+  function categoryTileHtml(name){
+    const photo=categoryImage(name);
+    if(photo) return `<img src="${esc(photo)}" alt="${esc(name)}">`;
+    const v=categoryFallbackVisual(name);
+    return v.icon
+      ? `<div class="v40-cat-auto-ico" style="background:${v.bg};color:${v.fg}"><svg width="26" height="26" viewBox="0 0 24 24" fill="none">${v.icon}</svg></div>`
+      : `<div class="v40-cat-auto-ico" style="background:${v.bg};color:${v.fg};font-weight:850;font-size:22px;">${esc(v.letter)}</div>`;
   }
   function activePromos(){
     return (Store.promos||[]).map(p=>PromoLocal.merge(p)).filter(p=>p.active!==false && (!p.maxUses || Number(p.usedCount||0)<Number(p.maxUses||0)));
@@ -13981,7 +14035,7 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
     </div>
     <div class="search-wrap" style="padding-top:14px;"><div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="home-search" type="text" placeholder="Rechercher un produit..." oninput="renderHomeGrid()"></div></div>
     ${slides.length?`<div class="v40-promo-carousel" id="v40-promo-carousel"><div class="v40-promo-track" id="v40-promo-track">${slides.join('')}</div><div class="v40-promo-dots" id="v40-promo-dots">${slides.map((_,i)=>`<span class="v40-promo-dot ${i===0?'active':''}"></span>`).join('')}</div></div>`:''}
-    ${cats.length?`<div class="home-section-row"><h3>Catégories</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div><div class="v40-category-row">${cats.slice(0,10).map(c=>{const im=categoryImage(c);return `<div class="v40-category-item" onclick="Router.go('shop-categories',{cat:decodeURIComponent('${encodeURIComponent(c)}')})"><div class="v40-category-img">${im?`<img src="${esc(im)}" alt="${esc(c)}">`:`<span style="font-size:22px;color:var(--text-soft);">▦</span>`}</div><span>${esc(c)}</span></div>`}).join('')}</div>`:''}
+    ${cats.length?`<div class="home-section-row"><h3>Catégories</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div><div class="v40-category-row">${cats.slice(0,10).map(c=>`<div class="v40-category-item" onclick="Router.go('shop-categories',{cat:decodeURIComponent('${encodeURIComponent(c)}')})"><div class="v40-category-img">${categoryTileHtml(c)}</div><span>${esc(c)}</span></div>`).join('')}</div>`:''}
     <div class="home-section-row"><h3 id="home-grid-title">Nouveautés</h3><button class="link-btn" onclick="Router.go('shop-categories')">Voir tout ›</button></div>
     <div id="home-empty" class="hidden">${EmptyState(ICONS.box,'Boutique vide',"Cette boutique n'a pas encore de produits.")}</div><div id="home-grid" class="home-grid"></div>
     <div class="fab hidden" id="cart-bar" style="left:20px;right:20px;bottom:24px;max-width:440px;"><button class="btn btn-mango btn-block" onclick="Router.go('cart')" style="justify-content:space-between;"><span style="display:flex;align-items:center;gap:8px;">${ICONS.cart.replace('30','18').replace('30','18')} Voir le panier</span><span id="cart-bar-amount"></span></button></div>`;
@@ -15340,18 +15394,36 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
 <style id="maboutique-v57-popups-style">
 .v57-popup-overlay{position:fixed;inset:0;background:rgba(10,10,20,.55);z-index:120;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .22s ease}
 .v57-popup-overlay.show{opacity:1;pointer-events:auto}
-.v57-popup-card{background:#fff;border-radius:22px;max-width:400px;width:100%;max-height:86vh;overflow-y:auto;position:relative;box-shadow:0 30px 60px -20px rgba(0,0,0,.4)}
+.v57-popup-card{background:#fff;border-radius:22px;max-width:400px;width:100%;max-height:86vh;overflow-y:auto;position:relative;box-shadow:0 30px 60px -20px rgba(0,0,0,.4);transform:scale(.92) translateY(10px);opacity:0;transition:transform .28s cubic-bezier(.2,.9,.25,1.15),opacity .22s ease}
+.v57-popup-overlay.show .v57-popup-card{transform:scale(1) translateY(0);opacity:1}
 .v57-popup-close{position:absolute;right:12px;top:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;border:none;display:grid;place-items:center;font-size:15px;cursor:pointer;z-index:3}
-.v57-pending-hero{background:linear-gradient(135deg,var(--mango),var(--mango-dark));padding:28px 22px 22px;border-radius:22px 22px 0 0;color:#fff;text-align:center}
-.v57-pending-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);padding:6px 12px;border-radius:999px;font-size:10.5px;font-weight:850;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
-.v57-pending-hero h2{margin:0;font-size:20px;line-height:1.25}
-.v57-pending-hero p{margin:8px 0 0;font-size:12.5px;opacity:.92;line-height:1.4}
-.v57-trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:18px 18px 4px}
+/* Le dégradé reprend exactement celui du bouton principal (var(--accent-*)) pour que le
+   bandeau et le CTA « SUIVRE MA COMMANDE » restent toujours assortis, quel que soit le
+   thème actif (noir/orange). Auparavant le bandeau utilisait --mango, qui est noir dans
+   ce thème, ce qui créait un décalage avec le bouton orange en bas de la popup. */
+.v57-pending-hero{background:linear-gradient(135deg,var(--accent-1) 0%,var(--accent-2) 55%,var(--accent-3) 100%);padding:30px 22px 24px;border-radius:22px 22px 0 0;color:#fff;text-align:center;position:relative;overflow:hidden}
+.v57-pending-hero::before{content:'';position:absolute;top:-40%;right:-20%;width:70%;padding-bottom:70%;border-radius:50%;background:rgba(255,255,255,.10);pointer-events:none}
+.v57-pending-hero::after{content:'';position:absolute;bottom:-45%;left:-15%;width:55%;padding-bottom:55%;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
+.v57-pending-icon{position:relative;width:52px;height:52px;margin:0 auto 12px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center}
+.v57-pending-badge{position:relative;display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.22);padding:6px 13px;border-radius:999px;font-size:10.5px;font-weight:850;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
+.v57-pending-badge .dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:v57Pulse 1.4s ease-in-out infinite}
+@keyframes v57Pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+.v57-pending-hero h2{position:relative;margin:0;font-size:20px;line-height:1.25}
+.v57-pending-hero p{position:relative;margin:8px 0 0;font-size:12.5px;opacity:.92;line-height:1.4}
+.v57-order-summary{margin:16px 18px 0;padding:12px 14px;border-radius:14px;background:var(--panel);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.v57-order-summary span{font-size:11.5px;color:var(--text-mid);font-weight:650}
+.v57-order-summary b{font-size:16px;font-family:var(--font-mono)}
+.v57-trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 18px 4px}
 .v57-trust-item{display:flex;gap:9px;align-items:flex-start;padding:11px;border-radius:14px;background:var(--panel)}
-.v57-trust-ico{width:32px;height:32px;border-radius:10px;background:#fff;display:grid;place-items:center;font-size:15px;flex:none}
+.v57-trust-ico{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none}
+.v57-trust-item.blue .v57-trust-ico{background:var(--blue-tint);color:var(--blue)}
+.v57-trust-item.green .v57-trust-ico{background:var(--green-tint);color:var(--green)}
+.v57-trust-item.gold .v57-trust-ico{background:var(--gold-tint);color:var(--gold-dark)}
+.v57-trust-item.ruby .v57-trust-ico{background:var(--ruby-tint);color:var(--ruby)}
 .v57-trust-item b{display:block;font-size:11px}
 .v57-trust-item span{display:block;font-size:9.5px;color:var(--text-mid);margin-top:2px;line-height:1.3}
-.v57-popup-cta{margin:14px 18px 18px}
+.v57-popup-cta{margin:16px 18px 18px}
+.v57-popup-cta .btn{display:flex;align-items:center;justify-content:center;gap:8px}
 .v57-deals-head{display:flex;align-items:center;gap:8px;padding:18px 44px 10px 18px}
 .v57-deals-head b{font-size:14px}
 .v57-deals-track{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:14px;padding:0 18px 16px;scroll-padding-left:18px}
@@ -15378,15 +15450,23 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
 
   function openPendingOrderPopup(order){
     if(document.getElementById('v57-pending-popup'))return;
+    const itemsCount=(order.items||[]).reduce((n,it)=>n+(Number(it.qty)||1),0);
+    const summaryHtml=(order.items&&order.items.length)?`<div class="v57-order-summary"><span>${itemsCount} article${itemsCount>1?'s':''} commandé${itemsCount>1?'s':''}</span><b>${Utils.fmtFCFA(order.amount)}</b></div>`:'';
     const html=`<div id="v57-pending-popup" class="v57-popup-overlay" onclick="if(event.target===this)closeV57Popup('v57-pending-popup')"><div class="v57-popup-card"><button class="v57-popup-close" onclick="closeV57Popup('v57-pending-popup')">✕</button>
-      <div class="v57-pending-hero"><span class="v57-pending-badge">🕒 En attente</span><h2>Commande en attente de validation</h2><p>Le vendeur va bientôt confirmer votre commande #${esc(order.number)}.</p></div>
-      <div class="v57-trust-grid">
-        <div class="v57-trust-item"><div class="v57-trust-ico">🔒</div><div><b>Paiement sécurisé</b><span>Wave, OM, MTN, Moov ou cash</span></div></div>
-        <div class="v57-trust-item"><div class="v57-trust-ico">🚚</div><div><b>Livraison suivie</b><span>Statut mis à jour en temps réel</span></div></div>
-        <div class="v57-trust-item"><div class="v57-trust-ico">✔</div><div><b>Vendeur vérifié</b><span>Boutique active sur MA BOUTIQUE</span></div></div>
-        <div class="v57-trust-item"><div class="v57-trust-ico">💬</div><div><b>Support disponible</b><span>En cas de question sur la commande</span></div></div>
+      <div class="v57-pending-hero">
+        <div class="v57-pending-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8"/><path d="M12 7v5l3.2 2" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="v57-pending-badge"><span class="dot"></span>En attente</span>
+        <h2>Commande en attente de validation</h2>
+        <p>Le vendeur va bientôt confirmer votre commande #${esc(order.number)}.</p>
       </div>
-      <div class="v57-popup-cta"><button class="btn btn-primary btn-block" onclick="closeV57Popup('v57-pending-popup');Router.go('order-track',{id:'${esc(order.id)}'})">SUIVRE MA COMMANDE</button></div>
+      ${summaryHtml}
+      <div class="v57-trust-grid">
+        <div class="v57-trust-item blue"><div class="v57-trust-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2.2" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><div><b>Paiement sécurisé</b><span>Wave, OM, MTN, Moov ou cash</span></div></div>
+        <div class="v57-trust-item green"><div class="v57-trust-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7h11v9H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 10h4l3 3v3h-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="18" r="1.6" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="18" r="1.6" stroke="currentColor" stroke-width="1.6"/></svg></div><div><b>Livraison suivie</b><span>Statut mis à jour en temps réel</span></div></div>
+        <div class="v57-trust-item gold"><div class="v57-trust-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m12 3 2.3 1.3 2.6-.3 1 2.4 2.4 1-.3 2.6L21 12l-1.3 2.3.3 2.6-2.4 1-1 2.4-2.6-.3L12 21l-2.3-1.3-2.6.3-1-2.4-2.4-1 .3-2.6L3 12l1.3-2.3-.3-2.6 2.4-1 1-2.4 2.6.3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m8.5 12.3 2.2 2.2 4.3-4.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><b>Vendeur vérifié</b><span>Boutique active sur MA BOUTIQUE</span></div></div>
+        <div class="v57-trust-item ruby"><div class="v57-trust-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v10H9l-4 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10h8M8 13h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div><div><b>Support disponible</b><span>En cas de question sur la commande</span></div></div>
+      </div>
+      <div class="v57-popup-cta"><button class="btn btn-primary btn-block" onclick="closeV57Popup('v57-pending-popup');Router.go('order-track',{id:'${esc(order.id)}'})">SUIVRE MA COMMANDE<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
     </div></div>`;
     document.body.insertAdjacentHTML('beforeend',html);
     requestAnimationFrame(()=>document.getElementById('v57-pending-popup')?.classList.add('show'));
