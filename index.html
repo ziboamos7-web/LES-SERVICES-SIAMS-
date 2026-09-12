@@ -1365,7 +1365,7 @@
 
 
 /* ---------- UX/UI Premium — Statistiques V11 ---------- */
-.stats-premium-intro{padding:4px 20px 14px}.stats-premium-intro .eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:5px}.stats-premium-intro h2{margin:0;font-size:25px;letter-spacing:-.035em}.stats-premium-intro p{margin:5px 0 0;color:var(--text-mid);font-size:12.5px}.stats-export{padding:0 20px 12px}.stats-export .btn{min-height:44px}.stats-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 20px 12px}.stats-kpi{border:1px solid var(--line);border-radius:17px;background:var(--panel);padding:14px;box-shadow:0 6px 20px rgba(20,40,80,.055)}.stats-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.045em;color:var(--text-mid);font-weight:800}.stats-kpi .val{font-family:var(--font-mono);font-size:19px;font-weight:850;margin-top:7px;color:var(--ink)}.stats-kpi.primary{background:linear-gradient(135deg,var(--indigo),var(--blue));color:#fff;border-color:transparent}.stats-kpi.primary .lbl,.stats-kpi.primary .val{color:#fff}.stats-section{margin:0 20px 10px;padding:15px;background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 20px rgba(20,40,80,.05)}.stats-section .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.stats-section .section-head h4{margin:0;font-size:14px}.stats-section .section-head span{font-size:10.5px;color:var(--text-mid)}.stats-insights{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stats-insight{padding:10px;border-radius:12px;background:var(--soft)}.stats-insight .n{font-family:var(--font-mono);font-weight:850;font-size:15px}.stats-insight .t{font-size:9.5px;color:var(--text-mid);margin-top:3px}.stats-chart-wrap{overflow:hidden}.stats-bottom{height:24px}@media(max-width:380px){.stats-premium-intro,.stats-export,.stats-kpis{padding-left:14px;padding-right:14px}.stats-section{margin-left:14px;margin-right:14px}.stats-insights{gap:5px}}
+.stats-premium-intro{padding:4px 20px 14px}.stats-premium-intro .eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:5px}.stats-premium-intro h2{margin:0;font-size:25px;letter-spacing:-.035em}.stats-premium-intro p{margin:5px 0 0;color:var(--text-mid);font-size:12.5px}.stats-export{padding:0 20px 12px}.stats-export .btn{min-height:44px}.stats-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 20px 12px}.stats-kpi{border:1px solid var(--line);border-radius:17px;background:var(--panel);padding:14px;box-shadow:0 6px 20px rgba(20,40,80,.055)}.stats-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.045em;color:var(--text-mid);font-weight:800}.stats-kpi .val{font-family:var(--font-mono);font-size:19px;font-weight:850;margin-top:7px;color:var(--ink)}.stats-kpi.primary{background:linear-gradient(135deg,var(--ink) 0%,var(--gold-dark) 55%,var(--gold) 100%);color:#fff;border-color:transparent;box-shadow:0 12px 28px -10px rgba(156,111,31,.45)}.stats-kpi.primary .lbl,.stats-kpi.primary .val{color:#fff}.stats-kpi .ico{font-size:13px;margin-right:5px;vertical-align:-1px}.stats-section{margin:0 20px 10px;padding:15px;background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 20px rgba(20,40,80,.05)}.stats-section .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.stats-section .section-head h4{margin:0;font-size:14px}.stats-section .section-head span{font-size:10.5px;color:var(--text-mid)}.stats-insights{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stats-insight{padding:10px;border-radius:12px;background:var(--soft)}.stats-insight .n{font-family:var(--font-mono);font-weight:850;font-size:15px}.stats-insight .t{font-size:9.5px;color:var(--text-mid);margin-top:3px}.stats-chart-wrap{overflow:hidden}.stats-bottom{height:24px}@media(max-width:380px){.stats-premium-intro,.stats-export,.stats-kpis{padding-left:14px;padding-right:14px}.stats-section{margin-left:14px;margin-right:14px}.stats-insights{gap:5px}}
 
 
 /* ---------- UX/UI Premium — Promotions V12 ---------- */
@@ -2377,6 +2377,7 @@ const Cloud = {
     }
     if(!payRes.data || !payRes.data.length){
       jobs.push(sb.from('payment_methods').insert([
+        {store_id:sid, method_key:'siamsbanque', enabled:false, number:null},
         {store_id:sid, method_key:'wave', enabled:false, number:''},
         {store_id:sid, method_key:'om', enabled:false, number:''},
         {store_id:sid, method_key:'mtn', enabled:false, number:''},
@@ -2448,7 +2449,7 @@ const Cloud = {
     _cache.team = (teamRes.data||[]).map(t=>({id:t.id, name:t.name, phone:t.phone, role:t.role, status:t.status}));
     const payArr = payRes.data || [];
     const findPay = k => { const r = payArr.find(x=>x.method_key===k); return r ? {enabled:r.enabled, number:r.number||'', link:r.link||'', validated:(!!r.validated || !!r.number), validatedAt:r.validated_at?new Date(r.validated_at).getTime():0} : {enabled:k==='cash', number:'', link:'', validated:false, validatedAt:0}; };
-    _cache.payment = { wave:findPay('wave'), om:findPay('om'), mtn:findPay('mtn'), moov:findPay('moov'), cash:{enabled:findPay('cash').enabled} };
+    _cache.payment = { siamsbanque:{enabled:(payArr.find(x=>x.method_key==='siamsbanque')||{}).enabled||false}, wave:findPay('wave'), om:findPay('om'), mtn:findPay('mtn'), moov:findPay('moov'), cash:{enabled:findPay('cash').enabled} };
     _cache.deliveryZones = (zoneRes.data||[]).map(z=>({name:z.name, fee:z.fee}));
     _cache.promos = (promoRes.data||[]).map(p=>({id:p.id, code:p.code, type:p.type, value:p.value, active:p.active, maxUses:Number(p.max_uses||0), usedCount:Number(p.used_count||0), createdAt:new Date(p.created_at).getTime()}));
     PromoLocal.load(); _cache.promos = _cache.promos.map(p=>PromoLocal.merge(p));
@@ -2709,7 +2710,7 @@ const Cloud = {
   },
 
   async pushPayment(prev, next){
-    const rows = ['wave','om','mtn','moov','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null, link:next[k].link||null, validated:!!next[k].validated, validated_at:next[k].validatedAt?new Date(next[k].validatedAt).toISOString():null}));
+    const rows = ['siamsbanque','wave','om','mtn','moov','cash'].map(k=>({store_id:this.storeId, method_key:k, enabled:!!next[k].enabled, number:next[k].number||null, link:next[k].link||null, validated:!!next[k].validated, validated_at:next[k].validatedAt?new Date(next[k].validatedAt).toISOString():null}));
     const {error} = await sb.from('payment_methods').upsert(rows, {onConflict:'store_id,method_key'});
     if(error) throw error;
   },
@@ -2927,7 +2928,7 @@ const Cloud = {
 /* ---------------- In-memory cache (remplace localStorage) ---------------- */
 let _cache = {
   products:[], orders:[], team:[], couriers:[], courierAssignments:[],
-  payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}},
+  payment:{siamsbanque:{enabled:false},wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}},
   categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[],
   store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:'',verification:{status:'none',docType:'',docUrl:null,photoUrl:null,submittedAt:0,verified:false,verifiedAt:0,rejectReason:''}}
 };
@@ -3359,7 +3360,7 @@ function checkRevenueMilestones(){
 
 /* ==================== Couleurs d'application déblocables par formule ==================== */
 const TIER_COLORS = { free:'#009688', doyen:'#6D28D9', doya:'#A67C00', all:'#8E1537', platinum:'#D7263D', golden:'#B8860B' };
-const TIER_THEME_LABELS = { free:'BON MOOD', doyen:'DOYEN', doya:'DOYA', all:'TOUTE BOUTIQUE', platinum:'PLATINE', golden:'GOLDEN' };
+const TIER_THEME_LABELS = { free:'BON MOOD', doyen:'DOYEN', doya:'DOYA', all:'TOUTE BOUTIQUE', platinum:'ULTRA', golden:'GOLDEN' };
 function hexToRgb(hex){ const h=hex.replace('#',''); return { r:parseInt(h.substring(0,2),16), g:parseInt(h.substring(2,4),16), b:parseInt(h.substring(4,6),16) }; }
 function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
 function mixColor(hex, target, amount){ const a=hexToRgb(hex), b=hexToRgb(target); return rgbToHex(a.r+(b.r-a.r)*amount, a.g+(b.g-a.g)*amount, a.b+(b.b-a.b)*amount); }
@@ -3815,7 +3816,7 @@ const Auth = {
     await sb.auth.signOut();
     Auth.loggedIn = false;
     OtpGate.reset();
-    _cache = { products:[], orders:[], team:[], payment:{wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:'',verification:{status:'none',docType:'',docUrl:null,photoUrl:null,submittedAt:0,verified:false,verifiedAt:0,rejectReason:''}} };
+    _cache = { products:[], orders:[], team:[], payment:{siamsbanque:{enabled:false},wave:{enabled:false,number:'',link:'',validated:false},om:{enabled:false,number:'',link:'',validated:false},mtn:{enabled:false,number:'',link:'',validated:false},moov:{enabled:false,number:'',link:'',validated:false},cash:{enabled:true}}, categories:[], promos:[], reviews:[], notifications:[], deliveryZones:[], menuItems:[], store:{name:'Ma boutique',phone:'',slug:'',photo:null,banner:null,description:'',address:'',email:'',hours:'',loginId:'',verification:{status:'none',docType:'',docUrl:null,photoUrl:null,submittedAt:0,verified:false,verifiedAt:0,rejectReason:''}} };
     Cloud.storeId = null; Cloud.loginId = null; Cloud.publicMode = false; Cloud._orderWritePromises = Object.create(null);
     Router.go('login');
   }
@@ -4765,7 +4766,7 @@ function VerifiedBadge(size, plan){
   size = size || 16;
   /* ---- Récapitulatif des badges par formule (façon Meta) :
      BON MOOD → aucun badge · DOYEN → badge noir · DOYA → badge bleu ·
-     TOUTE BOUTIQUE → badge bordeaux · PLATINE → badge rouge · GOLDEN → badge doré exclusif ---- */
+     TOUTE BOUTIQUE → badge bordeaux · ULTRA → badge rouge · GOLDEN → badge doré exclusif ---- */
   const color = plan==='golden' ? '#F0C24B' : plan==='platinum' ? '#D7263D' : plan==='all' ? '#8E1537' : plan==='doya' ? '#0091FD' : '#0B0E17';
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" style="flex:none;vertical-align:middle;">
     <path d="M12 1.3 14.7 3.8 18.3 3.1 19.1 6.7 22.3 8.5 20.7 12 22.3 15.5 19.1 17.3 18.3 20.9 14.7 20.2 12 22.7 9.3 20.2 5.7 20.9 4.9 17.3 1.7 15.5 3.3 12 1.7 8.5 4.9 6.7 5.7 3.1 9.3 3.8 12 1.3Z" fill="${color}"/>
@@ -5030,14 +5031,14 @@ function getContractArticles(){
     ]},
     { num:7, title:"Conditions tarifaires à l'issue du délai", blocks:[
       { type:'p', text:`À l'issue de la période d'essai de 20 jours et du délai de régularisation de 3 jours, l'Utilisateur qui souhaite poursuivre l'utilisation de l'Application s'engage à régler la moitié (50%) du montant du Pass « Toute Boutique », dont le tarif plein est fixé à ${Utils.fmtFCFA(allPlan.price)}, soit un montant de ${Utils.fmtFCFA(half)}.` },
-      { type:'p', text:"Pendant cette phase de paiement à moitié tarif, SIAMS prélève, en plus de ce montant, une commission de 10% (dix pour cent) du montant total de chaque commande vendue par l'Utilisateur via l'Application, en remplacement du taux de 5% applicable pendant la période d'essai (Article 5)." }
+      { type:'p', text:"Pendant cette phase de paiement à moitié tarif, SIAMS prélève, en plus de ce montant, une commission réduite de 5% (cinq pour cent) du montant total de chaque commande vendue par l'Utilisateur via l'Application, soit un taux identique à celui applicable pendant la période d'essai (Article 5)." }
     ]},
     { num:8, title:"Absence de commission pendant l'abonnement (Pass payant)", blocks:[
       { type:'p', text:"À compter de l'activation d'un Pass payant (formule d'abonnement souscrite conformément à l'Article 7), SIAMS ne prélève plus aucune commission sur les commandes vendues par l'Utilisateur via l'Application. Seul le montant de l'abonnement reste dû." },
       { type:'p', text:"Cette absence de commission s'applique à compter de l'activation du Pass et pendant toute la durée de l'abonnement, en remplacement des taux applicables pendant la période d'essai (Article 5) et, le cas échéant, pendant la phase de régularisation à moitié tarif (Article 7)." }
     ]},
     { num:9, title:'Modalités de paiement', blocks:[
-      { type:'p', text:"Le paiement du Pass et des commissions dues s'effectue selon les modalités communiquées par SIAMS (Wave, Orange Money, MTN Money ou virement bancaire). La preuve de paiement est transmise à SIAMS par e-mail ou WhatsApp, en vue de l'activation ou du renouvellement de l'accès." },
+      { type:'p', text:"Le paiement du Pass et des commissions dues s'effectue selon les modalités communiquées par SIAMS (Wave ou Djamo). La preuve de paiement est transmise à SIAMS par e-mail ou WhatsApp, en vue de l'activation ou du renouvellement de l'accès." },
       { type:'p', text:"Toute somme non réglée à son échéance pourra entraîner la suspension temporaire de l'accès de l'Utilisateur à l'Application, après notification préalable." }
     ]},
     { num:10, title:"Obligations de l'Utilisateur", blocks:[
@@ -5103,30 +5104,46 @@ function getCommissionApercuItems(){
   const allPlan = SUBSCRIPTION_PLANS.find(p=>p.key==='all') || {price:6000};
   const half = Math.round(allPlan.price/2);
   return [
-    { badge:'Très important', title:"Pendant l'essai gratuit de 20 jours", rate:'5%',
-      text:"MA BOUTIQUE prélève une commission de 5% (cinq pour cent) sur le montant total de chaque commande vendue via l'Application, sans seuil minimum, pendant toute la période d'essai de 20 jours (Article 5 du contrat)." },
-    { badge:'Très important', title:'Après activation de votre Pass (abonnement)', rate:'0%',
-      text:"À compter de l'activation d'un Pass payant, MA BOUTIQUE ne prélève plus aucune commission sur vos ventes. Seul le montant de l'abonnement reste dû (Article 8 du contrat)." },
-    { badge:'Très important', title:`Si vous choisissez de régler la moitié du Pass « Toute Boutique »`, rate:'10%',
-      text:`Si, à l'issue du délai de régularisation, vous réglez la moitié (50%) du montant du Pass « Toute Boutique » (soit ${Utils.fmtFCFA(half)} sur un tarif plein de ${Utils.fmtFCFA(allPlan.price)}), MA BOUTIQUE prélève alors une commission de 10% (dix pour cent) sur chaque commande, en remplacement du taux de 5% de la période d'essai (Article 7 du contrat).` }
+    { kind:'critical', icon:'🎁', badge:'Très important', title:"Pendant l'essai gratuit de 20 jours", rate:'5%', article:5,
+      text:"MA BOUTIQUE prélève une commission de 5% (cinq pour cent) sur le montant total de chaque commande vendue via l'Application, sans seuil minimum, pendant toute la période d'essai de 20 jours." },
+    { kind:'critical', icon:'✅', badge:'Très important', title:'Après activation de votre Pass (abonnement)', rate:'0%', article:8,
+      text:"À compter de l'activation d'un Pass payant, MA BOUTIQUE ne prélève plus aucune commission sur vos ventes. Seul le montant de l'abonnement reste dû." },
+    { kind:'critical', icon:'💳', badge:'Très important', title:`Si vous choisissez de régler la moitié du Pass « Toute Boutique »`, rate:'5%', article:7,
+      text:`Si, à l'issue du délai de régularisation, vous réglez la moitié (50%) du montant du Pass « Toute Boutique » (soit ${Utils.fmtFCFA(half)} sur un tarif plein de ${Utils.fmtFCFA(allPlan.price)}), MA BOUTIQUE applique une commission réduite de 5% (cinq pour cent) sur chaque commande — le même taux que pendant l'essai gratuit.` },
+    { kind:'info', icon:'⏰', badge:'Bon à savoir', title:"Délai de régularisation de 3 jours", rate:null, article:6,
+      text:"À la fin des 20 jours d'essai, vous disposez de 3 jours supplémentaires pour commencer le paiement de votre Pass. Passé ce délai sans début de paiement, votre accès à l'Application peut être suspendu ou restreint." },
+    { kind:'info', icon:'📱', badge:'Bon à savoir', title:'Comment régler votre Pass et vos commissions', rate:null, article:9,
+      text:"Le paiement se fait par Wave ou Djamo. Envoyez toujours votre preuve de paiement par e-mail ou WhatsApp à SIAMS pour l'activation ou le renouvellement de votre accès." },
+    { kind:'info', icon:'📢', badge:'Bon à savoir', title:'Changement de tarifs ou de commissions', rate:null, article:17,
+      text:"SIAMS peut faire évoluer les tarifs ou taux de commission, mais doit vous en informer au moins 7 jours avant leur entrée en vigueur. Continuer à utiliser l'Application après ce délai vaut acceptation des nouvelles conditions." },
+    { kind:'info', icon:'🔚', badge:'Bon à savoir', title:'Suspension ou fin de contrat', rate:null, article:16,
+      text:"Vous pouvez résilier à tout moment, sous réserve de régler les sommes dues. SIAMS peut suspendre ou clôturer un compte en cas de manquement grave, après une mise en demeure restée sans réponse." }
   ];
 }
 Views['commissions-apercu'] = function(){
   const items = getCommissionApercuItems();
-  return `${TopBar('Aperçu de mon contrat','Commissions applicables — les points importants')}
+  const styleFor = kind => kind==='critical'
+    ? {border:'var(--mango)', badgeBg:'var(--mango)', badgeColor:'#fff'}
+    : {border:'var(--indigo)', badgeBg:'var(--indigo-tint)', badgeColor:'var(--indigo)'};
+  return `${TopBar('Aperçu de mon contrat','Commissions et clauses utiles à connaître')}
   <div style="padding:16px 20px 28px;">
-    <div class="stats-card" style="margin-bottom:14px;background:var(--indigo-tint);border:1px solid var(--indigo);">
-      <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des principales clauses de commission de votre contrat MA BOUTIQUE, pour vous permettre de vous y référer rapidement. Il ne remplace pas le contrat complet, que vous pouvez télécharger en PDF ci-dessous.</div>
+    <div class="stats-card" style="margin-bottom:16px;background:var(--indigo-tint);border:1px solid var(--indigo);display:flex;gap:10px;align-items:flex-start;">
+      <span style="font-size:20px;flex:none;">📄</span>
+      <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des clauses les plus utiles au quotidien de votre contrat MA BOUTIQUE — commissions, délais et paiement. Il ne remplace pas le contrat complet, que vous pouvez télécharger en PDF ci-dessous.</div>
     </div>
-    ${items.map(it=>`
-      <div class="stats-card" style="margin-bottom:14px;border-left:4px solid var(--mango);">
+    ${items.map(it=>{
+      const s = styleFor(it.kind);
+      return `
+      <div class="stats-card" style="margin-bottom:12px;border-left:4px solid ${s.border};">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
-          <span style="background:var(--mango);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:999px;text-transform:uppercase;">${it.badge}</span>
-          <span class="mono" style="font-size:20px;font-weight:800;color:var(--indigo);">${it.rate}</span>
+          <span style="display:flex;align-items:center;gap:6px;background:${s.badgeBg};color:${s.badgeColor};font-size:10.5px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:999px;text-transform:uppercase;"><span>${it.icon}</span>${it.badge}</span>
+          ${it.rate?`<span class="mono" style="font-size:20px;font-weight:800;color:var(--indigo);">${it.rate}</span>`:''}
         </div>
         <h4 style="margin:0 0 6px;font-size:14.5px;">${Utils.escapeHtml(it.title)}</h4>
-        <p style="margin:0;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
-      </div>`).join('')}
+        <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
+        <span style="font-size:10.5px;color:var(--text-soft);font-weight:700;">Article ${it.article} du contrat</span>
+      </div>`;
+    }).join('')}
     <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
   </div>`;
 };
@@ -5511,15 +5528,88 @@ const MABOUTIQUE_RECEIPT_IDENTITY = {
 const PAYMENT_INFO = {
   djamoNumber: '0748964690',
   waveNumber: '0748964690',
-  waveUrl: 'https://pay.wave.com/m/REMPLACER_PAR_VOTRE_LIEN/c/ci/',
-  bankName: 'MA BOUTIQUE BANQUE',
-  cardNumber: '5273 7568 7418 6188',
+  waveUrl: 'https://pay.wave.com/m/M_ci_69kNlRz3-1G9/c/ci/',
+  /* ---- SIAMS BANQUE : réception sécurisée des paiements clients pour le compte
+     du marchand. Le lien Wave ci-dessous est celui de SIAMS (pas du marchand) :
+     l'argent y arrive en garde sécurisée, puis SIAMS reverse au marchand vers
+     Wave, Djamo ou Mobile Money sous 2h sur simple demande de retrait. ---- */
+  siamsBanqueWaveLink: 'https://pay.wave.com/m/M_ci_69kNlRz3-1G9/c/ci/',
   /* ---- Lien WhatsApp « contact client » MA BOUTIQUE : c'est ici que le vendeur envoie
      la capture d'écran de chaque paiement (mensuel ou journalier) pour validation. ---- */
   contactClientWaLink: 'https://wa.me/qr/CP2FDOBXXD74G1',
   /* ---- Lien WhatsApp « support client » MA BOUTIQUE : partenariat, contrat, identifiant oublié, etc. ---- */
-  supportClientWaLink: 'https://wa.me/message/G7UPF2ZGMLPLG1'
+  supportClientWaLink: 'https://wa.me/message/G7UPF2ZGMLPLG1',
+  /* ---- Liens de paiement Djamo, un par formule de Pass (générés depuis
+     l'app/dashboard Djamo pour le montant exact de chaque formule). Chaque
+     lien est à usage unique (un chargeId précis) : à régénérer côté
+     Djamo si besoin d'un nouveau lien pour la même formule. Clé = plan.key
+     (free, doyen, doya, all). Laissez vide tant que le lien n'a pas été
+     généré pour cette formule. ---- */
+  djamoLinks: {
+    free: 'https://p.djamo.com/payment-link/?type=payment_confirmation&chargeId=ba837ef7-77d7-4c00-8077-196b29da770c',
+    doyen: 'https://p.djamo.com/payment-link/?type=payment_confirmation&chargeId=41d820a7-4a3e-4947-9a4b-8080e367398d',
+    doya: 'https://p.djamo.com/payment-link/?type=payment_confirmation&chargeId=ee15b45b-f881-4f76-a453-bd2ed91d22b6',
+    all: 'https://p.djamo.com/payment-link/?type=payment_confirmation&chargeId=9471da87-684b-48bb-80ec-0b8d9c16b75d',
+    platinum: 'https://p.djamo.com/payment-link/?type=payment_confirmation&chargeId=707bcd94-cd41-4b94-9645-7183e951abe3'
+  }
 };
+
+/* =========================================================================
+   CANAUX DE PAIEMENT DU PASS (abonnement) — Wave et Djamo uniquement
+   -------------------------------------------------------------------------
+   Ce bloc centralise les moyens de paiement acceptés pour régler le Pass
+   (et la commission d'essai) : Wave et Djamo. Chaque canal ouvre
+   directement l'app de paiement avec le numéro ou le lien déjà pré-rempli.
+
+   ⚠️ À COMPLÉTER PAR LE MARCHAND avant mise en production :
+   - PAYMENT_INFO.waveUrl : lien marchand Wave (gratuit, généré depuis l'app
+     Wave Business ou le lien « Recevoir de l'argent » de votre compte Wave).
+   - PAYMENT_INFO.djamoLinks : un lien de paiement Djamo par formule de Pass.
+   ========================================================================= */
+const PAY_CHANNELS = {
+  djamo: {
+    key:'djamo', label:'Djamo', color:'#7C3AED',
+    get number(){ return PAYMENT_INFO.djamoNumber; },
+    // Djamo : un lien de paiement précis par formule de Pass (montant déjà
+    // fixé côté Djamo) — pas de règle générique par montant, on regarde
+    // simplement le lien enregistré pour le plan en cours.
+    buildDeepLink(amount, planKey){
+      const link = planKey && PAYMENT_INFO.djamoLinks && PAYMENT_INFO.djamoLinks[planKey];
+      return link || null;
+    }
+  },
+  wave: {
+    key:'wave', label:'Wave', color:'#00C7FC',
+    get number(){ return PAYMENT_INFO.waveNumber; },
+    get link(){ return PAYMENT_INFO.waveUrl; },
+    buildDeepLink(amount){
+      if(!this.link || this.link.includes('REMPLACER')) return null;
+      const sep = this.link.includes('?') ? '&' : '?';
+      return amount ? `${this.link}${sep}amount=${Math.round(amount)}` : this.link;
+    }
+  },
+};
+/* ---- Rend la liste des canaux configurés (numéro renseigné) sous forme de
+   blocs "Copier / Payer maintenant", pour un montant donné. Réutilisable
+   partout où l'on doit encaisser (Pass, commission, boutique...). ---- */
+function renderPayChannels(amount, planKey){
+  return Object.values(PAY_CHANNELS).filter(c=>c.number || c.link).map(c=>{
+    const deepLink = c.buildDeepLink(amount, planKey);
+    const copyValue = c.number || c.link;
+    const copyLabel = c.number ? 'Copier le numéro' : 'Copier le lien';
+    return `
+      <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+          <span style="font-weight:700;font-size:12.5px;color:${c.color};">${c.label}</span>
+          ${c.number ? `<span class="mono" style="font-size:13px;font-weight:800;letter-spacing:.03em;">${c.number}</span>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-outline btn-sm" style="flex:1;" onclick="navigator.clipboard.writeText('${copyValue}');Toast.show('${copyLabel==='Copier le lien'?'Lien':'Numéro'} ${c.label} copié ✓')">${copyLabel}</button>
+          ${deepLink ? `<a href="${deepLink}" class="btn btn-primary btn-sm" style="flex:1;text-align:center;text-decoration:none;">Payer maintenant</a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
 /* ---- GOLDEN : formule exclusive, réservée à la boutique officielle MA BOUTIQUE. ---- */
 const MABOUTIQUE_GOLDEN_STORE_NAME = 'MA BOUTIQUE STORE OFFICIEL';
 function isMaBoutiqueGoldenStore(){
@@ -5528,15 +5618,15 @@ function isMaBoutiqueGoldenStore(){
 const LOCKED_FEATURES = { maxProducts:0, stats:false, promos:false, reviews:false, customers:false, team:false, delivery:false, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
 const TRIAL_FEATURES = { maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false };
 const SUBSCRIPTION_PLANS = [
-  { key:'free', label:'BON MOOD', price:1000, dailyRate:34, tagline:"Boutique en ligne, commandes illimitées, jusqu'à 10 produits, livraison & suivi clients inclus", badge:null,
+  { key:'free', label:'BON MOOD', price:1500, dailyRate:50, tagline:"Boutique en ligne, commandes illimitées, jusqu'à 10 produits, livraison & suivi clients inclus", badge:null,
     features:{ maxProducts:10, stats:false, promos:false, reviews:false, customers:true, team:false, delivery:true, banner:false, badgeVisibility:false, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'doyen', label:'DOYEN', price:2000, dailyRate:67, tagline:"Jusqu'à 20 produits + statistiques, promotions et avis clients", badge:'DOYEN',
+  { key:'doyen', label:'DOYEN', price:3000, dailyRate:100, tagline:"Jusqu'à 20 produits + statistiques, promotions et avis clients", badge:'DOYEN',
     features:{ maxProducts:20, stats:true, promos:true, reviews:true, customers:true, team:false, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'doya', label:'DOYA', price:3500, dailyRate:117, tagline:'Jusqu\u2019à 35 produits + équipe, zones de livraison & badge visibilité', badge:'DOYA',
+  { key:'doya', label:'DOYA', price:4500, dailyRate:150, tagline:'Jusqu\u2019à 35 produits + équipe, zones de livraison & badge visibilité', badge:'DOYA',
     features:{ maxProducts:35, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:false, featuredBoost:false, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'all', label:'TOUTE BOUTIQUE', price:5000, dailyRate:167, tagline:'Catalogue illimité, tout DOYA + support prioritaire dédié & mise en avant renforcée', badge:'TOUTE BOUTIQUE',
+  { key:'all', label:'TOUTE BOUTIQUE', price:6000, dailyRate:200, tagline:'Catalogue illimité, tout DOYA + support prioritaire dédié & mise en avant renforcée', badge:'TOUTE BOUTIQUE',
     features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:false, vipSupport:false, homepageSpotlight:false, customStorefront:false } },
-  { key:'platinum', label:'PLATINE', price:15000, dailyRate:500, tagline:'Le tout premium, ouvert à toutes les boutiques : support VIP 24/7, mise en avant permanente à l’accueil, vitrine entièrement personnalisable et badge Platine rouge', badge:'PLATINE',
+  { key:'platinum', label:'ULTRA', price:15000, dailyRate:500, tagline:'Le tout premium, ouvert à toutes les boutiques : support VIP 24/7, mise en avant permanente à l’accueil, vitrine entièrement personnalisable et badge Ultra rouge', badge:'ULTRA',
     features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:false, vipSupport:true, homepageSpotlight:true, customStorefront:true } },
   { key:'golden', label:'GOLDEN', price:15000, dailyRate:500, tagline:'Formule exclusive réservée à MA BOUTIQUE STORE OFFICIEL : badge Doré, vitrine personnalisée, mise en avant permanente & support VIP 24/7', badge:'GOLDEN', exclusive:true,
     features:{ maxProducts:Infinity, stats:true, promos:true, reviews:true, customers:true, team:true, delivery:true, banner:true, badgeVisibility:true, prioritySupport:true, featuredBoost:true, goldenBadge:true, vipSupport:true, homepageSpotlight:true, customStorefront:true } }
@@ -5703,13 +5793,13 @@ setInterval(()=>{
 
 /* ---------- Récapitulatif des badges débloqués par formule d'abonnement :
    BON MOOD → aucun badge · DOYEN → badge noir · DOYA → badge bleu ·
-   TOUTE BOUTIQUE → badge bordeaux · PLATINE → badge rouge (GOLDEN, exclusif, non repris ici). ---- */
+   TOUTE BOUTIQUE → badge bordeaux · ULTRA → badge rouge (GOLDEN, exclusif, non repris ici). ---- */
 const COMMISSION_BADGE_RECAP = [
   { label:'BON MOOD',       color:null,      note:'Aucun badge' },
   { label:'DOYEN',          color:'#0B0E17', note:'Badge noir' },
   { label:'DOYA',           color:'#0091FD', note:'Badge bleu' },
   { label:'TOUTE BOUTIQUE', color:'#8E1537', note:'Badge bordeaux' },
-  { label:'PLATINE',        color:'#D7263D', note:'Badge rouge' }
+  { label:'ULTRA',        color:'#D7263D', note:'Badge rouge' }
 ];
 function CommissionBadgeRecap(){
   return `
@@ -6077,7 +6167,7 @@ let subDemoSeen = false; // true une fois l'aperçu démo consulté, pour passer
 let subPaymentMode = null; // 'monthly' ou 'daily', une fois choisi sur l'écran d'explication
 let subCommissionOnlyMode = false; // true : raccourci « Gérer ma commission » sans passer par le choix de formule
 const subPaymentMethod = 'djamo'; // moyen de paiement (Djamo uniquement)
-const SUB_PAY_LABELS = { djamo:'Djamo', wave:'Wave', card:'Carte bancaire (virement MA BOUTIQUE BANQUE)' };
+const SUB_PAY_LABELS = { djamo:'Djamo', wave:'Wave' };
 const FEATURE_LABELS = [
   { key:'maxProducts', label:p=> p===Infinity ? 'Catalogue de produits illimité' : `Jusqu'à ${p} produits au catalogue` },
   { key:'stats', label:'Statistiques avancées & tableaux de bord' },
@@ -6186,7 +6276,7 @@ const SubscriptionSheet = {
             ${p.key==='doyen' ? '<div class="plan-ribbon">POPULAIRE</div>' : ''}
             ${p.key==='doya' ? '<div class="plan-ribbon" style="background:var(--gold);">PREMIUM</div>' : ''}
             ${p.key==='all' ? '<div class="plan-ribbon" style="background:var(--ruby);">TOUT INCLUS</div>' : ''}
-            ${p.key==='platinum' ? '<div class="plan-ribbon" style="background:linear-gradient(90deg,#8A0E22,#FF3B5C);">PLATINE</div>' : ''}
+            ${p.key==='platinum' ? '<div class="plan-ribbon" style="background:linear-gradient(90deg,#8A0E22,#FF3B5C);">ULTRA</div>' : ''}
             ${p.key==='golden' ? '<div class="plan-ribbon" style="background:linear-gradient(90deg,#B8860B,#F0C24B);color:#1a1300;">EXCLUSIF</div>' : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
               <span style="display:flex;align-items:center;gap:8px;color:${priceColor};" class="plan-name">${mid}${p.label}</span>
@@ -6331,21 +6421,8 @@ const SubscriptionSheet = {
           <div style="font-size:11.5px;color:var(--text-mid);margin-top:5px;">${Utils.fmtFCFA(paid)} confirmé sur ${Utils.fmtFCFA(plan.price)}${pendingAmt?` · ${Utils.fmtFCFA(pendingAmt)} en attente de validation`:''}</div>
         </div>` : ''}
         <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;">
-          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez avec Djamo ou Wave</div>
-          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);margin-bottom:8px;">
-            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Djamo</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.djamoNumber}</span>
-              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.djamoNumber}');Toast.show('Numéro Djamo copié ✓')">Copier</button>
-            </div>
-          </div>
-          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);">
-            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Wave</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.waveNumber}</span>
-              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.waveNumber}');Toast.show('Numéro Wave copié ✓')">Copier</button>
-            </div>
-          </div>
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez gratuitement, sans intermédiaire</div>
+          ${renderPayChannels(suggested, plan.key)}
           ${mode==='daily' ? `
           <div class="field" style="margin-top:12px;margin-bottom:0;"><label>Montant payé aujourd'hui</label><input id="sub-daily-amount" type="number" min="1" value="${suggested}" placeholder="Ex : ${plan.dailyRate}"></div>
           <p style="font-size:11px;color:var(--text-mid);margin:8px 0 0;">Suggestion : ${Utils.fmtFCFA(plan.dailyRate)}/jour. Vous pouvez ajuster le montant, tant que le total atteint ${Utils.fmtFCFA(plan.price)} avant l'échéance.</p>` : `
@@ -6391,22 +6468,9 @@ const SubscriptionSheet = {
           <p style="font-size:11.5px;color:var(--text-mid);margin:6px 0 0;">5% sur toutes vos commandes livrées pendant les 20 jours d'essai (Article 5 du contrat).</p>
         </div>
         <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:12px;">
-          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez avec Djamo ou Wave</div>
-          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);margin-bottom:8px;">
-            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Djamo</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.djamoNumber}</span>
-              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.djamoNumber}');Toast.show('Numéro Djamo copié ✓')">Copier</button>
-            </div>
-          </div>
-          <div style="border:1.5px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;background:var(--panel);">
-            <div style="font-size:11px;color:var(--text-mid);margin-bottom:2px;">Numéro Wave</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <span class="mono" style="font-size:14px;font-weight:800;letter-spacing:.03em;">${PAYMENT_INFO.waveNumber}</span>
-              <button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${PAYMENT_INFO.waveNumber}');Toast.show('Numéro Wave copié ✓')">Copier</button>
-            </div>
-          </div>
-          <p style="font-size:11.5px;color:var(--text-mid);margin:10px 0 0;">Envoyez le montant exact (${Utils.fmtFCFA(due)}) via Djamo ou Wave vers l'un de ces numéros.</p>
+          <div style="font-weight:700;font-size:13.5px;margin-bottom:10px;">1. Payez gratuitement, sans intermédiaire</div>
+          ${renderPayChannels(due)}
+          <p style="font-size:11.5px;color:var(--text-mid);margin:10px 0 0;">Envoyez le montant exact (${Utils.fmtFCFA(due)}) vers l'un de ces numéros.</p>
         </div>
         <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;">
           <div style="font-weight:700;font-size:13.5px;margin-bottom:6px;">2. Envoyez votre preuve à MA BOUTIQUE</div>
@@ -8282,7 +8346,7 @@ function renderOrderList(){
 }
 
 /* ---------- Détail commande ---------- */
-const PAY_LABELS = {wave:'Wave', om:'Orange Money', mtn:'MTN Money', moov:'Moov Money', cash:'Paiement à la livraison'};
+const PAY_LABELS = {siamsbanque:'SIAMS BANQUE', wave:'Wave', om:'Orange Money', mtn:'MTN Money', moov:'Moov Money', cash:'Paiement à la livraison'};
 Views['order-detail'] = function(opts){
   const order=Store.orders.find(o=>o.id===opts.id);
   if(!order)return `${TopBar('Commande introuvable')}<div style="padding:20px;">${EmptyState(ICONS.box,'Commande introuvable','Cette commande a peut-être été supprimée.')}</div>`;
@@ -8499,7 +8563,7 @@ let statsPeriod = 7;
 
 function statsMoney(v){ return Utils.fmtFCFA(Math.round(Number(v)||0)); }
 function statsPct(n,d){ return d ? Math.round((n/d)*100) : 0; }
-function statsPaymentLabel(k){ return ({wave:'Wave',om:'Orange Money',mtn:'MTN Mobile Money',moov:'Moov Money',cash:'Paiement à la livraison'})[k] || k; }
+function statsPaymentLabel(k){ return ({siamsbanque:'SIAMS BANQUE',wave:'Wave',om:'Orange Money',mtn:'MTN Mobile Money',moov:'Moov Money',cash:'Paiement à la livraison'})[k] || k; }
 function statsOrderStatusLabel(k){ return ({new:'Nouvelles',preparing:'En préparation',shipped:'Expédiées',delivered:'Terminées',cancelled:'Annulées'})[k] || k; }
 
 Views.stats = function(){
@@ -8580,24 +8644,24 @@ Views.stats = function(){
     <h2>Vos statistiques</h2>
     <p>Comprenez vos ventes, vos clients et les performances de votre boutique.</p>
   </div>
-  <div class="stats-export"><button class="btn btn-outline btn-block" onclick="exportSalesReportPDF()">Exporter le rapport PDF</button></div>
-  <div class="stats-export" style="margin-top:8px;"><button class="btn btn-outline btn-block" onclick="exportOrdersCSV()">Exporter les commandes (Excel / CSV)</button></div>
+  <div class="stats-export"><button class="btn btn-outline btn-block" onclick="exportSalesReportPDF()">📄 Exporter le rapport PDF</button></div>
+  <div class="stats-export" style="margin-top:8px;"><button class="btn btn-outline btn-block" onclick="exportOrdersCSV()">📊 Exporter les commandes (Excel / CSV)</button></div>
 
   <div class="stats-kpis">
-    <div class="stats-kpi primary"><div class="lbl">CA livré ce mois</div><div class="val">${statsMoney(revCur)}</div>${revD?`<div style="font-size:10.5px;margin-top:5px;opacity:.9">${revD.dir==='up'?'▲':revD.dir==='down'?'▼':'•'} ${revD.txt} vs mois dernier</div>`:''}</div>
-    <div class="stats-kpi"><div class="lbl">Commandes</div><div class="val">${ordCur}</div>${ordD?`<div style="font-size:10.5px;color:${ordD.dir==='up'?'var(--green)':ordD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${ordD.txt} vs mois dernier</div>`:''}</div>
-    <div class="stats-kpi"><div class="lbl">Panier moyen</div><div class="val">${statsMoney(basketCur)}</div>${basketD?`<div style="font-size:10.5px;color:${basketD.dir==='up'?'var(--green)':basketD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${basketD.txt} vs mois dernier</div>`:''}</div>
-    <div class="stats-kpi"><div class="lbl">Clients</div><div class="val">${clientsCount}</div><div style="font-size:10.5px;color:var(--text-mid);margin-top:5px">${newCustCur} nouveau${newCustCur>1?'x':''} ce mois</div></div>
+    <div class="stats-kpi primary"><div class="lbl"><span class="ico">💰</span>CA livré ce mois</div><div class="val">${statsMoney(revCur)}</div>${revD?`<div style="font-size:10.5px;margin-top:5px;opacity:.9">${revD.dir==='up'?'▲':revD.dir==='down'?'▼':'•'} ${revD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl"><span class="ico">🧾</span>Commandes</div><div class="val">${ordCur}</div>${ordD?`<div style="font-size:10.5px;color:${ordD.dir==='up'?'var(--green)':ordD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${ordD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl"><span class="ico">🛒</span>Panier moyen</div><div class="val">${statsMoney(basketCur)}</div>${basketD?`<div style="font-size:10.5px;color:${basketD.dir==='up'?'var(--green)':basketD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${basketD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl"><span class="ico">👥</span>Clients</div><div class="val">${clientsCount}</div><div style="font-size:10.5px;color:var(--text-mid);margin-top:5px">${newCustCur} nouveau${newCustCur>1?'x':''} ce mois</div></div>
   </div>
 
   <div class="stats-section">
     <div class="section-head"><h4>Performance globale</h4><span>Depuis le début</span></div>
     <div class="stats-insights">
-      <div class="stats-insight"><div class="n">${deliveredRate}%</div><div class="t">Commandes terminées</div></div>
-      <div class="stats-insight"><div class="n">${cancellationRate}%</div><div class="t">Annulations</div></div>
-      <div class="stats-insight"><div class="n">${statsMoney(revenue)}</div><div class="t">CA livré total</div></div>
+      <div class="stats-insight"><div class="n">✅ ${deliveredRate}%</div><div class="t">Commandes terminées</div></div>
+      <div class="stats-insight"><div class="n">↩️ ${cancellationRate}%</div><div class="t">Annulations</div></div>
+      <div class="stats-insight"><div class="n">💰 ${statsMoney(revenue)}</div><div class="t">CA livré total</div></div>
     </div>
-    <div style="margin-top:11px;font-size:11.5px;color:var(--text-mid)">${deliveryAvg?`Temps moyen de traitement : <b style="color:var(--ink)">${deliveryAvg>=60?Math.floor(deliveryAvg/60)+' h '+deliveryAvg%60+' min':deliveryAvg+' min'}</b>`:'Le temps moyen apparaîtra après les premières livraisons confirmées.'}</div>
+    <div style="margin-top:11px;font-size:11.5px;color:var(--text-mid)">${deliveryAvg?`⏱️ Temps moyen de traitement : <b style="color:var(--ink)">${deliveryAvg>=60?Math.floor(deliveryAvg/60)+' h '+deliveryAvg%60+' min':deliveryAvg+' min'}</b>`:'Le temps moyen apparaîtra après les premières livraisons confirmées.'}</div>
   </div>
 
   <div class="stats-section">
@@ -9441,6 +9505,20 @@ const CourierMission = {
 };
 
 /* ---------- Paiement ---------- */
+window.PaymentUI = window.PaymentUI || { _edit:{} };
+function maskPaymentNumber(num){
+  const d = String(num||'').replace(/\D/g,'');
+  if(d.length<6) return d;
+  return d.slice(0,2)+' •• •• '+d.slice(-2);
+}
+function formatPaymentNumber(num){
+  const d = String(num||'').replace(/\D/g,'');
+  return (d.match(/.{1,2}/g)||[]).join(' ');
+}
+function isValidCIMobileNumber(num){
+  return /^0[0-9]{9}$/.test(String(num||'').replace(/\D/g,''));
+}
+function paymentToggleEdit(key){ PaymentUI._edit[key] = !PaymentUI._edit[key]; Router.go('payment'); }
 Views.payment = function(){
   const p = Store.payment;
   const statusBadge = (m)=>{
@@ -9448,23 +9526,56 @@ Views.payment = function(){
     if(m.validated) return `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--green-tint);color:var(--green);">Vérifié ✓</span>`;
     return `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--mango-tint);color:var(--mango-dark);">En attente</span>`;
   };
-  const row = (key,label,icon)=>`
+  const row = (key,label,icon)=>{
+    const m = p[key];
+    const editing = !!PaymentUI._edit[key] || !m.number;
+    const showSaved = m.enabled && m.number && !editing;
+    return `
     <div class="payment-method-card">
       <div class="toggle-row" style="border:none;padding:0;">
-        <span style="display:flex;align-items:center;gap:10px;font-weight:750;">${icon}<span>${label}</span>${statusBadge(p[key])}</span>
-        <label class="switch"><input type="checkbox" id="pm-${key}" ${p[key].enabled?'checked':''} onchange="togglePaymentMethod('${key}')"><span class="slider"></span></label>
+        <span style="display:flex;align-items:center;gap:10px;font-weight:750;">${icon}<span>${label}</span>${statusBadge(m)}</span>
+        <label class="switch"><input type="checkbox" id="pm-${key}" ${m.enabled?'checked':''} onchange="togglePaymentMethod('${key}')"><span class="slider"></span></label>
       </div>
-      <div id="pm-${key}-num" class="${p[key].enabled?'':'hidden'}" style="margin-top:12px;">
-        <input type="text" id="pm-${key}-input" placeholder="Numéro marchand ${label}" value="${p[key].number||''}" style="width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-size:14px;font-family:var(--font-body);margin-bottom:9px;box-sizing:border-box;">
-        <input type="url" id="pm-${key}-link" placeholder="Lien de paiement (optionnel)" value="${p[key].link||''}" style="width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-size:14px;font-family:var(--font-body);margin-bottom:9px;box-sizing:border-box;">
+      ${showSaved?`
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:11px 13px;border-radius:12px;background:#fff;border:1px solid var(--line);">
+        <span style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:13.5px;font-weight:700;">🔒 ${Utils.escapeHtml(maskPaymentNumber(m.number))}</span>
+        <button type="button" class="btn btn-ghost" style="padding:6px 10px;font-size:11.5px;font-weight:700;" onclick="paymentToggleEdit('${key}')">Modifier</button>
+      </div>`:''}
+      <div id="pm-${key}-num" class="${(m.enabled&&editing)?'':'hidden'}" style="margin-top:12px;">
+        <input type="tel" inputmode="numeric" maxlength="10" id="pm-${key}-input" placeholder="Numéro marchand ${label} (10 chiffres)" value="${Utils.escapeHtml(m.number||'')}" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)" style="width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-size:14px;font-family:var(--font-mono);margin-bottom:6px;box-sizing:border-box;">
+        <div id="pm-${key}-err" style="font-size:11px;color:var(--red);margin:0 2px 9px;display:none;">Numéro invalide — 10 chiffres requis (ex : 07XXXXXXXX)</div>
+        <input type="url" id="pm-${key}-link" placeholder="Lien de paiement (optionnel)" value="${Utils.escapeHtml(m.link||'')}" style="width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-size:14px;font-family:var(--font-body);margin-bottom:9px;box-sizing:border-box;">
         <button type="button" class="btn btn-soft-indigo btn-block" onclick="savePaymentNumber('${key}')">Enregistrer ${label}</button>
+        ${m.number?`<button type="button" class="btn btn-ghost btn-block" style="margin-top:6px;font-size:12px;" onclick="paymentToggleEdit('${key}')">Annuler</button>`:''}
       </div>
     </div>`;
+  };
   const active=['wave','om','mtn','moov'].filter(k=>p[k].enabled&&p[k].number).length;
+  const sb = p.siamsbanque || {enabled:false};
   return `
     ${TopBar('Paiement','Moyens d’encaissement')}
     <div class="payment-head"><div class="eyebrow">Encaissement</div><h2>Paiements de votre boutique</h2><p>Choisissez comment vos clients peuvent vous payer.</p></div>
-    <div class="payment-hero"><div class="label">Moyens mobiles configurés</div><div class="title">${active} / 4 actifs</div><div style="font-size:11.5px;color:var(--text-mid);margin-top:4px;">Les paiements sont envoyés directement sur vos comptes marchands.</div></div>
+    <div style="padding:0 20px 4px;">
+      <div style="position:relative;border-radius:20px;padding:2px;background:linear-gradient(135deg,#0b67d8,#16b6ff);margin-bottom:16px;box-shadow:0 18px 34px -18px rgba(11,103,216,.5);">
+        <div style="border-radius:18px;background:#fff;padding:18px 18px 16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#0b67d8,#16b6ff);color:#fff;font-size:10px;font-weight:800;letter-spacing:.04em;padding:4px 10px;border-radius:999px;">⭐ RECOMMANDÉ</span>
+          </div>
+          <div class="toggle-row" style="border:none;padding:0;align-items:flex-start;">
+            <span style="display:flex;align-items:center;gap:10px;">
+              <span style="width:38px;height:38px;flex:none;border-radius:11px;background:linear-gradient(135deg,#0b67d8,#16b6ff);display:flex;align-items:center;justify-content:center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5.5v5c0 5.2 3.4 9.9 8 11.5 4.6-1.6 8-6.3 8-11.5v-5L12 2Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12l2 2 4-4.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span style="font-weight:800;font-size:15px;">SIAMS BANQUE</span>
+            </span>
+            <label class="switch"><input type="checkbox" id="pm-siamsbanque" ${sb.enabled?'checked':''} onchange="toggleSiamsBanque()"><span class="slider"></span></label>
+          </div>
+          <p style="font-size:12.5px;color:var(--text-mid);line-height:1.6;margin:10px 0 0;">Activez pour recevoir directement les paiements de vos clients sur le compte <strong>SIAMS BANQUE</strong>, pour plus de sécurité. Faites ensuite votre demande de retrait : vous êtes reversé sous <strong>2h</strong> vers Wave, Djamo ou Mobile Money.</p>
+          ${sb.enabled ? `<div style="margin-top:12px;padding:11px 13px;border-radius:12px;background:#eef6ff;border:1px solid #cfe6ff;font-size:11.5px;color:#0b4d99;line-height:1.6;">✓ Activé — vos clients verront « SIAMS BANQUE » comme moyen de paiement à la caisse, avec le paiement à la livraison. Un reçu/justificatif reste demandé après chaque paiement.</div>` : ''}
+        </div>
+      </div>
+      <div class="payment-hero"><div class="label">Moyens mobiles configurés</div><div class="title">${active} / 4 actifs</div><div style="font-size:11.5px;color:var(--text-mid);margin-top:4px;">Les paiements sont envoyés directement sur vos comptes marchands.</div></div>
+    </div>
     <div style="padding:0 20px 4px;">
       ${row('wave','Wave','')}
       ${row('om','Orange Money','')}
@@ -9473,31 +9584,64 @@ Views.payment = function(){
       <div class="payment-method-card"><div class="toggle-row" style="border:none;padding:0;"><span style="font-weight:750;">Paiement à la livraison <span style="font-size:10.5px;color:var(--text-mid);font-weight:500;">(cash)</span></span><label class="switch"><input type="checkbox" id="pm-cash" ${p.cash.enabled?'checked':''} onchange="togglePaymentMethod('cash')"><span class="slider"></span></label></div></div>
     </div>
     <div class="payment-security" style="border:1.5px solid var(--green);padding:14px 16px;background:var(--green-tint);">
-      <div style="display:flex;align-items:center;gap:8px;font-weight:750;font-size:13.5px;margin-bottom:6px;color:var(--green);">Paiements directs et sécurisés</div>
-      <p style="font-size:12px;color:var(--text-mid);margin:0;line-height:1.55;">Les moyens mobiles activés encaissent directement sur votre numéro marchand. MA BOUTIQUE ne reçoit ni ne conserve ces paiements.</p>
+      <div style="display:flex;align-items:center;gap:8px;font-weight:750;font-size:13.5px;margin-bottom:8px;color:var(--green);">🔒 Paiements directs et sécurisés</div>
+      <ul style="margin:0;padding:0 0 0 18px;font-size:12px;color:var(--text-mid);line-height:1.7;">
+        <li>SIAMS BANQUE reçoit le paiement en garde sécurisée puis vous reverse sous 2h vers Wave, Djamo ou Mobile Money, sur simple demande de retrait.</li>
+        <li>Les moyens mobiles activés ci-dessous encaissent directement sur votre numéro marchand — MA BOUTIQUE ne reçoit ni ne conserve ces paiements.</li>
+        <li>Votre numéro reste masqué une fois enregistré ; touchez « Modifier » pour le changer.</li>
+        <li>Une confirmation vous est demandée avant tout enregistrement ou changement de numéro, pour éviter toute erreur de saisie.</li>
+        <li>Ces informations ne sont visibles que dans votre espace marchand, protégé par votre compte MA BOUTIQUE.</li>
+      </ul>
     </div>
-    <div class="payment-note">Les moyens activés seront proposés à vos clients au moment du paiement dans votre boutique.</div>
+    <div class="payment-note">${sb.enabled ? 'SIAMS BANQUE et le paiement à la livraison sont proposés à vos clients au moment du paiement dans votre boutique.' : 'Les moyens activés seront proposés à vos clients au moment du paiement dans votre boutique.'}</div>
   `;
 };
 
+function toggleSiamsBanque(){
+  const p = Store.payment;
+  const cb = document.getElementById('pm-siamsbanque');
+  const next = cb ? cb.checked : !(p.siamsbanque && p.siamsbanque.enabled);
+  if(next){
+    const ok = window.confirm('Activer SIAMS BANQUE ?\n\nVos clients paieront désormais via SIAMS BANQUE (avec le paiement à la livraison). Vos moyens mobiles (Wave, Orange Money, MTN, Moov) ne seront plus proposés à la caisse tant que cette option reste activée. Vous pourrez demander un retrait sous 2h vers Wave, Djamo ou Mobile Money.');
+    if(!ok){ if(cb) cb.checked = false; return; }
+  }
+  p.siamsbanque = { enabled: next };
+  Store.payment = p;
+  Router.go('payment');
+}
+
 function togglePaymentMethod(key){
   const p = Store.payment;
-  p[key].enabled = document.getElementById('pm-'+key).checked;
+  const cb = document.getElementById('pm-'+key);
+  p[key].enabled = cb ? cb.checked : !p[key].enabled;
   if(p[key].enabled && p[key].number){
     p[key].validated = true;
     p[key].validatedAt = p[key].validatedAt || Date.now();
   }
   Store.payment = p;
-  const numWrap = document.getElementById('pm-'+key+'-num');
-  if(numWrap) numWrap.classList.toggle('hidden', !p[key].enabled);
+  Router.go('payment');
 }
 function savePaymentNumber(key){
   const p = Store.payment;
+  const input = document.getElementById('pm-'+key+'-input');
+  const errEl = document.getElementById('pm-'+key+'-err');
+  const rawNumber = input ? input.value.trim() : (p[key].number||'');
+  if(rawNumber && !isValidCIMobileNumber(rawNumber)){
+    if(errEl) errEl.style.display='block';
+    Toast.show('Numéro invalide — vérifiez les 10 chiffres');
+    return;
+  }
+  if(errEl) errEl.style.display='none';
   const prevNumber = p[key].number || '';
   const prevLink = p[key].link || '';
-  p[key].number = document.getElementById('pm-'+key+'-input').value.trim();
   const linkInput = document.getElementById('pm-'+key+'-link');
-  p[key].link = linkInput ? linkInput.value.trim() : '';
+  const newLink = linkInput ? linkInput.value.trim() : prevLink;
+  if(rawNumber && rawNumber !== prevNumber){
+    const ok = window.confirm('Confirmez votre numéro '+formatPaymentNumber(rawNumber)+' pour recevoir les paiements de vos clients.\n\nVérifiez-le avant de continuer : SIAMS ne peut pas récupérer un paiement envoyé à un numéro erroné.');
+    if(!ok) return;
+  }
+  p[key].number = rawNumber;
+  p[key].link = newLink;
   if(p[key].number !== prevNumber || p[key].link !== prevLink){
     p[key].validated = !!p[key].number;
     p[key].validatedAt = p[key].number ? Date.now() : 0;
@@ -9508,6 +9652,7 @@ function savePaymentNumber(key){
   }
   p[key].enabled = true;
   Store.payment = p;
+  PaymentUI._edit[key] = false;
   Toast.show(p[key].number ? 'Moyen de paiement activé ✓' : 'Numéro enregistré');
   Router.go('payment');
 }
@@ -10107,7 +10252,7 @@ Views.shop = function(){
   const access = Store.access();
   const storeBadge = (access.status==='active' && access.badge) ? access.badge : null;
   const isGoldenStore = storeBadge==='GOLDEN';
-  const isPlatinumStore = storeBadge==='PLATINE';
+  const isPlatinumStore = storeBadge==='ULTRA';
   const isAllStore = storeBadge==='TOUTE BOUTIQUE';
   const isDoyaStore = storeBadge==='DOYA';
   const isPremiumStore = isGoldenStore || isPlatinumStore || isAllStore || isDoyaStore;
@@ -10538,10 +10683,14 @@ function buildFaqData(){
   }
 
   const payMethods = [];
-  if(pay.wave && pay.wave.enabled) payMethods.push('Wave');
-  if(pay.om && pay.om.enabled) payMethods.push('Orange Money');
-  if(pay.mtn && pay.mtn.enabled) payMethods.push('MTN Money');
-  if(pay.moov && pay.moov.enabled) payMethods.push('Moov Money');
+  if(pay.siamsbanque && pay.siamsbanque.enabled){
+    payMethods.push('SIAMS BANQUE (paiement sécurisé)');
+  } else {
+    if(pay.wave && pay.wave.enabled) payMethods.push('Wave');
+    if(pay.om && pay.om.enabled) payMethods.push('Orange Money');
+    if(pay.mtn && pay.mtn.enabled) payMethods.push('MTN Money');
+    if(pay.moov && pay.moov.enabled) payMethods.push('Moov Money');
+  }
   if(!pay.cash || pay.cash.enabled!==false) payMethods.push('Paiement à la livraison (espèces)');
   const paymentAnswer = payMethods.length
     ? `Cette boutique accepte : ${payMethods.join(', ')}.`
@@ -11451,7 +11600,13 @@ Views.checkout = function(){
   const items = cart.map(c=>({...c, product: products.find(p=>p.id===c.productId)})).filter(i=>i.product);
   const total = items.reduce((s,i)=>s+i.product.price*i.qty,0);
   const pay = Store.payment;
-  const methods = [
+  /* ---- Quand SIAMS BANQUE est activé, c'est le canal prioritaire et sécurisé :
+     on le propose avec le paiement à la livraison, et on masque les moyens
+     mobiles du marchand (Wave/OM/MTN/Moov) pour ce checkout. ---- */
+  const methods = (pay.siamsbanque && pay.siamsbanque.enabled) ? [
+    {key:'siamsbanque',label:'SIAMS BANQUE'},
+    pay.cash.enabled ? {key:'cash',label:'Paiement à la livraison'} : null,
+  ].filter(Boolean) : [
     pay.wave.enabled ? {key:'wave',label:'Wave'} : null,
     pay.om.enabled ? {key:'om',label:'Orange Money'} : null,
     pay.mtn.enabled ? {key:'mtn',label:'MTN Money'} : null,
@@ -11484,7 +11639,7 @@ Views.checkout = function(){
         ${methods.length===0 ? `<div style="font-size:13px;color:var(--text-mid);">Aucun mode de paiement configuré par le vendeur.</div>` :
           methods.map((m,i)=>{
             const pm = pay[m.key] || {};
-            const info = m.key==='cash' ? 'Paiement à la livraison' : (pm.number ? pm.number : 'Numéro non renseigné');
+            const info = m.key==='cash' ? 'Paiement à la livraison' : m.key==='siamsbanque' ? 'Paiement sécurisé via SIAMS' : (pm.number ? pm.number : 'Numéro non renseigné');
             return `<label style="display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;">
             <input type="radio" name="co-pay" value="${m.key}" ${i===0?'checked':''} onchange="onCheckoutPayChange()" style="width:18px;height:18px;accent-color:var(--indigo);">
             <span style="display:flex;flex-direction:column;gap:3px;"><span style="font-size:14.5px;font-weight:700;">${m.label}</span><span style="font-size:11.5px;color:var(--text-mid);">${Utils.escapeHtml(info)}</span></span>
@@ -11522,6 +11677,18 @@ function onCheckoutPayChange(){
   checkoutPaymentProof = null;
   const method = payRadio.value;
   if(method==='cash'){ wrap.innerHTML = ''; return; }
+  if(method==='siamsbanque'){
+    wrap.innerHTML = `
+      <div style="margin-top:10px;border:1.5px solid var(--green);border-radius:var(--radius-sm);padding:14px;background:var(--green-tint);">
+        <div style="display:flex;align-items:center;gap:6px;font-weight:750;font-size:12.5px;color:var(--green);margin-bottom:6px;">🔒 Paiement sécurisé SIAMS BANQUE</div>
+        <p style="margin:0 0 10px;font-size:12.5px;color:var(--text-mid);">Payez le montant total via le lien Wave sécurisé ci-dessous, puis joignez une capture d'écran ou le reçu de la transaction.</p>
+        <a href="${Utils.escapeHtml(PAYMENT_INFO.siamsBanqueWaveLink)}" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">Payer via SIAMS BANQUE ↗</a>
+        <input type="file" accept="image/*" id="co-payment-proof-input" class="hidden" onchange="handleCheckoutProof(event)">
+        <div id="co-payment-proof-preview"></div>
+        <button type="button" class="btn btn-mango btn-sm" style="width:100%;" onclick="document.getElementById('co-payment-proof-input').click()">📎 Joindre la capture / le reçu de paiement</button>
+      </div>`;
+    return;
+  }
   const pay = Store.payment;
   const number = pay[method] ? pay[method].number : '';
   const link = pay[method] ? pay[method].link : '';
@@ -12316,8 +12483,7 @@ async function downloadSubscriptionReceiptPDF(){
 
   const items = [{ description:`Abonnement ${access.label} — mensuel (sans commission sur les ventes)`, qty:1, unit:'mois', unitPrice: access.amount||0, total: access.amount||0 }];
   const bankLines = [];
-  if(access.paymentMethod==='card'){ bankLines.push(`${PAYMENT_INFO.bankName} : carte se terminant par ${(PAYMENT_INFO.cardNumber||'').slice(-4)}`); }
-  else if(PAYMENT_INFO.djamoNumber){ bankLines.push(`Djamo : ${PAYMENT_INFO.djamoNumber}`); }
+  if(PAYMENT_INFO.djamoNumber){ bankLines.push(`Djamo : ${PAYMENT_INFO.djamoNumber}`); }
 
   await renderMABOUTIQUEReceiptPDF(doc, {
     receiptNumber,
@@ -13034,8 +13200,27 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   };
   window.v20ConfirmDeleteCategory=function(name){Store.categories=(Store.categories||[]).filter(c=>c!==name);Store.products=(Store.products||[]).map(p=>p.category===name?{...p,category:''}:p);Toast.show('Catégorie supprimée');document.getElementById('v20-modal')?.remove();Router.go('categories');};
   Views.categories=function(){
-    const cats=Store.categories||[], products=Store.products||[];
-    const rows=cats.map((c,i)=>{const n=products.filter(p=>p.category===c).length;return `<article class="v20-cat-card"><div class="v20-cat-icon c${i%6}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg></div><div class="v20-cat-main"><b>${esc(c)}</b><span>${n} produit${n>1?'s':''}</span></div><button class="v20-cat-action" onclick="v20DeleteCategory(${JSON.stringify(c)})" aria-label="Supprimer">⋯</button></article>`}).join('');
+    const cats=Store.categories||[], products=Store.products||[], photos=Store.categoryPhotos||{};
+    const rows=cats.map((c,i)=>{
+      const n=products.filter(p=>p.category===c).length;
+      const photo=photos[c];
+      const cid='v20catphoto-'+esc(c).replace(/[^a-zA-Z0-9]/g,'_')+'-'+i;
+      return `<article class="v20-cat-card">
+        <div class="v20-cat-icon c${i%6}" style="cursor:pointer;padding:0;overflow:hidden;" onclick="document.getElementById('${cid}').click()">
+          ${photo?`<img src="${esc(photo)}" style="width:100%;height:100%;object-fit:cover;">`:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>`}
+        </div>
+        <input type="file" id="${cid}" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleCategoryPhoto(event,${JSON.stringify(c)},'${cid}')">
+        <div class="v20-cat-main">
+          <b>${esc(c)}</b>
+          <span>${n} produit${n>1?'s':''}</span>
+          <div class="v20-cat-photo-actions">
+            <button type="button" onclick="document.getElementById('${cid}').click()">${photo?'Changer la photo':'Ajouter une photo'}</button>
+            ${photo?`<button type="button" class="v20-cat-photo-remove" onclick="removeCategoryPhoto(${JSON.stringify(c)})">Retirer</button>`:''}
+          </div>
+        </div>
+        <button class="v20-cat-action" onclick="v20DeleteCategory(${JSON.stringify(c)})" aria-label="Supprimer">⋯</button>
+      </article>`;
+    }).join('');
     const totalProducts=products.length, assigned=products.filter(p=>p.category).length;
     return `${TopBar('Catégories',cats.length+' catégorie(s)')}<div class="v20-cat-head"><div><div class="v20-eyebrow">Organisation du catalogue</div><h2>Catégories</h2><p>Structurez votre catalogue pour rendre la boutique plus simple à parcourir.</p></div><button class="v20-add-cat" onclick="v20AddCategory()">＋</button></div><div class="v20-cat-summary"><div><b>${cats.length}</b><span>Catégories</span></div><div><b>${totalProducts}</b><span>Produits</span></div><div><b>${assigned}</b><span>Classés</span></div></div><div class="v20-section-title">Votre organisation</div><div class="v20-cat-list">${rows||`<div class="v20-empty"><div class="v20-empty-icon">▦</div><b>Aucune catégorie</b><span>Créez votre première catégorie pour organiser vos produits.</span></div>`}</div><button class="v20-add-cat-full" onclick="v20AddCategory()">＋ Ajouter une catégorie</button>`;
   };
@@ -13049,7 +13234,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   window.v20DeletePromo=function(id){const p=(Store.promos||[]).find(x=>x.id===id);if(!p)return;overlay('Supprimer le code promo',`<div class="v20-confirm"><div class="v20-confirm-icon">!</div><b>${esc(p.code)}</b><p>Cette action supprimera définitivement ce code de la boutique.</p><div class="v20-two"><button class="btn btn-ghost" onclick="document.getElementById('v20-modal')?.remove()">Annuler</button><button class="btn btn-danger" onclick="v20ConfirmDeletePromo(${JSON.stringify(id)})">Supprimer</button></div></div>`);};
   window.v20ConfirmDeletePromo=function(id){Store.promos=(Store.promos||[]).filter(x=>x.id!==id);PromoLocal.update(id,{active:false});Toast.show('Code supprimé');document.getElementById('v20-modal')?.remove();Router.go('promos');};
   Views.promos=function(){if(!Store.hasFeature('promos'))return FeatureLock('Codes promo','La création de codes promo est incluse à partir de la formule DOYEN.','doyen');const ps=(Store.promos||[]).map(p=>PromoLocal.merge(p)),active=ps.filter(p=>p.active&&(!p.maxUses||p.usedCount<p.maxUses)).length,uses=ps.reduce((s,p)=>s+(Number(p.usedCount)||0),0);return `${TopBar('Codes promo',ps.length+' code(s)')}<div class="v20-promo-head"><div><div class="v20-eyebrow">Marketing boutique</div><h2>Promotions</h2><p>Créez des offres maîtrisées et gardez le contrôle sur chaque utilisation.</p></div><button class="v20-promo-plus" onclick="v20AddPromo()">＋</button></div><div class="v20-promo-summary"><div><b>${ps.length}</b><span>Codes</span></div><div><b>${active}</b><span>Actifs</span></div><div><b>${uses}</b><span>Utilisations</span></div></div><div class="v20-promo-create" onclick="v20AddPromo()"><div class="v20-promo-create-icon">％</div><div><b>Créer une promotion</b><span>Code, réduction et limite d'utilisation</span></div><strong>›</strong></div><div class="v20-section-title">Vos codes</div><div class="v20-promo-list">${ps.length?ps.map(p=>{const ex=p.maxUses>0&&p.usedCount>=p.maxUses,pct=p.maxUses?Math.min(100,Math.round(p.usedCount/p.maxUses*100)):0;return `<article class="v20-promo-card"><div class="v20-promo-line"><div class="v20-code">${esc(p.code)}</div><span class="v20-promo-status ${p.active&&!ex?'on':'off'}">${ex?'Épuisé':p.active?'Actif':'Désactivé'}</span></div><div class="v20-promo-desc">${p.type==='percent'?p.value+'% de réduction':Utils.fmtFCFA(p.value)+' de réduction'}</div><div class="v20-promo-use"><span>${p.maxUses?`Utilisations <b>${p.usedCount}/${p.maxUses}</b>`:`Utilisations <b>${p.usedCount}</b> · illimité`}</span>${p.maxUses?`<span>${pct}%</span>`:''}</div>${p.maxUses?`<div class="v20-progress"><i style="width:${pct}%"></i></div>`:''}<div class="v20-promo-actions"><button onclick="v20LimitPromo('${p.id}')">Limite</button><button onclick="v20TogglePromo('${p.id}')" ${ex?'disabled':''}>${p.active?'Désactiver':'Activer'}</button><button class="danger" onclick="v20DeletePromo('${p.id}')">Supprimer</button></div></article>`}).join(''):`<div class="v20-empty"><div class="v20-empty-icon">％</div><b>Aucun code promo</b><span>Créez votre première promotion avec le bouton ci-dessus.</span></div>`}</div>`;};
-  const style=document.createElement('style');style.textContent=`#v20-modal{position:fixed;inset:0;z-index:99999}.v20-backdrop{position:absolute;inset:0;background:rgba(8,12,24,.52);backdrop-filter:blur(4px)}.v20-dialog{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(520px,100%);background:var(--panel,#fff);border-radius:24px 24px 0 0;padding:18px 20px 24px;box-shadow:0 -18px 50px rgba(0,0,0,.2)}.v20-dialog-head{display:flex;justify-content:space-between;align-items:center;font-size:18px;color:var(--text,#111)}.v20-dialog-head button{border:0;background:var(--line,#eee);width:34px;height:34px;border-radius:50%;font-size:22px;color:var(--text);cursor:pointer}.v20-dialog-body{padding-top:18px}.v20-field{display:block;font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px}.v20-field input,.v20-field select{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:#111;font:inherit}.v20-field small,.v20-help{display:block;color:var(--text-mid);font-size:11px;font-weight:500;margin-top:6px}.v20-two{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.btn-danger{background:#d84b55;color:#fff;border:0}.v20-confirm{text-align:center}.v20-confirm-icon{margin:0 auto 10px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#fff1f1;color:#d84b55;font-weight:900}.v20-cat-head,.v20-promo-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 12px;gap:12px}.v20-eyebrow{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:4px}.v20-cat-head h2,.v20-promo-head h2{margin:0;font-size:25px;letter-spacing:-.04em;color:var(--text)}.v20-cat-head p,.v20-promo-head p{margin:5px 0 0;font-size:12px;color:var(--text-mid);line-height:1.45}.v20-add-cat,.v20-promo-plus{width:46px;height:46px;border:0;border-radius:15px;background:var(--indigo);color:#fff;font-size:25px;box-shadow:0 10px 22px rgba(17,17,17,.22);cursor:pointer}.v20-cat-summary,.v20-promo-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:6px 20px 16px}.v20-cat-summary>div,.v20-promo-summary>div{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:11px 12px}.v20-cat-summary b,.v20-promo-summary b{display:block;font:800 19px var(--font-mono);color:var(--text)}.v20-cat-summary span,.v20-promo-summary span{font-size:10.5px;color:var(--text-mid)}.v20-section-title{padding:4px 20px 9px;font-size:12px;font-weight:900;color:var(--text)}.v20-cat-list,.v20-promo-list{padding:0 20px}.v20-cat-card,.v20-promo-card{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:13px 14px;margin-bottom:9px}.v20-cat-card{display:flex;align-items:center;gap:12px}.v20-cat-icon{width:43px;height:43px;border-radius:13px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo)}.v20-cat-icon.c1{background:var(--green-tint);color:var(--green)}.v20-cat-icon.c2{background:var(--mango-tint);color:var(--mango-dark)}.v20-cat-icon.c3{background:var(--blue-tint);color:var(--blue)}.v20-cat-icon.c4{background:var(--red-tint);color:var(--red)}.v20-cat-main{flex:1;min-width:0}.v20-cat-main b{display:block;font-size:14px;color:var(--text)}.v20-cat-main span{display:block;font-size:11px;color:var(--text-mid);margin-top:3px}.v20-cat-action{border:0;background:transparent;color:var(--text-soft);font-size:21px;cursor:pointer}.v20-add-cat-full{margin:5px 20px 100px;width:calc(100% - 40px);padding:13px;border:1.5px dashed var(--indigo);border-radius:13px;background:var(--indigo-tint);color:var(--indigo);font-weight:850;cursor:pointer}.v20-promo-create{margin:0 20px 16px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel);display:flex;align-items:center;gap:12px;cursor:pointer}.v20-promo-create-icon{width:42px;height:42px;border-radius:13px;background:var(--mango-tint);color:var(--mango-dark);display:grid;place-items:center;font-weight:900}.v20-promo-create div:nth-child(2){flex:1}.v20-promo-create b{display:block;color:var(--text);font-size:13px}.v20-promo-create span{display:block;color:var(--text-mid);font-size:11px;margin-top:3px}.v20-promo-create strong{font-size:23px;color:var(--text-soft)}.v20-promo-line,.v20-promo-use{display:flex;justify-content:space-between;align-items:center;gap:8px}.v20-code{font:850 14px var(--font-mono);letter-spacing:.04em;color:var(--indigo)}.v20-promo-status{font-size:10px;font-weight:850;padding:5px 8px;border-radius:999px}.v20-promo-status.on{background:var(--green-tint);color:var(--green)}.v20-promo-status.off{background:var(--panel);color:var(--text-mid)}.v20-promo-desc{font-size:12px;color:var(--text-mid);margin:9px 0}.v20-promo-use{font-size:11px;color:var(--text-mid)}.v20-promo-use b{color:var(--text)}.v20-progress{height:5px;border-radius:999px;background:var(--line);overflow:hidden;margin:8px 0}.v20-progress i{display:block;height:100%;background:var(--indigo)}.v20-promo-actions{display:flex;gap:7px;margin-top:10px}.v20-promo-actions button{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 5px;font-size:10.5px;font-weight:800;color:var(--text);cursor:pointer}.v20-promo-actions button.danger{color:#d84b55}.v20-promo-actions button:disabled{opacity:.45}.v20-empty{text-align:center;border:1px dashed var(--line);border-radius:17px;padding:28px 20px;margin-bottom:12px}.v20-empty-icon{width:44px;height:44px;margin:0 auto 9px;border-radius:14px;background:var(--panel);display:grid;place-items:center;color:var(--indigo);font-weight:900}.v20-empty b{display:block;color:var(--text);font-size:14px}.v20-empty span{display:block;color:var(--text-mid);font-size:11px;margin-top:5px}.v20-promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v20-promo-grid .full{grid-column:1/-1}@media(max-width:380px){.v20-cat-head,.v20-promo-head{padding-left:14px;padding-right:14px}.v20-cat-summary,.v20-promo-summary,.v20-cat-list,.v20-promo-list{padding-left:14px;padding-right:14px}.v20-add-cat-full,.v20-promo-create{margin-left:14px;margin-right:14px;width:calc(100% - 28px)}}`;document.head.appendChild(style);
+  const style=document.createElement('style');style.textContent=`#v20-modal{position:fixed;inset:0;z-index:99999}.v20-backdrop{position:absolute;inset:0;background:rgba(8,12,24,.52);backdrop-filter:blur(4px)}.v20-dialog{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:min(520px,100%);background:var(--panel,#fff);border-radius:24px 24px 0 0;padding:18px 20px 24px;box-shadow:0 -18px 50px rgba(0,0,0,.2)}.v20-dialog-head{display:flex;justify-content:space-between;align-items:center;font-size:18px;color:var(--text,#111)}.v20-dialog-head button{border:0;background:var(--line,#eee);width:34px;height:34px;border-radius:50%;font-size:22px;color:var(--text);cursor:pointer}.v20-dialog-body{padding-top:18px}.v20-field{display:block;font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px}.v20-field input,.v20-field select{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:#111;font:inherit}.v20-field small,.v20-help{display:block;color:var(--text-mid);font-size:11px;font-weight:500;margin-top:6px}.v20-two{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.btn-danger{background:#d84b55;color:#fff;border:0}.v20-confirm{text-align:center}.v20-confirm-icon{margin:0 auto 10px;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#fff1f1;color:#d84b55;font-weight:900}.v20-cat-head,.v20-promo-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 12px;gap:12px}.v20-eyebrow{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:4px}.v20-cat-head h2,.v20-promo-head h2{margin:0;font-size:25px;letter-spacing:-.04em;color:var(--text)}.v20-cat-head p,.v20-promo-head p{margin:5px 0 0;font-size:12px;color:var(--text-mid);line-height:1.45}.v20-add-cat,.v20-promo-plus{width:46px;height:46px;border:0;border-radius:15px;background:var(--indigo);color:#fff;font-size:25px;box-shadow:0 10px 22px rgba(17,17,17,.22);cursor:pointer}.v20-cat-summary,.v20-promo-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:6px 20px 16px}.v20-cat-summary>div,.v20-promo-summary>div{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:11px 12px}.v20-cat-summary b,.v20-promo-summary b{display:block;font:800 19px var(--font-mono);color:var(--text)}.v20-cat-summary span,.v20-promo-summary span{font-size:10.5px;color:var(--text-mid)}.v20-section-title{padding:4px 20px 9px;font-size:12px;font-weight:900;color:var(--text)}.v20-cat-list,.v20-promo-list{padding:0 20px}.v20-cat-card,.v20-promo-card{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:13px 14px;margin-bottom:9px}.v20-cat-card{display:flex;align-items:center;gap:12px}.v20-cat-icon{width:43px;height:43px;border-radius:13px;display:grid;place-items:center;background:var(--indigo-tint);color:var(--indigo)}.v20-cat-icon.c1{background:var(--green-tint);color:var(--green)}.v20-cat-icon.c2{background:var(--mango-tint);color:var(--mango-dark)}.v20-cat-icon.c3{background:var(--blue-tint);color:var(--blue)}.v20-cat-icon.c4{background:var(--red-tint);color:var(--red)}.v20-cat-main{flex:1;min-width:0}.v20-cat-main b{display:block;font-size:14px;color:var(--text)}.v20-cat-main span{display:block;font-size:11px;color:var(--text-mid);margin-top:3px}.v20-cat-photo-actions{display:flex;gap:12px;margin-top:5px}.v20-cat-photo-actions button{background:none;border:0;padding:0;font-size:11px;font-weight:750;color:var(--indigo);cursor:pointer}.v20-cat-photo-actions button.v20-cat-photo-remove{color:#d84b55}.v20-cat-action{border:0;background:transparent;color:var(--text-soft);font-size:21px;cursor:pointer}.v20-add-cat-full{margin:5px 20px 100px;width:calc(100% - 40px);padding:13px;border:1.5px dashed var(--indigo);border-radius:13px;background:var(--indigo-tint);color:var(--indigo);font-weight:850;cursor:pointer}.v20-promo-create{margin:0 20px 16px;padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel);display:flex;align-items:center;gap:12px;cursor:pointer}.v20-promo-create-icon{width:42px;height:42px;border-radius:13px;background:var(--mango-tint);color:var(--mango-dark);display:grid;place-items:center;font-weight:900}.v20-promo-create div:nth-child(2){flex:1}.v20-promo-create b{display:block;color:var(--text);font-size:13px}.v20-promo-create span{display:block;color:var(--text-mid);font-size:11px;margin-top:3px}.v20-promo-create strong{font-size:23px;color:var(--text-soft)}.v20-promo-line,.v20-promo-use{display:flex;justify-content:space-between;align-items:center;gap:8px}.v20-code{font:850 14px var(--font-mono);letter-spacing:.04em;color:var(--indigo)}.v20-promo-status{font-size:10px;font-weight:850;padding:5px 8px;border-radius:999px}.v20-promo-status.on{background:var(--green-tint);color:var(--green)}.v20-promo-status.off{background:var(--panel);color:var(--text-mid)}.v20-promo-desc{font-size:12px;color:var(--text-mid);margin:9px 0}.v20-promo-use{font-size:11px;color:var(--text-mid)}.v20-promo-use b{color:var(--text)}.v20-progress{height:5px;border-radius:999px;background:var(--line);overflow:hidden;margin:8px 0}.v20-progress i{display:block;height:100%;background:var(--indigo)}.v20-promo-actions{display:flex;gap:7px;margin-top:10px}.v20-promo-actions button{flex:1;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 5px;font-size:10.5px;font-weight:800;color:var(--text);cursor:pointer}.v20-promo-actions button.danger{color:#d84b55}.v20-promo-actions button:disabled{opacity:.45}.v20-empty{text-align:center;border:1px dashed var(--line);border-radius:17px;padding:28px 20px;margin-bottom:12px}.v20-empty-icon{width:44px;height:44px;margin:0 auto 9px;border-radius:14px;background:var(--panel);display:grid;place-items:center;color:var(--indigo);font-weight:900}.v20-empty b{display:block;color:var(--text);font-size:14px}.v20-empty span{display:block;color:var(--text-mid);font-size:11px;margin-top:5px}.v20-promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v20-promo-grid .full{grid-column:1/-1}@media(max-width:380px){.v20-cat-head,.v20-promo-head{padding-left:14px;padding-right:14px}.v20-cat-summary,.v20-promo-summary,.v20-cat-list,.v20-promo-list{padding-left:14px;padding-right:14px}.v20-add-cat-full,.v20-promo-create{margin-left:14px;margin-right:14px;width:calc(100% - 28px)}}`;document.head.appendChild(style);
 })();
 </script>
 
@@ -15533,15 +15718,59 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
   Views._after_shop=async function(opts){if(oldAfterShop)await oldAfterShop(opts);try{maybeShowHomePopups();}catch(e){console.warn('Home popups',e)}};
 })();
 </script>
+<style id="maboutique-v78-verification-style">
+.verif-stepper{display:flex;align-items:center;margin:14px 20px 4px;}
+.verif-stepper .vs-step{display:flex;flex-direction:column;align-items:center;flex:none;width:74px;}
+.verif-stepper .vs-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;border:1.5px solid var(--line);background:#fff;color:var(--text-soft);transition:all .2s ease;}
+.verif-stepper .vs-step.done .vs-dot{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+.verif-stepper .vs-step.active .vs-dot{border-color:var(--gold);color:var(--gold-dark);background:var(--gold-tint);}
+.verif-stepper .vs-label{font-size:9.5px;font-weight:700;color:var(--text-soft);margin-top:5px;text-align:center;letter-spacing:.01em;}
+.verif-stepper .vs-step.done .vs-label,.verif-stepper .vs-step.active .vs-label{color:var(--text);}
+.verif-stepper .vs-line{flex:1;height:2px;background:var(--line);margin-bottom:16px;}
+.verif-stepper .vs-line.done{background:var(--indigo);}
+
+.verif-doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 20px 0;}
+.verif-doc-pill{display:flex;align-items:center;gap:8px;text-align:left;padding:11px;border-radius:13px;border:1.5px solid var(--line);background:#fff;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1.25;}
+.verif-doc-pill .vdp-icon{font-size:16px;flex:none;}
+.verif-doc-pill.is-selected{border-color:var(--indigo);background:var(--indigo-tint);}
+
+.verif-upload-zone{display:block;margin:10px 20px 0;border:1.5px dashed var(--line);border-radius:16px;padding:14px;cursor:pointer;background:#fff;transition:border-color .2s ease,background .2s ease;}
+.verif-upload-zone:active{background:var(--panel);}
+.verif-upload-zone.is-filled{border-style:solid;border-color:var(--green);background:var(--green-tint);}
+.verif-upload-row{display:flex;align-items:center;gap:12px;}
+.verif-upload-icon{font-size:22px;flex:none;width:38px;height:38px;border-radius:11px;background:var(--panel);display:flex;align-items:center;justify-content:center;}
+.verif-upload-zone.is-filled .verif-upload-icon{background:transparent;padding:0;width:44px;height:44px;overflow:hidden;border-radius:10px;}
+.verif-upload-zone.is-filled .verif-upload-icon img{width:100%;height:100%;object-fit:cover;border-radius:10px;display:block;}
+.verif-upload-text{flex:1;min-width:0;}
+.verif-upload-text b{display:block;font-size:12.5px;font-weight:800;}
+.verif-upload-text span{display:block;font-size:11px;color:var(--text-mid);margin-top:2px;}
+.verif-upload-zone.is-filled .verif-upload-text b{color:#1a8a4a;}
+.verif-upload-chev{font-size:18px;color:var(--text-soft);flex:none;}
+
+.verif-timeline{margin:4px 0 0;}
+.verif-tl-row{display:flex;gap:12px;position:relative;}
+.verif-tl-row .vtl-rail{display:flex;flex-direction:column;align-items:center;flex:none;width:24px;}
+.verif-tl-row .vtl-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex:none;}
+.verif-tl-row .vtl-bar{width:2px;flex:1;min-height:22px;margin:2px 0;}
+.verif-tl-row.done .vtl-dot{background:var(--indigo);color:#fff;}
+.verif-tl-row.done .vtl-bar{background:var(--indigo);}
+.verif-tl-row.active .vtl-dot{background:var(--gold-tint);border:1.5px solid var(--gold);color:var(--gold-dark);}
+.verif-tl-row.active .vtl-bar{background:var(--line);}
+.verif-tl-row.future .vtl-dot{background:#fff;border:1.5px solid var(--line);color:var(--text-soft);}
+.verif-tl-row.future .vtl-bar{background:var(--line);}
+.verif-tl-content{padding-bottom:20px;flex:1;}
+.verif-tl-content b{display:block;font-size:12.5px;font-weight:800;}
+.verif-tl-content span{display:block;font-size:11.5px;color:var(--text-mid);margin-top:2px;line-height:1.45;}
+</style>
 <script id="maboutique-v49-certification">
 (function(){
   const esc = s => { try{return Utils.escapeHtml(String(s ?? ''));}catch(e){return String(s ?? '');} };
   const DOC_TYPES = [
-    {key:'cni', label:'CNI (Carte Nationale d’Identité)'},
-    {key:'passeport', label:'Passeport'},
-    {key:'cmu', label:'Carte CMU'},
-    {key:'nationalite', label:'Certificat de nationalité'},
-    {key:'carte_scolaire', label:'Carte scolaire'}
+    {key:'cni', label:'CNI (Carte Nationale d’Identité)', icon:'🪪'},
+    {key:'passeport', label:'Passeport', icon:'📘'},
+    {key:'cmu', label:'Carte CMU', icon:'🩺'},
+    {key:'nationalite', label:'Certificat de nationalité', icon:'📜'},
+    {key:'carte_scolaire', label:'Carte scolaire', icon:'🎓'}
   ];
   function docLabel(key){ const d=DOC_TYPES.find(x=>x.key===key); return d?d.label:"Pièce d'identité"; }
 
@@ -15552,17 +15781,33 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
       const f=evt.target.files&&evt.target.files[0]; if(!f) return;
       maboutiquePrepareImageDataURL(f,{maxDim:1600}).then(dataUrl=>{
         VerificationForm._docFile=dataUrl;
-        const prev=document.getElementById('verif-doc-preview');
-        if(prev) prev.innerHTML=`<img src="${dataUrl}" style="width:100%;border-radius:12px;display:block;">`;
+        const zone=document.getElementById('verif-doc-zone');
+        const inner=document.getElementById('verif-doc-inner');
+        if(zone) zone.classList.add('is-filled');
+        if(inner) inner.innerHTML=`<div class="verif-upload-row"><div class="verif-upload-icon"><img src="${dataUrl}"></div><div class="verif-upload-text"><b>Pièce ajoutée ✓</b><span>Touchez pour remplacer la photo ou le scan</span></div><div class="verif-upload-chev">›</div></div>`;
+        VerificationForm._refreshStepper();
       }).catch(()=>Toast.show('Impossible de traiter ce fichier'));
     },
     handlePhotoFile(evt){
       const f=evt.target.files&&evt.target.files[0]; if(!f) return;
       maboutiquePrepareImageDataURL(f,{maxDim:1200}).then(dataUrl=>{
         VerificationForm._photoFile=dataUrl;
-        const prev=document.getElementById('verif-photo-preview');
-        if(prev) prev.innerHTML=`<img src="${dataUrl}" style="width:100%;border-radius:12px;display:block;">`;
+        const zone=document.getElementById('verif-photo-zone');
+        const inner=document.getElementById('verif-photo-inner');
+        if(zone) zone.classList.add('is-filled');
+        if(inner) inner.innerHTML=`<div class="verif-upload-row"><div class="verif-upload-icon"><img src="${dataUrl}"></div><div class="verif-upload-text"><b>Photo prise ✓</b><span>Touchez pour reprendre la photo</span></div><div class="verif-upload-chev">›</div></div>`;
+        VerificationForm._refreshStepper();
       }).catch(()=>Toast.show('Impossible de traiter cette photo'));
+    },
+    _refreshStepper(){
+      const done = (this._docFile?1:0) + (this._photoFile?1:0) + 1;
+      document.querySelectorAll('#verif-stepper .vs-step').forEach((el,i)=>{
+        el.classList.toggle('done', i+1<done);
+        el.classList.toggle('active', i+1===done);
+      });
+      document.querySelectorAll('#verif-stepper .vs-line').forEach((el,i)=>{
+        el.classList.toggle('done', i+1<done);
+      });
     },
     async submit(){
       if(!this._docFile){ Toast.show('Ajoutez une photo ou un scan de votre pièce'); return; }
@@ -15594,40 +15839,64 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
       </div>`;
     }
     if(v.status==='pending'){
+      const submittedDate = v.submittedAt?new Date(v.submittedAt).toLocaleDateString('fr-FR'):'';
       return `${TopBar('Certification boutique','')}<div style="padding:20px;">
-        <div style="border:1.5px solid var(--gold);border-radius:20px;padding:22px;background:var(--gold-tint);text-align:center;">
+        <div style="border:1.5px solid var(--gold);border-radius:20px;padding:22px 20px;background:var(--gold-tint);text-align:center;margin-bottom:18px;">
           <div style="font-size:38px;">⏳</div>
           <h2 style="margin:10px 0 6px;">Vérification en cours</h2>
-          <p style="color:var(--text-mid);font-size:13px;margin:0;">Votre dossier (${esc(docLabel(v.docType))}) a été transmis le ${v.submittedAt?new Date(v.submittedAt).toLocaleDateString('fr-FR'):''}. L'équipe MA BOUTIQUE l'examine et vous notifiera dès validation.</p>
+          <p style="color:var(--text-mid);font-size:13px;margin:0;">Votre dossier (${esc(docLabel(v.docType))}) a été transmis le ${submittedDate}. L'équipe SIAMS l'examine et vous notifiera dès validation.</p>
+        </div>
+        <div class="section-title" style="padding-top:0;">Où en est votre dossier</div>
+        <div class="verif-timeline" style="margin:8px 20px 0;">
+          <div class="verif-tl-row done">
+            <div class="vtl-rail"><div class="vtl-dot">✓</div><div class="vtl-bar"></div></div>
+            <div class="verif-tl-content"><b>Dossier envoyé</b><span>${submittedDate?('Le '+submittedDate):'Reçu par SIAMS'}</span></div>
+          </div>
+          <div class="verif-tl-row active">
+            <div class="vtl-rail"><div class="vtl-dot">⏳</div><div class="vtl-bar"></div></div>
+            <div class="verif-tl-content"><b>Vérification par l'équipe SIAMS</b><span>Vos documents sont en cours de contrôle. Délai habituel : 24 à 48h.</span></div>
+          </div>
+          <div class="verif-tl-row future">
+            <div class="vtl-rail"><div class="vtl-dot">🏅</div></div>
+            <div class="verif-tl-content"><b>Résultat &amp; badge certifié</b><span>Vous recevrez une notification dès que votre boutique sera validée.</span></div>
+          </div>
         </div>
       </div>`;
     }
     const rejected = v.status==='rejected';
+    const docSel = VerificationForm._docType;
     return `${TopBar('Certification boutique','')}
     <div style="padding:0 20px 100px;">
       ${rejected?`<div style="border:1.5px solid var(--red);border-radius:16px;padding:14px;background:#FDEDED;margin-bottom:14px;"><b style="color:var(--red);font-size:13px;">Demande refusée</b><p style="margin:6px 0 0;font-size:12.5px;color:var(--text-mid);">${esc(v.rejectReason||"Document illisible ou non conforme. Merci de soumettre à nouveau.")}</p></div>`:''}
-      <div class="v15-merchant-card" style="margin:0 0 16px;">
+      <div class="v15-merchant-card" style="margin:0 0 6px;">
         <div class="v15-kicker">SERVICE MA BOUTIQUE · CERTIFICATION</div>
         <h2>Obtenez le badge vert certifié</h2>
-        <p>Fournissez une pièce officielle (CNI, Passeport, CMU, Certificat de nationalité ou Carte scolaire) et une photo prise en temps réel pour être identifié comme vendeur sérieux auprès de vos clients.</p>
+        <p>Fournissez une pièce officielle et une photo prise en temps réel pour être identifié comme vendeur sérieux auprès de vos clients. L'équipe SIAMS vérifie chaque dossier avant validation.</p>
+      </div>
+      <div class="verif-stepper" id="verif-stepper">
+        <div class="vs-step done"><div class="vs-dot">1</div><div class="vs-label">Pièce</div></div>
+        <div class="vs-line"></div>
+        <div class="vs-step"><div class="vs-dot">2</div><div class="vs-label">Document</div></div>
+        <div class="vs-line"></div>
+        <div class="vs-step"><div class="vs-dot">3</div><div class="vs-label">Selfie</div></div>
       </div>
       <div class="section-title">1. Choisissez votre pièce</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 20px 0;">
-        ${DOC_TYPES.map(d=>`<button type="button" onclick="VerificationForm.selectDoc('${d.key}')" style="text-align:left;padding:11px;border-radius:13px;border:1.5px solid ${VerificationForm._docType===d.key?'var(--indigo)':'var(--line)'};background:${VerificationForm._docType===d.key?'var(--indigo-tint)':'#fff'};font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;">${esc(d.label)}</button>`).join('')}
+      <div class="verif-doc-grid">
+        ${DOC_TYPES.map(d=>`<button type="button" class="verif-doc-pill${docSel===d.key?' is-selected':''}" onclick="VerificationForm.selectDoc('${d.key}')"><span class="vdp-icon">${d.icon}</span><span>${esc(d.label)}</span></button>`).join('')}
       </div>
       <div class="section-title">2. Photo ou scan de la pièce</div>
-      <div style="margin:8px 20px 0;">
-        <label class="btn btn-outline btn-block" style="cursor:pointer;">📎 Ajouter la pièce jointe<input type="file" accept="image/*" class="hidden" onchange="VerificationForm.handleDocFile(event)"></label>
-        <div id="verif-doc-preview" style="margin-top:10px;"></div>
-      </div>
+      <label class="verif-upload-zone" id="verif-doc-zone">
+        <input type="file" accept="image/*" class="hidden" onchange="VerificationForm.handleDocFile(event)">
+        <div id="verif-doc-inner"><div class="verif-upload-row"><div class="verif-upload-icon">📎</div><div class="verif-upload-text"><b>Ajouter la pièce jointe</b><span>Photo nette ou scan, format JPG ou PNG</span></div><div class="verif-upload-chev">›</div></div></div>
+      </label>
       <div class="section-title">3. Photo prise en temps réel</div>
-      <div style="margin:8px 20px 0;">
-        <label class="btn btn-outline btn-block" style="cursor:pointer;">🤳 Prendre la photo maintenant<input type="file" accept="image/*" capture="user" class="hidden" onchange="VerificationForm.handlePhotoFile(event)"></label>
-        <p style="font-size:11px;color:var(--text-soft);margin:6px 0 0;">L'appareil photo s'ouvre directement — cette photo ne peut pas être choisie depuis la galerie.</p>
-        <div id="verif-photo-preview" style="margin-top:10px;"></div>
-      </div>
+      <label class="verif-upload-zone" id="verif-photo-zone">
+        <input type="file" accept="image/*" capture="user" class="hidden" onchange="VerificationForm.handlePhotoFile(event)">
+        <div id="verif-photo-inner"><div class="verif-upload-row"><div class="verif-upload-icon">🤳</div><div class="verif-upload-text"><b>Prendre la photo maintenant</b><span>L'appareil photo s'ouvre directement, pas de choix depuis la galerie</span></div><div class="verif-upload-chev">›</div></div></div>
+      </label>
       <div style="margin:20px 20px 0;">
         <button id="verif-submit-btn" type="button" class="btn btn-primary btn-block" onclick="VerificationForm.submit()">Envoyer ma demande de certification</button>
+        <p style="font-size:10.5px;color:var(--text-soft);margin:10px 4px 0;text-align:center;">Vos documents sont transmis en toute confidentialité à l'équipe SIAMS et ne sont utilisés que pour cette vérification.</p>
       </div>
     </div>`;
   };
@@ -16077,7 +16346,7 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
         if(badge && typeof VerifiedBadge==='function'){
           const plan=access.plan || (
             badge==='GOLDEN'?'golden':
-            badge==='PLATINE'?'platinum':
+            badge==='ULTRA'?'platinum':
             badge==='TOUTE BOUTIQUE'?'all':
             badge==='DOYA'?'doya':'doyen'
           );
@@ -16878,8 +17147,12 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
     const rate=promos.reduce((n,p)=>n+Number(p.usedCount||0),0);
     const max=promos.reduce((n,p)=>n+Number(p.maxUses||0),0);
     const ratePct=max?Math.min(100,Math.round(rate/max*100)):0;
+    const filter=window.__maboutiqueV76Filter||'all';
+    const filteredPromos = filter==='active' ? promos.filter(p=>p.active&&!(p.maxUses>0&&Number(p.usedCount||0)>=Number(p.maxUses)))
+      : filter==='off' ? promos.filter(p=>!p.active||(p.maxUses>0&&Number(p.usedCount||0)>=Number(p.maxUses)))
+      : promos;
 
-    const cards=promos.map(function(p){
+    const cards=filteredPromos.map(function(p){
       const exhausted=p.maxUses>0&&Number(p.usedCount||0)>=Number(p.maxUses);
       const pct=p.maxUses?Math.min(100,Math.round(Number(p.usedCount||0)/Number(p.maxUses)*100)):0;
       const discount=p.type==='percent'?p.value+'% de réduction':Utils.fmtFCFA(p.value)+' de réduction';
@@ -16903,7 +17176,7 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
     }).join('');
 
     return `
-      ${TopBar('Marketing Boutique','Codes promo')}
+      ${TopBar('Codes promo', promos.length+' code(s)')}
       <main class="maboutique-v76-page">
         <header class="maboutique-v76-head">
           <div class="maboutique-v76-kicker">Marketing boutique</div>
@@ -16931,12 +17204,12 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
         <div class="maboutique-v76-list-head">
           <div class="title"><span class="mini">%</span><b>Vos codes</b></div>
           <select class="maboutique-v76-filter" onchange="window.__maboutiqueV76Filter=this.value;Views.promos&&Router.go('promos')">
-            <option value="all">Tous</option><option value="active">Actifs</option><option value="off">Inactifs</option>
+            <option value="all" ${filter==='all'?'selected':''}>Tous</option><option value="active" ${filter==='active'?'selected':''}>Actifs</option><option value="off" ${filter==='off'?'selected':''}>Inactifs</option>
           </select>
         </div>
 
         <section id="maboutique-v76-codes">
-          ${cards || '<div class="maboutique-v76-empty">Aucun code promo. Créez votre premier code ci-dessus.</div>'}
+          ${cards || (promos.length ? '<div class="maboutique-v76-empty">Aucun code ne correspond à ce filtre.</div>' : '<div class="maboutique-v76-empty">Aucun code promo. Créez votre premier code ci-dessus.</div>')}
         </section>
       </main>`;
   }
