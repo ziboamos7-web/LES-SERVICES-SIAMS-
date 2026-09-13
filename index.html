@@ -73,6 +73,13 @@
     --gold-dark:#9C6F1F;
     --gold-tint:#FBF1DF;
 
+    --emerald:#0E9169;
+    --emerald-dark:#0B6E4F;
+    --emerald-tint:#E3F6EE;
+
+    --siams-orange:#FF7A18;
+    --siams-orange-dark:#E5670D;
+
     --ruby:#8E1537;
     --ruby-dark:#5C0E24;
     --ruby-tint:#F7E3E9;
@@ -104,6 +111,16 @@
     --accent-1:#FF6A00;
     --accent-2:#DE5A12;
     --accent-3:#FF9558;
+  }
+  [data-ui-theme="pure-blue"]{
+    --accent-1:#0091FD;
+    --accent-2:#0066B3;
+    --accent-3:#4DB2FF;
+  }
+  [data-ui-theme="green"]{
+    --accent-1:#12B76A;
+    --accent-2:#0D8A50;
+    --accent-3:#4DD98C;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
@@ -494,6 +511,28 @@
   .product-info .stock.low{color:var(--red);font-weight:700;}
   .product-menu{background:none;border:none;color:var(--text-soft);cursor:pointer;padding:6px;}
 
+  /* ---------- Panier (cart) ---------- */
+  .cart-count-sub{padding:0 20px;margin-top:-6px;color:var(--text-mid);font-size:12.5px;}
+  .cart-card{margin:14px 20px 0;background:var(--panel-soft,var(--panel));border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;}
+  .cart-item{display:flex;align-items:center;gap:13px;padding:14px;background:#fff;}
+  .cart-item+.cart-item{border-top:1px solid var(--line);}
+  .cart-item-thumb{width:62px;height:62px;border-radius:14px;background:var(--panel);border:1px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--text-soft);}
+  .cart-item-thumb img{width:100%;height:100%;object-fit:cover;}
+  .cart-item-info{flex:1;min-width:0;}
+  .cart-item-info h4{margin:0 0 3px;font-size:14px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cart-item-info .meta{font-size:11px;color:var(--text-mid);margin-bottom:3px;}
+  .cart-item-info .price{font-family:var(--font-mono);font-size:13px;color:var(--ink);font-weight:700;}
+  .cart-stepper{display:flex;align-items:center;gap:2px;background:var(--panel);border-radius:999px;padding:3px;flex:none;}
+  .cart-stepper button{width:26px;height:26px;border-radius:50%;border:0;background:#fff;box-shadow:0 1px 3px rgba(20,40,80,.12);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);}
+  .cart-stepper button:active{transform:scale(.92);}
+  .cart-stepper span{min-width:22px;text-align:center;font-size:13px;font-weight:800;font-family:var(--font-mono);}
+  .cart-total-card{margin:16px 20px 0;padding:16px 18px;border-radius:var(--radius-md);background:var(--panel);display:flex;justify-content:space-between;align-items:center;}
+  .cart-total-card .lbl{font-weight:700;font-size:14.5px;color:var(--text-mid);}
+  .cart-total-card .val{font-family:var(--font-mono);font-weight:850;font-size:19px;color:var(--ink);}
+  .cart-note{padding:9px 20px 0;font-size:11px;color:var(--text-soft);display:flex;align-items:center;gap:6px;}
+  .cart-cta-wrap{padding:16px 20px 24px;}
+  .btn-cart-cta{background:var(--siams-orange,#FF7A18);color:#fff;box-shadow:0 10px 24px -8px rgba(255,122,24,.5);display:flex;align-items:center;justify-content:center;gap:8px;}
+
   /* ---------- Form ---------- */
   .form-wrap{padding:8px 20px 0;}
   .field{margin-bottom:20px;}
@@ -505,6 +544,40 @@
   .pass-field-wrap input{padding-right:46px;}
   .pass-toggle-btn{position:absolute;right:3px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-mid);width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:10px;}
   .pass-toggle-btn:active{background:var(--panel);}
+
+  /* ---------- Écran de connexion "Bon retour" (hero illustré) ---------- */
+  .login-hero{position:relative;min-height:340px;padding:20px 22px 64px;background:linear-gradient(160deg,#FDECDD 0%,#FBD9BC 60%,#FAD0AC 100%);overflow:hidden;}
+  .login-hero-back{border:none;background:rgba(255,255,255,.65);color:var(--ink);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;z-index:2;}
+  .login-hero-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:26px;position:relative;z-index:1;}
+  .login-illustration{flex:none;width:44%;max-width:190px;}
+  .login-illustration svg{width:100%;height:auto;display:block;}
+  .login-highlights{flex:1;min-width:0;display:flex;flex-direction:column;gap:20px;padding-bottom:8px;}
+  .login-highlight{display:flex;align-items:flex-start;gap:10px;}
+  .login-highlight-ico{flex:none;width:26px;height:26px;display:flex;align-items:center;justify-content:center;}
+  .login-highlight-ico svg{width:100%;height:100%;}
+  .login-highlight b{display:block;font-size:13px;font-weight:800;color:var(--ink);line-height:1.25;}
+  .login-highlight span{display:block;font-size:11.5px;color:var(--text-mid);margin-top:1px;}
+  .login-card{position:relative;margin-top:-40px;background:#fff;border-radius:30px 30px 0 0;padding:28px 22px 34px;min-height:60vh;box-shadow:0 -12px 30px rgba(20,20,20,.05);}
+  .login-card h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em;}
+  .login-card>p{color:var(--text-mid);font-size:13.5px;margin:0 0 22px;}
+  .login-field{margin-bottom:16px;}
+  .login-field label{display:block;font-size:12.5px;font-weight:800;margin-bottom:8px;color:var(--ink);}
+  .login-field-input{position:relative;display:flex;align-items:center;background:var(--panel);border-radius:16px;}
+  .login-field-input .ico{flex:none;width:18px;height:18px;margin-left:14px;color:var(--text-soft);}
+  .login-field-input input{flex:1;min-width:0;border:none;background:transparent;padding:14px 12px;font-size:14.5px;font-family:var(--font-body);color:var(--text);outline:none;}
+  .login-field-input input::placeholder{color:var(--text-soft);}
+  .login-field-input .pass-toggle-btn{position:static;margin-right:6px;}
+  .login-row-between{display:flex;justify-content:space-between;align-items:center;margin:2px 0 20px;}
+  .login-remember{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:650;color:var(--ink);cursor:pointer;}
+  .login-remember input{appearance:none;-webkit-appearance:none;width:19px;height:19px;border-radius:6px;border:1.6px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;flex:none;}
+  .login-remember input:checked{background:var(--siams-orange,#FF7A18);border-color:var(--siams-orange,#FF7A18);}
+  .login-remember input:checked::after{content:'';width:10px;height:10px;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M4 12.5 9.5 18 20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>') center/contain no-repeat;}
+  .login-forgot{font-size:12.5px;font-weight:750;color:var(--siams-orange-dark,#E5670D);text-decoration:underline;background:none;border:none;cursor:pointer;padding:0;}
+  .btn-login-cta{background:var(--siams-orange,#FF7A18);color:#fff;box-shadow:0 12px 26px -8px rgba(255,122,24,.5);}
+  .login-divider{display:flex;align-items:center;gap:12px;margin:22px 0 16px;color:var(--text-soft);font-size:12px;}
+  .login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--line);}
+  .login-social-row{display:flex;gap:10px;}
+  .login-social-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 10px;border-radius:16px;background:var(--panel);border:none;font-family:var(--font-body);font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;}
   .otp-topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
   .otp-back{background:none;border:none;cursor:pointer;color:var(--text);padding:4px;display:flex;}
   .otp-help{background:none;border:none;cursor:pointer;color:var(--indigo);font-size:14.5px;font-weight:700;font-family:var(--font-body);display:flex;align-items:center;gap:6px;}
@@ -1361,11 +1434,24 @@
 
 
 /* ---------- UX/UI Premium — Livraison V10 ---------- */
-.delivery-head{padding:4px 20px 14px}.delivery-head .eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--green);margin-bottom:5px}.delivery-head h2{margin:0;font-size:25px;letter-spacing:-.035em}.delivery-head p{margin:5px 0 0;color:var(--text-mid);font-size:12.5px}.delivery-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:0 20px 14px}.delivery-stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 5px 18px rgba(20,40,80,.05)}.delivery-stat .n{font-family:var(--font-mono);font-size:18px;font-weight:850}.delivery-stat .t{font-size:10.5px;color:var(--text-mid);margin-top:3px}.delivery-stat.green .n{color:var(--green)}.delivery-zone{display:flex;align-items:center;gap:12px;padding:14px;margin:0 20px 9px;background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 20px rgba(20,40,80,.05)}.delivery-zone .zone-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--green-tint);color:var(--green);flex:none}.delivery-zone .zone-main{min-width:0;flex:1}.delivery-zone .zone-main h4{margin:0 0 3px;font-size:14px}.delivery-zone .zone-main p{margin:0;color:var(--text-mid);font-size:11.5px}.delivery-zone .fee{text-align:right;flex:none}.delivery-zone .fee strong{font-family:var(--font-mono);font-size:13px}.delivery-zone .fee span{display:block;color:var(--text-mid);font-size:10.5px;margin-top:3px}.delivery-note{margin:4px 20px 14px;padding:12px 14px;border:1px solid var(--line);background:var(--indigo-tint);border-radius:14px;color:var(--text-mid);font-size:11.5px;line-height:1.55}.delivery-action{margin:12px 20px 24px}.delivery-action .btn{min-height:48px}@media(max-width:380px){.delivery-head{padding-left:14px;padding-right:14px}.delivery-summary{padding-left:14px;padding-right:14px;gap:6px}.delivery-zone,.delivery-note,.delivery-action{margin-left:14px;margin-right:14px}}
+.delivery-head{padding:4px 20px 14px}.delivery-head .eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--green);margin-bottom:5px}.delivery-head h2{margin:0;font-size:25px;letter-spacing:-.035em}.delivery-head p{margin:5px 0 0;color:var(--text-mid);font-size:12.5px}.delivery-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:0 20px 14px}.delivery-stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 5px 18px rgba(20,40,80,.05)}.delivery-stat .n{font-family:var(--font-mono);font-size:18px;font-weight:850}.delivery-stat .t{font-size:10.5px;color:var(--text-mid);margin-top:3px}.delivery-stat.green .n{color:var(--green)}.delivery-zone{display:flex;align-items:center;gap:12px;padding:14px;margin:0 20px 9px;background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 20px rgba(20,40,80,.05)}.delivery-zone .zone-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:var(--green-tint);color:var(--green);flex:none}.delivery-zone .zone-main{min-width:0;flex:1}.delivery-zone .zone-main h4{margin:0 0 3px;font-size:14px}.delivery-zone .zone-main p{margin:0;color:var(--text-mid);font-size:11.5px}.delivery-zone .fee{text-align:right;flex:none}.delivery-zone .fee strong{font-family:var(--font-mono);font-size:13px}.delivery-zone .fee span{display:block;color:var(--text-mid);font-size:10.5px;margin-top:3px}.delivery-note{margin:4px 20px 14px;padding:12px 14px;border:1px solid var(--line);background:var(--indigo-tint);border-radius:14px;color:var(--text-mid);font-size:11.5px;line-height:1.55}.delivery-action{margin:12px 20px 24px}.delivery-action .btn{min-height:48px}
+.delivery-zone .zone-actions{display:flex;gap:6px;flex:none;margin-left:2px}
+.delivery-zone .zone-act{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--text-mid);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;padding:0}
+.delivery-zone .zone-act:active{transform:scale(.93)}
+.delivery-zone .zone-act.danger{color:var(--red);border-color:var(--red-tint);background:var(--red-tint)}
+.delivery-form-card{margin:14px 20px 26px;padding:16px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel);box-shadow:0 8px 22px rgba(20,40,80,.06)}
+.delivery-form-head{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.delivery-form-head span{width:36px;height:36px;border-radius:11px;background:var(--green-tint);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex:none}
+.delivery-form-head b{display:block;font-size:14.5px}
+.delivery-form-head small{display:block;color:var(--text-mid);font-size:11.5px;margin-top:2px}
+.delivery-form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.delivery-form-card .field{margin-bottom:14px}
+.delivery-form-card .field:last-of-type{margin-bottom:16px}
+@media(max-width:380px){.delivery-head{padding-left:14px;padding-right:14px}.delivery-summary{padding-left:14px;padding-right:14px;gap:6px}.delivery-zone,.delivery-note,.delivery-action{margin-left:14px;margin-right:14px}.delivery-form-card{margin-left:14px;margin-right:14px}.delivery-form-row{grid-template-columns:1fr}}
 
 
 /* ---------- UX/UI Premium — Statistiques V11 ---------- */
-.stats-premium-intro{padding:4px 20px 14px}.stats-premium-intro .eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:5px}.stats-premium-intro h2{margin:0;font-size:25px;letter-spacing:-.035em}.stats-premium-intro p{margin:5px 0 0;color:var(--text-mid);font-size:12.5px}.stats-export{padding:0 20px 12px}.stats-export .btn{min-height:44px}.stats-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 20px 12px}.stats-kpi{border:1px solid var(--line);border-radius:17px;background:var(--panel);padding:14px;box-shadow:0 6px 20px rgba(20,40,80,.055)}.stats-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.045em;color:var(--text-mid);font-weight:800}.stats-kpi .val{font-family:var(--font-mono);font-size:19px;font-weight:850;margin-top:7px;color:var(--ink)}.stats-kpi.primary{background:linear-gradient(135deg,var(--ink) 0%,var(--gold-dark) 55%,var(--gold) 100%);color:#fff;border-color:transparent;box-shadow:0 12px 28px -10px rgba(156,111,31,.45)}.stats-kpi.primary .lbl,.stats-kpi.primary .val{color:#fff}.stats-kpi .ico{font-size:13px;margin-right:5px;vertical-align:-1px}.stats-section{margin:0 20px 10px;padding:15px;background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 20px rgba(20,40,80,.05)}.stats-section .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.stats-section .section-head h4{margin:0;font-size:14px}.stats-section .section-head span{font-size:10.5px;color:var(--text-mid)}.stats-insights{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stats-insight{padding:10px;border-radius:12px;background:var(--soft)}.stats-insight .n{font-family:var(--font-mono);font-weight:850;font-size:15px}.stats-insight .t{font-size:9.5px;color:var(--text-mid);margin-top:3px}.stats-chart-wrap{overflow:hidden}.stats-bottom{height:24px}@media(max-width:380px){.stats-premium-intro,.stats-export,.stats-kpis{padding-left:14px;padding-right:14px}.stats-section{margin-left:14px;margin-right:14px}.stats-insights{gap:5px}}
+.stats-premium-intro{padding:4px 20px 14px}.stats-premium-intro .eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--indigo);margin-bottom:5px}.stats-premium-intro h2{margin:0;font-size:25px;letter-spacing:-.035em}.stats-premium-intro p{margin:5px 0 0;color:var(--text-mid);font-size:12.5px}.stats-export{padding:0 20px 12px}.stats-export .btn{min-height:44px}.stats-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 20px 12px}.stats-kpi{border:1px solid var(--line);border-radius:17px;background:var(--panel);padding:14px;box-shadow:0 6px 20px rgba(20,40,80,.055)}.stats-kpi .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.045em;color:var(--text-mid);font-weight:800}.stats-kpi .val{font-family:var(--font-mono);font-size:19px;font-weight:850;margin-top:7px;color:var(--ink)}.stats-kpi.primary{background:var(--emerald);color:#fff;border-color:transparent;box-shadow:0 12px 28px -10px rgba(14,145,105,.4)}.stats-kpi.primary .lbl,.stats-kpi.primary .val{color:#fff}.stats-kpi .ico{display:inline-flex;width:15px;height:15px;margin-right:5px;vertical-align:-3px}.stats-kpi .ico svg{width:100%;height:100%}.stats-btn-ico{display:inline-flex;width:17px;height:17px;margin-right:7px;vertical-align:-4px;color:var(--text-mid)}.stats-btn-ico svg{width:100%;height:100%}.stats-insight-ico{display:inline-flex;width:14px;height:14px;margin-right:4px;vertical-align:-2px}.stats-insight-ico svg{width:100%;height:100%}.stats-section{margin:0 20px 10px;padding:15px;background:var(--panel);border:1px solid var(--line);border-radius:17px;box-shadow:0 6px 20px rgba(20,40,80,.05)}.stats-section .section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.stats-section .section-head h4{margin:0;font-size:14px}.stats-section .section-head span{font-size:10.5px;color:var(--text-mid)}.stats-insights{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stats-insight{padding:10px;border-radius:12px;background:var(--soft)}.stats-insight .n{font-family:var(--font-mono);font-weight:850;font-size:15px}.stats-insight .t{font-size:9.5px;color:var(--text-mid);margin-top:3px}.stats-chart-wrap{overflow:hidden}.stats-bottom{height:24px}@media(max-width:380px){.stats-premium-intro,.stats-export,.stats-kpis{padding-left:14px;padding-right:14px}.stats-section{margin-left:14px;margin-right:14px}.stats-insights{gap:5px}}
 
 
 /* ---------- UX/UI Premium — Promotions V12 ---------- */
@@ -2419,7 +2505,7 @@ const Cloud = {
     _cache.store = { name:s.name||'Ma boutique', phone:s.phone||'', slug:s.slug||'', photo:s.photo_url||null, banner:s.banner_url||null,
       description:s.description||"Boutique en ligne spécialisée dans la vente d'articles de qualité, avec livraison rapide et paiement sécurisé à la livraison.",
       address:s.address||'Abidjan, Côte d’Ivoire', email:s.email||'', hours:s.hours||'Lundi – Samedi, 8h – 19h', loginId:s.login_id||'', businessType:s.business_type||'vente-ligne',
-      uiTheme: s.ui_theme==='blue' ? 'blue' : 'black',
+      uiTheme: ['blue','pure-blue','green'].includes(s.ui_theme) ? s.ui_theme : 'black',
       verification: { status:s.verification_status||'none', docType:s.verification_doc_type||'', docUrl:s.verification_doc_url||null, photoUrl:s.verification_photo_url||null,
         submittedAt:s.verification_submitted_at?new Date(s.verification_submitted_at).getTime():0, verified:!!s.verified,
         verifiedAt:s.verified_at?new Date(s.verified_at).getTime():0, rejectReason:s.verification_reject_reason||'' } };
@@ -3604,7 +3690,8 @@ const Charts = {
 const PUBLIC_VIEWS = ['welcome','onboarding-public','about-partnership','activation-code','courier-login','courier-invite','courier-dashboard','shop','shop-product','cart','checkout','confirmation','login','register','verify-otp','confirm-email','recover-id','shop-categories','shop-favorites','shop-account','order-track','shop-orders-history','shop-about','shop-help','onboarding-client'];
 const CLIENT_TAB_VIEWS = ['shop','shop-categories','cart','shop-favorites','shop-account'];
 function applyUiTheme(){
-  document.documentElement.setAttribute('data-ui-theme', Store.uiTheme==='black' ? 'black' : 'blue');
+  const validThemes = ['black','blue','pure-blue','green'];
+  document.documentElement.setAttribute('data-ui-theme', validThemes.includes(Store.uiTheme) ? Store.uiTheme : 'blue');
 }
 function setUiTheme(v){
   Store.uiTheme = v;
@@ -3614,54 +3701,65 @@ function setUiTheme(v){
 const Router = {
   current:'dashboard',
   go(name, opts){
-    if(name!=='courier-dashboard' && typeof CourierMission!=='undefined') CourierMission.close();
-    if(name==='register' && !ActivationGate.getStored()){
-      name='activation-code';
-      opts={};
+    /* CORRECTIF : tout ce bloc de pré-traitement s'exécutait avant le rendu de la
+       page. Une erreur JS levée n'importe où ici (ex. par un script tiers qui
+       patche CourierMission, Notify, Sheet ou applyUiTheme) interrompait Router.go
+       AVANT d'atteindre l'écriture dans #page-root : l'écran restait figé sur la
+       vue précédente, sans aucun message ni changement visible (bouton qui « ne
+       fait rien »). On isole donc ce bloc pour qu'une erreur y soit journalisée
+       dans la console au lieu de bloquer silencieusement toute la navigation. */
+    try{
+      if(name!=='courier-dashboard' && typeof CourierMission!=='undefined') CourierMission.close();
+      if(name==='register' && !ActivationGate.getStored()){
+        name='activation-code';
+        opts={};
+      }
+      if(!PUBLIC_VIEWS.includes(name) && !Auth.isLoggedIn()){
+        name = 'login';
+        opts = {};
+      }
+      if(!PUBLIC_VIEWS.includes(name) && Auth.isLoggedIn() && OtpGate.pending){
+        name = 'verify-otp';
+        opts = {};
+      }
+      if(name==='dashboard' && !hasSeenOnboarding(ONBOARD_ADMIN_KEY)){
+        name = 'onboarding-admin';
+        opts = {};
+      } else if(name==='dashboard' && !hasChosenBusinessType()){
+        name = 'business-type';
+        opts = {};
+      }
+      /* ---- Boutiques "restauration" : l'onglet Produits pointe vers l'écran dédié
+         "Menu du jour" au lieu du catalogue classique. Redirection centralisée ici
+         pour que tous les points d'entrée (nav, raccourcis dashboard, etc.) en
+         bénéficient sans avoir à changer chaque appel Router.go('products'). ---- */
+      if(name==='products' && getBusinessType()==='restauration'){
+        name = 'menu';
+      }
+      /* ---- Idem côté client : l'onglet "Catégories" est redondant pour une boutique
+         restauration (l'accueil affiche déjà tout le menu groupé par catégorie), et
+         la fiche produit détaillée n'a pas d'équivalent pour un plat. On renvoie donc
+         vers l'accueil plutôt que de dupliquer/adapter des vues déjà redéfinies
+         plusieurs fois plus bas dans le fichier (risque de régression inutile). ---- */
+      if((name==='shop-categories' || name==='shop-product') && Store.store && Store.store.businessType==='restauration'){
+        name = 'shop';
+        opts = {};
+      }
+      /* Aperçu marchand et liens publics : la vitrine doit être directement accessible.
+         L'onboarding client reste affiché uniquement lors d'un accès client normal. */
+      const skipClientOnboarding = !!(opts && opts.skipOnboarding);
+      if(name==='shop' && !skipClientOnboarding && !hasSeenOnboarding(ONBOARD_CLIENT_KEY)){
+        name = 'onboarding-client';
+        opts = {};
+      }
+    }catch(preErr){
+      console.error('Router.go: erreur dans le pré-traitement de la route "'+name+'"', preErr);
     }
-    if(!PUBLIC_VIEWS.includes(name) && !Auth.isLoggedIn()){
-      name = 'login';
-      opts = {};
-    }
-    if(!PUBLIC_VIEWS.includes(name) && Auth.isLoggedIn() && OtpGate.pending){
-      name = 'verify-otp';
-      opts = {};
-    }
-    if(name==='dashboard' && !hasSeenOnboarding(ONBOARD_ADMIN_KEY)){
-      name = 'onboarding-admin';
-      opts = {};
-    } else if(name==='dashboard' && !hasChosenBusinessType()){
-      name = 'business-type';
-      opts = {};
-    }
-    /* ---- Boutiques "restauration" : l'onglet Produits pointe vers l'écran dédié
-       "Menu du jour" au lieu du catalogue classique. Redirection centralisée ici
-       pour que tous les points d'entrée (nav, raccourcis dashboard, etc.) en
-       bénéficient sans avoir à changer chaque appel Router.go('products'). ---- */
-    if(name==='products' && getBusinessType()==='restauration'){
-      name = 'menu';
-    }
-    /* ---- Idem côté client : l'onglet "Catégories" est redondant pour une boutique
-       restauration (l'accueil affiche déjà tout le menu groupé par catégorie), et
-       la fiche produit détaillée n'a pas d'équivalent pour un plat. On renvoie donc
-       vers l'accueil plutôt que de dupliquer/adapter des vues déjà redéfinies
-       plusieurs fois plus bas dans le fichier (risque de régression inutile). ---- */
-    if((name==='shop-categories' || name==='shop-product') && Store.store && Store.store.businessType==='restauration'){
-      name = 'shop';
-      opts = {};
-    }
-    /* Aperçu marchand et liens publics : la vitrine doit être directement accessible.
-       L'onboarding client reste affiché uniquement lors d'un accès client normal. */
-    const skipClientOnboarding = !!(opts && opts.skipOnboarding);
-    if(name==='shop' && !skipClientOnboarding && !hasSeenOnboarding(ONBOARD_CLIENT_KEY)){
-      name = 'onboarding-client';
-      opts = {};
-    }
-    Notify.closePanel();
-    Sheet.close();
+    try{ Notify.closePanel(); }catch(e){ console.error('Router.go: Notify.closePanel a échoué', e); }
+    try{ Sheet.close(); }catch(e){ console.error('Router.go: Sheet.close a échoué', e); }
     Router.current = name;
     Router.currentOpts = opts || {};
-    applyUiTheme();
+    try{ applyUiTheme(); }catch(e){ console.error('Router.go: applyUiTheme a échoué', e); }
     /* ---- Un rendu de vue qui plante (exception JS) ne doit jamais laisser le clic
        « sans rien faire » à l'écran : on affiche l'erreur pour pouvoir la diagnostiquer
        facilement (capture d'écran), au lieu d'un échec silencieux visible seulement
@@ -4298,7 +4396,15 @@ const ICONS = {
   box:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 8h16M4 8l1.5 11a2 2 0 0 0 2 1.7h9a2 2 0 0 0 2-1.7L20 8M4 8l2-4h12l2 4M9 12v3M15 12v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   team:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 20c.6-3.4 3-5.5 5.5-5.5s4.9 2.1 5.5 5.5M16 9.5c1.6.2 2.8 1.6 2.8 3.2M16 5.3a3 3 0 0 1 0 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
   chart:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  cart:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  cart:'<svg width="30" height="30" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  banknote:'<svg viewBox="0 0 24 24" fill="none"><rect x="2.5" y="6" width="19" height="12" rx="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/><path d="M5.6 9v.01M18.4 15v.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  receipt:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 2.5h12v19l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3v-19Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 7h7M8.5 10.5h7M8.5 14h4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  users2:'<svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M3.7 19c.6-3.2 2.8-5 5.3-5s4.7 1.8 5.3 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="17.3" cy="8.7" r="2.3" stroke="currentColor" stroke-width="1.5"/><path d="M15.4 19c.4-2.3 1.8-3.9 3.7-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  checkCircle:'<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="m8 12.3 2.6 2.6L16.3 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  undo2:'<svg viewBox="0 0 24 24" fill="none"><path d="M4.5 9a8 8 0 1 1-1.2 5.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.3 4.2v5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  clock2:'<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  fileText:'<svg viewBox="0 0 24 24" fill="none"><path d="M6.5 2.5h8l4 4v14.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 2.5V7h4.2" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12.5h7M8.5 15.5h7M8.5 18.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  fileBar:'<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2.4" stroke="currentColor" stroke-width="1.6"/><path d="M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
 };
 
 /* =========================================================
@@ -4633,24 +4739,64 @@ Views['activation-code'] = function(){
    être rendu comme du texte dans le DOM si un navigateur rencontre un contexte
    HTML/JS atypique pendant le chargement de cette page monolithique.
    ------------------------------------------------------------------------- */
+/* ---------- Illustration du livreur pour l'écran de connexion "Bon retour" ---------- */
+const LOGIN_COURIER_SVG = '<svg viewBox="0 0 180 230" xmlns="http://www.w3.org/2000/svg">'+
+  '<path d="M45 230 Q40 150 60 130 Q75 118 90 118 Q105 118 120 130 Q140 150 136 230 Z" fill="#FF7A18"/>'+
+  '<path d="M90 118 Q105 118 120 130 Q135 148 136 205 L123 205 Q122 152 106 133 Q98 126 90 124 Z" fill="#E5670D" opacity=".45"/>'+
+  '<path d="M90 130 L90 212" stroke="#C9560B" stroke-width="2" stroke-linecap="round"/>'+
+  '<circle cx="83" cy="150" r="2.6" fill="#C9560B"/><circle cx="83" cy="168" r="2.6" fill="#C9560B"/>'+
+  '<path d="M62 128 Q90 146 118 128 L118 117 Q90 133 62 117 Z" fill="#E5670D"/>'+
+  '<path d="M48 145 Q34 162 38 192 Q40 206 55 209 L60 196 Q50 191 50 176 Q50 160 60 150 Z" fill="#FF7A18"/>'+
+  '<path d="M118 138 Q135 130 138 110 Q140 94 131 85 L119 93 Q126 100 124 112 Q122 122 110 128 Z" fill="#FF7A18"/>'+
+  '<circle cx="131" cy="87" r="10" fill="#E3A672"/>'+
+  '<rect x="121" y="61" width="20" height="34" rx="4" fill="#22262E"/><rect x="124" y="65" width="14" height="22" rx="1.5" fill="#8FC7FF"/>'+
+  '<circle cx="88" cy="68" r="33" fill="#E3A672"/>'+
+  '<circle cx="56" cy="70" r="6" fill="#E3A672"/><circle cx="120" cy="70" r="6" fill="#E3A672"/>'+
+  '<path d="M55 60 Q52 75 58 84 Q56 68 62 58 Z" fill="#2B2118"/><path d="M121 60 Q124 74 118 82 Q122 66 116 58 Z" fill="#2B2118"/>'+
+  '<path d="M52 60 Q88 40 128 62 Q120 50 88 46 Q56 48 52 60Z" fill="#E5670D"/>'+
+  '<path d="M55 55 Q60 25 88 24 Q118 25 122 56 Q110 42 88 40 Q66 42 55 55Z" fill="#FF7A18"/>'+
+  '<circle cx="76" cy="70" r="3.2" fill="#2B2118"/><circle cx="100" cy="70" r="3.2" fill="#2B2118"/>'+
+  '<path d="M74 82 Q88 92 102 82" stroke="#8A4A26" stroke-width="2.5" stroke-linecap="round" fill="none"/>'+
+  '<path d="M128 40 q-14 0 -14 12 q0 10 10 12 l-2 8 l10 -8 q10 -1 10 -12 q0 -12 -14 -12 Z" fill="#2E9BFF"/>'+
+  '<circle cx="118" cy="50" r="1.6" fill="#fff"/><circle cx="124" cy="50" r="1.6" fill="#fff"/><circle cx="130" cy="50" r="1.6" fill="#fff"/>'+
+  '<circle cx="140" cy="34" r="7" fill="#FF3B30"/><text x="140" y="37.5" font-size="9" font-family="Arial,sans-serif" font-weight="700" fill="#fff" text-anchor="middle">1</text>'+
+'</svg>';
+
 Views.login = function(){
   authMode='login';
   return ''+
-  '<div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">'+
-    '<button onclick="Router.go(\'welcome\')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">'+
-      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
-    '</button>'+
-    '<div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="'+LOGO_DATA_URI+'" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;"></div>'+
-    '<h1 style="font-size:24px;margin:0 0 6px;">Connexion</h1>'+
-    '<p style="color:var(--text-mid);font-size:14px;margin:0 0 26px;">Connectez-vous pour gérer votre boutique.</p>'+
-    '<div class="field"><label>E-mail ou ID marchand MA BOUTIQUE</label><input id="auth-email" type="text" placeholder="vous@exemple.com ou AMS-XXXXXX" autocomplete="username"></div>'+
-    '<div class="field"><label>Mot de passe</label>'+ 
-      '<div class="pass-field-wrap"><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass\', this)">'+EYE_SVG+'</button></div>'+ 
-      '<div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;"><button type="button" class="link-btn" style="font-size:12.5px;" onclick="Router.go(\'recover-id\')">ID marchand oublié ?</button><button type="button" class="link-btn" style="font-size:12.5px;" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button></div>'+ 
-    '</div>'+ 
-    '<div id="auth-error" style="font-size:13px;margin-bottom:14px;"></div>'+ 
-    '<button class="btn btn-primary btn-block" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>'+ 
-    '<div style="margin-top:14px;padding:12px 13px;border-radius:13px;background:var(--panel);color:var(--text-mid);font-size:11.5px;line-height:1.45;">L’accès aux nouvelles inscriptions est réservé aux personnes ayant reçu un code partenaire du service client MA BOUTIQUE.</div>'+ 
+  '<div class="login-hero">'+
+    '<button class="login-hero-back" onclick="Router.go(\'welcome\')" aria-label="Retour"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
+    '<div class="login-hero-row">'+
+      '<div class="login-illustration">'+LOGIN_COURIER_SVG+'</div>'+
+      '<div class="login-highlights">'+
+        '<div class="login-highlight"><div class="login-highlight-ico"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="9" width="7" height="11" rx="1.6" fill="#EF8B3D"/><rect x="13" y="6" width="7" height="14" rx="1.6" fill="#12946A"/></svg></div><div><b>Nouvelle commande</b><span>Robe wax — 12 000 FCFA</span></div></div>'+
+        '<div class="login-highlight"><div class="login-highlight-ico"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="13" rx="2.4" fill="#F2B705"/><rect x="2" y="9.5" width="20" height="2.4" fill="#0B0E17" fill-opacity=".55"/></svg></div><div><b>Paiement reçu</b><span>Wave — confirmé</span></div></div>'+
+        '<div class="login-highlight"><div class="login-highlight-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2.5 14.6 9l7 .6-5.3 4.6 1.6 6.8L12 17.3 5.9 21l1.7-6.8L2.4 9.6l7-.6 2.6-6.5Z" fill="#F2B705"/></svg></div><div><b>Nouvel avis client</b><span>5 étoiles — merci !</span></div></div>'+
+      '</div>'+
+    '</div>'+
+  '</div>'+
+  '<div class="login-card">'+
+    '<h1>Bon retour</h1>'+
+    '<p>Connectez-vous pour gérer votre boutique.</p>'+
+    '<div class="login-field"><label>E-mail ou ID marchand MA BOUTIQUE</label>'+
+      '<div class="login-field-input"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.4" stroke="currentColor" stroke-width="1.6"/><path d="m4 6.5 8 6.5 8-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><input id="auth-email" type="text" placeholder="vous@exemple.com ou AMS-XXXXXX" autocomplete="username"></div>'+
+    '</div>'+
+    '<div class="login-field"><label>Mot de passe</label>'+
+      '<div class="login-field-input"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="currentColor" stroke-width="1.6"/></svg></span><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass\', this)">'+EYE_SVG+'</button></div>'+
+    '</div>'+
+    '<div class="login-row-between">'+
+      '<label class="login-remember"><input type="checkbox" id="auth-remember" checked>Rester connecté</label>'+
+      '<button type="button" class="login-forgot" onclick="contactSupportForgotPasswordCustom()">Mot de passe oublié ?</button>'+
+    '</div>'+
+    '<button type="button" class="link-btn" style="font-size:12px;margin:-10px 0 16px;display:block;" onclick="Router.go(\'recover-id\')">ID marchand oublié ?</button>'+
+    '<div id="auth-error" style="font-size:13px;margin-bottom:14px;"></div>'+
+    '<button class="btn btn-block btn-login-cta" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>'+
+    '<div class="login-divider">Ou continuer avec</div>'+
+    '<div class="login-social-row">'+
+      '<button type="button" class="login-social-btn" onclick="Toast.show(\'Bientôt disponible\')"><svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.5 3.5 24 3.5 12.7 3.5 3.5 12.7 3.5 24S12.7 44.5 24 44.5 44.5 35.3 44.5 24c0-1.2-.1-2.4-.3-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.5 3.5 24 3.5c-8 0-14.8 4.6-17.7 11.2z"/><path fill="#4CAF50" d="M24 44.5c5.4 0 10.3-1.9 14-5.1l-6.5-5.5c-2 1.4-4.5 2.1-7.5 2.1-5.3 0-9.7-3.3-11.3-8l-6.6 5C9.1 39.8 16 44.5 24 44.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.5 5.5c-.5.4 6.8-5 6.8-15.6 0-1.2-.1-2.4-.3-3.5z"/></svg>Google</button>'+
+      '<button type="button" class="login-social-btn" onclick="Toast.show(\'Bientôt disponible\')"><svg width="15" height="15" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>Apple</button>'+
+    '</div>'+
   '</div>';
 };
 
@@ -4947,11 +5093,28 @@ const AccountId = {
     this.current = Cloud.loginId || (_cache.store && _cache.store.loginId) || '';
     Router.go('account-id');
   },
-  copy(){
+  copy(btn){
     if(!this.current) return;
     (navigator.clipboard ? navigator.clipboard.writeText(this.current) : Promise.reject())
-      .then(()=> Toast.show('Identifiant copié ✓'))
+      .then(()=>{
+        Toast.show('Identifiant copié ✓');
+        if(btn){
+          const original=btn.innerHTML;
+          btn.innerHTML='✓ Copié';
+          btn.disabled=true;
+          setTimeout(()=>{ btn.innerHTML=original; btn.disabled=false; }, 1600);
+        }
+      })
       .catch(()=> Toast.show("Impossible de copier l'identifiant"));
+  },
+  share(){
+    if(!this.current) return;
+    const text = `Mon ID marchand MA BOUTIQUE : ${this.current}\nÀ utiliser à la place de l'e-mail sur l'écran de connexion.`;
+    if(navigator.share){
+      navigator.share({title:'ID marchand MA BOUTIQUE', text}).catch(()=>{});
+    }else{
+      window.open('https://wa.me/?text='+encodeURIComponent(text), '_blank');
+    }
   },
   save(){ downloadAccountIdCardPDF(); },
   continueToApp(){ Router.go('dashboard'); }
@@ -8644,24 +8807,24 @@ Views.stats = function(){
     <h2>Vos statistiques</h2>
     <p>Comprenez vos ventes, vos clients et les performances de votre boutique.</p>
   </div>
-  <div class="stats-export"><button class="btn btn-outline btn-block" onclick="exportSalesReportPDF()">📄 Exporter le rapport PDF</button></div>
-  <div class="stats-export" style="margin-top:8px;"><button class="btn btn-outline btn-block" onclick="exportOrdersCSV()">📊 Exporter les commandes (Excel / CSV)</button></div>
+  <div class="stats-export"><button class="btn btn-outline btn-block" onclick="exportSalesReportPDF()"><span class="stats-btn-ico">${ICONS.fileText}</span>Exporter le rapport PDF</button></div>
+  <div class="stats-export" style="margin-top:8px;"><button class="btn btn-outline btn-block" onclick="exportOrdersCSV()"><span class="stats-btn-ico">${ICONS.fileBar}</span>Exporter les commandes (Excel / CSV)</button></div>
 
   <div class="stats-kpis">
-    <div class="stats-kpi primary"><div class="lbl"><span class="ico">💰</span>CA livré ce mois</div><div class="val">${statsMoney(revCur)}</div>${revD?`<div style="font-size:10.5px;margin-top:5px;opacity:.9">${revD.dir==='up'?'▲':revD.dir==='down'?'▼':'•'} ${revD.txt} vs mois dernier</div>`:''}</div>
-    <div class="stats-kpi"><div class="lbl"><span class="ico">🧾</span>Commandes</div><div class="val">${ordCur}</div>${ordD?`<div style="font-size:10.5px;color:${ordD.dir==='up'?'var(--green)':ordD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${ordD.txt} vs mois dernier</div>`:''}</div>
-    <div class="stats-kpi"><div class="lbl"><span class="ico">🛒</span>Panier moyen</div><div class="val">${statsMoney(basketCur)}</div>${basketD?`<div style="font-size:10.5px;color:${basketD.dir==='up'?'var(--green)':basketD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${basketD.txt} vs mois dernier</div>`:''}</div>
-    <div class="stats-kpi"><div class="lbl"><span class="ico">👥</span>Clients</div><div class="val">${clientsCount}</div><div style="font-size:10.5px;color:var(--text-mid);margin-top:5px">${newCustCur} nouveau${newCustCur>1?'x':''} ce mois</div></div>
+    <div class="stats-kpi primary"><div class="lbl"><span class="ico">${ICONS.banknote}</span>CA livré ce mois</div><div class="val">${statsMoney(revCur)}</div>${revD?`<div style="font-size:10.5px;margin-top:5px;opacity:.9">${revD.dir==='up'?'▲':revD.dir==='down'?'▼':'•'} ${revD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl"><span class="ico">${ICONS.receipt}</span>Commandes</div><div class="val">${ordCur}</div>${ordD?`<div style="font-size:10.5px;color:${ordD.dir==='up'?'var(--green)':ordD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${ordD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl"><span class="ico">${ICONS.cart}</span>Panier moyen</div><div class="val">${statsMoney(basketCur)}</div>${basketD?`<div style="font-size:10.5px;color:${basketD.dir==='up'?'var(--green)':basketD.dir==='down'?'var(--red)':'var(--text-mid)'};margin-top:5px">${basketD.txt} vs mois dernier</div>`:''}</div>
+    <div class="stats-kpi"><div class="lbl"><span class="ico">${ICONS.users2}</span>Clients</div><div class="val">${clientsCount}</div><div style="font-size:10.5px;color:var(--text-mid);margin-top:5px">${newCustCur} nouveau${newCustCur>1?'x':''} ce mois</div></div>
   </div>
 
   <div class="stats-section">
     <div class="section-head"><h4>Performance globale</h4><span>Depuis le début</span></div>
     <div class="stats-insights">
-      <div class="stats-insight"><div class="n">✅ ${deliveredRate}%</div><div class="t">Commandes terminées</div></div>
-      <div class="stats-insight"><div class="n">↩️ ${cancellationRate}%</div><div class="t">Annulations</div></div>
-      <div class="stats-insight"><div class="n">💰 ${statsMoney(revenue)}</div><div class="t">CA livré total</div></div>
+      <div class="stats-insight"><div class="n"><span class="stats-insight-ico" style="color:var(--green)">${ICONS.checkCircle}</span>${deliveredRate}%</div><div class="t">Commandes terminées</div></div>
+      <div class="stats-insight"><div class="n"><span class="stats-insight-ico" style="color:var(--text-mid)">${ICONS.undo2}</span>${cancellationRate}%</div><div class="t">Annulations</div></div>
+      <div class="stats-insight"><div class="n"><span class="stats-insight-ico" style="color:var(--emerald)">${ICONS.banknote}</span>${statsMoney(revenue)}</div><div class="t">CA livré total</div></div>
     </div>
-    <div style="margin-top:11px;font-size:11.5px;color:var(--text-mid)">${deliveryAvg?`⏱️ Temps moyen de traitement : <b style="color:var(--ink)">${deliveryAvg>=60?Math.floor(deliveryAvg/60)+' h '+deliveryAvg%60+' min':deliveryAvg+' min'}</b>`:'Le temps moyen apparaîtra après les premières livraisons confirmées.'}</div>
+    <div style="margin-top:11px;font-size:11.5px;color:var(--text-mid);display:flex;align-items:center;gap:6px">${deliveryAvg?`<span class="stats-insight-ico" style="color:var(--text-mid)">${ICONS.clock2}</span>Temps moyen de traitement : <b style="color:var(--ink)">${deliveryAvg>=60?Math.floor(deliveryAvg/60)+' h '+deliveryAvg%60+' min':deliveryAvg+' min'}</b>`:'Le temps moyen apparaîtra après les premières livraisons confirmées.'}</div>
   </div>
 
   <div class="stats-section">
@@ -9975,27 +10138,95 @@ Views.delivery = function(){
         <div class="zone-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9" r="2.4" stroke="currentColor" stroke-width="1.8"/></svg></div>
         <div class="zone-main"><h4>${Utils.escapeHtml(name)}</h4><p>Délai indicatif : ${Utils.escapeHtml(String(delay))}</p></div>
         <div class="fee"><strong>${Utils.fmtFCFA(Number(fee)||0)}</strong><span>frais</span></div>
+        <div class="zone-actions">
+          <button type="button" class="zone-act" aria-label="Modifier la zone" onclick="editDeliveryZone(${i})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+          <button type="button" class="zone-act danger" aria-label="Supprimer la zone" onclick="deleteDeliveryZone(${i})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M8 7l1 13a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l1-13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
       </div>`;
     }).join('')}
   <div class="delivery-note">
     Les zones configurées seront proposées automatiquement au client lors de la commande. Les frais affichés dépendent de la zone sélectionnée.
   </div>
-  <div class="delivery-action">
-    <button class="btn btn-soft-green btn-block" onclick="addDeliveryZone()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="var(--green)" stroke-width="2.2" stroke-linecap="round"/></svg>Ajouter une zone de livraison</button>
-  </div>`;
+  <section class="delivery-form-card" id="delivery-form-card">
+    <div class="delivery-form-head">
+      <span id="delivery-form-icon">＋</span>
+      <div><b id="delivery-form-title">Ajouter une zone de livraison</b><small>Nom, frais et délai indicatif de livraison.</small></div>
+    </div>
+    <input type="hidden" id="dz-edit-index" value="">
+    <div class="field"><label>Nom de la zone</label><input id="dz-name" type="text" maxlength="40" autocomplete="off" placeholder="Ex. Cocody, Yopougon"></div>
+    <div class="delivery-form-row">
+      <div class="field"><label>Frais (FCFA)</label><input id="dz-fee" type="number" min="0" step="1" inputmode="numeric" placeholder="1000"></div>
+      <div class="field"><label>Délai indicatif</label><input id="dz-delay" type="text" maxlength="30" placeholder="24–72 h"></div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-soft-green btn-block" id="dz-submit-btn" onclick="submitDeliveryZone()">＋ Ajouter la zone</button>
+      <button class="btn btn-outline" id="dz-cancel-btn" style="display:none;flex:none;" onclick="resetDeliveryZoneForm()">Annuler</button>
+    </div>
+  </section>`;
 };
-function addDeliveryZone(){
-  const name = prompt('Nom de la zone (ex : Cocody, Yopougon)');
-  if(!name || !name.trim()) return;
-  const fee = prompt('Frais de livraison (FCFA)');
-  if(fee===null || isNaN(Number(fee)) || Number(fee)<0){ Toast.show('Montant invalide'); return; }
-  const zones = Store.deliveryZones;
-  zones.push({ name:name.trim(), fee:Number(fee) });
-  Store.deliveryZones = zones;
-  Toast.show('Zone ajoutée ✓');
+function resetDeliveryZoneForm(){
+  const idx=document.getElementById('dz-edit-index'); if(idx) idx.value='';
+  const nEl=document.getElementById('dz-name'); if(nEl) nEl.value='';
+  const fEl=document.getElementById('dz-fee'); if(fEl) fEl.value='';
+  const dEl=document.getElementById('dz-delay'); if(dEl) dEl.value='';
+  const icon=document.getElementById('delivery-form-icon'); if(icon) icon.textContent='＋';
+  const title=document.getElementById('delivery-form-title'); if(title) title.textContent='Ajouter une zone de livraison';
+  const btn=document.getElementById('dz-submit-btn'); if(btn) btn.innerHTML='＋ Ajouter la zone';
+  const cancel=document.getElementById('dz-cancel-btn'); if(cancel) cancel.style.display='none';
+}
+function editDeliveryZone(i){
+  const zones=Store.deliveryZones||[]; const z=zones[i]; if(!z) return;
+  const name=Array.isArray(z)?z[0]:(z.name||z.zone||'');
+  const fee=Array.isArray(z)?z[1]:(z.fee||z.price||0);
+  const delay=Array.isArray(z)?(z[2]||''):(z.delay||'');
+  const idx=document.getElementById('dz-edit-index'); if(idx) idx.value=String(i);
+  const nEl=document.getElementById('dz-name'); if(nEl) nEl.value=name;
+  const fEl=document.getElementById('dz-fee'); if(fEl) fEl.value=fee;
+  const dEl=document.getElementById('dz-delay'); if(dEl) dEl.value=delay;
+  const icon=document.getElementById('delivery-form-icon'); if(icon) icon.textContent='✎';
+  const title=document.getElementById('delivery-form-title'); if(title) title.textContent='Modifier la zone';
+  const btn=document.getElementById('dz-submit-btn'); if(btn) btn.innerHTML='✓ Enregistrer';
+  const cancel=document.getElementById('dz-cancel-btn'); if(cancel) cancel.style.display='inline-flex';
+  document.getElementById('delivery-form-card')?.scrollIntoView({behavior:'smooth',block:'center'});
+  nEl?.focus();
+}
+function submitDeliveryZone(){
+  const name=(document.getElementById('dz-name')?.value||'').trim();
+  if(!name){ Toast.show('Indiquez le nom de la zone'); return; }
+  const feeRaw=document.getElementById('dz-fee')?.value;
+  const fee=Number(feeRaw);
+  if(feeRaw===''||feeRaw==null||isNaN(fee)||fee<0){ Toast.show('Montant invalide'); return; }
+  const delay=(document.getElementById('dz-delay')?.value||'').trim()||'24–72 h';
+  const idxRaw=document.getElementById('dz-edit-index')?.value;
+  const zones=Store.deliveryZones||[];
+  if(idxRaw){
+    const i=Number(idxRaw);
+    if(zones[i]) zones[i]={name, fee, delay};
+    Store.deliveryZones=zones;
+    Toast.show('Zone modifiée ✓');
+  }else{
+    zones.push({name, fee, delay});
+    Store.deliveryZones=zones;
+    Toast.show('Zone ajoutée ✓');
+  }
   Router.go('delivery');
 }
+/* Conservée pour compatibilité avec les autres points d'entrée de l'appli
+   (raccourcis « Nouvelle zone » du Centre logistique, etc.) : au lieu d'ouvrir
+   trois prompt() natifs à la suite, on amène maintenant le marchand jusqu'au
+   formulaire intégré de l'écran Livraison. */
+function addDeliveryZone(){
+  if(Router.current!=='delivery'){
+    Router.go('delivery');
+    setTimeout(()=>{ resetDeliveryZoneForm(); document.getElementById('delivery-form-card')?.scrollIntoView({behavior:'smooth',block:'center'}); document.getElementById('dz-name')?.focus(); }, 80);
+    return;
+  }
+  resetDeliveryZoneForm();
+  document.getElementById('delivery-form-card')?.scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById('dz-name')?.focus();
+}
 function deleteDeliveryZone(i){
+  if(!confirm('Supprimer cette zone de livraison ?')) return;
   const zones = Store.deliveryZones;
   zones.splice(i,1);
   Store.deliveryZones = zones;
@@ -11563,26 +11794,26 @@ Views.cart = function(){
   ${editMode ? `<div style="margin:10px 20px 0;padding:11px 13px;border-radius:14px;background:var(--indigo-tint);color:var(--indigo);font-size:12px;font-weight:700;">Commande #${Utils.escapeHtml(editNumber)} · ${window.MaBoutiqueOrderEdit.mode==='complete'?'Ajoutez ou retirez des articles avant de confirmer.':'Modifiez les quantités avant de confirmer.'}<button type="button" onclick="window.cancelMaBoutiqueOrderEdit()" style="display:block;margin-top:8px;border:0;background:none;color:inherit;font:inherit;padding:0;text-decoration:underline;cursor:pointer;">Quitter sans enregistrer</button></div>` : ''}
   ${items.length===0 ? EmptyState(ICONS.cart,'Panier vide','Ajoutez des produits depuis la boutique pour commencer.',
     `<button class="btn btn-primary" onclick="Router.go('shop')">Voir la boutique</button>`) : `
-  <div style="padding:8px 20px 0;">
+  ${!editMode ? `<div class="cart-count-sub">${items.length} article${items.length>1?'s':''} dans votre panier</div>` : ''}
+  <div class="cart-card">
     ${items.map(i=>{
       const variantLabel = Utils.variantLabel(i);
       const key = i.key || i.productId;
       return `
-      <div class="product-row" style="padding:14px 0;">
-        <div class="product-thumb">${i.product.photo?`<img src="${i.product.photo}">`:`<svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`}</div>
-        <div class="product-info"><h4>${Utils.escapeHtml(i.product.name)}</h4>${variantLabel?`<div class="meta">${Utils.escapeHtml(variantLabel)}</div>`:''}<div class="price">${Utils.fmtFCFA(i.product.price)}</div></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button onclick="changeCartQty('${key}',-1)" style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:16px;cursor:pointer;">−</button>
-          <span class="mono" style="min-width:16px;text-align:center;font-size:14px;font-weight:700;">${i.qty}</span>
-          <button onclick="changeCartQty('${key}',1)" style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:16px;cursor:pointer;">+</button>
+      <div class="cart-item">
+        <div class="cart-item-thumb">${i.product.photo?`<img src="${i.product.photo}">`:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 8 12 3l9 5-9 5-9-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`}</div>
+        <div class="cart-item-info"><h4>${Utils.escapeHtml(i.product.name)}</h4>${variantLabel?`<div class="meta">${Utils.escapeHtml(variantLabel)}</div>`:''}<div class="price">${Utils.fmtFCFA(i.product.price)}</div></div>
+        <div class="cart-stepper">
+          <button onclick="changeCartQty('${key}',-1)" aria-label="Retirer">${i.qty<=1?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0-1 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:'−'}</button>
+          <span>${i.qty}</span>
+          <button onclick="changeCartQty('${key}',1)" aria-label="Ajouter">+</button>
         </div>
       </div>
     `;}).join('')}
   </div>
-  <div style="margin:20px 20px 0;padding:18px;border-radius:var(--radius-md);background:var(--panel);display:flex;justify-content:space-between;align-items:center;">
-    <span style="font-weight:700;font-size:15px;">Total</span><span class="mono" style="font-weight:700;font-size:17px;">${Utils.fmtFCFA(total)}</span>
-  </div>
-  <div style="padding:16px 20px 24px;"><button class="btn btn-mango btn-block" onclick="Router.go('checkout')">${editMode ? (window.MaBoutiqueOrderEdit.mode==='complete' ? 'Enregistrer les ajouts' : 'Enregistrer les modifications') : 'Passer la commande'}</button></div>
+  <div class="cart-total-card"><span class="lbl">Total</span><span class="val">${Utils.fmtFCFA(total)}</span></div>
+  ${!editMode ? `<div class="cart-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 10.5v6M12 7.5v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Frais de livraison calculés à l'étape suivante.</div>` : ''}
+  <div class="cart-cta-wrap"><button class="btn btn-block btn-cart-cta" onclick="Router.go('checkout')">${editMode ? (window.MaBoutiqueOrderEdit.mode==='complete' ? 'Enregistrer les ajouts' : 'Enregistrer les modifications') : `${ICONS.cart.replace(/width="30"/,'width="18"').replace(/height="30"/,'height="18"')} Passer la commande`}</button></div>
   `}`;
 };
 function changeCartQty(key, delta){
@@ -13929,7 +14160,12 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
   .v39-id-value{font-family:var(--font-mono);font-size:26px;font-weight:800;letter-spacing:1.2px;color:var(--text);word-break:break-word;margin-bottom:6px;}
   .v39-id-help{font-size:11.5px;line-height:1.45;color:var(--text-mid);}
   .v39-id-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px;}
+  .v39-id-share{margin-top:9px;color:var(--text-mid);}
   .v39-settings-section{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow-sm);}
+  .v39-security-tip{display:flex;gap:12px;align-items:flex-start;background:var(--gold-tint);border:1px solid rgba(200,145,47,.3);border-radius:18px;padding:14px 16px;margin-bottom:18px;}
+  .v39-security-tip-icon{width:34px;height:34px;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;}
+  .v39-security-tip b{display:block;font-size:13.5px;color:var(--gold-dark);margin-bottom:4px;}
+  .v39-security-tip p{margin:0;font-size:11.5px;line-height:1.55;color:var(--text-mid);}
   .v39-settings-head{display:flex;gap:11px;align-items:center;margin-bottom:12px;}
   .v39-settings-icon{width:38px;height:38px;border-radius:12px;background:var(--indigo-tint);color:var(--indigo);display:grid;place-items:center;font-size:18px;flex:none;}
   .v39-settings-head b{display:block;font-size:14px;}.v39-settings-head span{display:block;color:var(--text-mid);font-size:11px;margin-top:2px;}
@@ -13969,13 +14205,17 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
         <div class="v39-id-value">${Utils.escapeHtml(id || '—')}</div>
         <div class="v39-id-help">Vous pouvez saisir cet ID à la place de votre e-mail sur l'écran de connexion.</div>
         <div class="v39-id-actions">
-          <button class="btn btn-primary" onclick="AccountId.copy()">Copier l’ID</button>
+          <button class="btn btn-primary" onclick="AccountId.copy(this)">Copier l’ID</button>
           <button class="btn btn-outline" onclick="AccountId.save()">Enregistrer la carte</button>
         </div>
+        <button class="btn btn-ghost btn-block v39-id-share" onclick="AccountId.share()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:6px;"><circle cx="18" cy="5" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="19" r="2.6" stroke="currentColor" stroke-width="1.7"/><path d="M8.3 10.7 15.7 6.3M8.3 13.3l7.4 4.4" stroke="currentColor" stroke-width="1.7"/></svg>
+          Partager mon ID
+        </button>
       </div>
-      <div class="v39-settings-section">
-        <div class="v39-settings-head"><div class="v39-settings-icon">🔐</div><div><b>Conseil de sécurité</b><span>Ne partagez pas votre identifiant avec une personne non autorisée.</span></div></div>
-        <div style="font-size:11.5px;line-height:1.5;color:var(--text-mid);">En cas d’oubli, utilisez « ID marchand oublié ? » depuis l’écran de connexion pour demander sa récupération.</div>
+      <div class="v39-security-tip">
+        <div class="v39-security-tip-icon">🔐</div>
+        <div><b>Conseil de sécurité</b><p>Ne partagez pas votre identifiant avec une personne non autorisée. En cas d’oubli, utilisez « ID marchand oublié ? » depuis l’écran de connexion pour demander sa récupération.</p></div>
       </div>
       <div style="margin-top:auto;padding-top:16px;"><button class="btn btn-primary btn-block" onclick="AccountId.continueToApp()">Continuer vers mon tableau de bord</button></div>
     </div>`;
@@ -13994,14 +14234,22 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
         </section>
         <section class="v39-settings-section">
           <div class="v39-settings-head"><div class="v39-settings-icon">🎨</div><div><b>Thème de l'application</b><span>S'applique aux boutons d'action et à la carte du tableau de bord.</span></div></div>
-          <div style="display:flex;gap:10px;">
-            <button type="button" onclick="setUiTheme('blue')" style="flex:1;padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme!=='black'?'var(--indigo)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <button type="button" onclick="setUiTheme('blue')" style="padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme!=='black'&&Store.uiTheme!=='pure-blue'&&Store.uiTheme!=='green'?'var(--indigo)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
               <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#000000,#2E2E2E);"></span>
-              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Orange${Store.uiTheme!=='black'?' ✓':''}</span>
+              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Orange${Store.uiTheme!=='black'&&Store.uiTheme!=='pure-blue'&&Store.uiTheme!=='green'?' ✓':''}</span>
             </button>
-            <button type="button" onclick="setUiTheme('black')" style="flex:1;padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme==='black'?'var(--ink)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+            <button type="button" onclick="setUiTheme('black')" style="padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme==='black'?'var(--ink)':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
               <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#FF6A00,#FF9558);"></span>
               <span style="font-size:12.5px;font-weight:800;color:var(--text);">Noir${Store.uiTheme==='black'?' ✓':''}</span>
+            </button>
+            <button type="button" onclick="setUiTheme('pure-blue')" style="padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme==='pure-blue'?'#0091FD':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+              <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#0091FD,#4DB2FF);"></span>
+              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Bleu pur${Store.uiTheme==='pure-blue'?' ✓':''}</span>
+            </button>
+            <button type="button" onclick="setUiTheme('green')" style="padding:12px;border-radius:14px;border:2px solid ${Store.uiTheme==='green'?'#12B76A':'var(--line)'};background:#fff;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;">
+              <span style="width:100%;height:34px;border-radius:9px;background:linear-gradient(135deg,#12B76A,#4DD98C);"></span>
+              <span style="font-size:12.5px;font-weight:800;color:var(--text);">Vert${Store.uiTheme==='green'?' ✓':''}</span>
             </button>
           </div>
         </section>
@@ -14147,11 +14395,11 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
     return String(name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
   }
   const CATEGORY_VISUALS=[
-    {match:['vetement','mode','habit','pret a porter','robe','chemise'],bg:'#EAF1FF',fg:'#2E63E8',icon:'<path d="M9 4 12 6l3-2 4 3-2 3-2-1v9a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-9l-2 1-2-3 4-3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>'},
-    {match:['chaussure','basket','sneaker','sandale'],bg:'#FFF3E0',fg:'#D9770A',icon:'<path d="M3 17c0-2 1.5-3 3-3l3-4 2 2 3-1 4 3c1.5 1 3 1.8 3 3v1H3v-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3 17h18" stroke="currentColor" stroke-width="1.7"/>'},
-    {match:['sac','maroquinerie','bagagerie','valise'],bg:'#F3E8FF',fg:'#8B34D6',icon:'<path d="M7 9V7a5 5 0 0 1 10 0v2" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="9" width="16" height="12" rx="2.2" stroke="currentColor" stroke-width="1.7"/>'},
-    {match:['montre','horlogerie'],bg:'#E9FBF3',fg:'#12946A',icon:'<circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="1.7"/><path d="M12 9v3l2 1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9 3h6M9 21h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
-    {match:['bijou','accessoire','joaillerie'],bg:'#FDF0F6',fg:'#C22A78',icon:'<path d="m12 3 3 4H9l3-4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 9h16l-8 11L4 9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'},
+    {match:['vetement','mode','habit','pret a porter','robe','chemise'],bg:'#EAF1FF',fg:'#2E63E8',icon:'<path d="M8.5 3.5 4 6l1.6 3.4L8 8.3v11.2c0 .6.4 1 1 1h6c.6 0 1-.4 1-1V8.3l2.4 1.1L20 6l-4.5-2.5-1.8 1a3.4 3.4 0 0 1-3.4 0l-1.8-1Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9.6 4.6a2.6 2.6 0 0 0 4.8 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>'},
+    {match:['chaussure','basket','sneaker','sandale'],bg:'#FFF3E0',fg:'#D9770A',icon:'<path d="M3.2 16.8c0-1.1.7-2 1.7-2.4l2.6-1c.5-.2.8-.6.9-1.1l.2-1.3c.1-.7.8-1.1 1.4-.9l.9.3c.3.1.5.4.5.7v1.4c0 .5.3.9.8 1.1l2.7.9c1.1.4 2 1.1 2.6 2.1l.4.6c.2.4 0 .8-.4.8H4.2a1 1 0 0 1-1-1v-.1Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3 17.6h16.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8.6 12.2 9.9 13.8M10.5 11.6l1.3 1.7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>'},
+    {match:['sac','maroquinerie','bagagerie','valise'],bg:'#F3E8FF',fg:'#8B34D6',icon:'<path d="M7.2 9V7a4.8 4.8 0 0 1 9.6 0v2" stroke="currentColor" stroke-width="1.5"/><path d="M5 9h14l.8 9.9a2 2 0 0 1-2 2.1H6.2a2 2 0 0 1-2-2.1L5 9Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12.6" r="1.1" fill="currentColor"/><path d="M12 12.6v2" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'},
+    {match:['montre','horlogerie'],bg:'#E9FBF3',fg:'#12946A',icon:'<path d="M9.8 7.2 10.3 4.6a1 1 0 0 1 1-.8h1.4a1 1 0 0 1 1 .8l.5 2.6M9.8 16.8 10.3 19.4a1 1 0 0 0 1 .8h1.4a1 1 0 0 0 1-.8l.5-2.6" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="12" cy="12" r="4.8" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.5"/><path d="M12 9.6V12l1.6 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.8 11.2h.9v1.6h-.9" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>'},
+    {match:['bijou','accessoire','joaillerie'],bg:'#FDF0F6',fg:'#C22A78',icon:'<path d="M7 3.2h10L20.5 8 12 20.8 3.5 8 7 3.2Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3.5 8h17M9.2 3.2 7 8l5 12.8L17 8l-2.2-4.8" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>'},
     {match:['electronique','tv','television','high tech','hightech'],bg:'#EAF3FF',fg:'#1665C4',icon:'<rect x="4" y="5" width="16" height="11" rx="1.6" stroke="currentColor" stroke-width="1.7"/><path d="M9 20h6M12 16v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
     {match:['telephone','telephonie','smartphone','portable','gsm'],bg:'#EFFAF0',fg:'#1E9E4E',icon:'<rect x="7" y="3" width="10" height="18" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M11 18h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'},
     {match:['beaute','cosmetique','parfum','maquillage'],bg:'#FFF0F4',fg:'#D6336C',icon:'<path d="M10 2h4v4h-4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 6h6l1 4v10a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V10l1-4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'},
@@ -14180,7 +14428,7 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
     if(photo) return `<img src="${esc(photo)}" alt="${esc(name)}">`;
     const v=categoryFallbackVisual(name);
     return v.icon
-      ? `<div class="v40-cat-auto-ico" style="background:${v.bg};color:${v.fg}"><svg width="26" height="26" viewBox="0 0 24 24" fill="none">${v.icon}</svg></div>`
+      ? `<div class="v40-cat-auto-ico" style="background:${v.bg};color:${v.fg}"><svg width="30" height="30" viewBox="0 0 24 24" fill="none">${v.icon}</svg></div>`
       : `<div class="v40-cat-auto-ico" style="background:${v.bg};color:${v.fg};font-weight:850;font-size:22px;">${esc(v.letter)}</div>`;
   }
   function activePromos(){
@@ -15609,8 +15857,10 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
 .v57-trust-item span{display:block;font-size:9.5px;color:var(--text-mid);margin-top:2px;line-height:1.3}
 .v57-popup-cta{margin:16px 18px 18px}
 .v57-popup-cta .btn{display:flex;align-items:center;justify-content:center;gap:8px}
-.v57-deals-head{display:flex;align-items:center;gap:8px;padding:18px 44px 10px 18px}
+.v57-deals-head{display:flex;flex-direction:column;gap:2px;padding:18px 44px 10px 18px}
+.v57-deals-head .v57-deals-head-row{display:flex;align-items:center;gap:8px}
 .v57-deals-head b{font-size:14px}
+.v57-deals-head small{font-size:11px;color:var(--text-mid);}
 .v57-deals-track{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:14px;padding:0 18px 16px;scroll-padding-left:18px}
 .v57-deals-track::-webkit-scrollbar{display:none}
 .v57-deals-slide{flex:0 0 80%;scroll-snap-align:start;text-align:center}
@@ -15620,7 +15870,12 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
 .v57-deals-price-row{display:flex;align-items:baseline;justify-content:center;gap:8px;margin-bottom:12px}
 .v57-deals-price{font-size:17px;font-weight:850;color:var(--indigo)}
 .v57-deals-old-price{font-size:11.5px;color:var(--text-soft);text-decoration:line-through}
-.v57-deals-arrow{position:absolute;top:126px;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18);border:none;display:grid;place-items:center;cursor:pointer;z-index:2;font-size:16px}
+/* CTA à couleur unique (pleine, sans dégradé), pour se distinguer des boutons
+   « accent » multi-tons utilisés ailleurs dans l'appli et rester lisible quel
+   que soit le thème (noir/orange/bleu pur/vert) choisi par le marchand. */
+.v57-deals-cta{background:var(--accent-1);color:#fff;box-shadow:0 10px 22px -12px rgba(0,0,0,.45);}
+.v57-deals-cta:active{transform:scale(.97);}
+.v57-deals-arrow{position:absolute;top:144px;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.18);border:none;display:grid;place-items:center;cursor:pointer;z-index:2;font-size:16px}
 .v57-deals-arrow.prev{left:6px}.v57-deals-arrow.next{right:6px}
 .v57-deals-dots{display:flex;justify-content:center;gap:5px;padding-bottom:16px}
 .v57-deals-dot{width:6px;height:6px;border-radius:50%;background:var(--line)}
@@ -15660,10 +15915,10 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
   function openDealsPopup(products){
     if(document.getElementById('v57-deals-popup'))return;
     let i=0;
-    const slideHtml=p=>{const discount=p.oldPrice?Math.round((1-p.price/p.oldPrice)*100):0;return `<div class="v57-deals-slide"><img src="${esc(p.photo||'')}" alt="${esc(p.name)}">${discount?`<div class="v57-deals-badge">-${discount}%</div>`:''}<div class="v57-deals-name">${esc(p.name)}</div><div class="v57-deals-price-row"><span class="v57-deals-price">${Utils.fmtFCFA(p.price)}</span>${p.oldPrice?`<span class="v57-deals-old-price">${Utils.fmtFCFA(p.oldPrice)}</span>`:''}</div><button class="btn btn-mango btn-block" onclick="closeV57Popup('v57-deals-popup');Router.go('shop-product',{id:'${esc(p.id)}'})">Voir l'article →</button></div>`;};
+    const slideHtml=p=>{const discount=p.oldPrice?Math.round((1-p.price/p.oldPrice)*100):0;return `<div class="v57-deals-slide"><img src="${esc(p.photo||'')}" alt="${esc(p.name)}">${discount?`<div class="v57-deals-badge">-${discount}%</div>`:''}<div class="v57-deals-name">${esc(p.name)}</div><div class="v57-deals-price-row"><span class="v57-deals-price">${Utils.fmtFCFA(p.price)}</span>${p.oldPrice?`<span class="v57-deals-old-price">${Utils.fmtFCFA(p.oldPrice)}</span>`:''}</div><button class="btn v57-deals-cta btn-block" onclick="closeV57Popup('v57-deals-popup');Router.go('shop-product',{id:'${esc(p.id)}'})">Voir l'article →</button></div>`;};
     const html=`<div id="v57-deals-popup" class="v57-popup-overlay" onclick="if(event.target===this)closeV57Popup('v57-deals-popup')"><div class="v57-popup-card" style="position:relative;">
       <button class="v57-popup-close" onclick="closeV57Popup('v57-deals-popup')">✕</button>
-      <div class="v57-deals-head"><span style="font-size:16px;">⚡</span><b>Offres du jour</b></div>
+      <div class="v57-deals-head"><div class="v57-deals-head-row"><span style="font-size:16px;">⚡</span><b>Offres du jour</b></div><small>Stock limité, ces prix ne durent pas.</small></div>
       ${products.length>1?`<button class="v57-deals-arrow prev" onclick="moveV57DealsSlide(-1)">‹</button><button class="v57-deals-arrow next" onclick="moveV57DealsSlide(1)">›</button>`:''}
       <div class="v57-deals-track" id="v57-deals-track">${products.map(slideHtml).join('')}</div>
       ${products.length>1?`<div class="v57-deals-dots" id="v57-deals-dots">${products.map((_,j)=>`<span class="v57-deals-dot ${j===0?'active':''}"></span>`).join('')}</div>`:''}
@@ -17105,8 +17360,15 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
   const e=v=>{try{return Utils.escapeHtml(String(v??''))}catch(_){return String(v??'')}};
 
   function bannerAction(){
-    if(window.Router && typeof Router.go==='function') Router.go('banners');
-    else location.hash='#banners';
+    try{
+      if(window.Router && typeof Router.go==='function') Router.go('banners');
+      else location.hash='#banners';
+    }catch(err){
+      console.error('Ajouter une bannière : navigation impossible', err);
+      if(window.Toast && typeof Toast.show==='function'){
+        Toast.show('Impossible d\'ouvrir Bannières : '+((err&&err.message)||'erreur inconnue'));
+      }
+    }
   }
   window.maboutiqueV76GoToBanners = bannerAction;
 
