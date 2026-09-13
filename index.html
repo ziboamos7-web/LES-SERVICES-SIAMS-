@@ -80,6 +80,12 @@
     --siams-orange:#FF7A18;
     --siams-orange-dark:#E5670D;
 
+    /* ---- Couleur d'action unique (sarcelle) réservée au tunnel de paiement,
+       pour distinguer clairement les boutons de paiement du reste de l'app. ---- */
+    --pay-accent:#0EA79E;
+    --pay-accent-dark:#0A6E68;
+    --pay-accent-tint:#E1F7F5;
+
     --ruby:#8E1537;
     --ruby-dark:#5C0E24;
     --ruby-tint:#F7E3E9;
@@ -169,6 +175,24 @@
   .search-box input::placeholder{color:var(--text-soft);}
   .count-label{padding:12px 20px 0;font-size:14px;color:var(--text-mid);}
 
+  /* ---------- Checkout : étapes, confiance, résumé, moyens de paiement ---------- */
+  .checkout-steps{display:flex;align-items:center;gap:6px;padding:0 20px;margin:12px 0 2px;}
+  .checkout-steps .step{flex:1;height:4px;border-radius:999px;background:var(--line);}
+  .checkout-steps .step.done{background:var(--pay-accent);}
+  .checkout-trust-row{display:flex;gap:8px;padding:14px 20px 0;}
+  .checkout-trust-row .trust-chip{flex:1;background:var(--panel);border-radius:12px;padding:9px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text-mid);line-height:1.35;}
+  .checkout-summary{margin:14px 20px 0;border:1.5px solid var(--line);border-radius:var(--radius-md);overflow:hidden;background:#fff;}
+  .checkout-summary summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:13.5px;}
+  .checkout-summary summary::-webkit-details-marker{display:none;}
+  .checkout-summary summary .chev{transition:transform .15s ease;color:var(--text-mid);}
+  .checkout-summary[open] summary .chev{transform:rotate(180deg);}
+  .checkout-summary-body{padding:2px 16px 14px;border-top:1px solid var(--line);}
+  .checkout-summary-item{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--text-mid);padding:9px 0;border-bottom:1px dashed var(--line);}
+  .checkout-summary-item:last-child{border-bottom:none;}
+  .pay-method-card{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;transition:border-color .15s ease,background .15s ease;}
+  .pay-method-card.selected{border-color:var(--pay-accent);background:var(--pay-accent-tint);}
+  .checkout-help-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin:6px 0 20px;padding:12px;border-radius:12px;border:1.5px dashed var(--line);background:none;color:var(--text-mid);font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--font-body);}
+
   /* ---------- Empty state ---------- */
   .empty-card{margin:16px 20px 0;background:var(--panel);border-radius:var(--radius-lg);padding:48px 26px 36px;text-align:center;}
   .empty-icon{width:72px;height:72px;background:var(--indigo-tint);border-radius:19px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:var(--indigo);}
@@ -185,6 +209,10 @@
      « Contacter le vendeur ». Volontairement séparée de .btn-mango pour ne pas changer
      les autres boutons de l'app qui utilisent ce style orange/noir. */
   .btn-pure-blue{background:#1C7EF2;color:#fff;box-shadow:0 10px 22px -8px rgba(28,126,242,.5);}
+  /* Couleur sarcelle unique réservée aux actions de paiement du checkout (payer,
+     joindre le reçu, confirmer la commande), séparée du reste de l'app. */
+  .btn-checkout-pay{background:linear-gradient(135deg,var(--pay-accent) 0%,var(--pay-accent-dark) 100%);color:#fff;box-shadow:0 10px 22px -8px rgba(14,167,158,.45);}
+  .btn-checkout-outline{background:var(--pay-accent-tint);color:var(--pay-accent-dark);border:1.5px solid rgba(14,167,158,.35);}
   .btn-block{width:100%;}
   .btn-ghost{background:var(--panel);color:var(--text);}
   .btn-outline{background:#fff;border:1.5px solid var(--gray-cancel-tint);color:var(--gray-cancel);}
@@ -567,6 +595,13 @@
   .login-field-input input{flex:1;min-width:0;border:none;background:transparent;padding:14px 12px;font-size:14.5px;font-family:var(--font-body);color:var(--text);outline:none;}
   .login-field-input input::placeholder{color:var(--text-soft);}
   .login-field-input .pass-toggle-btn{position:static;margin-right:6px;}
+  .login-field-input textarea{flex:1;min-width:0;border:none;background:transparent;padding:14px 12px;font-size:14.5px;font-family:var(--font-body);color:var(--text);outline:none;resize:vertical;min-height:88px;}
+  .login-field-input.align-top{align-items:flex-start;}
+  .login-field-input.align-top .ico{margin-top:14px;}
+  .login-field-input.has-error{box-shadow:0 0 0 1.6px var(--red) inset;}
+  .field-error-msg{font-size:11.5px;color:var(--red);margin:6px 2px 0;}
+  .trust-row{display:flex;gap:8px;margin:16px 0 4px;}
+  .trust-chip{flex:1;background:var(--panel);border-radius:12px;padding:9px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text-mid);line-height:1.35;}
   .login-row-between{display:flex;justify-content:space-between;align-items:center;margin:2px 0 20px;}
   .login-remember{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:650;color:var(--ink);cursor:pointer;}
   .login-remember input{appearance:none;-webkit-appearance:none;width:19px;height:19px;border-radius:6px;border:1.6px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;flex:none;}
@@ -4591,27 +4626,59 @@ Views._after_onboarding_public = function(){ Onboarding.attach(); };
 
 Views['about-partnership'] = function(){
   const q=ActivationGate.getRequest();
+  const personIco='<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c.8-4 3.4-6.2 7-6.2s6.2 2.2 7 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  const storeIco='<svg viewBox="0 0 24 24" fill="none"><path d="M4 9V6.6c0-.4.2-.7.5-.9L11 2l6.5 3.7c.3.2.5.5.5.9V9" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.5 9h17v2.3a2.3 2.3 0 0 1-4.4 1 2 2 0 0 1-3.6 0 2 2 0 0 1-3.6 0 2.3 2.3 0 0 1-4.4-1V9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5 13.5V20h13v-6.5" stroke="currentColor" stroke-width="1.6"/></svg>';
+  const phoneIco='<svg viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.5.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.5.1.3 0 .7-.2 1L6.6 10.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const msgIco='<svg viewBox="0 0 24 24" fill="none"><path d="M21 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4.5 3V11.5A7.5 7.5 0 0 1 11 4h2.5a7.5 7.5 0 0 1 7.5 7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;padding:28px 22px;">
     <button onclick="Router.go('onboarding-public')" style="border:none;background:var(--panel);color:var(--text);width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="store-logo" style="width:56px;height:56px;border-radius:16px;margin-bottom:18px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;"></div>
-    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--indigo);text-transform:uppercase;margin-bottom:5px;">PARTENARIAT SIAMS</div>
+    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--siams-orange-dark,#E5670D);text-transform:uppercase;margin-bottom:5px;">PARTENARIAT SIAMS</div>
     <h1 style="font-size:25px;line-height:1.15;margin:0 0 8px;">Devenir partenaire chez SIAMS</h1>
-    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 16px;">Envoyez votre demande au service client. Votre message sera personnalisé pour permettre à SIAMS de traiter votre requête plus rapidement.</p>
-    <div style="display:grid;gap:9px;margin-bottom:16px;">
-      <div class="field"><label>Nom / responsable</label><input id="partner-name" value="${Utils.escapeHtml(q.name||'')}" placeholder="Votre nom complet"></div>
-      <div class="field"><label>Nom de la boutique</label><input id="partner-shop" value="${Utils.escapeHtml(q.shop||'')}" placeholder="Nom de votre commerce"></div>
-      <div class="field"><label>Téléphone / WhatsApp</label><input id="partner-phone" value="${Utils.escapeHtml(q.phone||'')}" inputmode="tel" placeholder="07 00 00 00 00"></div>
-      <div class="field"><label>Votre requête</label><textarea id="partner-request" rows="4" placeholder="Expliquez brièvement votre besoin ou votre projet…">${Utils.escapeHtml(q.request||'')}</textarea></div>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 4px;">Envoyez votre demande au service client. Votre message sera personnalisé pour permettre à SIAMS de traiter votre requête plus rapidement.</p>
+    <div class="trust-row">
+      <div class="trust-chip">⚡<br>Réponse rapide</div>
+      <div class="trust-chip">🔒<br>Sans engagement</div>
+      <div class="trust-chip">✅<br>Confidentiel</div>
+    </div>
+    <div style="margin-top:18px;">
+      <div class="login-field" id="pf-name-wrap"><label>Nom / responsable</label>
+        <div class="login-field-input"><span class="ico">${personIco}</span><input id="partner-name" value="${Utils.escapeHtml(q.name||'')}" placeholder="Votre nom complet" oninput="clearPartnerFieldError('pf-name-wrap')"></div>
+        <div class="field-error-msg hidden" id="pf-name-err">Merci d'indiquer votre nom.</div>
+      </div>
+      <div class="login-field" id="pf-shop-wrap"><label>Nom de la boutique</label>
+        <div class="login-field-input"><span class="ico">${storeIco}</span><input id="partner-shop" value="${Utils.escapeHtml(q.shop||'')}" placeholder="Nom de votre commerce"></div>
+      </div>
+      <div class="login-field" id="pf-phone-wrap"><label>Téléphone / WhatsApp</label>
+        <div class="login-field-input"><span class="ico">${phoneIco}</span><input id="partner-phone" value="${Utils.escapeHtml(q.phone||'')}" inputmode="tel" placeholder="07 00 00 00 00" oninput="clearPartnerFieldError('pf-phone-wrap')"></div>
+        <div class="field-error-msg hidden" id="pf-phone-err">Merci d'indiquer un numéro valide.</div>
+      </div>
+      <div class="login-field" id="pf-request-wrap"><label>Votre requête</label>
+        <div class="login-field-input align-top"><span class="ico">${msgIco}</span><textarea id="partner-request" rows="4" placeholder="Expliquez brièvement votre besoin ou votre projet…" oninput="clearPartnerFieldError('pf-request-wrap')">${Utils.escapeHtml(q.request||'')}</textarea></div>
+        <div class="field-error-msg hidden" id="pf-request-err">Décrivez brièvement votre besoin.</div>
+      </div>
     </div>
     <div style="margin-top:auto;">
-      <button class="btn btn-primary btn-block" onclick="ActivationGate.sendPartnerRequest()">Envoyer ma demande au service client</button>
+      <button class="btn btn-block btn-login-cta" id="partner-submit-btn" onclick="ActivationGate.sendPartnerRequest()">Envoyer ma demande au service client</button>
       <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="Router.go('welcome')">Quitter</button>
     </div>
   </div>`;
 };
+function clearPartnerFieldError(wrapId){
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  wrap.querySelector('.login-field-input')?.classList.remove('has-error');
+  wrap.querySelector('.field-error-msg')?.classList.add('hidden');
+}
+function setPartnerFieldError(wrapId, show){
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  wrap.querySelector('.login-field-input')?.classList.toggle('has-error', show);
+  wrap.querySelector('.field-error-msg')?.classList.toggle('hidden', !show);
+}
 
 const ActivationGate = {
   code:'',
@@ -4625,7 +4692,12 @@ const ActivationGate = {
     const shop=(document.getElementById('partner-shop')?.value||'').trim();
     const phone=(document.getElementById('partner-phone')?.value||'').trim();
     const request=(document.getElementById('partner-request')?.value||'').trim();
-    if(!name||!phone||!request){ Toast.show('Renseignez votre nom, votre téléphone et votre requête.'); return; }
+    setPartnerFieldError('pf-name-wrap', !name);
+    setPartnerFieldError('pf-phone-wrap', !phone);
+    setPartnerFieldError('pf-request-wrap', !request);
+    if(!name||!phone||!request){ Toast.show('Merci de compléter les champs en rouge.'); return; }
+    const btn = document.getElementById('partner-submit-btn');
+    if(btn){ btn.disabled = true; btn.textContent = 'Envoi en cours…'; }
     const q={name,shop,phone,request,pending:true,createdAt:Date.now()};
     this.saveRequest(q);
     const msg=[
@@ -4780,10 +4852,10 @@ Views.login = function(){
     '<h1>Bon retour</h1>'+
     '<p>Connectez-vous pour gérer votre boutique.</p>'+
     '<div class="login-field"><label>E-mail ou ID marchand MA BOUTIQUE</label>'+
-      '<div class="login-field-input"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.4" stroke="currentColor" stroke-width="1.6"/><path d="m4 6.5 8 6.5 8-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><input id="auth-email" type="text" placeholder="vous@exemple.com ou AMS-XXXXXX" autocomplete="username"></div>'+
+      '<div class="login-field-input" id="auth-email-wrap"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.4" stroke="currentColor" stroke-width="1.6"/><path d="m4 6.5 8 6.5 8-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><input id="auth-email" type="text" placeholder="vous@exemple.com ou AMS-XXXXXX" autocomplete="username" oninput="document.getElementById(\'auth-email-wrap\')?.classList.remove(\'has-error\')"></div>'+
     '</div>'+
     '<div class="login-field"><label>Mot de passe</label>'+
-      '<div class="login-field-input"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="currentColor" stroke-width="1.6"/></svg></span><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass\', this)">'+EYE_SVG+'</button></div>'+
+      '<div class="login-field-input" id="auth-pass-wrap"><span class="ico"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="currentColor" stroke-width="1.6"/></svg></span><input id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password" oninput="document.getElementById(\'auth-pass-wrap\')?.classList.remove(\'has-error\')"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass\', this)">'+EYE_SVG+'</button></div>'+
     '</div>'+
     '<div class="login-row-between">'+
       '<label class="login-remember"><input type="checkbox" id="auth-remember" checked>Rester connecté</label>'+
@@ -4803,6 +4875,9 @@ Views.login = function(){
 Views.register = function(){
   if(!ActivationGate.getStored()) return Views['activation-code']();
   authMode='register';
+  const mailIco='<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.4" stroke="currentColor" stroke-width="1.6"/><path d="m4 6.5 8 6.5 8-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const phoneIco='<svg viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.5.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.5.1.3 0 .7-.2 1L6.6 10.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const lockIco='<svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="currentColor" stroke-width="1.6"/></svg>';
   return ''+
   '<div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;">'+
     '<button onclick="Router.go(\'activation-code\')" style="border:none;background:var(--panel);color:var(--text);width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">←</button>'+
@@ -4810,15 +4885,25 @@ Views.register = function(){
     '<div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--green);text-transform:uppercase;margin-bottom:5px;">CODE PARTENAIRE VALIDÉ</div>'+
     '<h1 style="font-size:24px;margin:0 0 6px;">Créer votre compte</h1>'+
     '<p style="color:var(--text-mid);font-size:14px;margin:0 0 22px;">Votre inscription est autorisée par le code MA BOUTIQUE validé.</p>'+
-    '<div class="field"><label>Adresse e-mail</label><input id="auth-email__v46_2" type="email" placeholder="vous@exemple.com" autocomplete="email"></div>'+
-    '<div class="field"><label>Numéro de téléphone</label><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"></div>'+
-    '<div class="field"><label>Mot de passe</label><div class="pass-field-wrap"><input id="auth-pass__v46_2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass__v46_2\', this)">'+EYE_SVG+'</button></div><div style="font-size:12px;color:var(--text-mid);margin-top:5px;">Au moins 6 caractères</div></div>'+ 
-    '<div class="field"><label>Confirmer le mot de passe</label><div class="pass-field-wrap"><input id="auth-pass2" type="password" placeholder="••••••••" autocomplete="new-password"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass2\', this)">'+EYE_SVG+'</button></div></div>'+ 
-    '<div id="auth-error__v46_2" style="font-size:13px;margin-bottom:14px;"></div>'+ 
-    '<button class="btn btn-primary btn-block" id="auth-submit-btn__v46_2" onclick="doRegister()">Créer mon compte</button>'+ 
-    '<button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go(\'activation-code\')">Retour au code partenaire</button>'+ 
+    '<div class="login-field"><label>Adresse e-mail</label><div class="login-field-input"><span class="ico">'+mailIco+'</span><input id="auth-email__v46_2" type="email" placeholder="vous@exemple.com" autocomplete="email"></div></div>'+
+    '<div class="login-field"><label>Numéro de téléphone</label><div class="login-field-input"><span class="ico">'+phoneIco+'</span><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"></div></div>'+
+    '<div class="login-field"><label>Mot de passe</label><div class="login-field-input"><span class="ico">'+lockIco+'</span><input id="auth-pass__v46_2" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRegisterPasswordMatch()"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass__v46_2\', this)">'+EYE_SVG+'</button></div><div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Au moins 6 caractères</div></div>'+
+    '<div class="login-field"><label>Confirmer le mot de passe</label><div class="login-field-input" id="pass2-wrap"><span class="ico">'+lockIco+'</span><input id="auth-pass2" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRegisterPasswordMatch()"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass2\', this)">'+EYE_SVG+'</button></div><div class="field-error-msg hidden" id="pass2-err">Les mots de passe ne correspondent pas.</div></div>'+
+    '<div class="trust-row"><div class="trust-chip">🔒<br>Données protégées</div><div class="trust-chip">⚡<br>Activation immédiate</div></div>'+
+    '<div id="auth-error__v46_2" style="font-size:13px;margin:14px 0;color:var(--red);"></div>'+
+    '<button class="btn btn-block btn-login-cta" id="auth-submit-btn__v46_2" onclick="doRegister()">Créer mon compte</button>'+
+    '<button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go(\'activation-code\')">Retour au code partenaire</button>'+
   '</div>';
 };
+function checkRegisterPasswordMatch(){
+  const p1 = document.getElementById('auth-pass__v46_2')?.value||'';
+  const p2 = document.getElementById('auth-pass2')?.value||'';
+  const wrap = document.getElementById('pass2-wrap');
+  const err = document.getElementById('pass2-err');
+  const mismatch = p2.length>0 && p1!==p2;
+  wrap?.classList.toggle('has-error', mismatch);
+  err?.classList.toggle('hidden', !mismatch);
+}
 
 /* ---------- Vérification par code (E-MAIL) — rendu robuste ---------- */
 Views['verify-otp'] = function(){
@@ -4971,18 +5056,24 @@ async function doLogin(){
   const pass = document.getElementById('auth-pass').value;
   const err = document.getElementById('auth-error');
   const btn = document.getElementById('auth-submit-btn');
+  const emailWrap = document.getElementById('auth-email-wrap');
+  const passWrap = document.getElementById('auth-pass-wrap');
   err.style.color = 'var(--red)';
+  emailWrap?.classList.toggle('has-error', !identifier);
+  passWrap?.classList.toggle('has-error', !pass);
   if(!identifier || !pass){ err.textContent = 'Merci de remplir tous les champs'; return; }
   err.textContent = ''; btn.disabled = true; btn.textContent = 'Connexion...';
   const resolved = await Auth.resolveEmail(identifier);
   if(!resolved.ok){
     btn.disabled = false; btn.textContent = 'Se connecter';
+    emailWrap?.classList.add('has-error');
     err.textContent = 'E-mail ou ID marchand MA BOUTIQUE introuvable';
     return;
   }
   const res = await Auth.login(resolved.email, pass);
-  if(res.ok){ OtpGate.start('login', res.email); return; }
+  if(res.ok){ emailWrap?.classList.remove('has-error'); passWrap?.classList.remove('has-error'); OtpGate.start('login', res.email); return; }
   btn.disabled = false; btn.textContent = 'Se connecter';
+  passWrap?.classList.add('has-error');
   err.textContent = res.message || 'Connexion impossible';
 }
 /* ---------- Partnership post-inscription supprimé : le partenariat est désormais traité avant l'inscription. ---------- */
@@ -11848,6 +11939,18 @@ Views.checkout = function(){
   <div class="topbar" style="padding-top:18px;">
     <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('cart')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1>${(window.MaBoutiqueOrderEdit&&window.MaBoutiqueOrderEdit.id)?(window.MaBoutiqueOrderEdit.mode==='complete'?'Compléter la commande':'Modifier la commande'):'Finaliser la commande'}</h1></div>
   </div>
+  <div class="checkout-steps"><div class="step done"></div><div class="step done"></div><div class="step"></div></div>
+  <div class="checkout-trust-row">
+    <div class="trust-chip">🔒<br>Paiement sécurisé</div>
+    <div class="trust-chip">🚚<br>Livraison suivie</div>
+    <div class="trust-chip">🕑<br>Support 7j/7</div>
+  </div>
+  <details class="checkout-summary">
+    <summary>${items.length} article${items.length>1?'s':''} · ${Utils.fmtFCFA(total)}<span class="chev">▾</span></summary>
+    <div class="checkout-summary-body">
+      ${items.map(i=>`<div class="checkout-summary-item"><span>${i.qty} × ${Utils.escapeHtml(i.product.name)}${Utils.variantLabel(i)?` (${Utils.escapeHtml(Utils.variantLabel(i))})`:''}</span><span class="mono">${Utils.fmtFCFA(i.product.price*i.qty)}</span></div>`).join('')}
+    </div>
+  </details>
   <div class="form-wrap">
     <div class="field"><label>Nom complet</label><input id="co-name" type="text" placeholder="Votre nom" value="${Utils.escapeHtml(ClientLocal.profile.name||'')}"></div>
     <div class="field"><label>Numéro de téléphone</label><input id="co-phone" type="tel" placeholder="07 00 00 00 00" value="${Utils.escapeHtml(ClientLocal.profile.phone||'')}"></div>
@@ -11871,8 +11974,8 @@ Views.checkout = function(){
           methods.map((m,i)=>{
             const pm = pay[m.key] || {};
             const info = m.key==='cash' ? 'Paiement à la livraison' : m.key==='siamsbanque' ? 'Paiement sécurisé via SIAMS' : (pm.number ? pm.number : 'Numéro non renseigné');
-            return `<label style="display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;cursor:pointer;">
-            <input type="radio" name="co-pay" value="${m.key}" ${i===0?'checked':''} onchange="onCheckoutPayChange()" style="width:18px;height:18px;accent-color:var(--indigo);">
+            return `<label class="pay-method-card${i===0?' selected':''}" data-pay-key="${m.key}">
+            <input type="radio" name="co-pay" value="${m.key}" ${i===0?'checked':''} onchange="onCheckoutPayChange()" style="width:18px;height:18px;accent-color:var(--pay-accent);">
             <span style="display:flex;flex-direction:column;gap:3px;"><span style="font-size:14.5px;font-weight:700;">${m.label}</span><span style="font-size:11.5px;color:var(--text-mid);">${Utils.escapeHtml(info)}</span></span>
           </label>`;
           }).join('')}
@@ -11885,7 +11988,8 @@ Views.checkout = function(){
       <div id="co-delivery-row" class="hidden" style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13.5px;color:var(--text-mid);"><span>Livraison</span><span class="mono" id="co-delivery"></span></div>
       <div style="display:flex;justify-content:space-between;"><span style="font-weight:700;">Total à payer</span><span class="mono" style="font-weight:700;" id="co-total">${Utils.fmtFCFA(total)}</span></div>
     </div>
-    <button class="btn btn-mango btn-block" style="margin-bottom:24px;" onclick="confirmOrder()">${(window.MaBoutiqueOrderEdit&&window.MaBoutiqueOrderEdit.id)?(window.MaBoutiqueOrderEdit.mode==='complete'?'Enregistrer les ajouts':'Enregistrer les modifications'):'Confirmer la commande'}</button>
+    <button class="btn btn-checkout-pay btn-block" style="margin-bottom:10px;" onclick="confirmOrder()">${(window.MaBoutiqueOrderEdit&&window.MaBoutiqueOrderEdit.id)?(window.MaBoutiqueOrderEdit.mode==='complete'?'Enregistrer les ajouts':'Enregistrer les modifications'):'Confirmer la commande'}</button>
+    <button type="button" class="checkout-help-btn" onclick="openWhatsapp()">💬 Une question avant de payer ? Contactez la boutique</button>
   </div>
   `;
 };
@@ -11904,19 +12008,22 @@ Views._after_checkout = function(){
 function onCheckoutPayChange(){
   const payRadio = document.querySelector('input[name="co-pay"]:checked');
   const wrap = document.getElementById('co-pay-details');
+  document.querySelectorAll('.pay-method-card').forEach(card=>{
+    card.classList.toggle('selected', payRadio && card.getAttribute('data-pay-key')===payRadio.value);
+  });
   if(!wrap || !payRadio) return;
   checkoutPaymentProof = null;
   const method = payRadio.value;
   if(method==='cash'){ wrap.innerHTML = ''; return; }
   if(method==='siamsbanque'){
     wrap.innerHTML = `
-      <div style="margin-top:10px;border:1.5px solid var(--green);border-radius:var(--radius-sm);padding:14px;background:var(--green-tint);">
-        <div style="display:flex;align-items:center;gap:6px;font-weight:750;font-size:12.5px;color:var(--green);margin-bottom:6px;">🔒 Paiement sécurisé SIAMS BANQUE</div>
+      <div style="margin-top:10px;border:1.5px solid var(--pay-accent);border-radius:var(--radius-sm);padding:14px;background:var(--pay-accent-tint);">
+        <div style="display:flex;align-items:center;gap:6px;font-weight:750;font-size:12.5px;color:var(--pay-accent-dark);margin-bottom:6px;">🔒 Paiement sécurisé SIAMS BANQUE</div>
         <p style="margin:0 0 10px;font-size:12.5px;color:var(--text-mid);">Payez le montant total via le lien Wave sécurisé ci-dessous, puis joignez une capture d'écran ou le reçu de la transaction.</p>
-        <a href="${Utils.escapeHtml(PAYMENT_INFO.siamsBanqueWaveLink)}" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">Payer via SIAMS BANQUE ↗</a>
+        <a href="${Utils.escapeHtml(PAYMENT_INFO.siamsBanqueWaveLink)}" class="btn btn-checkout-pay btn-sm" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">Payer via SIAMS BANQUE ↗</a>
         <input type="file" accept="image/*" id="co-payment-proof-input" class="hidden" onchange="handleCheckoutProof(event)">
         <div id="co-payment-proof-preview"></div>
-        <button type="button" class="btn btn-mango btn-sm" style="width:100%;" onclick="document.getElementById('co-payment-proof-input').click()">📎 Joindre la capture / le reçu de paiement</button>
+        <button type="button" class="btn btn-checkout-outline btn-sm" style="width:100%;" onclick="document.getElementById('co-payment-proof-input').click()">📎 Joindre la capture / le reçu de paiement</button>
       </div>`;
     return;
   }
@@ -11933,10 +12040,10 @@ function onCheckoutPayChange(){
         ${validated ? `<span style="font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--green-tint);color:var(--green);white-space:nowrap;">Vérifié ✓</span>` : ''}
         ${number ? `<button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${number.replace(/'/g,"")}');Toast.show('Numéro copié ✓')">Copier</button>` : ''}
       </div>
-      ${link ? `<a href="${Utils.escapeHtml(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--indigo);">Payer directement via le lien ${label} ↗</a>` : ''}
+      ${link ? `<a href="${Utils.escapeHtml(link)}" style="display:block;text-align:center;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--indigo);">Payer directement via le lien ${label} ↗</a>` : ''}
       <input type="file" accept="image/*" id="co-payment-proof-input" class="hidden" onchange="handleCheckoutProof(event)">
       <div id="co-payment-proof-preview"></div>
-      <button type="button" class="btn btn-mango btn-sm" style="width:100%;" onclick="document.getElementById('co-payment-proof-input').click()">📎 Joindre la capture / le reçu de paiement</button>
+      <button type="button" class="btn btn-checkout-outline btn-sm" style="width:100%;" onclick="document.getElementById('co-payment-proof-input').click()">📎 Joindre la capture / le reçu de paiement</button>
     </div>`;
 }
 function handleCheckoutProof(evt){
