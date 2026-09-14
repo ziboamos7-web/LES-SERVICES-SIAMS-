@@ -928,6 +928,31 @@
   .order-status.cancelled{background:var(--red);}
   .badge.shipped{background:var(--indigo-tint);color:var(--indigo);}
   .badge.cancelled{background:var(--red-tint);color:var(--red);}
+
+  /* ---------- Mes commandes (client) : recherche, onglets, carte de suivi visuel ---------- */
+  .oh-toolbar{padding:0 20px 6px;}
+  .oh-search{display:flex;align-items:center;gap:10px;background:var(--panel);border-radius:14px;padding:12px 14px;margin-bottom:12px;}
+  .oh-search input{flex:1;min-width:0;border:none;background:transparent;outline:none;font-size:13.5px;font-family:var(--font-body);color:var(--text);}
+  .oh-search input::placeholder{color:var(--text-soft);}
+  .oh-search svg{flex:none;color:var(--text-soft);}
+  .oh-tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-ms-overflow-style:none;}
+  .oh-tabs::-webkit-scrollbar{display:none;}
+  .oh-tab{flex:none;border:1.5px solid var(--line);background:#fff;color:var(--text-mid);font-size:12.5px;font-weight:700;padding:9px 15px;border-radius:999px;cursor:pointer;font-family:var(--font-body);white-space:nowrap;}
+  .oh-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .oh-card{position:relative;border:1.5px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;background:#fff;}
+  .oh-card-top{display:flex;align-items:center;gap:12px;cursor:pointer;}
+  .oh-thumb{width:46px;height:46px;border-radius:13px;background:var(--panel);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--text-soft);}
+  .oh-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .oh-status-pill{flex:none;font-size:10px;font-weight:800;letter-spacing:.02em;padding:5px 11px;border-radius:999px;text-transform:uppercase;}
+  .oh-route{display:flex;align-items:center;gap:7px;margin:16px 0 10px;}
+  .oh-route-dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--siams-orange,#FF7A18);}
+  .oh-route-track{flex:1;height:2px;background:var(--line);border-radius:2px;position:relative;overflow:hidden;}
+  .oh-route-track::before{content:'';position:absolute;inset:0 0 0 0;width:var(--oh-fill,0%);background:repeating-linear-gradient(90deg,var(--siams-orange,#FF7A18) 0 6px,transparent 6px 11px);}
+  .oh-route-box{width:24px;height:24px;border-radius:8px;background:var(--panel);display:flex;align-items:center;justify-content:center;flex:none;color:var(--text-mid);}
+  .oh-route-eta{text-align:center;font-size:10.5px;font-weight:700;color:var(--text-mid);margin-bottom:6px;}
+  .oh-route-points{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:var(--text-soft);}
+  .oh-route-points b{display:block;font-size:12px;font-weight:700;color:var(--text);}
+  .oh-route-points .to{text-align:right;}
   .order-info{flex:1;min-width:0;}
   .order-info h4{margin:0 0 3px;font-size:14.5px;font-weight:700;}
   .order-info .meta{font-size:12px;color:var(--text-soft);}
@@ -11144,33 +11169,118 @@ function lookupOrderTrack(){
 }
 
 /* ---------- Historique des commandes du client ---------- */
+const OrdersHistoryUI = {
+  filter:'all',
+  search:'',
+  stageIndex(status){ return status==='confirmed'?1:status==='shipped'?2:status==='delivered'?3:0; },
+  matchesFilter(o, key){
+    if(key==='all') return o.status!=='cancelled';
+    if(key==='transit') return o.status==='shipped';
+    if(key==='process') return o.status==='pending' || o.status==='confirmed';
+    if(key==='delivered') return o.status==='delivered';
+    return true;
+  },
+  setFilter(key){
+    this.filter = key;
+    document.querySelectorAll('.oh-tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-oh-key')===key));
+    this.renderList();
+  },
+  setSearch(val){
+    this.search = String(val||'').trim().toLowerCase();
+    this.renderList();
+  },
+  getFiltered(){
+    const p = ClientLocal.profile;
+    const all = p.phone ? Store.orders.filter(o=>o.customer.phone===p.phone) : [];
+    return all.filter(o=>this.matchesFilter(o, this.filter) && (!this.search || String(o.number||'').toLowerCase().includes(this.search) || (Array.isArray(o.items)&&o.items.some(it=>String(it.name||'').toLowerCase().includes(this.search)))));
+  },
+  card(o){
+    const badgeLabel = {pending:'À confirmer', confirmed:'En préparation', shipped:'En livraison', delivered:'Livrée', cancelled:'Annulée'};
+    const firstItem = Array.isArray(o.items) && o.items[0] || null;
+    const extra = Array.isArray(o.items) && o.items.length>1 ? ` +${o.items.length-1}` : '';
+    const editable = o.status==='pending' && !o.shipped;
+    const stage = this.stageIndex(o.status);
+    const fillPct = o.status==='cancelled' ? 0 : (stage/3*100);
+    const originName = (Store.store && Store.store.name) || 'Boutique';
+    const destName = o.customer.address || 'Votre adresse';
+    const dateLabel = o.status==='delivered' ? `Livrée le ${new Date(o.deliveryConfirmedAt||o.createdAt).toLocaleDateString('fr-FR')}` :
+      o.status==='shipped' ? 'Colis en route' : o.status==='confirmed' ? 'En préparation' : o.status==='cancelled' ? 'Commande annulée' : 'En attente de confirmation';
+    return `
+      <div class="oh-card">
+        <div class="oh-card-top" onclick="Router.go('order-track',{id:'${o.id}'})">
+          <div class="oh-thumb">${firstItem && firstItem.photo ? `<img src="${firstItem.photo}" alt="">` : ICONS.box.replace('width="30" height="30"','width="20" height="20"')}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10.5px;color:var(--text-soft);font-family:var(--font-mono);">ID: ${Utils.escapeHtml(o.number||'')}</div>
+            <h4 style="font-size:14px;font-weight:700;margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${firstItem?Utils.escapeHtml(firstItem.name):'Commande'}${extra}</h4>
+          </div>
+          <span class="oh-status-pill badge ${o.status}">${badgeLabel[o.status]||o.status}</span>
+        </div>
+        <div class="oh-route-eta">${dateLabel}</div>
+        <div class="oh-route">
+          <div class="oh-route-dot"></div>
+          <div class="oh-route-track" style="--oh-fill:${fillPct}%;"></div>
+          <div class="oh-route-box">${ICONS.box.replace('width="30" height="30"','width="14" height="14"')}</div>
+        </div>
+        <div class="oh-route-points">
+          <div class="from"><span>De</span><b>${Utils.escapeHtml(originName)}</b></div>
+          <div class="to"><span>Vers</span><b>${Utils.escapeHtml(destName)}</b></div>
+        </div>
+        <div class="maboutique-order-actions" style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+          <div style="flex:1;font-size:13px;font-weight:700;">${Utils.fmtFCFA(o.amount)}</div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="event.stopPropagation();Router.go('order-track',{id:'${o.id}'})">Suivre</button>
+          ${editable ? `<button type="button" class="btn btn-soft-indigo btn-sm" onclick="event.stopPropagation();maboutiqueOrderActionsMenu('${o.id}')">Modifier</button>` : ''}
+        </div>
+      </div>`;
+  },
+  renderList(){
+    const el = document.getElementById('oh-list');
+    if(!el) return;
+    const rows = this.getFiltered();
+    el.innerHTML = rows.length===0
+      ? EmptyState(ICONS.box,'Aucune commande', this.search?"Aucune commande ne correspond à votre recherche.":"Aucune commande dans cette catégorie pour l'instant.")
+      : rows.map(o=>this.card(o)).join('');
+  }
+};
 Views['shop-orders-history'] = function(){
   const p = ClientLocal.profile;
-  const myOrders = p.phone ? Store.orders.filter(o=>o.customer.phone===p.phone) : [];
-  const badgeLabel = {pending:'En attente', confirmed:'Confirmée', delivered:'Livrée'};
+  OrdersHistoryUI.filter = 'all';
+  OrdersHistoryUI.search = '';
+  if(!p.phone){
+    return `
+    <div class="topbar" style="padding-top:18px;">
+      <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Mes commandes</h1></div>
+    </div>
+    <div style="padding:12px 20px 24px;">${EmptyState(ICONS.box,'Renseignez vos informations',"Ajoutez votre numéro de téléphone dans « Mes informations » pour retrouver vos commandes.",`<button class="btn btn-primary" onclick="openAccountProfileEditor()">Renseigner mes informations</button>`)}</div>`;
+  }
+  const all = Store.orders.filter(o=>o.customer.phone===p.phone);
+  const counts = {
+    all: all.filter(o=>o.status!=='cancelled').length,
+    transit: all.filter(o=>o.status==='shipped').length,
+    process: all.filter(o=>o.status==='pending'||o.status==='confirmed').length,
+    delivered: all.filter(o=>o.status==='delivered').length
+  };
+  const tabs = [
+    {key:'all', label:'Toutes', count:counts.all},
+    {key:'transit', label:'En livraison', count:counts.transit},
+    {key:'process', label:'En préparation', count:counts.process},
+    {key:'delivered', label:'Livrées', count:counts.delivered}
+  ];
   return `
   <div class="topbar" style="padding-top:18px;">
     <div style="display:flex;align-items:center;gap:12px;"><button class="bell-btn" onclick="Router.go('shop-account')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5 8 12l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><h1 style="font-size:19px;">Mes commandes</h1></div>
   </div>
-  <div style="padding:12px 20px 24px;">
-    ${!p.phone ? EmptyState(ICONS.box,'Renseignez vos informations',"Ajoutez votre numéro de téléphone dans « Mes informations » pour retrouver vos commandes.",`<button class="btn btn-primary" onclick="openAccountProfileEditor()">Renseigner mes informations</button>`) :
-      myOrders.length===0 ? EmptyState(ICONS.box,'Aucune commande',"Vous n'avez pas encore passé de commande.",`<button class="btn btn-primary" onclick="Router.go('shop-categories',{cat:'__all__'})">Découvrir la boutique</button>`) :
-      myOrders.map(o=>{
-        const editable = o.status==='pending' && !o.shipped;
-        const statusText = badgeLabel[o.status] || (o.status==='shipped'?'En livraison':o.status==='cancelled'?'Annulée':o.status||'En attente');
-        return `
-      <div class="order-row maboutique-client-order-card" style="border:1.5px solid var(--line);border-radius:var(--radius-md);margin-bottom:12px;padding:14px 16px;background:#fff;">
-        <div class="maboutique-order-main" onclick="Router.go('order-track',{id:'${o.id}'})" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-          <div class="order-status ${o.status}"></div>
-          <div class="order-info" style="flex:1;min-width:0;"><h4>Commande #${Utils.escapeHtml(o.number||'')}</h4><div class="meta">${Array.isArray(o.items)?o.items.length:0} article(s) · ${new Date(o.createdAt||Date.now()).toLocaleDateString('fr-FR')}</div></div>
-          <div style="text-align:right;"><div class="order-amount">${Utils.fmtFCFA(o.amount)}</div><span class="badge ${o.status}">${statusText}</span></div>
-        </div>
-        <div class="maboutique-order-actions" style="display:flex;gap:8px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line);">
-          <button type="button" class="btn btn-outline btn-sm" style="flex:1;" onclick="event.stopPropagation();Router.go('order-track',{id:'${o.id}'})">Suivre</button>
-          ${editable ? `<button type="button" class="btn btn-soft-indigo btn-sm" style="flex:1;" onclick="event.stopPropagation();maboutiqueOrderActionsMenu('${o.id}')">Modifier</button>` : ''}
-        </div>
-      </div>`;
-      }).join('')}
+  <div class="oh-toolbar">
+    <div class="oh-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input type="text" placeholder="Rechercher un colis (numéro, article...)" oninput="OrdersHistoryUI.setSearch(this.value)">
+    </div>
+    <div class="oh-tabs">
+      ${tabs.map(t=>`<button type="button" class="oh-tab ${t.key==='all'?'active':''}" data-oh-key="${t.key}" onclick="OrdersHistoryUI.setFilter('${t.key}')">${t.label} ${t.count}</button>`).join('')}
+    </div>
+  </div>
+  <div style="padding:6px 20px 24px;" id="oh-list">
+    ${all.length===0 ? EmptyState(ICONS.box,'Aucune commande',"Vous n'avez pas encore passé de commande.",`<button class="btn btn-primary" onclick="Router.go('shop-categories',{cat:'__all__'})">Découvrir la boutique</button>`) :
+      all.filter(o=>o.status!=='cancelled').map(o=>OrdersHistoryUI.card(o)).join('') || EmptyState(ICONS.box,'Aucune commande active',"Toutes vos commandes sont annulées ou introuvables dans cette catégorie.")}
   </div>
   `;
 };
