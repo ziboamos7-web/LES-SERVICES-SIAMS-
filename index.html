@@ -180,7 +180,7 @@
   .checkout-steps .step{flex:1;height:4px;border-radius:999px;background:var(--line);}
   .checkout-steps .step.done{background:var(--pay-accent);}
   .checkout-trust-row{display:flex;gap:8px;padding:14px 20px 0;}
-  .checkout-trust-row .trust-chip{flex:1;background:var(--panel);border-radius:12px;padding:9px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text-mid);line-height:1.35;}
+  .checkout-trust-row .trust-chip{flex:1;background:var(--panel);border-radius:12px;padding:11px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text-mid);line-height:1.35;}
   .checkout-summary{margin:14px 20px 0;border:1.5px solid var(--line);border-radius:var(--radius-md);overflow:hidden;background:#fff;}
   .checkout-summary summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:13.5px;}
   .checkout-summary summary::-webkit-details-marker{display:none;}
@@ -600,8 +600,12 @@
   .login-field-input.align-top .ico{margin-top:14px;}
   .login-field-input.has-error{box-shadow:0 0 0 1.6px var(--red) inset;}
   .field-error-msg{font-size:11.5px;color:var(--red);margin:6px 2px 0;}
+  .pwd-strength{display:flex;gap:4px;margin-top:9px;}
+  .pwd-strength span{flex:1;height:4px;border-radius:2px;background:var(--line);transition:background .2s ease;}
   .trust-row{display:flex;gap:8px;margin:16px 0 4px;}
-  .trust-chip{flex:1;background:var(--panel);border-radius:12px;padding:9px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text-mid);line-height:1.35;}
+  .trust-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--panel);border-radius:12px;padding:11px 6px;text-align:center;font-size:10px;font-weight:700;color:var(--text-mid);line-height:1.3;}
+  .trust-chip-ico{width:19px;height:19px;flex:none;color:var(--siams-orange-dark,#E5670D);}
+  .trust-chip-ico svg{display:block;width:100%;height:100%;}
   .login-row-between{display:flex;justify-content:space-between;align-items:center;margin:2px 0 20px;}
   .login-remember{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:650;color:var(--ink);cursor:pointer;}
   .login-remember input{appearance:none;-webkit-appearance:none;width:19px;height:19px;border-radius:6px;border:1.6px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;flex:none;}
@@ -614,20 +618,26 @@
   .login-social-row{display:flex;gap:10px;}
   .login-social-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 10px;border-radius:16px;background:var(--panel);border:none;font-family:var(--font-body);font-size:13.5px;font-weight:700;color:var(--ink);cursor:pointer;}
   .otp-topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
-  .otp-back{background:none;border:none;cursor:pointer;color:var(--text);padding:4px;display:flex;}
-  .otp-help{background:none;border:none;cursor:pointer;color:var(--indigo);font-size:14.5px;font-weight:700;font-family:var(--font-body);display:flex;align-items:center;gap:6px;}
-  .otp-title{font-size:25px;font-weight:800;margin:34px 0 0;padding:0 20px;line-height:1.25;}
-  .otp-boxes{display:flex;gap:8px;justify-content:center;margin:52px 0 26px;flex-wrap:nowrap;}
-  .otp-box{width:36px;height:48px;text-align:center;font-size:22px;font-weight:700;border:none;border-bottom:2.5px solid var(--line);background:transparent;outline:none;color:var(--text);font-family:var(--font-body);}
-  .otp-box:focus{border-bottom-color:var(--indigo);}
-  .otp-box.filled{border-bottom-color:var(--indigo);}
-  .otp-resend-label{text-align:center;font-size:14.5px;color:var(--text-mid);margin-bottom:20px;}
-  .otp-resend-label b{color:var(--text);font-weight:700;}
-  .otp-channels{display:flex;gap:12px;justify-content:center;margin-bottom:8px;}
-  .otp-channel{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:11px 22px;font-size:14.5px;font-weight:700;font-family:var(--font-body);color:var(--text-soft);cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:border-color .15s,color .15s;}
-  .otp-channel.active{border-color:var(--indigo);color:var(--indigo);}
-  .otp-channel:disabled{cursor:default;opacity:.55;}
-  .otp-error{text-align:center;font-size:13px;color:var(--red);min-height:18px;margin-top:14px;}
+  .otp-back{background:var(--panel);border:none;cursor:pointer;color:var(--text);padding:9px;display:flex;border-radius:999px;transition:background .15s ease;}
+  .otp-back:active{background:var(--line);}
+  .otp-help{background:none;border:none;cursor:pointer;color:var(--text-mid);font-size:13.5px;font-weight:700;font-family:var(--font-body);display:flex;align-items:center;gap:6px;padding:8px 4px;}
+  .otp-icon-wrap{width:64px;height:64px;border-radius:20px;background:var(--panel);display:flex;align-items:center;justify-content:center;margin:28px 20px 0;color:var(--indigo);}
+  .otp-title{font-size:24px;font-weight:800;margin:20px 0 0;padding:0 20px;line-height:1.3;letter-spacing:-.01em;}
+  .otp-subtitle{margin:8px 20px 0;font-size:14.5px;color:var(--text-mid);line-height:1.5;}
+  .otp-subtitle b{color:var(--text);font-weight:700;}
+  .otp-boxes{display:flex;gap:10px;justify-content:center;margin:36px 20px 8px;flex-wrap:nowrap;}
+  .otp-box{flex:1;max-width:50px;aspect-ratio:1/1.1;text-align:center;font-size:24px;font-weight:800;border:1.5px solid var(--line);border-radius:var(--radius-sm);background:var(--panel);outline:none;color:var(--text);font-family:var(--font-mono);transition:border-color .15s ease,background .15s ease,box-shadow .15s ease,transform .1s ease;}
+  .otp-box:focus{border-color:var(--indigo);background:#fff;box-shadow:0 0 0 4px rgba(11,14,23,.06);}
+  .otp-box.filled{border-color:var(--indigo);background:#fff;}
+  .otp-box.shake{animation:otpShake .35s ease;}
+  @keyframes otpShake{10%,90%{transform:translateX(-1px);}20%,80%{transform:translateX(2px);}30%,50%,70%{transform:translateX(-4px);}40%,60%{transform:translateX(4px);}}
+  .otp-resend-label{text-align:center;font-size:14px;color:var(--text-mid);margin:0 20px 22px;}
+  .otp-resend-label b{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;}
+  .otp-channels{display:flex;gap:12px;justify-content:center;margin:0 20px 8px;}
+  .otp-channel{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:12px 22px;font-size:14px;font-weight:700;font-family:var(--font-body);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:border-color .15s,color .15s,background .15s;width:100%;justify-content:center;}
+  .otp-channel.active{border-color:var(--indigo);color:#fff;background:var(--indigo);}
+  .otp-channel:disabled{cursor:default;opacity:.45;background:#fff;color:var(--text-soft);border-color:var(--line);}
+  .otp-error{text-align:center;font-size:13.5px;font-weight:600;color:var(--red);min-height:18px;margin:16px 20px 0;}
 
   .switch{position:relative;width:44px;height:26px;flex:none;}
   .switch input{opacity:0;width:0;height:0;}
@@ -1012,6 +1022,15 @@
   .menu-item-text .menu-item-title{font-size:15px;font-weight:700;color:var(--text);}
   .menu-item-desc{font-size:12px;color:var(--text-mid);font-weight:500;line-height:1.35;}
   .menu-item.danger .menu-item-title{color:var(--text-mid);}
+  .logout-confirm-sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,100%);width:100%;max-width:480px;background:#fff;border-radius:22px 22px 0 0;z-index:61;padding:10px 24px calc(28px + env(safe-area-inset-bottom));transition:transform .28s cubic-bezier(.32,.72,0,1);text-align:center;}
+  .logout-confirm-sheet.show{transform:translate(-50%,0);}
+  .logout-confirm-icon{width:56px;height:56px;border-radius:16px;background:var(--red-tint);color:var(--red);display:flex;align-items:center;justify-content:center;margin:14px auto 18px;}
+  .logout-confirm-title{margin:0 0 8px;font-size:19px;font-weight:800;color:var(--text);}
+  .logout-confirm-desc{margin:0 0 24px;font-size:13.5px;color:var(--text-mid);line-height:1.5;}
+  .logout-confirm-actions{display:flex;flex-direction:column;gap:10px;}
+  .logout-confirm-actions .btn{min-height:50px;border-radius:var(--radius-md);font-size:15px;font-weight:700;}
+  .logout-confirm-btn{background:var(--red);color:#fff;}
+  .logout-confirm-btn:active{background:#d33c2f;}
 
   /* ---------- Notification panel ---------- */
   .notif-panel{position:fixed;left:50%;top:78px;transform:translate(-50%,-12px);width:calc(100% - 40px);max-width:440px;background:#fff;border-radius:18px;box-shadow:0 20px 50px -12px rgba(20,15,50,.25);z-index:71;opacity:0;pointer-events:none;transition:opacity .18s ease, transform .18s ease;max-height:70vh;overflow-y:auto;border:1px solid var(--line);}
@@ -1538,6 +1557,8 @@
 .finance-two-col-item span{font-size:10.5px;color:rgba(255,255,255,.78);font-weight:700;}
 .finance-two-col-item b{font-family:var(--font-mono);font-size:15px;font-weight:850;color:#fff;}
 .finance-trust-note{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,.18);font-size:10.5px;color:rgba(255,255,255,.85);line-height:1.4;}
+.finance-withdraw-btn{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:12px 14px;border:1.5px solid rgba(255,255,255,.35);border-radius:14px;background:rgba(255,255,255,.14);backdrop-filter:blur(2px);color:#fff;font-family:var(--font-body);font-size:13px;font-weight:800;cursor:pointer;transition:background .15s ease,transform .1s ease;}
+.finance-withdraw-btn:active{background:rgba(255,255,255,.24);transform:scale(.98);}
 @media(max-width:380px){.dashboard-v18-finance{margin-left:14px;margin-right:14px;padding:16px}.finance-total{font-size:26px}}
 
 
@@ -2293,9 +2314,24 @@
       <div class="menu-item-text"><span class="menu-item-title">Mon ID marchand MA BOUTIQUE</span><span class="menu-item-desc">Consultez ou copiez votre identifiant de connexion</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <div class="menu-item danger" onclick="Sheet.close(); if(confirm('Se déconnecter ?')) Auth.logout();">
+    <div class="menu-item danger" onclick="Sheet.close(); LogoutConfirm.open();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="menu-item-text"><span class="menu-item-title">Déconnexion</span><span class="menu-item-desc">Fermer votre session en toute sécurité</span></div>
+    </div>
+  </div>
+
+  <!-- ============ CONFIRMATION DE DÉCONNEXION ============ -->
+  <div class="overlay" id="logout-overlay" onclick="LogoutConfirm.close()"></div>
+  <div class="logout-confirm-sheet" id="logout-confirm-sheet">
+    <div class="sheet-handle"></div>
+    <div class="logout-confirm-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3 class="logout-confirm-title">Se déconnecter ?</h3>
+    <p class="logout-confirm-desc">Vous devrez ressaisir vos identifiants pour accéder de nouveau à votre espace boutique.</p>
+    <div class="logout-confirm-actions">
+      <button class="btn logout-confirm-btn" onclick="LogoutConfirm.confirm()">Se déconnecter</button>
+      <button class="btn btn-outline" onclick="LogoutConfirm.close()">Annuler</button>
     </div>
   </div>
 
@@ -3199,6 +3235,16 @@ const Store = {
       .reduce((s,o)=>s+Math.max(0, Number(o.amount||0) - Number(o.courierPayout||0)), 0);
   },
   availableBalance(){ return Math.max(0, this.cashPendingFromCouriers() - this.totalWithdrawn()); },
+  get siamsWithdrawals(){ return Utils.getLocal('siams_withdrawals', []); },
+  set siamsWithdrawals(v){ Utils.setLocal('siams_withdrawals', v); },
+  totalSiamsWithdrawn(){ return this.siamsWithdrawals.reduce((s,w)=>s+w.amount,0); },
+  /* ---- Solde SIAMS BANQUE : total des commandes livrées payées via SIAMS BANQUE,
+     conservées en dépôt sécurisé par SIAMS jusqu'à la demande de retrait du marchand
+     vers le réseau mobile money de son choix (Wave, Djamo ou Mobile Money). ---- */
+  siamsBanqueRevenue(){
+    return this.orders.filter(o=>o.status==='delivered' && o.paymentMethod==='siamsbanque').reduce((s,o)=>s+Number(o.amount||0),0);
+  },
+  siamsBanqueBalance(){ return Math.max(0, this.siamsBanqueRevenue() - this.totalSiamsWithdrawn()); },
   get contactEmail(){ return Utils.getLocal('contact_email', ''); },
   set contactEmail(v){ Utils.setLocal('contact_email', v); },
 
@@ -3678,6 +3724,21 @@ const Sheet = {
   }
 };
 
+const LogoutConfirm = {
+  open(){
+    document.getElementById('logout-overlay').classList.add('show');
+    document.getElementById('logout-confirm-sheet').classList.add('show');
+  },
+  close(){
+    document.getElementById('logout-overlay').classList.remove('show');
+    document.getElementById('logout-confirm-sheet').classList.remove('show');
+  },
+  confirm(){
+    LogoutConfirm.close();
+    Auth.logout();
+  }
+};
+
 /* ---------------- Charts (hand-rolled SVG) ---------------- */
 const Charts = {
   bars(data){
@@ -3964,7 +4025,7 @@ const Auth = {
     const redirectTo = location.origin + location.pathname;
     const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ phone }, emailRedirectTo: redirectTo } });
     if(error) return { ok:false, message: error.message };
-    if(!data.session) return { ok:true, needsConfirm:true };
+    if(!data.session) return { ok:true, needsConfirm:true, email: data.user?.email || email };
     Auth.loggedIn = true;
     try{ await Bootstrap.loadStoreData(data.user); } catch(e){ console.error(e); return { ok:false, message:'Erreur de chargement des données' }; }
     Store.trialStartedAt; // démarre le pass gratuit de 20 jours pour la nouvelle boutique
@@ -4354,12 +4415,13 @@ const OtpGate = {
     const boxes = [...document.querySelectorAll('.otp-box')];
     const entered = boxes.map(b=>b.value).join('');
     const err = document.getElementById('otp-error');
-    if(entered.length<8){ err.textContent = 'Merci de saisir les 8 chiffres du code'; return; }
+    if(entered.length<6){ err.textContent = 'Merci de saisir les 6 chiffres du code'; return; }
     try{
       const {error} = await sb.auth.verifyOtp({ email: OtpGate.email, token: entered, type:'email' });
       if(error){
         err.textContent = 'Code incorrect, merci de réessayer';
-        boxes.forEach(b=>{ b.value=''; b.classList.remove('filled'); });
+        boxes.forEach(b=>{ b.value=''; b.classList.remove('filled'); b.classList.add('shake'); });
+        setTimeout(()=>boxes.forEach(b=>b.classList.remove('shake')), 350);
         boxes[0].focus();
         return;
       }
@@ -4415,14 +4477,14 @@ function otpBoxKeydown(e, idx){
   if(e.key==='Backspace' && !e.target.value && idx>0){ boxes[idx-1].focus(); boxes[idx-1].value=''; boxes[idx-1].classList.remove('filled'); }
 }
 function otpBoxPaste(e){
-  const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,8);
+  const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,6);
   if(!text) return;
   e.preventDefault();
   const boxes = [...document.querySelectorAll('.otp-box')];
   text.split('').forEach((ch,i)=>{ if(boxes[i]){ boxes[i].value = ch; boxes[i].classList.add('filled'); } });
   const next = boxes[text.length] || boxes[boxes.length-1];
   next.focus();
-  if(text.length===8) OtpGate.verify();
+  if(text.length===6) OtpGate.verify();
 }
 
 /* ---------------- Shared partials ---------------- */
@@ -4655,6 +4717,9 @@ Views['about-partnership'] = function(){
   const storeIco='<svg viewBox="0 0 24 24" fill="none"><path d="M4 9V6.6c0-.4.2-.7.5-.9L11 2l6.5 3.7c.3.2.5.5.5.9V9" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.5 9h17v2.3a2.3 2.3 0 0 1-4.4 1 2 2 0 0 1-3.6 0 2 2 0 0 1-3.6 0 2.3 2.3 0 0 1-4.4-1V9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M5 13.5V20h13v-6.5" stroke="currentColor" stroke-width="1.6"/></svg>';
   const phoneIco='<svg viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.5.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.5.1.3 0 .7-.2 1L6.6 10.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
   const msgIco='<svg viewBox="0 0 24 24" fill="none"><path d="M21 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4.5 3V11.5A7.5 7.5 0 0 1 11 4h2.5a7.5 7.5 0 0 1 7.5 7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const boltIco='<svg viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const shieldIco='<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const checkCircleIco='<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="m8 12.3 2.6 2.6L16.3 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;padding:28px 22px;">
     <button onclick="Router.go('onboarding-public')" style="border:none;background:var(--panel);color:var(--text);width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:18px;">
@@ -4665,9 +4730,9 @@ Views['about-partnership'] = function(){
     <h1 style="font-size:25px;line-height:1.15;margin:0 0 8px;">Devenir partenaire chez SIAMS</h1>
     <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 4px;">Envoyez votre demande au service client. Votre message sera personnalisé pour permettre à SIAMS de traiter votre requête plus rapidement.</p>
     <div class="trust-row">
-      <div class="trust-chip">⚡<br>Réponse rapide</div>
-      <div class="trust-chip">🔒<br>Sans engagement</div>
-      <div class="trust-chip">✅<br>Confidentiel</div>
+      <div class="trust-chip"><span class="trust-chip-ico">${boltIco}</span>Réponse rapide</div>
+      <div class="trust-chip"><span class="trust-chip-ico">${shieldIco}</span>Sans engagement</div>
+      <div class="trust-chip"><span class="trust-chip-ico">${checkCircleIco}</span>Confidentiel</div>
     </div>
     <div style="margin-top:18px;">
       <div class="login-field" id="pf-name-wrap"><label>Nom / responsable</label>
@@ -4814,18 +4879,24 @@ const ActivationGate = {
 
 Views['activation-code'] = function(){
   const q=ActivationGate.getRequest();
+  const keyIco='<svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4" stroke="currentColor" stroke-width="1.7"/><path d="m11.2 11.8 8.3-8.3M16.5 6.5l2.5 2.5M14 9l2 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const checkIco='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M21 11.5a9.5 9.5 0 1 1-4.9-8.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m8.5 12 2.7 2.7L20 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const editIco='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
     <div style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;"></div>
-    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--indigo);text-transform:uppercase;margin-bottom:5px;">ACCÈS PARTENAIRE</div>
+    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--siams-orange-dark,#E5670D);text-transform:uppercase;margin-bottom:5px;">ACCÈS PARTENAIRE</div>
     <h1 style="font-size:25px;margin:0 0 8px;">Votre code partenaire</h1>
-    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 22px;">${q.pending?'Votre demande a bien été enregistrée. Vous recevrez automatiquement un e-mail de serviceclientsiams.ci@gmail.com contenant votre code d’activation dès que le service client MA BOUTIQUE aura approuvé votre compte.':'Saisissez le code personnel transmis par le service client MA BOUTIQUE pour commencer votre inscription.'}</p>
-    ${q.pending?`<div id="activation-pending-panel" style="padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);margin-bottom:16px;display:flex;align-items:center;gap:12px;"><div class="spinner" style="width:20px;height:20px;border:2.5px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:maboutique-spin .8s linear infinite;flex:none;"></div><div><b style="font-size:12.5px;">Activation en cours…</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px;">Votre demande est en cours d’examen par le service client MA BOUTIQUE.</div></div></div><style>@keyframes maboutique-spin{to{transform:rotate(360deg)}}</style>`:''}
-    <div class="field"><label>Code d’activation</label><input id="activation-code-input" type="text" autocomplete="off" autocapitalize="characters" placeholder="MABOUTIQUE-XXXXXX" value="${Utils.escapeHtml(ActivationGate.getStored())}" oninput="document.getElementById('activation-code-error').textContent=''"></div>
-    <div id="activation-code-error" style="color:var(--red);font-size:12.5px;min-height:20px;margin:-6px 0 14px;"></div>
-    <button id="activation-code-btn" class="btn btn-primary btn-block" onclick="ActivationGate.validate()">Valider le code</button>
-    ${q.pending?'<button id="activation-check-btn" class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ActivationGate.checkStatus()">Vérifier si mon code est arrivé</button>':''}
-    <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ActivationGate.openWhatsApp()">${q.pending?'Modifier ma demande':'Demander un code au service client'}</button>
+    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 4px;">${q.pending?'Votre demande a bien été enregistrée. Vous recevrez automatiquement un e-mail de serviceclientsiams.ci@gmail.com contenant votre code d’activation dès que le service client MA BOUTIQUE aura approuvé votre compte.':'Saisissez le code personnel transmis par le service client MA BOUTIQUE pour commencer votre inscription.'}</p>
+    ${!q.pending?`<div class="trust-row"><div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Réponse rapide</div><div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>Accès sécurisé</div></div>`:''}
+    ${q.pending?`<div id="activation-pending-panel" style="padding:16px;border:1.5px solid var(--siams-orange,#FF7A18);border-radius:16px;background:var(--pay-accent-tint,#FFF3EA);margin:18px 0 16px;display:flex;align-items:center;gap:12px;"><div class="spinner" style="width:20px;height:20px;border:2.5px solid rgba(255,122,24,.25);border-top-color:var(--siams-orange,#FF7A18);border-radius:50%;animation:maboutique-spin .8s linear infinite;flex:none;"></div><div><b style="font-size:12.5px;">Activation en cours…</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px;">Votre demande est en cours d’examen par le service client MA BOUTIQUE.</div></div></div><style>@keyframes maboutique-spin{to{transform:rotate(360deg)}}</style>`:'<div style="margin-top:18px;"></div>'}
+    <div class="login-field"><label>Code d’activation</label>
+      <div class="login-field-input"><span class="ico">${keyIco}</span><input id="activation-code-input" type="text" autocomplete="off" autocapitalize="characters" placeholder="MABOUTIQUE-XXXXXX" value="${Utils.escapeHtml(ActivationGate.getStored())}" style="font-family:var(--font-mono);letter-spacing:.03em;" oninput="document.getElementById('activation-code-error').textContent=''"></div>
+    </div>
+    <div id="activation-code-error" style="color:var(--red);font-size:12.5px;min-height:20px;margin:-6px 0 8px;"></div>
+    <button id="activation-code-btn" class="btn btn-block btn-login-cta" onclick="ActivationGate.validate()">Valider le code</button>
+    ${q.pending?'<button id="activation-check-btn" class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ActivationGate.checkStatus()">'+checkIco+'Vérifier si mon code est arrivé</button>':''}
+    <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ActivationGate.openWhatsApp()">${editIco}${q.pending?'Modifier ma demande':'Demander un code au service client'}</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="ActivationGate.quit()">Quitter</button>
   </div>`;
 };
@@ -4911,10 +4982,10 @@ Views.register = function(){
     '<h1 style="font-size:24px;margin:0 0 6px;">Créer votre compte</h1>'+
     '<p style="color:var(--text-mid);font-size:14px;margin:0 0 22px;">Votre inscription est autorisée par le code MA BOUTIQUE validé.</p>'+
     '<div class="login-field"><label>Adresse e-mail</label><div class="login-field-input"><span class="ico">'+mailIco+'</span><input id="auth-email__v46_2" type="email" placeholder="vous@exemple.com" autocomplete="email"></div></div>'+
-    '<div class="login-field"><label>Numéro de téléphone</label><div class="login-field-input"><span class="ico">'+phoneIco+'</span><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel"></div></div>'+
-    '<div class="login-field"><label>Mot de passe</label><div class="login-field-input"><span class="ico">'+lockIco+'</span><input id="auth-pass__v46_2" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRegisterPasswordMatch()"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass__v46_2\', this)">'+EYE_SVG+'</button></div><div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Au moins 6 caractères</div></div>'+
+    '<div class="login-field"><label>Numéro de téléphone</label><div class="login-field-input" id="reg-phone-wrap"><span class="ico">'+phoneIco+'</span><input id="auth-phone" type="tel" placeholder="07 00 00 00 00" autocomplete="tel" oninput="checkRegisterPhone()"></div><div class="field-error-msg hidden" id="reg-phone-err">Numéro trop court — vérifiez les 10 chiffres.</div></div>'+
+    '<div class="login-field"><label>Mot de passe</label><div class="login-field-input"><span class="ico">'+lockIco+'</span><input id="auth-pass__v46_2" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRegisterPasswordMatch();updatePwdStrength()"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass__v46_2\', this)">'+EYE_SVG+'</button></div><div class="pwd-strength" id="pwd-strength"><span></span><span></span><span></span></div><div style="font-size:12px;color:var(--text-mid);margin-top:6px;" id="pwd-strength-label">Au moins 6 caractères</div></div>'+
     '<div class="login-field"><label>Confirmer le mot de passe</label><div class="login-field-input" id="pass2-wrap"><span class="ico">'+lockIco+'</span><input id="auth-pass2" type="password" placeholder="••••••••" autocomplete="new-password" oninput="checkRegisterPasswordMatch()"><button type="button" class="pass-toggle-btn" aria-label="Afficher le mot de passe" onclick="togglePasswordVisibility(\'auth-pass2\', this)">'+EYE_SVG+'</button></div><div class="field-error-msg hidden" id="pass2-err">Les mots de passe ne correspondent pas.</div></div>'+
-    '<div class="trust-row"><div class="trust-chip">🔒<br>Données protégées</div><div class="trust-chip">⚡<br>Activation immédiate</div></div>'+
+    '<div class="trust-row"><div class="trust-chip"><span class="trust-chip-ico">'+lockIco+'</span>Données protégées</div><div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>Activation immédiate</div></div>'+
     '<div id="auth-error__v46_2" style="font-size:13px;margin:14px 0;color:var(--red);"></div>'+
     '<button class="btn btn-block btn-login-cta" id="auth-submit-btn__v46_2" onclick="doRegister()">Créer mon compte</button>'+
     '<button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="Router.go(\'activation-code\')">Retour au code partenaire</button>'+
@@ -4929,6 +5000,29 @@ function checkRegisterPasswordMatch(){
   wrap?.classList.toggle('has-error', mismatch);
   err?.classList.toggle('hidden', !mismatch);
 }
+function updatePwdStrength(){
+  const p = document.getElementById('auth-pass__v46_2')?.value||'';
+  const bars = document.querySelectorAll('#pwd-strength span');
+  const label = document.getElementById('pwd-strength-label');
+  if(!bars.length) return;
+  let score = 0;
+  if(p.length>=6) score++;
+  if(p.length>=10) score++;
+  if(/[0-9]/.test(p) && /[a-zA-Z]/.test(p)) score++;
+  const colors = ['var(--red)','var(--siams-orange,#FF7A18)','var(--green)'];
+  const labels = ['Mot de passe faible','Mot de passe moyen','Mot de passe solide'];
+  bars.forEach((b,i)=>{ b.style.background = (p.length>0 && i<score) ? colors[score-1] : 'var(--line)'; });
+  label.textContent = p.length===0 ? 'Au moins 6 caractères' : labels[Math.max(0,score-1)];
+}
+function checkRegisterPhone(){
+  const v = document.getElementById('auth-phone')?.value||'';
+  const digits = v.replace(/\D/g,'');
+  const wrap = document.getElementById('reg-phone-wrap');
+  const err = document.getElementById('reg-phone-err');
+  const invalid = digits.length>0 && digits.length<8;
+  wrap?.classList.toggle('has-error', invalid);
+  err?.classList.toggle('hidden', !invalid);
+}
 
 /* ---------- Vérification par code (E-MAIL) — rendu robuste ---------- */
 Views['verify-otp'] = function(){
@@ -4940,15 +5034,18 @@ Views['verify-otp'] = function(){
   '<div style="min-height:100vh;display:flex;flex-direction:column;">'+
     '<div class="otp-topbar">'+
       '<button class="otp-back" onclick="OtpGate.changeAccount()" aria-label="Retour">'+
-        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
       '</button>'+
       '<button class="otp-help" onclick="Toast.show(\'Contactez le support pour être aidé\')">'+
-        '<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 13a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>'+ 
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 13a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="13" width="4" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>'+ 
         'Besoin d\'aide ?'+
       '</button>'+ 
     '</div>'+ 
+    '<div class="otp-icon-wrap">'+
+      '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
+    '</div>'+ 
     '<h1 class="otp-title">Entrez le code reçu par e-mail</h1>'+ 
-    '<div class="otp-resend-label" style="margin:0 20px 8px;text-align:left;">Un code a été envoyé à <b>'+email+'</b></div>'+ 
+    '<p class="otp-subtitle">Un code à 6 chiffres a été envoyé à<br><b>'+email+'</b></p>'+ 
     '<div class="otp-boxes">'+
       '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" autofocus oninput="otpBoxHandle(this,0)" onkeydown="otpBoxKeydown(event,0)" onpaste="otpBoxPaste(event)">'+
       '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,1)" onkeydown="otpBoxKeydown(event,1)" onpaste="otpBoxPaste(event)">'+
@@ -4956,9 +5053,8 @@ Views['verify-otp'] = function(){
       '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,3)" onkeydown="otpBoxKeydown(event,3)" onpaste="otpBoxPaste(event)">'+
       '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,4)" onkeydown="otpBoxKeydown(event,4)" onpaste="otpBoxPaste(event)">'+
       '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,5)" onkeydown="otpBoxKeydown(event,5)" onpaste="otpBoxPaste(event)">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,6)" onkeydown="otpBoxKeydown(event,6)" onpaste="otpBoxPaste(event)">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,7)" onkeydown="otpBoxKeydown(event,7)" onpaste="otpBoxPaste(event)">'+
     '</div>'+ 
+    '<div class="otp-error" id="otp-error"></div>'+ 
     '<div class="otp-resend-label" id="otp-timer-label">Renvoyer le code dans <b>'+timerMin+':'+timerSec+'</b></div>'+ 
     '<div class="otp-channels">'+
       '<button class="otp-channel active" id="otp-resend-btn" disabled onclick="OtpGate.resend()">'+
@@ -4966,7 +5062,6 @@ Views['verify-otp'] = function(){
         'Renvoyer le code par e-mail'+
       '</button>'+ 
     '</div>'+ 
-    '<div class="otp-error" id="otp-error"></div>'+ 
     '<button class="otp-changenum" onclick="OtpGate.changeAccount()">'+
       '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M11 18.5h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'+ 
       'Utiliser un autre compte'+
@@ -5134,7 +5229,7 @@ const ConfirmEmail = {
       'me.com':'https://www.icloud.com/mail'
     };
     const url = inboxUrls[domain];
-    if(url){ window.open(url,'_blank'); }
+    if(url){ window.location.href = url; }
     else{ window.location.href = 'mailto:'; }
   },
   goLogin(){
@@ -5770,15 +5865,16 @@ Views['recover-id'] = function(){
 Views['confirm-email'] = function(){
   return `
   <div style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;text-align:center;">
-    <div style="width:64px;height:64px;border-radius:50%;background:var(--indigo-tint);color:var(--indigo);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;">
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--pay-accent-tint,#E1F7F5);color:var(--siams-orange-dark,#E5670D);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M3 7l9 6 9-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/></svg>
     </div>
     <h1 style="font-size:22px;margin:0 0 10px;">Confirmez votre e-mail</h1>
     <p style="color:var(--text-mid);font-size:14px;line-height:1.6;margin:0 0 4px;">Nous avons envoyé un lien de confirmation à</p>
-    <p style="font-weight:800;font-size:15px;margin:0 0 22px;">${Utils.escapeHtml(ConfirmEmail.email)}</p>
-    <p style="color:var(--text-mid);font-size:13px;line-height:1.6;margin:0 0 28px;">Ouvrez cet e-mail depuis votre messagerie et cliquez sur le lien de vérification Supabase pour activer votre compte, puis revenez vous connecter ici.</p>
-    <button class="btn btn-primary btn-block" onclick="ConfirmEmail.openMail()">Ouvrir ma boîte mail</button>
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="ConfirmEmail.resend()">Renvoyer l'e-mail de confirmation</button>
+    <p style="font-weight:800;font-size:15px;margin:0 0 22px;word-break:break-all;">${Utils.escapeHtml(ConfirmEmail.email) || 'votre adresse e-mail'}</p>
+    <p style="color:var(--text-mid);font-size:13px;line-height:1.6;margin:0 0 8px;">Ouvrez cet e-mail depuis votre messagerie et cliquez sur le lien de vérification Supabase pour activer votre compte, puis revenez vous connecter ici.</p>
+    <p style="color:var(--text-soft);font-size:12px;line-height:1.5;margin:0 0 28px;">💡 Vous ne le trouvez pas ? Vérifiez aussi vos spams / courriers indésirables.</p>
+    <button class="btn btn-block btn-login-cta" onclick="ConfirmEmail.openMail()">Ouvrir ma boîte mail</button>
+    <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="ConfirmEmail.resend()">Renvoyer l'e-mail de confirmation</button>
     <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="ConfirmEmail.goLogin()">J'ai confirmé mon e-mail, me connecter</button>
   </div>`;
 };
@@ -5809,10 +5905,10 @@ const PAYMENT_INFO = {
   waveNumber: '0748964690',
   waveUrl: 'https://pay.wave.com/m/M_ci_69kNlRz3-1G9/c/ci/',
   /* ---- SIAMS BANQUE : réception sécurisée des paiements clients pour le compte
-     du marchand. Le lien Wave ci-dessous est celui de SIAMS (pas du marchand) :
+     du marchand. Le lien ci-dessous est celui de SIAMS (pas du marchand) :
      l'argent y arrive en garde sécurisée, puis SIAMS reverse au marchand vers
      Wave, Djamo ou Mobile Money sous 2h sur simple demande de retrait. ---- */
-  siamsBanqueWaveLink: 'https://pay.wave.com/m/M_ci_69kNlRz3-1G9/c/ci/',
+  siamsBanqueWaveLink: 'https://pay.djamo.com/vdkop',
   /* ---- Lien WhatsApp « contact client » MA BOUTIQUE : c'est ici que le vendeur envoie
      la capture d'écran de chaque paiement (mensuel ou journalier) pour validation. ---- */
   contactClientWaLink: 'https://wa.me/qr/CP2FDOBXXD74G1',
@@ -5972,6 +6068,8 @@ Views.dashboard = function(){
   const revWeek = Store.revenueSince(periods.week);
   const counts = Store.orderStatusCounts();
   const deliveredRevenue = Store.revenueDelivered();
+  const siamsBanqueOn = !!(Store.payment.siamsbanque && Store.payment.siamsbanque.enabled);
+  const siamsBalance = siamsBanqueOn ? Store.siamsBanqueBalance() : 0;
   const access = Store.access();
   const avgBasket = orders.length ? Math.round(orders.reduce((s,o)=>s+o.amount,0)/orders.length) : 0;
   const clientsCount = Store.customers().length;
@@ -6008,7 +6106,19 @@ Views.dashboard = function(){
         <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
         <div class="finance-two-col-item right"><span>Total des ventes</span><b>${Utils.fmtFCFA(totalSales)}</b></div>
       </div>
+      ${siamsBanqueOn ? `
+      <div class="finance-two-col" style="margin-top:8px;">
+        <div class="finance-two-col-item"><span>Solde SIAMS BANQUE</span><b>${Utils.fmtFCFA(siamsBalance)}</b></div>
+        <div class="finance-two-col-item right"><span>Déjà retiré</span><b>${Utils.fmtFCFA(Store.totalSiamsWithdrawn())}</b></div>
+      </div>
+      <button type="button" class="finance-withdraw-btn" onclick="event.stopPropagation();SiamsWithdraw.open();">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 9-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Retirer mes fonds SIAMS BANQUE
+      </button>
+      <div class="finance-trust-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Vos paiements clients sont reçus et sécurisés par SIAMS BANQUE, puis reversés sous 2h vers le réseau de votre choix</span></div>
+      ` : `
       <div class="finance-trust-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Chaque paiement client va directement sur votre compte Wave/OM/MTN</span></div>
+      `}
     </section>
     </section>
     <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
@@ -7197,6 +7307,174 @@ const Withdraw = {
 </html>`);
     w.document.close();
     setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 350);
+  }
+};
+
+/* ---------------- Retrait des fonds SIAMS BANQUE vers le réseau sélectionné ----------------
+   Distinct du reversement des espèces collectées par les livreurs (Withdraw ci-dessus) :
+   ici, il s'agit des paiements clients réglés en ligne via SIAMS BANQUE, gardés en dépôt
+   sécurisé par SIAMS, que le marchand fait reverser sous 2h vers Wave, Djamo ou Mobile Money. */
+const SiamsWithdraw = {
+  step: 'form',
+  amount: 0,
+  method: '',
+  lastRecord: null,
+
+  open(){
+    const on = Store.payment.siamsbanque && Store.payment.siamsbanque.enabled;
+    if(!on){ Toast.show('Activez SIAMS BANQUE dans vos moyens de paiement pour retirer vos fonds'); return; }
+    const balance = Store.siamsBanqueBalance();
+    if(balance <= 0){ Toast.show('Aucun fonds disponible sur SIAMS BANQUE pour le moment'); return; }
+    this.step = 'form';
+    this.amount = balance;
+    const pay = Store.payment;
+    const methods = ['wave','om','mtn','moov'].filter(k=>pay[k].enabled && pay[k].number);
+    this.method = methods[0] || '';
+    this.mount();
+  },
+
+  mount(){
+    const existing = document.getElementById('siams-withdraw-wrap');
+    if(existing) existing.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'siams-withdraw-wrap';
+    document.body.appendChild(wrap);
+    this.render();
+    requestAnimationFrame(()=>{
+      const ov = document.getElementById('siams-withdraw-overlay'), sh = document.getElementById('siams-withdraw-sheet');
+      if(ov) ov.classList.add('show');
+      if(sh) sh.classList.add('show');
+    });
+  },
+
+  close(){
+    const ov = document.getElementById('siams-withdraw-overlay'), sh = document.getElementById('siams-withdraw-sheet');
+    if(ov) ov.classList.remove('show');
+    if(sh) sh.classList.remove('show');
+    setTimeout(()=>{ const w = document.getElementById('siams-withdraw-wrap'); if(w) w.remove(); }, 220);
+  },
+
+  render(){
+    const wrap = document.getElementById('siams-withdraw-wrap');
+    if(!wrap) return;
+    wrap.innerHTML = `
+      <div class="shop-sheet-overlay" id="siams-withdraw-overlay" onclick="${this.step==='processing'?'':'SiamsWithdraw.close()'}"></div>
+      <div class="shop-sheet" id="siams-withdraw-sheet" style="max-height:88vh;">
+        <div class="sheet-handle"></div>
+        ${this['_render_'+this.step] ? this['_render_'+this.step]() : ''}
+      </div>`;
+  },
+
+  _render_form(){
+    const balance = Store.siamsBanqueBalance();
+    const pay = Store.payment;
+    const methods = [
+      pay.wave.enabled && pay.wave.number ? {key:'wave', label:'Wave', number:pay.wave.number} : null,
+      pay.om.enabled && pay.om.number ? {key:'om', label:'Orange Money', number:pay.om.number} : null,
+      pay.mtn.enabled && pay.mtn.number ? {key:'mtn', label:'MTN Money', number:pay.mtn.number} : null,
+      pay.moov.enabled && pay.moov.number ? {key:'moov', label:'Moov Money', number:pay.moov.number} : null,
+    ].filter(Boolean);
+    return `
+      <h3 style="margin:2px 0 4px;">Retrait SIAMS BANQUE</h3>
+      <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 14px;">Fonds reçus de vos clients via SIAMS BANQUE, en dépôt sécurisé, reversés sous 2h vers le réseau de votre choix</p>
+
+      <div style="background:var(--indigo-tint);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:13.5px;font-weight:700;color:var(--indigo);"><span>Solde disponible</span><span class="mono">${Utils.fmtFCFA(balance)}</span></div>
+      </div>
+
+      <div class="sub-label">Montant à retirer</div>
+      <div class="field" style="margin-bottom:2px;">
+        <div class="price-field"><input id="sw-amount" type="number" inputmode="numeric" value="${this.amount}" oninput="SiamsWithdraw.onAmountInput(this.value)"><div class="price-suffix">FCFA</div></div>
+      </div>
+      <div id="sw-amount-msg" style="font-size:12px;color:var(--text-mid);margin-bottom:14px;">Maximum disponible : ${Utils.fmtFCFA(balance)}</div>
+
+      <div class="sub-label">Réseau de destination</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px;">
+        ${methods.length===0 ? `<div style="font-size:13px;color:var(--text-mid);">Aucun moyen mobile configuré. <a href="javascript:void(0)" onclick="SiamsWithdraw.close();Router.go('payment');" style="color:var(--indigo);font-weight:700;">Ajouter un moyen de paiement</a></div>` :
+          methods.map(m=>`
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:12px 14px;cursor:pointer;">
+            <span style="display:flex;align-items:center;gap:10px;"><input type="radio" name="sw-method" value="${m.key}" ${this.method===m.key?'checked':''} onchange="SiamsWithdraw.method='${m.key}'" style="width:18px;height:18px;accent-color:var(--indigo);"><span style="font-size:14px;font-weight:700;">${m.label}</span></span>
+            <span class="mono" style="font-size:12px;color:var(--text-mid);">${Utils.escapeHtml(m.number)}</span>
+          </label>`).join('')}
+      </div>
+      <div style="font-size:11.5px;color:var(--text-soft);margin-bottom:8px;">SIAMS BANQUE reverse le montant demandé sur le numéro choisi, sous 2h ouvrées, après vérification de votre demande.</div>
+
+      <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="SiamsWithdraw.confirm()" ${methods.length===0?'disabled':''}>Confirmer le retrait</button>
+    `;
+  },
+
+  onAmountInput(v){
+    this.amount = Number(v)||0;
+    const el = document.getElementById('sw-amount-msg');
+    if(!el) return;
+    const balance = Store.siamsBanqueBalance();
+    if(this.amount > balance) el.innerHTML = `<span style="color:var(--red);">Le montant dépasse votre solde SIAMS BANQUE (${Utils.fmtFCFA(balance)})</span>`;
+    else if(this.amount <= 0) el.innerHTML = `<span style="color:var(--red);">Indiquez un montant supérieur à 0</span>`;
+    else el.textContent = `Maximum disponible : ${Utils.fmtFCFA(balance)}`;
+  },
+
+  confirm(){
+    const balance = Store.siamsBanqueBalance();
+    if(!this.amount || this.amount <= 0){ Toast.show('Indiquez un montant valide'); return; }
+    if(this.amount > balance){ Toast.show('Montant supérieur au solde SIAMS BANQUE'); return; }
+    if(!this.method){ Toast.show('Choisissez un réseau de destination'); return; }
+    this.step = 'processing';
+    this.render();
+    setTimeout(()=>this.finish(), 1800);
+  },
+
+  finish(){
+    const pay = Store.payment;
+    const number = pay[this.method] ? pay[this.method].number : '';
+    const record = {
+      id: 'SB-' + Date.now().toString(36).toUpperCase(),
+      amount: this.amount,
+      method: this.method,
+      methodLabel: {wave:'Wave', om:'Orange Money', mtn:'MTN Money', moov:'Moov Money'}[this.method] || this.method,
+      number,
+      date: Date.now()
+    };
+    const list = Store.siamsWithdrawals;
+    list.unshift(record);
+    Store.siamsWithdrawals = list;
+    Notify.add('order', `Demande de retrait SIAMS BANQUE de ${Utils.fmtFCFA(record.amount)} envoyée ✓`);
+    this.lastRecord = record;
+    this.step = 'success';
+    this.render();
+    if(Router.current==='dashboard') Router.go('dashboard');
+  },
+
+  _render_processing(){
+    return `
+      <div style="padding:30px 4px 10px;text-align:center;">
+        <div class="wd-spinner"></div>
+        <h3 style="margin:18px 0 6px;">Envoi de la demande</h3>
+        <p style="color:var(--text-mid);font-size:13.5px;line-height:1.6;margin:0;">Transmission de votre demande de retrait à SIAMS BANQUE...<br>Merci de patienter.</p>
+      </div>`;
+  },
+
+  _render_success(){
+    const r = this.lastRecord;
+    return `
+      <div style="text-align:center;padding:6px 2px 2px;">
+        <div style="width:64px;height:64px;border-radius:18px;background:var(--green-tint);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="var(--green)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 style="margin:0 0 4px;">Demande envoyée ✓</h3>
+        <p style="color:var(--text-mid);font-size:13px;margin:0 0 16px;">Vous serez reversé sous <strong>2h</strong> vers ${r.methodLabel}${r.number?' · '+Utils.escapeHtml(r.number):''}.</p>
+      </div>
+
+      <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px 18px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">N° demande</span><span class="mono">${r.id}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Date</span><span class="mono">${new Date(r.date).toLocaleString('fr-FR')}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Réseau</span><span>${r.methodLabel}${r.number?' · '+Utils.escapeHtml(r.number):''}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;"><span style="color:var(--text-mid);">Statut</span><span style="color:var(--mango-dark);font-weight:700;">En cours de traitement</span></div>
+        <div style="border-top:1px dashed var(--line);margin:10px 0;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;"><span>Montant demandé</span><span class="mono">${Utils.fmtFCFA(r.amount)}</span></div>
+      </div>
+
+      <button class="btn btn-ghost btn-block" onclick="SiamsWithdraw.close()">Fermer</button>
+    `;
   }
 };
 
@@ -10224,6 +10502,72 @@ Views['app-theme'] = function(){
   `;
 };
 
+/* ---------- Paramètres (préférences générales de l'application) ---------- */
+Views.settings = function(){
+  const notifOn = localStorage.getItem('maboutique_admin_notif_pref')!=='0';
+  const soundOn = localStorage.getItem('maboutique_admin_sound_pref')!=='0';
+  const toggleSw = on => `<span style="display:inline-flex;align-items:center;width:38px;height:22px;border-radius:999px;background:${on?'var(--green)':'var(--line)'};position:relative;transition:background .2s;flex:none;"><span style="position:absolute;top:2px;left:${on?'18px':'2px'};width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s;"></span></span>`;
+  return `
+  ${TopBar('Paramètres', 'Préférences générales de l\'application')}
+  <div style="padding-top:6px;">
+    <div class="acc-group-label" style="margin:0 0 8px;">Apparence</div>
+    <div class="acc-card">
+      <div class="acc-row" onclick="Router.go('app-theme')">
+        <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 3a9 9 0 0 0 0 18c1.7 0 2-1.2 1.2-2.3-.8-1-.4-2.4 1-2.4h1.6A3.2 3.2 0 0 0 19 13c0-5.5-4.5-10-7-10Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+        <div class="acc-row-text"><h4>Couleur de l'application</h4><p>Personnalisez l'accent visuel de votre boutique</p></div>
+        <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+
+    <div class="acc-group-label" style="margin:20px 0 8px;">Notifications</div>
+    <div class="acc-card">
+      <div class="acc-row" onclick="AppSettings.toggleNotif()" style="cursor:pointer;">
+        <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="acc-row-text"><h4>Nouvelles commandes</h4><p>Recevoir une alerte à chaque commande</p></div>
+        ${toggleSw(notifOn)}
+      </div>
+      <div class="acc-row" onclick="AppSettings.toggleSound()" style="cursor:pointer;">
+        <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 9v6h4l5 4V5L8 9H4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M17 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <div class="acc-row-text"><h4>Son des notifications</h4><p>Jouer un son à la réception d'une alerte</p></div>
+        ${toggleSw(soundOn)}
+      </div>
+    </div>
+
+    <div class="acc-group-label" style="margin:20px 0 8px;">Assistance</div>
+    <div class="acc-card">
+      <div class="acc-row" onclick="window.open(PAYMENT_INFO.supportClientWaLink+'?text='+encodeURIComponent('Bonjour MA BOUTIQUE, j\u2019ai besoin d\u2019assistance depuis les paramètres de mon espace boutique.'),'_blank')">
+        <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 1 3.5 6.6L4 20l1.2-3.6A7.9 7.9 0 0 1 4 12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div>
+        <div class="acc-row-text"><h4>Contacter le support</h4><p>0748964690 · serviceclientsiams.ci@gmail.com</p></div>
+        <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+
+    <div class="acc-group-label" style="margin:20px 0 8px;">Session</div>
+    <div class="acc-card" style="margin-bottom:10px;">
+      <div class="acc-row" onclick="LogoutConfirm.open()">
+        <div class="acc-row-icon" style="background:var(--red-tint);color:var(--red);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="acc-row-text"><h4 style="color:var(--red);">Déconnexion</h4><p>Fermer votre session en toute sécurité</p></div>
+      </div>
+    </div>
+    <p style="text-align:center;font-size:11px;color:var(--text-soft);margin:18px 0 28px;">MA BOUTIQUE · SIAMS</p>
+  </div>
+  `;
+};
+window.AppSettings = {
+  toggleNotif(){
+    const cur = localStorage.getItem('maboutique_admin_notif_pref')!=='0';
+    localStorage.setItem('maboutique_admin_notif_pref', cur?'0':'1');
+    Router.go('settings');
+    Toast.show(cur?'Notifications désactivées':'Notifications activées');
+  },
+  toggleSound(){
+    const cur = localStorage.getItem('maboutique_admin_sound_pref')!=='0';
+    localStorage.setItem('maboutique_admin_sound_pref', cur?'0':'1');
+    Router.go('settings');
+    Toast.show(cur?'Son désactivé':'Son activé');
+  }
+};
+
 /* ---------- Livraison ---------- */
 Views.delivery = function(){
   if(!Store.hasFeature('delivery')) return FeatureLock('Livraison', "La configuration des zones de livraison est réservée à la formule DOYA.", 'doya');
@@ -12051,9 +12395,9 @@ Views.checkout = function(){
   </div>
   <div class="checkout-steps"><div class="step done"></div><div class="step done"></div><div class="step"></div></div>
   <div class="checkout-trust-row">
-    <div class="trust-chip">🔒<br>Paiement sécurisé</div>
-    <div class="trust-chip">🚚<br>Livraison suivie</div>
-    <div class="trust-chip">🕑<br>Support 7j/7</div>
+    <div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10.5" width="14" height="9.5" rx="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" stroke="currentColor" stroke-width="1.6"/></svg></span>Paiement sécurisé</div>
+    <div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7h11v9H3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 10h4l3 3v3h-7v-6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="7.5" cy="18" r="1.8" stroke="currentColor" stroke-width="1.5"/><circle cx="17.5" cy="18" r="1.8" stroke="currentColor" stroke-width="1.5"/></svg></span>Livraison suivie</div>
+    <div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Support 7j/7</div>
   </div>
   <details class="checkout-summary">
     <summary>${items.length} article${items.length>1?'s':''} · ${Utils.fmtFCFA(total)}<span class="chev">▾</span></summary>
@@ -12129,7 +12473,7 @@ function onCheckoutPayChange(){
     wrap.innerHTML = `
       <div style="margin-top:10px;border:1.5px solid var(--pay-accent);border-radius:var(--radius-sm);padding:14px;background:var(--pay-accent-tint);">
         <div style="display:flex;align-items:center;gap:6px;font-weight:750;font-size:12.5px;color:var(--pay-accent-dark);margin-bottom:6px;">🔒 Paiement sécurisé SIAMS BANQUE</div>
-        <p style="margin:0 0 10px;font-size:12.5px;color:var(--text-mid);">Payez le montant total via le lien Wave sécurisé ci-dessous, puis joignez une capture d'écran ou le reçu de la transaction.</p>
+        <p style="margin:0 0 10px;font-size:12.5px;color:var(--text-mid);">Payez le montant total via le lien de paiement sécurisé ci-dessous, puis joignez une capture d'écran ou le reçu de la transaction.</p>
         <a href="${Utils.escapeHtml(PAYMENT_INFO.siamsBanqueWaveLink)}" class="btn btn-checkout-pay btn-sm" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">Payer via SIAMS BANQUE ↗</a>
         <input type="file" accept="image/*" id="co-payment-proof-input" class="hidden" onchange="handleCheckoutProof(event)">
         <div id="co-payment-proof-preview"></div>
