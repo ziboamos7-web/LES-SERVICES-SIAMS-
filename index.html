@@ -812,6 +812,33 @@
   .trial-xp .pass-perks{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;position:relative;z-index:1;}
   .trial-xp .pass-perk{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 11px;}
 
+  /* ---- V47 : page « Abonnement & commission » en plein écran, sans cadre ----
+     .trial-xp n'est utilisé que dans cette page : on retire la carte encadrée
+     au profit d'un grand bloc plein largeur séparé par une fine bande, et on
+     ajoute une timeline verticale détaillée (.comm-steps) pour les étapes. ---- */
+  .trial-xp{margin:0;border-radius:0;position:relative;background:var(--paper);
+    border:none;box-shadow:none;color:var(--text);padding:26px 20px 30px;
+    border-bottom:8px solid var(--panel);}
+  .trial-xp.ended{border-left:4px solid var(--red);padding-left:16px;}
+  .sub-status-page{padding-bottom:36px;}
+  .sub-status-page .plan-card{margin:0 20px 20px;}
+  .comm-steps{display:flex;flex-direction:column;gap:0;margin-top:22px;position:relative;z-index:1;}
+  .comm-step{display:flex;align-items:flex-start;gap:14px;position:relative;padding-bottom:22px;}
+  .comm-step:last-child{padding-bottom:0;}
+  .comm-step:not(:last-child)::before{content:'';position:absolute;left:15px;top:34px;bottom:0;width:2px;background:var(--line);}
+  .comm-step.done:not(:last-child)::before{background:var(--gold);}
+  .comm-step-dot{flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--panel);border:2px solid var(--line);color:var(--text-soft);font-size:13px;font-weight:900;}
+  .comm-step-dot .pf-mini-spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--gold-tint);border-top-color:var(--gold-dark);animation:wd-spin .7s linear infinite;display:block;}
+  .comm-step.done .comm-step-dot{background:var(--gold);border-color:var(--gold);color:#fff;}
+  .comm-step.active .comm-step-dot{border-color:var(--gold);color:var(--gold-dark);background:var(--gold-tint);box-shadow:0 0 0 5px var(--gold-tint);}
+  .comm-step-body{padding-top:3px;}
+  .comm-step-title{font-size:14px;font-weight:800;color:var(--text);}
+  .comm-step:not(.done):not(.active) .comm-step-title{color:var(--text-soft);}
+  .comm-step-desc{font-size:11.5px;color:var(--text-mid);margin-top:3px;line-height:1.5;}
+  .comm-info-box{display:flex;gap:10px;align-items:flex-start;margin-top:20px;background:var(--panel);border-radius:14px;padding:13px 14px;position:relative;z-index:1;}
+  .comm-info-box svg{flex:none;color:var(--text-soft);margin-top:1px;}
+  .comm-info-box p{margin:0;font-size:11.5px;color:var(--text-mid);line-height:1.55;}
+
   /* ---- Carte Pass actif : anneau de renouvellement + compteurs animés ---- */
   .plan-ring-wrap{position:relative;width:56px;height:56px;flex:none;}
   .plan-ring-wrap svg{transform:rotate(-90deg);width:56px;height:56px;}
@@ -3391,6 +3418,13 @@ const Store = {
     Utils.setLocal('commission_settled', !!v);
     Cloud.pushCommission(this.commissionDue(), !!v).catch(e=>console.error('Sync error [commission]', e));
   },
+  /* ---- Montant/date exacts envoyés par le vendeur pour la commission d'essai, figés au
+     moment de l'envoi de la preuve (le montant "due" en temps réel continue lui d'évoluer
+     avec les nouvelles commandes livrées, donc on garde une trace de ce qui a été réglé). ---- */
+  get commissionSentAmount(){ return Utils.getLocal('commission_sent_amount', 0); },
+  set commissionSentAmount(v){ Utils.setLocal('commission_sent_amount', Math.round(Number(v)||0)); },
+  get commissionSentAt(){ return Utils.getLocal('commission_sent_at', 0); },
+  set commissionSentAt(v){ Utils.setLocal('commission_sent_at', v||0); },
 
   /* ---- Commission MA BOUTIQUE pendant l'abonnement (Pass payant) : 2% sur chaque
      commande livrée à partir de l'activation du Pass, en plus du prix de
@@ -3955,7 +3989,7 @@ const Router = {
       return;
     }
     const isCustomer = PUBLIC_VIEWS.includes(name) && name!=='login' && name!=='welcome';
-    document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='business-type' || name==='onboarding-admin' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice');
+    document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='business-type' || name==='onboarding-admin' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice' || name==='subscription-status');
     document.getElementById('client-nav').classList.toggle('hidden', !CLIENT_TAB_VIEWS.includes(name));
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     const navMap = {dashboard:'dashboard', products:'products', 'product-add':'products', 'product-edit':'products', menu:'products', 'menu-add':'products', 'menu-edit':'products', orders:'orders', 'order-detail':'orders',
@@ -3980,7 +4014,7 @@ const Router = {
    une saisie (checkout, formulaires, panier, etc.). */
 const AutoSync = {
   timer:null, busy:false, lastRun:0, started:false, intervalMs:8000,
-  safeViews:new Set(['dashboard','orders','products','order-detail','boutique','store-edit','stats','team','payment','categories','promos','reviews','customers','customer-detail','delivery','app-theme','settings','courier-dashboard']),
+  safeViews:new Set(['dashboard','orders','products','order-detail','boutique','store-edit','stats','team','payment','categories','promos','reviews','customers','customer-detail','delivery','app-theme','settings','courier-dashboard','subscription-status']),
   async refresh(force=false){
     const isCourier = !!courierSession();
     if(isCourier && Router.current==='courier-dashboard'){
@@ -4749,57 +4783,18 @@ async function showWelcomeBackThenDashboard(){
 }
 Views.welcome = function(){
   return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 22px 30px;text-align:center;position:relative;overflow:hidden;background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFF 100%);">
-    <div style="position:absolute;width:310px;height:310px;border-radius:50%;background:linear-gradient(135deg,#DCEEFF,#8EC5FF);left:-185px;top:-150px;opacity:.95;pointer-events:none;"></div>
-    <div style="position:absolute;width:150px;height:150px;border-radius:50%;background:#DDEEFF;right:-95px;bottom:-70px;opacity:.9;pointer-events:none;"></div>
-    <div style="position:absolute;width:38px;height:38px;border-radius:9px;background:#B9DCFF;left:35px;top:205px;transform:rotate(-18deg);opacity:.9;pointer-events:none;"></div>
-    <div style="position:absolute;width:48px;height:48px;border-radius:10px;background:#B9DCFF;right:35px;top:325px;transform:rotate(22deg);opacity:.8;pointer-events:none;"></div>
-
-    <div style="position:relative;z-index:1;width:100%;display:flex;flex-direction:column;align-items:center;">
-      <div style="width:116px;height:116px;border-radius:30px;margin-bottom:24px;background:linear-gradient(135deg,#173ED8 0%,#008FFF 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 20px 42px -15px rgba(0,105,235,.45);overflow:hidden;">
-        <img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;">
-      </div>
-
-      <div style="display:flex;align-items:center;gap:18px;margin-bottom:28px;color:#0B2A68;">
-        <span style="width:58px;height:2px;background:#1874E8;border-radius:99px;"></span>
-        <span style="font-size:15px;font-weight:800;letter-spacing:1.7px;">MA BOUTIQUE</span>
-        <span style="width:58px;height:2px;background:#1874E8;border-radius:99px;"></span>
-      </div>
-
-      <h1 style="font-family:var(--font-display);font-size:clamp(39px,10vw,52px);line-height:1.02;margin:0 0 22px;letter-spacing:-2px;font-weight:800;color:#09245C;max-width:430px;">
-        Votre boutique<br>mérite <span style="color:#116CF0;">mieux.</span>
-      </h1>
-
-      <p style="color:#63779C;font-size:16px;line-height:1.55;margin:0 0 28px;max-width:365px;">
-        Découvrez une nouvelle façon de développer votre activité en ligne avec <strong style="color:#0B2A68;">MA BOUTIQUE.</strong>
-      </p>
-
-      <div style="width:100%;max-width:390px;">
-        <button class="btn btn-block" style="background:linear-gradient(135deg,#0874F9 0%,#1769EA 100%);color:#fff;min-height:62px;border-radius:30px;font-size:16px;font-weight:800;box-shadow:0 15px 30px -12px rgba(10,105,238,.5);position:relative;z-index:1;" onclick="Router.go('onboarding-public')">
-          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8h12l1 13H5L6 8Z"/><path d="M9 8a3 3 0 0 1 6 0"/><path d="M3 12h4M17 12h4"/></svg>
-          Découvrir MA BOUTIQUE
-        </button>
-
-        <button class="btn btn-block" style="margin-top:12px;min-height:62px;border-radius:30px;background:#fff;color:#0B2A68;border:1.5px solid #9BC7FF;font-size:15.5px;font-weight:800;position:relative;z-index:1;" onclick="authMode='login';Router.go('login')">
-          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.7-3.3 3-5 7-5s6.3 1.7 7 5"/></svg>
-          Déjà partenaire ? Se connecter
-        </button>
-
-        <button class="btn btn-block" style="margin-top:10px;min-height:58px;border-radius:30px;background:#EDF5FF;color:#1267D9;font-size:15px;font-weight:800;position:relative;z-index:1;" onclick="Router.go('shop')">
-          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/></svg>
-          Accéder à l’espace client
-        </button>
-      </div>
-
-      <div style="margin-top:30px;display:flex;align-items:center;gap:14px;color:#116CF0;">
-        <span style="width:48px;height:1.5px;background:#116CF0;"></span>
-        <strong style="font-size:15px;letter-spacing:.4px;">Production SIAMS</strong>
-        <span style="width:48px;height:1.5px;background:#116CF0;"></span>
-      </div>
-      <div style="font-size:11.5px;color:#53698F;margin-top:7px;">
-        © Société Informatique Agréé Multi-Services
-      </div>
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(480px 320px at 50% -10%, rgba(17,17,17,.16), transparent 60%);pointer-events:none;"></div>
+    <img src="${MABOUTIQUE_WATERMARK_DATA_URI}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,92vw);height:auto;opacity:.09;pointer-events:none;z-index:0;">
+    <div style="width:88px;height:88px;border-radius:26px;margin-bottom:26px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(17,17,17,.5);position:relative;z-index:1;overflow:hidden;">
+      <img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;">
     </div>
+    <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;position:relative;z-index:1;">MA BOUTIQUE</div>
+    <h1 style="font-size:25px;line-height:1.3;margin:0 0 10px;letter-spacing:-.5px;position:relative;z-index:1;">Votre boutique mérite mieux.</h1>
+    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.55;margin:0 0 26px;max-width:320px;position:relative;z-index:1;">Découvrez l'application MA BOUTIQUE et comment nous accompagnons les commerçants dans leur activité en ligne.</p>
+    <button class="btn btn-primary btn-block" style="max-width:320px;position:relative;z-index:1;" onclick="Router.go('onboarding-public')">Découvrir MA BOUTIQUE</button>
+    <button class="btn btn-outline btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:10px;" onclick="authMode='login';Router.go('login')">Déjà partenaire ? Se connecter</button>
+    <button class="btn btn-ghost btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:8px;" onclick="Router.go('shop')">Accéder à l’espace client</button>
   </div>`;
 };
 
@@ -6387,7 +6382,8 @@ function DashboardStatusBar(access){
   const trialEnd = Store.trialStartedAt + TRIAL_DAYS*86400000;
   const inTrial = Date.now() < trialEnd;
   const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
-  const showCommission = !settled && (due>0 || inTrial);
+  const proofSent = !settled && Store.commissionSentAt > 0;
+  const showCommission = !settled && (proofSent || due>0 || inTrial);
   const subDue = Store.subCommissionDue ? Store.subCommissionDue() : 0;
   const showSubCommission = access.status==='active' && subDue>0;
 
@@ -6416,11 +6412,11 @@ function DashboardStatusBar(access){
   }
 
   const chips=[];
-  if(showCommission) chips.push(inTrial ? `Essai commission · ${daysLeft} j` : 'Commission à régler');
+  if(showCommission) chips.push(proofSent ? 'Reçu en cours d\'analyse' : (inTrial ? `Essai commission · ${daysLeft} j` : 'Commission à régler'));
   if(showSubCommission) chips.push(`${Utils.fmtFCFA(subDue)} à régler`);
 
   return `
-  <div class="dash-status-bar" style="background:${hexToRgba(color,.08)};border-color:${hexToRgba(color,.22)};" onclick="openDashboardStatusSheet()">
+  <div class="dash-status-bar" style="background:${hexToRgba(color,.08)};border-color:${hexToRgba(color,.22)};" onclick="Router.go('subscription-status')">
     <div class="dash-status-bar-icon" style="background:${hexToRgba(color,.16)};color:${color};">${icon}</div>
     <div class="dash-status-bar-main">
       <b>${mainLabel}</b>
@@ -6430,69 +6426,122 @@ function DashboardStatusBar(access){
     <span class="dash-status-bar-arrow" style="color:${color};">›</span>
   </div>`;
 }
-window.openDashboardStatusSheet = function(){
-  document.getElementById('dash-status-sheet-wrap')?.remove();
+/* ---- V47 : « Abonnement & commission » est désormais une page plein écran avec
+   bouton retour (Router.go('subscription-status')), plutôt qu'une feuille modale
+   encadrée — l'ancienne fonction reste définie par sécurité, au cas où un appel
+   externe l'utiliserait encore, mais redirige simplement vers la page. ---- */
+window.openDashboardStatusSheet = function(){ Router.go('subscription-status'); };
+Views['subscription-status'] = function(){
   const access = Store.access();
-  const wrap = document.createElement('div');
-  wrap.id = 'dash-status-sheet-wrap';
-  wrap.innerHTML = `
-    <div class="shop-sheet-overlay show" onclick="document.getElementById('dash-status-sheet-wrap').remove()"></div>
-    <div class="shop-sheet show" style="max-height:88vh;">
-      <div class="sheet-handle"></div>
-      <h3 style="margin:0 0 14px;">Abonnement &amp; commission</h3>
-      ${CommissionCard()}
-      ${SubCommissionCard()}
-      ${SubscriptionCard(access)}
-    </div>`;
-  document.body.appendChild(wrap);
-  if(Views._after_dashboard) Views._after_dashboard();
+  return `
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="bell-btn" onclick="Router.go('dashboard')" aria-label="Retour">←</button>
+      <h1 style="font-size:19px;">Abonnement &amp; commission</h1>
+    </div>
+  </div>
+  <div class="sub-status-page">
+    ${CommissionCard()}
+    ${SubCommissionCard()}
+    ${SubscriptionCard(access)}
+  </div>`;
 };
+Views._after_subscription_status = function(){ if(Views._after_dashboard) Views._after_dashboard(); };
 
 function CommissionCard(){
   const due = Store.commissionDue();
   const settled = Store.commissionSettled;
+  /* ---- "Preuve envoyée" est un état distinct de "settled" : settled ne devient
+     vrai que lorsque le serveur confirme la validation (analyse automatique du
+     reçu, ~5 min, avec relais manuel en secours) et que ça se synchronise ici
+     via AutoSync. Tant que ce n'est pas encore confirmé, on affiche l'analyse
+     en cours plutôt que de prétendre que c'est déjà réglé. ---- */
+  const proofSent = !settled && Store.commissionSentAt > 0;
   const trialEnd = Store.trialStartedAt + TRIAL_DAYS*86400000;
   const inTrial = Date.now() < trialEnd;
   const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
-  if(settled || (due<=0 && !inTrial)) return '';
-  const verified = !!(Store.store && Store.store.verification && Store.store.verification.verified);
+  /* ---- On n'efface plus la carte dès que la preuve est envoyée : sinon le
+     vendeur perd toute trace de sa demande et ne peut plus revenir voir où
+     elle en est. La carte reste visible, dans un état « analyse en cours »,
+     jusqu'à ce que la validation soit confirmée. ---- */
+  if(settled || (due<=0 && !inTrial && !proofSent)) return '';
   const R = 27, C = 2*Math.PI*R;
   const progress = inTrial ? Math.max(0, Math.min(1, daysLeft/TRIAL_DAYS)) : 0;
   const offset = C*(1-progress);
-  const steps = inTrial
-    ? [ ['1','Essai en cours','active'], ['2','Validation', ''], ['3','Pass actif',''] ]
-    : [ ['1','Essai terminé','done'], ['2','Paiement à envoyer','active'], ['3','Pass actif',''] ];
+
+  const stepDefs = proofSent
+    ? [
+        ["Essai gratuit", "Vos 20 jours d'essai MA BOUTIQUE.", 'done'],
+        ["Preuve envoyée", "Votre justificatif de paiement a été transmis.", 'done'],
+        ["Analyse en cours", "Votre reçu est vérifié automatiquement (environ 5 minutes) ; relais manuel en cas de doute.", 'active'],
+        ["Pass actif", "Dès validation, la commission d'essai est soldée et votre Pass se déverrouille.", '']
+      ]
+    : inTrial
+    ? [
+        ["Essai en cours", "Vos ventes livrées sont suivies automatiquement, rien à faire pour l'instant.", 'active'],
+        ["Analyse automatique", "Après l'envoi de votre preuve, une vérification automatique la valide en quelques minutes.", ''],
+        ["Pass actif", "La commission soldée, votre Pass et votre badge se déverrouillent.", '']
+      ]
+    : [
+        ["Essai terminé", "Les 20 jours d'essai gratuit sont écoulés.", 'done'],
+        ["Paiement à envoyer", "Réglez la commission cumulée puis envoyez votre preuve.", 'active'],
+        ["Pass actif", "Dès validation, votre Pass se déverrouille.", '']
+      ];
+
+  const eyebrow = proofSent ? "Commission MA BOUTIQUE · analyse en cours" : "Commission MA BOUTIQUE · essai";
+  const title = proofSent ? "Votre reçu est en cours d'analyse" : (inTrial ? "Votre essai gratuit est en cours" : "Votre essai est terminé");
+  const amountLabel = proofSent ? "Montant envoyé" : "Commission cumulée (5% sur vos ventes livrées)";
+  const amountVal = proofSent ? Store.commissionSentAmount : due;
+  const sentDateStr = proofSent && Store.commissionSentAt ? new Date(Store.commissionSentAt).toLocaleString('fr-FR') : '';
+
   return `
-  <div class="trial-xp ${inTrial?'':'ended'}" data-trial-end="${trialEnd}">
+  <div class="trial-xp ${inTrial?'':'ended'} ${proofSent?'theme-blue':''}" data-trial-end="${trialEnd}">
     <div class="trial-xp-top">
       <div>
-        <div class="trial-xp-eyebrow">Commission MA BOUTIQUE · essai</div>
-        <div class="trial-xp-title">${inTrial?'Votre essai gratuit est en cours':'Votre essai est terminé'}</div>
+        <div class="trial-xp-eyebrow">${eyebrow}</div>
+        <div class="trial-xp-title">${title}</div>
       </div>
+      ${proofSent ? '<div class="pending-spinner"></div>' : `
       <div class="trial-ring-wrap">
         <svg viewBox="0 0 66 66">
           <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
           <circle class="trial-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"></circle>
         </svg>
         <div class="trial-ring-label"><b>${inTrial?daysLeft:0}</b><span>${inTrial?(daysLeft>1?'jours':'jour'):'terminé'}</span></div>
-      </div>
+      </div>`}
     </div>
     <div class="trial-xp-amount">
-      <div class="lbl">Commission cumulée (5% sur vos ventes livrées)</div>
-      <div class="val count-up-val" data-target="${due}">0 FCFA</div>
+      <div class="lbl">${amountLabel}</div>
+      <div class="val count-up-val" data-target="${amountVal}">0 FCFA</div>
+      ${sentDateStr ? `<div style="font-size:11px;color:var(--text-mid);margin-top:4px;">Envoyé le ${sentDateStr}</div>` : ''}
     </div>
+    ${!proofSent ? `
     <div class="trial-xp-countdown">
       <span class="lab">${subIcon('clock',13)}<span>${inTrial?"Fin de l'essai dans":'Essai terminé depuis'}</span></span>
       <span class="val" id="commission-trial-countdown-val" data-ends-at="${trialEnd}">${fmtRenewCountdown(Math.abs(trialEnd-Date.now()))}</span>
+    </div>` : ''}
+    <div class="comm-steps">
+      ${stepDefs.map(([t,d,state])=>`
+      <div class="comm-step ${state}">
+        <span class="comm-step-dot">${state==='done'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>':(state==='active'?'<span class="pf-mini-spinner" style="border-color:var(--gold-tint);border-top-color:var(--gold-dark);"></span>':'')}</span>
+        <div class="comm-step-body">
+          <div class="comm-step-title">${t}</div>
+          <div class="comm-step-desc">${d}</div>
+        </div>
+      </div>`).join('')}
     </div>
-    <div class="trial-xp-steps">
-      ${steps.map((s,i)=>`<div class="trial-xp-step ${s[2]}">${i>0?'<span class="trial-xp-step-line"></span>':''}<span class="dot">${s[2]==='done'?'✓':s[0]}</span><span>${s[1]}</span></div>`).join('')}
+    ${proofSent ? `
+    <div class="comm-info-box">
+      ${subIcon('shield',15)}
+      <p>Comment ça marche : dès réception de votre capture d'écran, une analyse automatique vérifie en quelques minutes qu'il s'agit bien d'un reçu original et que le montant correspond — si tout concorde, votre commission est validée et votre Pass activé automatiquement, sans attendre un agent. En cas de doute (reçu flou, PDF, montant qui ne correspond pas), un agent MA BOUTIQUE prend le relais manuellement. Cette page se met à jour automatiquement dès que c'est validé — vous pouvez aussi revenir la consulter à tout moment.</p>
     </div>
+    <div class="trial-xp-actions">
+      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
+    </div>` : `
     <div class="trial-xp-actions">
       <button type="button" class="trial-xp-btn primary" onclick="SubscriptionSheet.openCommissionOnly()"><span class="trial-xp-btn-ic">${subIcon('wallet',15)}</span>${inTrial?'Suivre ma commission':'Régler ma commission'}</button>
       <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
-    </div>
-    ${!verified ? `<div class="trial-xp-note"><span>${subIcon('shield',13)}</span><span>Le badge de votre formule ne se débloque qu'une fois votre <a href="#" onclick="Router.go('verification');return false;">identification validée</a> par MA BOUTIQUE — même avec un Pass payé et actif.</span></div>` : ''}
+    </div>`}
   </div>`;
 }
 
@@ -7005,7 +7054,28 @@ const SubscriptionSheet = {
   commissionOnlyScreen(){
     const due = Store.commissionDue();
     const settled = Store.commissionSettled;
-    if(due<=0 || settled){
+    const proofSent = !settled && Store.commissionSentAt > 0;
+    if(settled){
+      return `
+      <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet" style="max-height:60vh;">
+        <div class="sheet-handle"></div>
+        <h3 style="margin:2px 0 4px;">Commission validée ✓</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;">Votre commission de la période d'essai a bien été validée. Il n'y a rien d'autre à faire pour le moment.</p>
+        <button class="btn btn-outline btn-block" onclick="SubscriptionSheet.close()">Fermer</button>
+      </div>`;
+    }
+    if(proofSent){
+      return `
+      <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
+      <div class="shop-sheet" id="sub-sheet" style="max-height:60vh;">
+        <div class="sheet-handle"></div>
+        <h3 style="margin:2px 0 4px;">Votre reçu est en cours d'analyse</h3>
+        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;line-height:1.55;">Vous avez déjà envoyé votre preuve de paiement — inutile d'en renvoyer une autre. Une analyse automatique la vérifie généralement en quelques minutes (avec relais manuel en cas de doute) ; cette page se met à jour dès que c'est validé.</p>
+        <button class="btn btn-outline btn-block" onclick="SubscriptionSheet.close();Router.go('subscription-status');">Suivre l'état de la validation</button>
+      </div>`;
+    }
+    if(due<=0){
       return `
       <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
       <div class="shop-sheet" id="sub-sheet" style="max-height:60vh;">
@@ -7045,6 +7115,13 @@ const SubscriptionSheet = {
             <span class="commission-step-title">Envoyez votre preuve à MA BOUTIQUE</span>
           </div>
           <p style="font-size:12px;color:var(--text-mid);margin:0;line-height:1.55;">${Store.store.name?`${Utils.escapeHtml(Store.store.name)}, une`:'Une'} fois votre paiement effectué, appuyez sur le bouton ci-dessous : nous ouvrons directement votre galerie pour choisir la capture, puis votre conversation WhatsApp avec l'assistant MA BOUTIQUE pour l'envoyer.</p>
+        </div>
+        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px;margin-bottom:20px;">
+          <div class="commission-step-head">
+            <span class="commission-step-num">3</span>
+            <span class="commission-step-title">Validation par MA BOUTIQUE</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-mid);margin:0;line-height:1.55;">Une analyse automatique vérifie votre reçu (original et montant correspondant) en quelques minutes et active votre Pass sans attendre — un agent ne prend le relais qu'en cas de doute. Vous pouvez revenir ici à tout moment pour voir l'état de votre validation.</p>
         </div>
         <input type="file" id="sub-proof-input" accept="image/*,application/pdf" class="hidden" onchange="SubscriptionSheet.handleProofFile(event)">
         <div id="sub-proof-status" style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;min-height:14px;"></div>
@@ -7123,7 +7200,9 @@ const SubscriptionSheet = {
     const input = document.getElementById('sub-proof-input');
     if(input){ input.value=''; input.click(); }
   },
-  /* ---- Vérification automatique du reçu (Edge Function verify-payment-receipt, lecture par Gemini).
+  /* ---- Vérification automatique du reçu (Edge Function verify-payment-receipt, analyse par OpenAI) :
+     l'analyse dure environ 5 minutes ; si le reçu est reconnu comme original et que le montant
+     correspond, la commission/l'abonnement est validé(e) et activé(e) automatiquement côté serveur.
      Non bloquant : en cas d'échec ou pour un PDF, le flux WhatsApp existant continue et la validation reste manuelle. ---- */
   async verifyReceipt(file, pending){
     try{
@@ -7152,7 +7231,15 @@ const SubscriptionSheet = {
     this.verifyReceipt(file, Object.assign({}, pending));
     let msg, waLink, record;
     if(pending.type==='commission'){
-      Store.commissionSettled = true;
+      /* ---- CORRECTIF : ne plus marquer la commission "settled" côté client dès
+         l'envoi. La validation réelle (analyse automatique du reçu par la
+         Edge Function verify-payment-receipt, ~5 min, avec relais manuel en cas
+         de doute) écrit commission_settled directement en base ; le prochain
+         AutoSync la récupère et Store.commissionSettled reflète alors l'état
+         réel. On garde seulement une trace locale "preuve envoyée" pour
+         afficher l'étape d'analyse en cours. ---- */
+      Store.commissionSentAmount = pending.amount;
+      Store.commissionSentAt = Date.now();
       msg = `Bonjour MA BOUTIQUE, je viens de régler ma commission période d'essai de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
       waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
       record = { kind:'commission', title:"Commission période d'essai", note:'commission', amount: pending.amount, fileName:file.name };
@@ -7203,7 +7290,7 @@ const SubscriptionSheet = {
           </div>
           <div class="pf-step active">
             <span class="pf-step-dot"><span class="pf-mini-spinner"></span></span>
-            <div class="pf-step-body"><div class="pf-step-title">Validation par MA BOUTIQUE</div><div class="pf-step-note">Dès réception de votre preuve, l'équipe valide votre ${r.note}.</div></div>
+            <div class="pf-step-body"><div class="pf-step-title">Analyse automatique</div><div class="pf-step-note">Votre reçu est vérifié automatiquement (généralement quelques minutes) ; un agent MA BOUTIQUE prend le relais en cas de doute sur votre ${r.note}.</div></div>
           </div>
           <div class="pf-step">
             <span class="pf-step-dot"></span>
