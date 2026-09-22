@@ -6298,7 +6298,10 @@ Views.dashboard = function(){
   ];
   return `
     <div class="dashboard-v2-head dashboard-v5-head">
-      <div class="dashboard-v5-heading"><h1 class="dashboard-v2-title">${Utils.escapeHtml(store.name||'Ma boutique')}</h1></div>
+      <div class="dashboard-v5-heading">
+        <div style="font-size:14px;color:var(--text-soft);margin-bottom:3px;">Bonjour,</div>
+        <h1 class="dashboard-v2-title">${Utils.escapeHtml(store.name||'Ma boutique')}</h1>
+      </div>
       <div style="display:flex;align-items:center;gap:9px;flex:none;">
         <button class="bell-btn" onclick="toggleNotifPanel()" aria-label="Notifications">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -6311,9 +6314,19 @@ Views.dashboard = function(){
         <div class="finance-main-label">Ventes livrées</div>
         <div class="finance-total count-up-val" id="finance-total-val" data-target="${deliveredRevenue}">0 FCFA</div>
       </div>
-      <div class="finance-two-col">
-        <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
-        <div class="finance-two-col-item right"><span>${siamsBanqueOn ? 'Solde SIAMS BANQUE' : 'Total des ventes'}</span><b>${Utils.fmtFCFA(siamsBanqueOn ? siamsBalance : totalSales)}</b></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+        <div class="finance-two-col-item" style="border-radius:14px;background:rgba(255,255,255,.12);padding:11px 12px;">
+          <span>En attente</span><b>${Utils.fmtFCFA(pending)}</b>
+        </div>
+        <div class="finance-two-col-item right" style="border-radius:14px;background:rgba(255,255,255,.12);padding:11px 12px;">
+          <span>Total ventes</span><b>${Utils.fmtFCFA(totalSales)}</b>
+        </div>
+        <div class="finance-two-col-item" style="border-radius:14px;background:rgba(255,255,255,.12);padding:11px 12px;">
+          <span>Solde SIAMS BANQUE</span><b>${Utils.fmtFCFA(siamsBalance)}</b>
+        </div>
+        <div class="finance-two-col-item right" style="border-radius:14px;background:rgba(255,255,255,.12);padding:11px 12px;">
+          <span>Déjà retiré</span><b>${Utils.fmtFCFA(Store.totalWithdrawn())}</b>
+        </div>
       </div>
       ${siamsBanqueOn ? `
       <button type="button" class="finance-withdraw-btn" onclick="event.stopPropagation();SiamsWithdraw.open();">
@@ -6325,16 +6338,49 @@ Views.dashboard = function(){
       <div class="finance-trust-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Chaque paiement client va directement sur votre compte Wave/OM/MTN</span></div>
       `}
     </section>
-    </section>
     <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
     <div class="dashboard-v2-quick">${quick.map(q=>`<button class="quick-nav-card" onclick="dashboardQuickGo('${q.route}')" aria-label="${q.label}"><div class="qicon" style="background:${q.tint};color:${q.color};">${q.icon}</div><span>${q.label}</span></button>`).join('')}</div>
+
+    <div class="dashboard-v2-section" style="margin-top:28px;">
+      <div>
+        <h3>Services ma boutique</h3>
+        <div style="font-size:12px;color:var(--text-soft);margin-top:2px;">Accès rapide aux services complémentaires</div>
+      </div>
+      <button onclick="Router.go('shop-account')">Voir tout ›</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 20px;">
+      ${[
+        ['stats','Statistiques','rgba(18,163,111,.10)','#12A36F','chart'],
+        ['payment','Paiement','rgba(31,116,220,.10)','#1F74DC','card'],
+        ['categories','Catégories','rgba(92,72,214,.10)','#5C48D6','grid'],
+        ['promos','Promos','rgba(239,155,27,.12)','#D88A00','tag'],
+        ['reviews','Avis','rgba(239,155,27,.12)','#D88A00','star'],
+        ['customers','Clients','rgba(31,116,220,.10)','#1F74DC','user']
+      ].map(s=>`<button type="button" onclick="dashboardQuickGo('${s[0]}')" style="border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text);font:inherit;cursor:pointer;">
+        <span style="width:58px;height:58px;border-radius:18px;background:${s[2]};color:${s[3]};display:flex;align-items:center;justify-content:center;">${subIcon(s[4],22)}</span>
+        <span style="font-size:12px;font-weight:650;text-align:center;line-height:1.2;">${s[1]}</span>
+      </button>`).join('')}
+    </div>
+
     <div class="dashboard-v2-section"><h3>Suivi des commandes</h3><button onclick="Router.go('orders')">Détails ›</button></div>
-    <div class="dashboard-v2-command-card">
-      ${cmdRow('Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant')}
-      ${cmdRow('En préparation',counts.preparing,'var(--blue)','Commandes en cours')}
-      ${cmdRow('Expédiées',counts.shipped,'var(--indigo)','En cours de livraison')}
-      ${cmdRow('Terminées',counts.done,'var(--green)','Livrées avec succès')}
-      ${cmdRow('Annulées',counts.cancelled,'var(--red)','À vérifier')}
+    <div style="padding:0 20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${[
+          ['Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant'],
+          ['En préparation',counts.preparing,'var(--blue)','Commandes en cours'],
+          ['Expédiées',counts.shipped,'var(--indigo)','En cours de livraison'],
+          ['Terminées',counts.done,'var(--green)','Livrées avec succès']
+        ].map(x=>`<button type="button" onclick="Router.go('orders')" style="border:1px solid var(--border);background:var(--panel);border-radius:16px;padding:14px;text-align:left;display:flex;align-items:flex-start;gap:10px;cursor:pointer;color:var(--text);font:inherit;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${x[2]};margin-top:5px;flex:none;"></span>
+          <span style="min-width:0;flex:1;"><strong style="display:block;font-size:13px;line-height:1.2;">${x[0]}</strong><small style="display:block;color:var(--text-soft);margin-top:4px;font-size:11px;">${x[3]}</small></span>
+          <b style="font-size:17px;">${x[1]}</b>
+        </button>`).join('')}
+      </div>
+      <button type="button" onclick="Router.go('orders')" style="width:100%;margin-top:10px;border:1px solid var(--border);background:var(--panel);border-radius:16px;padding:14px;display:flex;align-items:center;gap:12px;text-align:left;color:var(--text);font:inherit;cursor:pointer;">
+        <span style="width:38px;height:38px;border-radius:12px;background:var(--red-tint);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:20px;">×</span>
+        <span style="flex:1;"><strong style="display:block;font-size:13px;">Annulées</strong><small style="display:block;color:var(--text-soft);margin-top:3px;">À vérifier</small></span>
+        <b style="font-size:17px;">${counts.cancelled}</b>
+      </button>
     </div>
     <div class="dashboard-v2-section"><h3>Votre activité</h3><button onclick="Router.go('stats')">Voir les stats ›</button></div>
     <div class="stat-grid" style="padding-top:0;">
@@ -6496,19 +6542,19 @@ function DashboardStatusBar(access){
     const circumference = 157.1;
     const offset = (circumference * (1 - frac)).toFixed(1);
     return `
-    <button type="button" class="dash-trial-ring-card" style="width:100%;text-align:left;background:${hexToRgba(color,.08)};border:1px solid ${hexToRgba(color,.22)};border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;" onclick="Router.go('subscription-status')">
-      <svg width="56" height="56" viewBox="0 0 60 60" style="flex:none;">
-        <circle cx="30" cy="30" r="25" fill="none" stroke="${hexToRgba(color,.16)}" stroke-width="5"/>
-        <circle cx="30" cy="30" r="25" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" transform="rotate(-90 30 30)"/>
-        <text x="30" y="28" text-anchor="middle" font-size="15" font-weight="800" fill="var(--text)">${access.daysLeft}</text>
-        <text x="30" y="39" text-anchor="middle" font-size="8" fill="var(--text-mid)">jours</text>
+    <button type="button" class="dash-trial-ring-card" style="width:100%;text-align:left;background:${hexToRgba(color,.08)};border:1px solid ${hexToRgba(color,.20)};border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:14px;" onclick="Router.go('subscription-status')">
+      <svg width="68" height="68" viewBox="0 0 72 72" style="flex:none;">
+        <circle cx="36" cy="36" r="28" fill="none" stroke="${hexToRgba(color,.15)}" stroke-width="6"/>
+        <circle cx="36" cy="36" r="28" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="175.9" stroke-dashoffset="${(175.9*(1-frac)).toFixed(1)}" transform="rotate(-90 36 36)"/>
+        <text x="36" y="34" text-anchor="middle" font-size="17" font-weight="800" fill="var(--text)">${access.daysLeft}</text>
+        <text x="36" y="46" text-anchor="middle" font-size="8.5" fill="var(--text-mid)">jours</text>
       </svg>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:${color};margin-bottom:2px;">Essai gratuit</div>
-        <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;">Pass de découverte</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          ${chips.length?`<span style="font-size:11px;color:var(--text-mid);">${chips[0]}</span>`:'<span></span>'}
-          <span style="font-size:14px;font-weight:800;color:${color};flex:none;">›</span>
+        <div style="font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${color};margin-bottom:2px;">Essai gratuit</div>
+        <div style="font-size:16px;font-weight:850;color:var(--text);margin-bottom:8px;">Pass de découverte</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11.5px;color:var(--text-mid);">${access.daysLeft} jours restants</span>
+          <span style="margin-left:auto;font-size:22px;font-weight:700;color:${color};">›</span>
         </div>
       </div>
     </button>`;
@@ -15002,6 +15048,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   .onboard-side-phone{transform:scale(.78);}
 }
 </style>
+</body>
+</html>
+
+</html>
 <script id="maboutique-v20-promos-categories">
 (function(){
   const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
@@ -15486,6 +15536,8 @@ window.MABOUTIQUEAdminCourierIdentityV67={
 Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique-admin-identity-verifications'); return ''; };
 })();
 </script>
+
+</body>
 
 <!-- ================= MA BOUTIQUE V38 — sécurité partenaire + panorama sans AMS ================= -->
 <style id="maboutique-v38-security-panorama">
