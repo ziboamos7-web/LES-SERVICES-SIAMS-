@@ -3445,6 +3445,15 @@ const Store = {
     Utils.setLocal('sub_commission_settled_at', at);
     Cloud.pushSubCommission(0, at).catch(e=>console.error('Sync error [subCommission]', e));
   },
+  /* ---- CORRECTIF (même logique que la commission d'essai) : à l'envoi de la
+     preuve, on ne marque plus sub_commission_settled_at côté client. Seule la
+     vérification automatique du reçu par l'Edge Function verify-payment-receipt
+     écrit ce champ en base ; on garde juste une trace locale "preuve envoyée"
+     pour afficher l'étape d'analyse en cours. ---- */
+  get subCommissionSentAmount(){ return Utils.getLocal('sub_commission_sent_amount', 0); },
+  set subCommissionSentAmount(v){ Utils.setLocal('sub_commission_sent_amount', Math.round(Number(v)||0)); },
+  get subCommissionSentAt(){ return Utils.getLocal('sub_commission_sent_at', 0); },
+  set subCommissionSentAt(v){ Utils.setLocal('sub_commission_sent_at', v||0); },
 
   /* ---- Certification boutique : soumet une pièce d'identité (CNI, Passeport,
      CMU, Certificat de nationalité, Carte scolaire) + une photo prise en temps
@@ -6550,14 +6559,29 @@ function SubCommissionCard(){
   const access = Store.access();
   if(access.status!=='active') return '';
   const due = Store.subCommissionDue();
-  if(due<=0) return '';
+  /* ---- Même principe que CommissionCard() : l'envoi de la preuve ne règle pas
+     la commission côté client. Tant que l'Edge Function verify-payment-receipt
+     n'a pas confirmé (sub_commission_settled_at récupéré par AutoSync), on
+     affiche "analyse en cours" plutôt que de redemander un reçu. ---- */
+  const proofSent = Store.subCommissionSentAt > Math.max(Store.subCommissionSettledAt||0, access.activatedAt||0);
+  if(due<=0 && !proofSent) return '';
+  if(proofSent){
+    const sentDateStr = new Date(Store.subCommissionSentAt).toLocaleString('fr-FR');
+    return `
+    <div class="section-title">Commission (abonnement)</div>
+    <div style="margin:8px 20px 0;border:1.5px solid var(--blue);border-radius:var(--radius-md);padding:16px;background:var(--blue-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:2px;letter-spacing:.02em;">COMMISSION MA BOUTIQUE — 2% · ANALYSE EN COURS</div>
+      <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(Store.subCommissionSentAmount)}</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Reçu envoyé le ${sentDateStr}. Vérification automatique en cours (environ 5 minutes), relais manuel en cas de doute.</div>
+    </div>`;
+  }
   return `
   <div class="section-title">Commission (abonnement)</div>
   <div style="margin:8px 20px 0;border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:16px;background:var(--gold-tint);box-shadow:var(--shadow-sm);">
     <div style="font-size:12px;color:var(--gold-dark);font-weight:700;margin-bottom:2px;letter-spacing:.02em;">COMMISSION MA BOUTIQUE — 2% SUR CHAQUE VENTE</div>
     <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
     <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Calculée en temps réel sur vos commandes livrées depuis votre dernier règlement, en plus du prix de votre Pass (Article 8 du contrat).</div>
-    <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="SubscriptionSheet.markSubCommissionSettled()">J'ai réglé la commission, envoyer le reçu</button>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="SubscriptionSheet.startSubCommissionProof()">J'ai réglé la commission, envoyer le reçu</button>
   </div>`;
 }
 
@@ -7216,7 +7240,7 @@ const SubscriptionSheet = {
       cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
       cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
       const b64 = cv.toDataURL('image/jpeg',0.85).split(',')[1];
-      const kind = pending.type==='installment' ? 'installment' : 'commission';
+      const kind = pending.type==='installment' ? 'installment' : (pending.type==='subCommission' ? 'subCommission' : 'commission');
       const { data, error } = await sb.functions.invoke('verify-payment-receipt', { body:{
         storeId: sid, kind, plan: pending.key||null, amount: pending.amount, imageBase64: b64, mimeType:'image/jpeg'
       }});
@@ -7244,7 +7268,8 @@ const SubscriptionSheet = {
       waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
       record = { kind:'commission', title:"Commission période d'essai", note:'commission', amount: pending.amount, fileName:file.name };
     } else if(pending.type==='subCommission'){
-      Store.markSubCommissionSettled();
+      Store.subCommissionSentAmount = pending.amount;
+      Store.subCommissionSentAt = Date.now();
       msg = `Bonjour MA BOUTIQUE, je viens de régler ma commission d'abonnement (2%) de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
       waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
       record = { kind:'subCommission', title:"Commission d'abonnement (2%)", note:'commission', amount: pending.amount, fileName:file.name };
