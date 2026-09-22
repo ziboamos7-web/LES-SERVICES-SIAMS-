@@ -2321,7 +2321,6 @@
 </style>
 
 </head>
-<!-- SIAMS: payment verification is post-receipt only -->
 <body>
 <div id="app">
   <main id="page-root"></main>
@@ -6329,21 +6328,22 @@ Views.dashboard = function(){
     </section>
     <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
     <div class="dashboard-v2-quick">${quick.map(q=>`<button class="quick-nav-card" onclick="dashboardQuickGo('${q.route}')" aria-label="${q.label}"><div class="qicon" style="background:${q.tint};color:${q.color};">${q.icon}</div><span>${q.label}</span></button>`).join('')}</div>
+    <div class="siams-services-title"><h3>Services ma boutique</h3><button onclick="document.querySelector('.siams-services-grid')?.scrollIntoView({behavior:'smooth',block:'center'})">Voir tout</button></div>
+    <div class="siams-services-sub">Accès rapide aux services complémentaires</div>
+    <div class="siams-services-grid">${['stats','payment','categories','promos','reviews','customers'].map(route=>{const x=DASHBOARD_SERVICES.find(s=>s.route===route);return x?`<button class="siams-service" onclick="Router.go('${x.route}')"><span class="sicon" style="background:${x.tint};color:${x.color};">${x.icon}</span><span>${x.label==='Codes promo'?'Promos':x.label==='Avis clients'?'Avis':x.label}</span></button>`:''}).join('')}</div>
     <div class="dashboard-v2-section"><h3>Suivi des commandes</h3><button onclick="Router.go('orders')">Détails ›</button></div>
-    <div class="dashboard-v2-command-card">
-      ${cmdRow('Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant')}
-      ${cmdRow('En préparation',counts.preparing,'var(--blue)','Commandes en cours')}
-      ${cmdRow('Expédiées',counts.shipped,'var(--indigo)','En cours de livraison')}
-      ${cmdRow('Terminées',counts.done,'var(--green)','Livrées avec succès')}
-      ${cmdRow('Annulées',counts.cancelled,'var(--red)','À vérifier')}
+    <div class="siams-orders-grid">
+      ${[['Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant'],['En préparation',counts.preparing,'var(--blue)','Commandes en cours'],['Expédiées',counts.shipped,'var(--indigo)','En cours de livraison'],['Terminées',counts.done,'var(--green)','Livrées avec succès']].map(x=>`<div class="siams-order-card" onclick="Router.go('orders')"><span class="siams-order-icon" style="background:${x[2]}22;color:${x[2]}">${x[0].startsWith('Nouvelles')?'♧':x[0].startsWith('En préparation')?'◷':x[0].startsWith('Expédiées')?'▣':'✓'}</span><span class="siams-order-main"><b>${x[0]}</b><small>${x[3]}</small></span><span class="siams-order-count">${x[1]}</span></div>`).join('')}
+      <div class="siams-order-card cancelled" onclick="Router.go('orders')"><span class="siams-order-icon" style="background:#fee2e2;color:#d43b3b">×</span><span class="siams-order-main"><b>Annulées</b><small>À vérifier</small></span><span class="siams-order-count">${counts.cancelled}</span></div>
     </div>
     <div class="dashboard-v2-section"><h3>Votre activité</h3><button onclick="Router.go('stats')">Voir les stats ›</button></div>
-    <div class="stat-grid" style="padding-top:0;">
-      <div class="stat-card"><div class="lbl">Aujourd'hui</div><div class="val">${Utils.fmtFCFA(revToday)}</div></div>
-      <div class="stat-card"><div class="lbl">Cette semaine</div><div class="val">${Utils.fmtFCFA(revWeek)}</div></div>
-      <div class="stat-card"><div class="lbl">Panier moyen</div><div class="val">${Utils.fmtFCFA(avgBasket)}</div></div>
-      <div class="stat-card"><div class="lbl">Clients</div><div class="val">${clientsCount}</div></div>
+    <div class="siams-activity-grid">
+      <div class="siams-activity-card"><div class="siams-activity-label"><span class="siams-activity-icon" style="background:#f1f1ed">▣</span>Aujourd'hui</div><div class="siams-activity-val">${Utils.fmtFCFA(revToday)}</div></div>
+      <div class="siams-activity-card"><div class="siams-activity-label"><span class="siams-activity-icon" style="background:#f1f1ed">◫</span>Cette semaine <span class="siams-trend">↗</span></div><div class="siams-activity-val">${Utils.fmtFCFA(revWeek)}</div></div>
+      <div class="siams-activity-card"><div class="siams-activity-label"><span class="siams-activity-icon" style="background:#f1f1ed">▱</span>Panier moyen</div><div class="siams-activity-val">${Utils.fmtFCFA(avgBasket)}</div></div>
+      <div class="siams-activity-card"><div class="siams-activity-label"><span class="siams-activity-icon" style="background:#f1f1ed">♙</span>Clients</div><div class="siams-activity-val">${clientsCount}</div></div>
     </div>
+    ${(()=>{const end=Store.trialStartedAt+TRIAL_DAYS*86400000;const days=Math.max(0,Math.ceil((end-Date.now())/86400000));const pct=Math.max(0,Math.min(100,(days/TRIAL_DAYS)*100));return `<div class="siams-trial-card"><div class="siams-trial-head"><span class="siams-trial-icon">✦</span><div><div class="siams-trial-title">Pass gratuit de découverte</div><div class="siams-trial-days">${days} j restants</div></div></div><div class="siams-trial-bar"><div class="siams-trial-fill" style="width:${pct}%"></div></div><button class="siams-trial-btn" onclick="Router.go('subscription-status')">Voir les avantages&nbsp; →</button></div>`})()}
     ${lowStockProducts.length ? `
     <div class="dashboard-v2-section"><h3>Alerte stock</h3><button onclick="Router.go('products')">Voir le catalogue ›</button></div>
     <div style="margin:0 20px 6px;border:1.5px solid var(--mango);border-radius:var(--radius-md);background:var(--mango-tint);overflow:hidden;">
@@ -6459,10 +6459,7 @@ function DashboardStatusBar(access){
   const trialEnd = Store.trialStartedAt + TRIAL_DAYS*86400000;
   const inTrial = Date.now() < trialEnd;
   const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
-  const proofSent = !settled && Number(Store.commissionSentAt) > 0;
-  /* POST-RECEIPT STATE: la carte d'analyse n'est accessible qu'après
-     l'import/envoi effectif du reçu. Avant cela, on garde « Payer mes
-     commissions » et le choix Wave/Djamo existant. */
+  const proofSent = !settled && Store.commissionSentAt > 0;
   const showCommission = !settled && (proofSent || due>0 || inTrial);
   const subDue = Store.subCommissionDue ? Store.subCommissionDue() : 0;
   const showSubCommission = access.status==='active' && subDue>0;
@@ -6555,10 +6552,6 @@ Views._after_subscription_status = function(){
 };
 
 function PaymentVerificationCard({amount, sentAt, verifyProgress, verifyRemainMs}){
-  // Cet écran est exclusivement le résultat d'un reçu effectivement envoyé.
-  // Il ne doit jamais être affiché simplement en ouvrant « Abonnement & commission ».
-  if(!sentAt || Number(sentAt)<=0) return '';
-
   const ref = '#CM-' + String(sentAt || Date.now()).slice(-4);
   const sentDate = sentAt ? new Date(sentAt) : new Date();
   const dateLabel = sentDate.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}).replace('.','');
@@ -7907,27 +7900,6 @@ const Withdraw = {
       <div class="row"><span class="lbl">Statut</span><span class="status">Effectué</span></div>
       <hr>
       <div class="total"><span>Montant retiré</span><span>\${Utils.fmtFCFA(r.amount)}</span></div>
-
-<script id="SIAMS_ACTIVE_STORE_GUARD">
-(function(){
-  let lastSiamsStore = null;
-  setInterval(function(){
-    try{
-      if(typeof Cloud === 'undefined') return;
-      const current = Cloud.storeId || null;
-      if(current !== lastSiamsStore){
-        lastSiamsStore = current;
-        // Never carry a previous account's receipt-analysis state forward.
-        if(typeof Store !== 'undefined'){
-          Store.commissionSentAt = Number(Store.commissionSentAt || 0);
-        }
-        if(typeof window.subSentRecord !== 'undefined') window.subSentRecord = null;
-      }
-    }catch(e){}
-  }, 1000);
-})();
-</script>
-
 </body>
 </html>`);
     w.document.close();
@@ -15031,10 +15003,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   .onboard-side-phone{transform:scale(.78);}
 }
 </style>
-</body>
-</html>
-
-</html>
 <script id="maboutique-v20-promos-categories">
 (function(){
   const esc=s=>{try{return Utils.escapeHtml(String(s??''))}catch(e){return String(s??'')}};
@@ -15519,8 +15487,6 @@ window.MABOUTIQUEAdminCourierIdentityV67={
 Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique-admin-identity-verifications'); return ''; };
 })();
 </script>
-
-</body>
 
 <!-- ================= MA BOUTIQUE V38 — sécurité partenaire + panorama sans AMS ================= -->
 <style id="maboutique-v38-security-panorama">
@@ -19591,3 +19557,36 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
   }
 })();
 </script>
+
+<style id="siams-dashboard-final-v61">
+.dashboard-v2-head.dashboard-v5-head{padding:24px 20px 10px;align-items:flex-start}
+.dashboard-v5-heading:before{content:'Bonjour,';display:block;font-size:12px;color:var(--text-mid);font-weight:600;margin-bottom:3px}
+.dashboard-v2-title{font-size:25px!important;letter-spacing:-.8px!important}
+.dashboard-v18-finance{margin:0 20px 16px!important;background:#fff!important;border:1px solid var(--line)!important;border-radius:22px!important;padding:0!important;box-shadow:0 8px 24px rgba(20,24,32,.05)!important;overflow:hidden}
+.dashboard-v18-finance .finance-main{padding:18px 16px 15px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.dashboard-v18-finance .finance-main-label{font-size:13px!important;color:var(--text-mid)!important}
+.dashboard-v18-finance .finance-total{font-size:28px!important;margin-top:4px!important}
+.dashboard-v18-finance .finance-main:after{content:'Retirer';display:flex;align-items:center;justify-content:center;background:#111;color:#fff;border-radius:13px;padding:12px 18px;font-weight:800;font-size:13px;min-width:82px}
+.dashboard-v18-finance .finance-two-col{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;padding:0 10px 10px!important;background:#fff!important}
+.dashboard-v18-finance .finance-two-col-item{background:#fafaf8;border:1px solid #f0efeb;border-radius:14px!important;padding:11px!important}
+.dashboard-v18-finance .finance-trust-note,.dashboard-v18-finance .finance-withdraw-btn{display:none!important}
+.siams-services-title{display:flex;justify-content:space-between;align-items:center;padding:0 20px;margin:20px 0 9px}
+.siams-services-title h3{margin:0;font-size:18px}
+.siams-services-title button{border:0;background:none;color:var(--blue);font-weight:700;cursor:pointer}
+.siams-services-sub{padding:0 20px;margin:-5px 0 12px;color:var(--text-soft);font-size:12px}
+.siams-services-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 20px}
+.siams-service{border:0;background:#fff;border-radius:17px;min-height:82px;padding:10px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(11,14,23,.045);cursor:pointer;color:var(--text)}
+.siams-service .sicon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.siams-service span{font-size:10.5px;font-weight:600;white-space:nowrap}
+.siams-orders-grid{display:grid!important;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px}
+.siams-order-card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:13px;min-height:76px;display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;cursor:pointer;box-shadow:0 5px 16px rgba(11,14,23,.035)}
+.siams-order-card.cancelled{grid-column:1/-1}
+.siams-order-icon{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center}
+.siams-order-main b{display:block;font-size:12px}.siams-order-main small{display:block;margin-top:3px;color:var(--text-soft);font-size:9.5px}.siams-order-count{font-size:17px;font-weight:800}
+.siams-activity-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 20px}
+.siams-activity-card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:13px;min-height:68px}.siams-activity-label{color:var(--text-soft);font-size:11px;display:flex;align-items:center;gap:7px}.siams-activity-icon{width:19px;height:19px;border-radius:6px;display:flex;align-items:center;justify-content:center}.siams-activity-val{font-size:17px;font-weight:500;margin-top:8px}
+.siams-trend{font-size:10px;color:#21883b;margin-left:auto}.siams-trial-card{margin:14px 20px 0;border-radius:18px;background:#dcecff;border:1px solid #c9e1ff;padding:13px}.siams-trial-head{display:flex;align-items:center;gap:10px}.siams-trial-icon{width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;color:#2678d5}.siams-trial-title{font-weight:800;color:#245d99}.siams-trial-days{font-size:11px;color:#376fa9}.siams-trial-bar{height:6px;background:#fff;border-radius:99px;overflow:hidden;margin:11px 0}.siams-trial-fill{height:100%;background:#2d7bd7;border-radius:99px}.siams-trial-btn{display:block;width:100%;height:40px;border:0;border-radius:12px;background:#2d7bd7;color:#fff;font-weight:800;cursor:pointer}
+@media(max-width:370px){.siams-services-grid{gap:6px;padding:0 14px}.siams-services-title,.siams-services-sub,.siams-orders-grid,.siams-activity-grid{padding-left:14px;padding-right:14px}.siams-trial-card{margin-left:14px;margin-right:14px}.siams-service span{font-size:9px}}
+</style>
+</body>
+</html>
