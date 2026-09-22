@@ -839,6 +839,17 @@
   .comm-info-box svg{flex:none;color:var(--text-soft);margin-top:1px;}
   .comm-info-box p{margin:0;font-size:11.5px;color:var(--text-mid);line-height:1.55;}
 
+  /* ---- V61 : checklist des 3 contrôles automatiques (montant, bénéficiaire,
+     authenticité) affichée sous l'étape « Analyse en cours ». Reflète l'état
+     réel de payment_receipt_checks.checks (refreshCommissionChecks). ---- */
+  .commchk-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+  .commchk-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .commchk-label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-mid);}
+  .commchk-status{display:flex;align-items:center;flex:none;}
+  .commchk-status .pf-mini-spinner{width:13px;height:13px;border:2px solid var(--blue-tint);border-top-color:var(--blue);border-radius:50%;animation:wd-spin .7s linear infinite;display:block;}
+  .commchk-ok{color:var(--green);display:flex;}
+  .commchk-bad{color:var(--gold-dark);display:flex;}
+
   /* ---- Carte Pass actif : anneau de renouvellement + compteurs animés ---- */
   .plan-ring-wrap{position:relative;width:56px;height:56px;flex:none;}
   .plan-ring-wrap svg{transform:rotate(-90deg);width:56px;height:56px;}
@@ -3445,6 +3456,15 @@ const Store = {
     Utils.setLocal('sub_commission_settled_at', at);
     Cloud.pushSubCommission(0, at).catch(e=>console.error('Sync error [subCommission]', e));
   },
+  /* ---- CORRECTIF (même logique que la commission d'essai) : à l'envoi de la
+     preuve, on ne marque plus sub_commission_settled_at côté client. Seule la
+     vérification automatique du reçu par l'Edge Function verify-payment-receipt
+     écrit ce champ en base ; on garde juste une trace locale "preuve envoyée"
+     pour afficher l'étape d'analyse en cours. ---- */
+  get subCommissionSentAmount(){ return Utils.getLocal('sub_commission_sent_amount', 0); },
+  set subCommissionSentAmount(v){ Utils.setLocal('sub_commission_sent_amount', Math.round(Number(v)||0)); },
+  get subCommissionSentAt(){ return Utils.getLocal('sub_commission_sent_at', 0); },
+  set subCommissionSentAt(v){ Utils.setLocal('sub_commission_sent_at', v||0); },
 
   /* ---- Certification boutique : soumet une pièce d'identité (CNI, Passeport,
      CMU, Certificat de nationalité, Carte scolaire) + une photo prise en temps
@@ -6446,7 +6466,10 @@ Views['subscription-status'] = function(){
     ${SubscriptionCard(access)}
   </div>`;
 };
-Views._after_subscription_status = function(){ if(Views._after_dashboard) Views._after_dashboard(); };
+Views._after_subscription_status = function(){
+  if(Views._after_dashboard) Views._after_dashboard();
+  if(!Store.commissionSettled && Store.commissionSentAt>0) refreshCommissionChecks('commission');
+};
 
 function CommissionCard(){
   const due = Store.commissionDue();
@@ -6469,11 +6492,24 @@ function CommissionCard(){
   const progress = inTrial ? Math.max(0, Math.min(1, daysLeft/TRIAL_DAYS)) : 0;
   const offset = C*(1-progress);
 
+  const VERIFY_BUDGET_MS = 5*60000;
+  const verifyElapsed = proofSent ? (Date.now() - Store.commissionSentAt) : 0;
+  const verifyProgress = Math.max(0, Math.min(1, verifyElapsed / VERIFY_BUDGET_MS));
+  const verifyOffset = C*(1-verifyProgress);
+  const verifyRemainMs = Math.max(0, VERIFY_BUDGET_MS - verifyElapsed);
+
+  const verifyChecklist = `
+    <div class="commchk-list">
+      <div class="commchk-row"><span class="commchk-label">${subIcon('card',13)}<span>Montant du reçu</span></span><span class="commchk-status" id="commchk-commission-amount"><span class="pf-mini-spinner"></span></span></div>
+      <div class="commchk-row"><span class="commchk-label">${subIcon('lock',13)}<span>Bénéficiaire</span></span><span class="commchk-status" id="commchk-commission-beneficiary"><span class="pf-mini-spinner"></span></span></div>
+      <div class="commchk-row"><span class="commchk-label">${subIcon('shield',13)}<span>Authenticité</span></span><span class="commchk-status" id="commchk-commission-authenticity"><span class="pf-mini-spinner"></span></span></div>
+    </div>`;
+
   const stepDefs = proofSent
     ? [
         ["Essai gratuit", "Vos 20 jours d'essai MA BOUTIQUE.", 'done'],
         ["Preuve envoyée", "Votre justificatif de paiement a été transmis.", 'done'],
-        ["Analyse en cours", "Votre reçu est vérifié automatiquement (environ 5 minutes) ; relais manuel en cas de doute.", 'active'],
+        ["Analyse en cours", "Vérification automatique en cours ; relais manuel en cas de doute.", 'active', verifyChecklist],
         ["Pass actif", "Dès validation, la commission d'essai est soldée et votre Pass se déverrouille.", '']
       ]
     : inTrial
@@ -6498,10 +6534,17 @@ function CommissionCard(){
   <div class="trial-xp ${inTrial?'':'ended'} ${proofSent?'theme-blue':''}" data-trial-end="${trialEnd}">
     <div class="trial-xp-top">
       <div>
-        <div class="trial-xp-eyebrow">${eyebrow}</div>
-        <div class="trial-xp-title">${title}</div>
+        <div class="trial-xp-eyebrow" id="comm-eyebrow">${eyebrow}</div>
+        <div class="trial-xp-title" id="comm-title">${title}</div>
       </div>
-      ${proofSent ? '<div class="pending-spinner"></div>' : `
+      ${proofSent ? `
+      <div class="trial-ring-wrap">
+        <svg viewBox="0 0 66 66">
+          <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
+          <circle class="trial-ring-fg" id="verify-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${verifyOffset}" data-sent-at="${Store.commissionSentAt}" data-budget="${VERIFY_BUDGET_MS}"></circle>
+        </svg>
+        <div class="trial-ring-label" id="verify-ring-label"><b>${Math.round(verifyProgress*100)}</b><span>%</span></div>
+      </div>` : `
       <div class="trial-ring-wrap">
         <svg viewBox="0 0 66 66">
           <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
@@ -6519,14 +6562,19 @@ function CommissionCard(){
     <div class="trial-xp-countdown">
       <span class="lab">${subIcon('clock',13)}<span>${inTrial?"Fin de l'essai dans":'Essai terminé depuis'}</span></span>
       <span class="val" id="commission-trial-countdown-val" data-ends-at="${trialEnd}">${fmtRenewCountdown(Math.abs(trialEnd-Date.now()))}</span>
-    </div>` : ''}
+    </div>` : `
+    <div class="trial-xp-countdown">
+      <span class="lab">${subIcon('clock',13)}<span>Estimation</span></span>
+      <span class="val" id="commission-verify-countdown-val">${verifyRemainMs>0?('~'+fmtMsLeft(verifyRemainMs)):'Presque terminé'}</span>
+    </div>`}
     <div class="comm-steps">
-      ${stepDefs.map(([t,d,state])=>`
+      ${stepDefs.map(([t,d,state,extra])=>`
       <div class="comm-step ${state}">
         <span class="comm-step-dot">${state==='done'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>':(state==='active'?'<span class="pf-mini-spinner" style="border-color:var(--gold-tint);border-top-color:var(--gold-dark);"></span>':'')}</span>
         <div class="comm-step-body">
           <div class="comm-step-title">${t}</div>
-          <div class="comm-step-desc">${d}</div>
+          <div class="comm-step-desc"${state==='active'?' id="comm-step-desc-active"':''}>${d}</div>
+          ${extra||''}
         </div>
       </div>`).join('')}
     </div>
@@ -6534,6 +6582,9 @@ function CommissionCard(){
     <div class="comm-info-box">
       ${subIcon('shield',15)}
       <p>Comment ça marche : dès réception de votre capture d'écran, une analyse automatique vérifie en quelques minutes qu'il s'agit bien d'un reçu original et que le montant correspond — si tout concorde, votre commission est validée et votre Pass activé automatiquement, sans attendre un agent. En cas de doute (reçu flou, PDF, montant qui ne correspond pas), un agent MA BOUTIQUE prend le relais manuellement. Cette page se met à jour automatiquement dès que c'est validé — vous pouvez aussi revenir la consulter à tout moment.</p>
+    </div>
+    <div class="trial-xp-actions" id="comm-retry-actions" style="display:none;">
+      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.startCommissionProof()"><span class="trial-xp-btn-ic">${subIcon('upload',15)}</span>Renvoyer un reçu</button>
     </div>
     <div class="trial-xp-actions">
       <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
@@ -6550,14 +6601,29 @@ function SubCommissionCard(){
   const access = Store.access();
   if(access.status!=='active') return '';
   const due = Store.subCommissionDue();
-  if(due<=0) return '';
+  /* ---- Même principe que CommissionCard() : l'envoi de la preuve ne règle pas
+     la commission côté client. Tant que l'Edge Function verify-payment-receipt
+     n'a pas confirmé (sub_commission_settled_at récupéré par AutoSync), on
+     affiche "analyse en cours" plutôt que de redemander un reçu. ---- */
+  const proofSent = Store.subCommissionSentAt > Math.max(Store.subCommissionSettledAt||0, access.activatedAt||0);
+  if(due<=0 && !proofSent) return '';
+  if(proofSent){
+    const sentDateStr = new Date(Store.subCommissionSentAt).toLocaleString('fr-FR');
+    return `
+    <div class="section-title">Commission (abonnement)</div>
+    <div style="margin:8px 20px 0;border:1.5px solid var(--blue);border-radius:var(--radius-md);padding:16px;background:var(--blue-tint);box-shadow:var(--shadow-sm);">
+      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:2px;letter-spacing:.02em;">COMMISSION MA BOUTIQUE — 2% · ANALYSE EN COURS</div>
+      <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(Store.subCommissionSentAmount)}</div>
+      <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Reçu envoyé le ${sentDateStr}. Vérification automatique en cours (environ 5 minutes), relais manuel en cas de doute.</div>
+    </div>`;
+  }
   return `
   <div class="section-title">Commission (abonnement)</div>
   <div style="margin:8px 20px 0;border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:16px;background:var(--gold-tint);box-shadow:var(--shadow-sm);">
     <div style="font-size:12px;color:var(--gold-dark);font-weight:700;margin-bottom:2px;letter-spacing:.02em;">COMMISSION MA BOUTIQUE — 2% SUR CHAQUE VENTE</div>
     <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
     <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Calculée en temps réel sur vos commandes livrées depuis votre dernier règlement, en plus du prix de votre Pass (Article 8 du contrat).</div>
-    <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="SubscriptionSheet.markSubCommissionSettled()">J'ai réglé la commission, envoyer le reçu</button>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="SubscriptionSheet.startSubCommissionProof()">J'ai réglé la commission, envoyer le reçu</button>
   </div>`;
 }
 
@@ -6585,6 +6651,65 @@ setInterval(()=>{
     val.textContent = fmtRenewCountdown(renewsAt - Date.now());
   }
 }, 1000);
+/* ---- V61 : anneau + estimation de temps de la page « Analyse en cours ». ---- */
+setInterval(()=>{
+  const ring = document.getElementById('verify-ring-fg');
+  if(!ring) return;
+  const sentAt = Number(ring.dataset.sentAt), budget = Number(ring.dataset.budget);
+  const elapsed = Date.now()-sentAt;
+  const progress = Math.max(0, Math.min(1, elapsed/budget));
+  const R=27, C=2*Math.PI*R;
+  ring.setAttribute('stroke-dashoffset', C*(1-progress));
+  const label = document.getElementById('verify-ring-label');
+  if(label) label.innerHTML = `<b>${Math.round(progress*100)}</b><span>%</span>`;
+  const cd = document.getElementById('commission-verify-countdown-val');
+  const remain = Math.max(0, budget-elapsed);
+  if(cd) cd.textContent = remain>0 ? ('~'+fmtMsLeft(remain)) : 'Relais manuel en cours';
+  /* ---- Le délai estimé (5 min) est dépassé sans confirmation : plutôt que de
+     laisser croire à une analyse automatique sans fin, on bascule l'affichage
+     en vérification manuelle et on propose de renvoyer un reçu (utile si le
+     premier appel a échoué côté serveur, ex. service OCR indisponible). ---- */
+  if(remain<=0 && !ring.dataset.timedOut){
+    ring.dataset.timedOut = '1';
+    const eyebrow = document.getElementById('comm-eyebrow');
+    const title = document.getElementById('comm-title');
+    const desc = document.getElementById('comm-step-desc-active');
+    if(eyebrow) eyebrow.textContent = 'Commission MA BOUTIQUE · vérification manuelle';
+    if(title) title.textContent = 'Votre reçu est en cours de vérification manuelle';
+    if(desc) desc.textContent = "La vérification automatique n'a pas pu conclure dans le délai estimé ; un agent MA BOUTIQUE valide votre reçu manuellement. Vous pouvez aussi renvoyer un reçu si besoin.";
+    document.querySelectorAll('.commchk-status').forEach(el=>{
+      if(el.querySelector('.pf-mini-spinner')) el.innerHTML = '<span style="color:var(--text-soft);font-size:11px;">Manuel</span>';
+    });
+    const retry = document.getElementById('comm-retry-actions');
+    if(retry) retry.style.display = 'flex';
+    refreshCommissionChecks('commission');
+  }
+}, 1000);
+/* ---- V61 : va chercher le vrai résultat des 3 contrôles automatiques
+   (payment_receipt_checks.checks) pour remplacer les spinners de la
+   checklist par un état réel (✓ / ⚠) plutôt qu'un faux effet temps réel. ---- */
+async function refreshCommissionChecks(kind){
+  if(!window.sb || !Cloud.storeId) return;
+  try{
+    const { data, error } = await sb.from('payment_receipt_checks')
+      .select('checks')
+      .eq('store_id', String(Cloud.storeId))
+      .eq('kind', kind)
+      .order('created_at', { ascending:false })
+      .limit(1);
+    if(error || !data || !data[0]) return;
+    const checks = data[0].checks || {};
+    const map = { amount:'amountOk', beneficiary:'beneficiaryOk', authenticity:'looksGenuine' };
+    Object.keys(map).forEach(key=>{
+      const el = document.getElementById('commchk-'+kind+'-'+key);
+      if(!el) return;
+      const ok = checks[map[key]];
+      el.innerHTML = ok===true ? `<span class="commchk-ok">${subIcon('check',14)}</span>`
+        : ok===false ? `<span class="commchk-bad">${subIcon('warning',14)}</span>`
+        : '<span class="pf-mini-spinner"></span>';
+    });
+  }catch(e){ console.error('refreshCommissionChecks', e); }
+}
 function SubscriptionCard(access){
   if(access.status==='trial'){
     const total = TRIAL_DAYS;
@@ -7216,7 +7341,7 @@ const SubscriptionSheet = {
       cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
       cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
       const b64 = cv.toDataURL('image/jpeg',0.85).split(',')[1];
-      const kind = pending.type==='installment' ? 'installment' : 'commission';
+      const kind = pending.type==='installment' ? 'installment' : (pending.type==='subCommission' ? 'subCommission' : 'commission');
       const { data, error } = await sb.functions.invoke('verify-payment-receipt', { body:{
         storeId: sid, kind, plan: pending.key||null, amount: pending.amount, imageBase64: b64, mimeType:'image/jpeg'
       }});
@@ -7244,7 +7369,8 @@ const SubscriptionSheet = {
       waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
       record = { kind:'commission', title:"Commission période d'essai", note:'commission', amount: pending.amount, fileName:file.name };
     } else if(pending.type==='subCommission'){
-      Store.markSubCommissionSettled();
+      Store.subCommissionSentAmount = pending.amount;
+      Store.subCommissionSentAt = Date.now();
       msg = `Bonjour MA BOUTIQUE, je viens de régler ma commission d'abonnement (2%) de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
       waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
       record = { kind:'subCommission', title:"Commission d'abonnement (2%)", note:'commission', amount: pending.amount, fileName:file.name };
