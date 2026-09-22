@@ -850,6 +850,62 @@
   .commchk-ok{color:var(--green);display:flex;}
   .commchk-bad{color:var(--gold-dark);display:flex;}
 
+  /* ---- V62 : carte de vérification de paiement inspirée du parcours mobile ---- */
+  .payment-verify-card{margin:0 0 18px;background:#fff;border:1px solid #e7e7ea;border-radius:24px;box-shadow:0 10px 28px -18px rgba(11,14,23,.28);padding:18px 18px 14px;overflow:hidden;}
+  .payment-verify-ref{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--text-soft);font-size:11.5px;margin-bottom:18px;}
+  .payment-verify-ref-left{display:flex;align-items:center;gap:5px;min-width:0;}
+  .payment-verify-ref b{color:#687083;font-weight:700;}
+  .payment-verify-copy{border:0;background:none;padding:2px;color:var(--text-soft);cursor:pointer;display:flex;align-items:center;}
+  .payment-verify-updated{display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  .payment-verify-steps{display:flex;align-items:center;gap:0;margin:0 0 18px;padding:0 2px;}
+  .payment-verify-step{display:flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid #d9dce2;color:#9ba3b8;font-size:11px;font-weight:900;z-index:1;}
+  .payment-verify-step.done{background:#c88a20;border-color:#c88a20;color:#fff;}
+  .payment-verify-step.active{background:#fff;border-color:#f1c56e;color:#c88a20;box-shadow:0 0 0 4px #fbf1df;}
+  .payment-verify-line{height:3px;flex:1;background:#dfe1e5;}
+  .payment-verify-line.done{background:#c88a20;}
+  .payment-verify-line.active{background:linear-gradient(90deg,#c88a20 0%,#f1c56e 100%);}
+  .payment-verify-status{display:flex;justify-content:center;margin-bottom:16px;}
+  .payment-verify-pill{display:inline-flex;align-items:center;gap:7px;background:#fbf1df;color:#75521d;border-radius:999px;padding:8px 13px;font-size:12px;font-weight:800;}
+  .payment-verify-pill .spin{width:13px;height:13px;border:2px solid #ead7ae;border-top-color:#9c6f1f;border-radius:50%;animation:wd-spin .7s linear infinite;}
+  .payment-verify-amount{text-align:center;padding:2px 0 16px;}
+  .payment-verify-amount .value{font-family:var(--font-display);font-size:40px;line-height:1.08;font-weight:800;letter-spacing:-1.5px;color:#101217;}
+  .payment-verify-amount .date{font-size:13.5px;color:#646b78;margin-top:6px;}
+  .payment-verify-agent{display:flex;align-items:center;gap:12px;background:#fbfbfa;border-radius:17px;padding:13px 14px;margin-bottom:10px;}
+  .payment-verify-avatar{width:46px;height:46px;border-radius:50%;background:#d7e8ff;color:#1769b5;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex:none;position:relative;}
+  .payment-verify-avatar::after{content:'';position:absolute;right:-1px;bottom:1px;width:9px;height:9px;border-radius:50%;background:#56a51b;border:2px solid #fff;}
+  .payment-verify-agent-main{min-width:0;flex:1;}
+  .payment-verify-agent-name{font-size:14.5px;font-weight:800;color:#17191e;}
+  .payment-verify-agent-sub{font-size:12.5px;color:#6c7280;margin-top:2px;line-height:1.3;}
+  .payment-verify-message{width:42px;height:42px;border:1px solid #dddeda;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#30343b;cursor:pointer;flex:none;}
+  .payment-verify-receipt{background:#fbfbfa;border-radius:17px;padding:13px 14px;margin-bottom:10px;}
+  .payment-verify-receipt-top{display:flex;align-items:center;gap:11px;}
+  .payment-verify-file-icon{width:42px;height:42px;border-radius:12px;background:#fff;border:1px solid #e5e5e5;display:flex;align-items:center;justify-content:center;color:#59606b;flex:none;}
+  .payment-verify-file-main{min-width:0;flex:1;}
+  .payment-verify-file-name{font-size:14px;font-weight:700;color:#25272c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .payment-verify-file-meta{font-size:11.5px;color:#757b86;margin-top:2px;}
+  .payment-verify-eye{border:0;background:none;color:#626974;cursor:pointer;padding:8px;}
+  .payment-verify-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid #e9e9e7;margin-top:12px;padding-top:12px;}
+  .payment-verify-check{display:flex;flex-direction:column;align-items:center;gap:5px;color:#4f5662;font-size:10.5px;font-weight:700;text-align:center;}
+  .payment-verify-check .ico{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#59606b;}
+  .payment-verify-check .state{height:14px;display:flex;align-items:center;justify-content:center;}
+  .payment-verify-check .commchk-status{font-size:10px;}
+  .payment-verify-estimate{padding:7px 0 4px;}
+  .payment-verify-estimate-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#8a8e96;font-size:12.5px;margin-bottom:7px;}
+  .payment-verify-estimate-head b{font-weight:500;color:#888d96;}
+  .payment-verify-progress{height:7px;background:#e7e7e7;border-radius:999px;overflow:hidden;}
+  .payment-verify-progress span{display:block;height:100%;width:62%;border-radius:999px;background:#f0c56d;transition:width .8s ease;}
+  .payment-verify-notify{display:flex;align-items:center;gap:10px;padding:13px 2px 12px;font-size:14px;color:#30343b;}
+  .payment-verify-notify svg{color:#59606b;flex:none;}
+  .payment-verify-toggle{margin-left:auto;width:50px;height:29px;border:0;border-radius:999px;background:#d9dce1;padding:3px;cursor:pointer;transition:.18s ease;flex:none;}
+  .payment-verify-toggle span{display:block;width:23px;height:23px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:.18s ease;}
+  .payment-verify-toggle.on{background:#c98218;}
+  .payment-verify-toggle.on span{transform:translateX(21px);}
+  .payment-verify-actions{display:flex;flex-direction:column;gap:8px;}
+  .payment-verify-resend{width:100%;height:54px;border:1px solid #d7d8da;background:#fff;border-radius:15px;color:#24262b;font:700 15px var(--font-body);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;}
+  .payment-verify-plan{border:0;background:none;color:#666c76;font:600 13px var(--font-body);padding:7px;cursor:pointer;}
+  .payment-verify-scroll{width:54px;height:54px;border-radius:50%;border:1px solid #e1e1e1;background:#fff;display:flex;align-items:center;justify-content:center;margin:2px auto 0;box-shadow:0 5px 16px -9px rgba(0,0,0,.35);cursor:pointer;color:#30343a;}
+  @media(max-width:360px){.payment-verify-card{padding:16px 13px 12px;border-radius:20px;}.payment-verify-amount .value{font-size:34px;}.payment-verify-checks{gap:3px;}.payment-verify-check{font-size:9.5px;}}
+
   /* ---- Carte Pass actif : anneau de renouvellement + compteurs animés ---- */
   .plan-ring-wrap{position:relative;width:56px;height:56px;flex:none;}
   .plan-ring-wrap svg{transform:rotate(-90deg);width:56px;height:56px;}
@@ -2265,6 +2321,7 @@
 </style>
 
 </head>
+<!-- SIAMS: payment verification is post-receipt only -->
 <body>
 <div id="app">
   <main id="page-root"></main>
@@ -2341,76 +2398,76 @@
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('boutique')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Boutique</span><span class="menu-item-desc">Nom, logo, lien et informations de votre boutique</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Boutique</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('verification')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Certification boutique</span><span class="menu-item-desc">Vérifiez votre pièce d'identité pour obtenir le badge certifié</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Certification boutique</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('commissions-apercu')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 12h6M9 16h6M9 8h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Aperçu de mon contrat</span><span class="menu-item-desc">Commissions applicables — points importants à connaître</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Aperçu de mon contrat</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('stats')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Statistiques</span><span class="menu-item-desc">Ventes, revenus et performance de votre boutique</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Statistiques</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('team')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 20c.6-3.4 3-5.5 5.5-5.5s4.9 2.1 5.5 5.5M16 9.5c1.6.2 2.8 1.6 2.8 3.2M16 5.3a3 3 0 0 1 0 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Équipe</span><span class="menu-item-desc">Invitez des collaborateurs et gérez leurs accès</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Équipe</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('payment')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.8"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Paiement</span><span class="menu-item-desc">Vos moyens de réception des paiements clients</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Paiement</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('categories')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Catégories</span><span class="menu-item-desc">Organisez vos produits pour faciliter la navigation</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Catégories</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('promos')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 12 12 20l-8-8V5a1 1 0 0 1 1-1h7l8 8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Codes promo</span><span class="menu-item-desc">Créez des réductions pour booster vos ventes</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Codes promo</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('reviews')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Avis clients</span><span class="menu-item-desc">Consultez et répondez aux avis de vos clients</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Avis clients</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('customers')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.8-4 3.6-6.2 7.5-6.2s6.7 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Clients</span><span class="menu-item-desc">Liste et historique d'achats de vos clients</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Clients</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <div class="menu-item" onclick="Sheet.close(); Router.go('courier-login')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="menu-item-text"><span class="menu-item-title">Espace livreur</span><span class="menu-item-desc">Connexion et suivi des livraisons</span></div></div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('courier-login')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="menu-item-text"><span class="menu-item-title">Espace livreur</span></div></div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('settings')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.5-2-3.5-2.4.6a7.5 7.5 0 0 0-1.7-1L15 3h-4l-.3 2.5a7.5 7.5 0 0 0-1.7 1l-2.4-.6-2 3.5L6.6 11a7.7 7.7 0 0 0 0 2l-2 1.5 2 3.5 2.4-.6a7.5 7.5 0 0 0 1.7 1L11 21h4l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.4.6 2-3.5-2-1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Paramètres</span><span class="menu-item-desc">Préférences générales de l'application</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Paramètres</span></div>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('delivery')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Livraison</span><span class="menu-item-desc">Zones, délais et tarifs de livraison</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Livraison</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); exportSalesReportPDF();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Exporter mes rapports</span><span class="menu-item-desc">Rapport de ventes et statistiques en PDF</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Exporter mes rapports</span></div>
     </div>
     <div class="menu-item" onclick="Sheet.close(); AccountId.open();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M7 9h10M7 13h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Mon ID marchand MA BOUTIQUE</span><span class="menu-item-desc">Consultez ou copiez votre identifiant de connexion</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Mon ID marchand MA BOUTIQUE</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item danger" onclick="Sheet.close(); LogoutConfirm.open();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Déconnexion</span><span class="menu-item-desc">Fermer votre session en toute sécurité</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Déconnexion</span></div>
     </div>
   </div>
 
@@ -2422,7 +2479,6 @@
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <h3 class="logout-confirm-title">Se déconnecter ?</h3>
-    <p class="logout-confirm-desc">Vous devrez ressaisir vos identifiants pour accéder de nouveau à votre espace boutique.</p>
     <div class="logout-confirm-actions">
       <button class="btn logout-confirm-btn" onclick="LogoutConfirm.confirm()">Se déconnecter</button>
       <button class="btn btn-outline" onclick="LogoutConfirm.close()">Annuler</button>
@@ -5611,24 +5667,31 @@ Views['commissions-apercu'] = function(){
     : {border:'var(--indigo)', badgeBg:'var(--indigo-tint)', badgeColor:'var(--indigo)'};
   return `${TopBar('Aperçu de mon contrat','Commissions et clauses utiles à connaître')}
   <div style="padding:16px 20px 28px;">
-    <div class="stats-card" style="margin-bottom:16px;background:var(--indigo-tint);border:1px solid var(--indigo);display:flex;gap:10px;align-items:flex-start;">
+    <div class="stats-card" style="margin-bottom:20px;background:var(--indigo-tint);border:1px solid var(--indigo);display:flex;gap:10px;align-items:flex-start;">
       <span style="font-size:20px;flex:none;">📄</span>
       <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des clauses les plus utiles au quotidien de votre contrat MA BOUTIQUE — commissions, délais et paiement. Il ne remplace pas le contrat complet, que vous pouvez télécharger en PDF ci-dessous.</div>
     </div>
-    ${items.map(it=>{
-      const s = styleFor(it.kind);
-      return `
-      <div class="stats-card" style="margin-bottom:12px;border-left:4px solid ${s.border};">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
-          <span style="display:flex;align-items:center;gap:6px;background:${s.badgeBg};color:${s.badgeColor};font-size:10.5px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:999px;text-transform:uppercase;"><span>${it.icon}</span>${it.badge}</span>
-          ${it.rate?`<span class="mono" style="font-size:20px;font-weight:800;color:var(--indigo);">${it.rate}</span>`:''}
-        </div>
-        <h4 style="margin:0 0 6px;font-size:14.5px;">${Utils.escapeHtml(it.title)}</h4>
-        <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
-        <span style="font-size:10.5px;color:var(--text-soft);font-weight:700;">Article ${it.article} du contrat</span>
-      </div>`;
-    }).join('')}
-    <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
+    <div style="position:relative;">
+      <div style="position:absolute;left:15px;top:8px;bottom:8px;width:2px;background:var(--line);"></div>
+      ${items.map((it,i)=>{
+        const s = styleFor(it.kind);
+        const last = i===items.length-1;
+        return `
+        <div style="position:relative;display:flex;gap:12px;${last?'':'padding-bottom:16px;'}">
+          <div style="width:32px;height:32px;border-radius:50%;background:${s.badgeBg};border:2px solid ${s.border};display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;z-index:1;">${it.icon}</div>
+          <div class="stats-card" style="flex:1;min-width:0;margin-bottom:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+              <span style="font-size:10.5px;font-weight:800;letter-spacing:.02em;color:${s.badgeColor==='#fff'?'var(--mango)':s.badgeColor};text-transform:uppercase;">${it.badge}</span>
+              ${it.rate?`<span class="mono" style="font-size:18px;font-weight:800;color:var(--indigo);">${it.rate}</span>`:''}
+            </div>
+            <h4 style="margin:0 0 6px;font-size:14px;">${Utils.escapeHtml(it.title)}</h4>
+            <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
+            <span style="font-size:10.5px;color:var(--text-soft);font-weight:700;">Article ${it.article} du contrat</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-outline btn-block" style="margin-top:20px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
   </div>`;
 };
 
@@ -6251,13 +6314,9 @@ Views.dashboard = function(){
       </div>
       <div class="finance-two-col">
         <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
-        <div class="finance-two-col-item right"><span>Total des ventes</span><b>${Utils.fmtFCFA(totalSales)}</b></div>
+        <div class="finance-two-col-item right"><span>${siamsBanqueOn ? 'Solde SIAMS BANQUE' : 'Total des ventes'}</span><b>${Utils.fmtFCFA(siamsBanqueOn ? siamsBalance : totalSales)}</b></div>
       </div>
       ${siamsBanqueOn ? `
-      <div class="finance-two-col" style="margin-top:8px;">
-        <div class="finance-two-col-item"><span>Solde SIAMS BANQUE</span><b>${Utils.fmtFCFA(siamsBalance)}</b></div>
-        <div class="finance-two-col-item right"><span>Déjà retiré</span><b>${Utils.fmtFCFA(Store.totalSiamsWithdrawn())}</b></div>
-      </div>
       <button type="button" class="finance-withdraw-btn" onclick="event.stopPropagation();SiamsWithdraw.open();">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 9-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Retirer mes fonds SIAMS BANQUE
@@ -6270,8 +6329,6 @@ Views.dashboard = function(){
     </section>
     <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
     <div class="dashboard-v2-quick">${quick.map(q=>`<button class="quick-nav-card" onclick="dashboardQuickGo('${q.route}')" aria-label="${q.label}"><div class="qicon" style="background:${q.tint};color:${q.color};">${q.icon}</div><span>${q.label}</span></button>`).join('')}</div>
-    <div class="dashboard-v2-section"><h3>Services MA BOUTIQUE</h3><button onclick="Sheet.open()">Voir tout ›</button></div>
-    <div class="dashboard-v2-service-grid">${DASHBOARD_SERVICES.slice(0,9).map(s=>`<button type="button" class="dashboard-v2-service" onclick="dashboardServiceGo('${s.route}')" aria-label="Ouvrir ${s.label}"><div class="sicon" style="background:${s.tint};color:${s.color};">${s.icon}</div><span>${s.label}</span></button>`).join('')}</div>
     <div class="dashboard-v2-section"><h3>Suivi des commandes</h3><button onclick="Router.go('orders')">Détails ›</button></div>
     <div class="dashboard-v2-command-card">
       ${cmdRow('Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant')}
@@ -6402,7 +6459,10 @@ function DashboardStatusBar(access){
   const trialEnd = Store.trialStartedAt + TRIAL_DAYS*86400000;
   const inTrial = Date.now() < trialEnd;
   const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
-  const proofSent = !settled && Store.commissionSentAt > 0;
+  const proofSent = !settled && Number(Store.commissionSentAt) > 0;
+  /* POST-RECEIPT STATE: la carte d'analyse n'est accessible qu'après
+     l'import/envoi effectif du reçu. Avant cela, on garde « Payer mes
+     commissions » et le choix Wave/Djamo existant. */
   const showCommission = !settled && (proofSent || due>0 || inTrial);
   const subDue = Store.subCommissionDue ? Store.subCommissionDue() : 0;
   const showSubCommission = access.status==='active' && subDue>0;
@@ -6435,6 +6495,29 @@ function DashboardStatusBar(access){
   if(showCommission) chips.push(proofSent ? 'Reçu en cours d\'analyse' : (inTrial ? `Essai commission · ${daysLeft} j` : 'Commission à régler'));
   if(showSubCommission) chips.push(`${Utils.fmtFCFA(subDue)} à régler`);
 
+  if(access.status==='trial'){
+    const frac = Math.min(1, Math.max(0, access.daysLeft / TRIAL_DAYS));
+    const circumference = 157.1;
+    const offset = (circumference * (1 - frac)).toFixed(1);
+    return `
+    <button type="button" class="dash-trial-ring-card" style="width:100%;text-align:left;background:${hexToRgba(color,.08)};border:1px solid ${hexToRgba(color,.22)};border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;" onclick="Router.go('subscription-status')">
+      <svg width="56" height="56" viewBox="0 0 60 60" style="flex:none;">
+        <circle cx="30" cy="30" r="25" fill="none" stroke="${hexToRgba(color,.16)}" stroke-width="5"/>
+        <circle cx="30" cy="30" r="25" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" transform="rotate(-90 30 30)"/>
+        <text x="30" y="28" text-anchor="middle" font-size="15" font-weight="800" fill="var(--text)">${access.daysLeft}</text>
+        <text x="30" y="39" text-anchor="middle" font-size="8" fill="var(--text-mid)">jours</text>
+      </svg>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:${color};margin-bottom:2px;">Essai gratuit</div>
+        <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;">Pass de découverte</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          ${chips.length?`<span style="font-size:11px;color:var(--text-mid);">${chips[0]}</span>`:'<span></span>'}
+          <span style="font-size:14px;font-weight:800;color:${color};flex:none;">›</span>
+        </div>
+      </div>
+    </button>`;
+  }
+
   return `
   <div class="dash-status-bar" style="background:${hexToRgba(color,.08)};border-color:${hexToRgba(color,.22)};" onclick="Router.go('subscription-status')">
     <div class="dash-status-bar-icon" style="background:${hexToRgba(color,.16)};color:${color};">${icon}</div>
@@ -6451,571 +6534,56 @@ function DashboardStatusBar(access){
    encadrée — l'ancienne fonction reste définie par sécurité, au cas où un appel
    externe l'utiliserait encore, mais redirige simplement vers la page. ---- */
 window.openDashboardStatusSheet = function(){ Router.go('subscription-status'); };
-/* ---- Prototype visuel « Suivi du paiement » : aucune logique métier,
-   aucun appel Supabase et aucune validation réelle. Les interactions ci-dessous
-   servent uniquement à rendre l'écran exploitable en démonstration locale. ---- */
-window.SiamsPaymentPrototype = window.SiamsPaymentPrototype || {
-  data:null,
-  _paymentId:null,
-
-  esc(value){
-    return String(value ?? '').replace(/[&<>"']/g, ch => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-    }[ch]));
-  },
-
-  money(value){
-    const n = Number(value);
-    if(!Number.isFinite(n)) return null;
-    return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA';
-  },
-
-  dateLabel(value){
-    if(!value) return null;
-    const d = new Date(value);
-    if(Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
-  },
-
-  pick(row, keys){
-    if(!row) return null;
-    for(const k of keys){
-      if(row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return row[k];
-    }
-    return null;
-  },
-
-  normalizeStatus(payment, subscription){
-    const raw = String(
-      this.pick(payment,['status','payment_status','state','verification_status']) ??
-      this.pick(subscription,['status','subscription_status','state']) ??
-      ''
-    ).toLowerCase();
-
-    if(['paid','approved','validated','valid','success','successful','completed','confirmed','active'].includes(raw))
-      return 'validated';
-    if(['rejected','refused','declined','failed','cancelled','canceled'].includes(raw))
-      return 'rejected';
-    if(['review','reviewing','verification','verifying','manual_review','pending_verification'].includes(raw))
-      return 'review';
-    return 'pending';
-  },
-
-  async queryLatest(table, filters){
-    try{
-      let q = sb.from(table).select('*').order('created_at',{ascending:false}).limit(10);
-      for(const f of filters || []){
-        if(f.type === 'eq') q = q.eq(f.column,f.value);
-        if(f.type === 'or') q = q.or(f.value);
-      }
-      const {data,error} = await q;
-      if(error) return {data:null,error};
-      return {data:(data||[])[0] || null,error:null};
-    }catch(error){
-      return {data:null,error};
-    }
-  },
-
-  async loadData(){
-    const sessionResult = await sb.auth.getSession();
-    const user = sessionResult?.data?.session?.user || null;
-    const store = (window.Store && Store.store) ? Store.store : {};
-
-    const filters = [];
-    if(user?.id){
-      filters.push({type:'eq',column:'user_id',value:user.id});
-    }
-    if(store?.id){
-      filters.push({type:'eq',column:'store_id',value:store.id});
-    }
-
-    /* Le schéma Option 1 prévoit public.siams_payments et
-       public.siams_subscriptions. On tente d'abord les identifiants connus,
-       puis une lecture limitée de la ligne la plus récente si les colonnes
-       d'association ne sont pas disponibles. */
-    let payment = null, subscription = null;
-
-    const candidateFilters = [];
-    if(user?.id) candidateFilters.push([{type:'eq',column:'user_id',value:user.id}]);
-    if(store?.id) candidateFilters.push([{type:'eq',column:'store_id',value:store.id}]);
-
-    for(const fs of candidateFilters){
-      if(!payment){
-        const r = await this.queryLatest('siams_payments',fs);
-        if(r.data) payment = r.data;
-      }
-      if(!subscription){
-        const r = await this.queryLatest('siams_subscriptions',fs);
-        if(r.data) subscription = r.data;
-      }
-    }
-
-    /* Si les RLS/colonnes du projet exposent uniquement la ligne de l'utilisateur,
-       cette requête récupère la dernière ligne accessible sans contourner RLS. */
-    if(!payment){
-      const r = await this.queryLatest('siams_payments',[]);
-      payment = r.data;
-    }
-    if(!subscription){
-      const r = await this.queryLatest('siams_subscriptions',[]);
-      subscription = r.data;
-    }
-
-    if(!payment && !subscription){
-      this.data = null;
-      return null;
-    }
-
-    const amount = this.pick(payment,[
-      'amount','payment_amount','paid_amount','total_amount','amount_paid','price','value'
-    ]) ?? this.pick(subscription,['amount','price','monthly_amount','plan_amount']);
-
-    const reference = this.pick(payment,[
-      'reference','payment_reference','transaction_reference','transaction_id','ref','id'
-    ]) ?? this.pick(subscription,['reference','contract_ref','contract_reference']);
-
-    const createdAt = this.pick(payment,[
-      'created_at','paid_at','payment_date','submitted_at','createdAt'
-    ]) ?? this.pick(subscription,['created_at','started_at','updated_at']);
-
-    const receiptUrl = this.pick(payment,[
-      'receipt_url','receipt','proof_url','proof','payment_proof_url','receipt_path','file_url'
-    ]);
-
-    const status = this.normalizeStatus(payment,subscription);
-
-    const agentName = this.pick(payment,['agent_name','reviewer_name','admin_name']) ||
-                      this.pick(subscription,['agent_name','reviewer_name','admin_name']) ||
-                      'Awa K.';
-
-    this._paymentId = payment?.id || null;
-    this.data = {payment,subscription,amount,reference,createdAt,receiptUrl,status,agentName};
-    return this.data;
-  },
-
-  async refreshFromSupabase(){
-    const btn = document.querySelector('#svLastUpdate');
-    if(btn) btn.textContent = 'Actualisation…';
-
-    const data = await this.loadData();
-    if(data){
-      this.applyData(data);
-      const stamp = document.querySelector('#svLastUpdate');
-      if(stamp) stamp.textContent = 'À l’instant';
-      this.toast('Paiement synchronisé avec Supabase ✓');
-    }else{
-      const stamp = document.querySelector('#svLastUpdate');
-      if(stamp) stamp.textContent = 'Aucune donnée';
-      this.toast('Aucun paiement accessible pour ce compte');
-    }
-  },
-
-  applyData(data){
-    const amountEl = document.querySelector('.sv-amount-value');
-    const dateEl = document.querySelector('.sv-amount-date');
-    const refEl = document.querySelector('.sv-ref-left strong');
-    const agentNameEl = document.querySelector('.sv-agent-name');
-    const agentRoleEl = document.querySelector('.sv-agent-role');
-    const receiptNameEl = document.querySelector('.sv-receipt-name');
-    const receiptSubEl = document.querySelector('.sv-receipt-sub');
-    const statusEl = document.querySelector('.sv-status span:last-child');
-    const statusDot = document.querySelector('.sv-status-dot');
-    const progress = document.querySelector('.sv-progress-fill');
-
-    if(amountEl && data.amount != null) amountEl.textContent = this.money(data.amount);
-    if(dateEl && data.createdAt){
-      dateEl.textContent = 'Reçu envoyé le ' + this.dateLabel(data.createdAt);
-    }
-    if(refEl && data.reference) refEl.textContent = this.esc(String(data.reference).startsWith('#') ? data.reference : '#' + data.reference);
-    if(agentNameEl) agentNameEl.textContent = data.agentName || 'Awa K.';
-    if(agentRoleEl) agentRoleEl.textContent = data.status === 'validated'
-      ? 'Agent SIAMS • dossier validé'
-      : 'Agent SIAMS • vérification du dossier';
-
-    if(receiptNameEl && data.receiptUrl){
-      const path = String(data.receiptUrl).split('?')[0];
-      receiptNameEl.textContent = path.split('/').pop() || 'Reçu de paiement';
-      receiptNameEl.style.cursor = 'pointer';
-      receiptNameEl.onclick = ()=>window.open(data.receiptUrl,'_blank','noopener');
-    }
-    if(receiptSubEl && data.createdAt) receiptSubEl.textContent = 'Envoyé le ' + this.dateLabel(data.createdAt);
-
-    const labels = {
-      pending:'Paiement en attente',
-      review:'Vérification manuelle',
-      validated:'Paiement validé',
-      rejected:'Paiement refusé'
-    };
-    if(statusEl) statusEl.textContent = labels[data.status] || 'Vérification manuelle';
-
-    if(statusDot){
-      statusDot.style.background = data.status === 'validated' ? '#20a464' :
-                                   data.status === 'rejected' ? '#c14b4b' : '#b48a2d';
-    }
-
-    const steps = [...document.querySelectorAll('.sv-step')];
-    const lines = [...document.querySelectorAll('.sv-line')];
-    if(steps.length >= 4){
-      steps.forEach((s,i)=>{
-        s.classList.remove('done','active');
-        if(data.status === 'validated'){
-          s.classList.add('done');
-          s.textContent = '✓';
-        }else if(data.status === 'rejected'){
-          if(i<2) { s.classList.add('done'); s.textContent='✓'; }
-          if(i===2) { s.classList.add('active'); s.textContent='!'; }
-        }else{
-          if(i<2) { s.classList.add('done'); s.textContent='✓'; }
-          if(i===2) { s.classList.add('active'); s.textContent='3'; }
-          if(i===3) s.textContent='4';
-        }
-      });
-      lines.forEach((l,i)=>{
-        l.classList.toggle('done', data.status === 'validated' || i===0);
-      });
-    }
-
-    if(progress){
-      progress.style.width = data.status === 'validated' ? '100%' :
-                             data.status === 'rejected' ? '100%' : '68%';
-    }
-
-    const eta = document.querySelector('.sv-eta-row strong');
-    if(eta){
-      eta.textContent = data.status === 'validated' ? 'Terminé' :
-                        data.status === 'rejected' ? 'Dossier à corriger' : '~ 2 h restantes';
-    }
-
-    const previewBtn = document.querySelector('.sv-eye');
-    if(previewBtn && data.receiptUrl){
-      previewBtn.onclick = ()=>window.open(data.receiptUrl,'_blank','noopener');
-    }
-  },
-
-  toast(message){
-    const modal = document.getElementById('svToastModal');
-    const text = document.getElementById('svToastText');
-    if(!modal || !text) return;
-    text.textContent = message;
-    modal.hidden = false;
-    clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(()=>{ modal.hidden = true; }, 1800);
-  },
-
-  copyRef(){
-    const ref = this.data?.reference ? String(this.data.reference) : '#CM-4471';
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(ref).catch(()=>{});
-    }
-    this.toast('Référence copiée ✓');
-  },
-
-  refresh(){
-    this.refreshFromSupabase();
-  },
-
-  openChat(){
-    const modal = document.getElementById('svChatModal');
-    if(modal) modal.hidden = false;
-  },
-
-  openPreview(){
-    if(this.data?.receiptUrl){
-      window.open(this.data.receiptUrl,'_blank','noopener');
-      return;
-    }
-    const modal = document.getElementById('svPreviewModal');
-    if(modal) modal.hidden = false;
-  },
-
-  closeModal(id){
-    const modal = document.getElementById(id);
-    if(modal) modal.hidden = true;
-  },
-
-  toggleNotify(){
-    const sw = document.getElementById('svNotifySwitch');
-    if(!sw) return;
-    const on = !sw.classList.contains('on');
-    sw.classList.toggle('on', on);
-    sw.setAttribute('aria-checked', String(on));
-    this.toast(on ? 'Notifications activées' : 'Notifications désactivées');
-  },
-
-  sendMessage(event){
-    event.preventDefault();
-    const input = document.getElementById('svChatInput');
-    const body = document.getElementById('svChatBody');
-    if(!input || !body || !input.value.trim()) return;
-    const bubble = document.createElement('div');
-    bubble.className = 'sv-bubble user';
-    bubble.textContent = input.value.trim();
-    body.appendChild(bubble);
-    input.value = '';
-    body.scrollTop = body.scrollHeight;
-    setTimeout(()=>{
-      const reply = document.createElement('div');
-      reply.className = 'sv-bubble agent';
-      reply.textContent = 'Message reçu. Un agent SIAMS vous répondra dès que possible.';
-      body.appendChild(reply);
-      body.scrollTop = body.scrollHeight;
-    }, 450);
-  }
-};
-
-
-
-
-/* Synchronisation réelle Supabase de l'écran « Suivi du paiement ». */
-(function installSiamsPaymentSupabaseSync(){
-  if(window.__siamsPaymentSupabaseSyncInstalled) return;
-  window.__siamsPaymentSupabaseSyncInstalled = true;
-  const originalGo = Router.go;
-  Router.go = function(route){
-    const result = originalGo.apply(this, arguments);
-    if(route === 'subscription-status'){
-      setTimeout(()=>window.SiamsPaymentPrototype.refreshFromSupabase(), 80);
-    }
-    return result;
-  };
-})();
-
 Views['subscription-status'] = function(){
+  const access = Store.access();
   return `
-  <div class="sv-page" id="svPaymentPage">
-    <header class="sv-topbar">
-      <button class="sv-icon-btn" type="button" aria-label="Retour"
-        onclick="Router.go('dashboard')">
-        <svg width="21" height="21" viewBox="0 0 21 21" fill="none">
-          <path d="M12.8 4.5 7.2 10.5l5.6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-
-      <div class="sv-top-actions">
-        <button class="sv-icon-btn" type="button" aria-label="Mes reçus"
-          onclick="SiamsPaymentPrototype.toast('Mes reçus — prototype visuel')">
-          <svg width="19" height="19" viewBox="0 0 20 20" fill="none">
-            <path d="M5 2.5h7L16 6.5v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-14a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.4"/>
-            <path d="M12 2.5V6.5H16M6.5 10.5h7M6.5 13.5h5" stroke="currentColor" stroke-width="1.3"/>
-          </svg>
-        </button>
-        <button class="sv-icon-btn dark" type="button" aria-label="Nouveau paiement"
-          onclick="SiamsPaymentPrototype.toast('Nouveau paiement — prototype visuel')">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <button class="sv-icon-btn" type="button" aria-label="Options"
-          onclick="SiamsPaymentPrototype.toast('Options — prototype visuel')">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <circle cx="9" cy="3.5" r="1.3" fill="currentColor"/>
-            <circle cx="9" cy="9" r="1.3" fill="currentColor"/>
-            <circle cx="9" cy="14.5" r="1.3" fill="currentColor"/>
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <main class="sv-payment-wrap">
-      <section class="sv-payment-card">
-        <div class="sv-reference">
-          <div class="sv-ref-left">
-            <span>Réf. <strong>#CM-4471</strong></span>
-            <button class="sv-copy" type="button" aria-label="Copier la référence"
-              onclick="SiamsPaymentPrototype.copyRef()">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <rect x="5" y="5" width="7" height="7" rx="1.4" stroke="currentColor" stroke-width="1.2"/>
-                <path d="M9.5 5V3.6A1.1 1.1 0 0 0 8.4 2.5H3.6A1.1 1.1 0 0 0 2.5 3.6v4.8A1.1 1.1 0 0 0 3.6 9.5H5" stroke="currentColor" stroke-width="1.2"/>
-              </svg>
-            </button>
-          </div>
-          <button class="sv-refresh" type="button" onclick="SiamsPaymentPrototype.refresh()">
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <path d="M12 7a5 5 0 1 1-1.6-3.66" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-              <path d="M12 2.5V5.5H9" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-            </svg>
-            <span id="svLastUpdate">Il y a 2 min</span>
-          </button>
-        </div>
-
-        <div class="sv-timeline" aria-label="Étapes de vérification du paiement">
-          <span class="sv-step done">✓</span>
-          <span class="sv-line done"></span>
-          <span class="sv-step done">✓</span>
-          <span class="sv-line"></span>
-          <span class="sv-step active">3</span>
-          <span class="sv-line"></span>
-          <span class="sv-step">4</span>
-        </div>
-
-        <div class="sv-status">
-          <span class="sv-status-dot"></span>
-          <span>Vérification manuelle</span>
-        </div>
-
-        <div class="sv-amount">
-          <div class="sv-amount-value">31 500 FCFA</div>
-          <div class="sv-amount-date">Reçu envoyé le 22 sept.</div>
-        </div>
-
-        <div class="sv-agent">
-          <div class="sv-avatar">AK<span class="sv-avatar-dot"></span></div>
-          <div class="sv-agent-info">
-            <p class="sv-agent-name">Awa K.</p>
-            <p class="sv-agent-role">Agent SIAMS • a pris votre dossier</p>
-          </div>
-          <button class="sv-chat" type="button" aria-label="Ouvrir la discussion"
-            onclick="SiamsPaymentPrototype.openChat()">
-            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-              <path d="M2.5 4.5a1.5 1.5 0 0 1 1.5-1.5h9a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H8l-3 2.5v-2.5H4a1.5 1.5 0 0 1-1.5-1.5v-6Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-
-        <div class="sv-receipt">
-          <div class="sv-receipt-left">
-            <div class="sv-file-icon">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M4.5 2.5h6L14 6v9a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.3"/>
-                <path d="M10.5 2.5V6H14" stroke="currentColor" stroke-width="1.3"/>
-              </svg>
-            </div>
-            <div style="min-width:0">
-              <p class="sv-receipt-name">recu_paiement.jpg</p>
-              <p class="sv-receipt-sub">Envoyé il y a 8 min</p>
-            </div>
-          </div>
-          <button class="sv-eye" type="button" aria-label="Prévisualiser le reçu"
-            onclick="SiamsPaymentPrototype.openPreview()">
-            <svg width="19" height="19" viewBox="0 0 19 19" fill="none">
-              <path d="M1.5 9.5S4.3 4 9.5 4s8 5.5 8 5.5-2.8 5.5-8 5.5-8-5.5-8-5.5Z" stroke="currentColor" stroke-width="1.3"/>
-              <circle cx="9.5" cy="9.5" r="2.2" stroke="currentColor" stroke-width="1.3"/>
-            </svg>
-          </button>
-        </div>
-
-        <div class="sv-divider"></div>
-
-        <div class="sv-indicators">
-          <div class="sv-indicator">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="2.5" y="5" width="15" height="10" rx="1.6" stroke="currentColor" stroke-width="1.3"/>
-              <path d="M2.5 8.2h15" stroke="currentColor" stroke-width="1.3"/>
-            </svg>
-            <span>Montant</span>
-          </div>
-          <div class="sv-indicator">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="4.5" y="9" width="11" height="8" rx="1.6" stroke="currentColor" stroke-width="1.3"/>
-              <path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9" stroke="currentColor" stroke-width="1.3"/>
-            </svg>
-            <span>Bénéficiaire</span>
-          </div>
-          <div class="sv-indicator">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2.5 16.5 5v4.5c0 4.2-3 6.8-6.5 8-3.5-1.2-6.5-3.8-6.5-8V5L10 2.5Z" stroke="currentColor" stroke-width="1.3"/>
-            </svg>
-            <span>Authenticité</span>
-          </div>
-        </div>
-
-        <div class="sv-eta">
-          <div class="sv-eta-row">
-            <span>Temps estimé</span>
-            <strong>~ 2 h restantes</strong>
-          </div>
-          <div class="sv-progress"><div class="sv-progress-fill"></div></div>
-        </div>
-
-        <div class="sv-notify">
-          <div class="sv-notify-left">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M5 7.2a4 4 0 0 1 8 0v2.6l1.2 2.2H3.8L5 9.8V7.2Z" stroke="currentColor" stroke-width="1.3"/>
-              <path d="M7.4 14.2a1.6 1.6 0 0 0 3.2 0" stroke="currentColor" stroke-width="1.3"/>
-            </svg>
-            <span>Me notifier une fois validé</span>
-          </div>
-          <button class="sv-switch" id="svNotifySwitch" type="button" role="switch" aria-checked="false"
-            onclick="SiamsPaymentPrototype.toggleNotify()">
-            <span class="sv-switch-knob"></span>
-          </button>
-        </div>
-
-        <button class="sv-resend" type="button"
-          onclick="SiamsPaymentPrototype.toast('Renvoyer un reçu — prototype visuel')">
-          <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-            <path d="M8.5 11V2.5M5.5 5.5 8.5 2.5l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2.5 10.5v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
-          <span>Renvoyer un reçu</span>
-        </button>
-
-        <button class="sv-sub-link" type="button"
-          onclick="SiamsPaymentPrototype.toast('Formules d’abonnement — prototype visuel')">
-          Voir les formules d'abonnement
-        </button>
-      </section>
-    </main>
-
-    <button class="sv-float" type="button" aria-label="Défiler vers le bas"
-      onclick="document.querySelector('.sv-payment-card')?.scrollIntoView({behavior:'smooth',block:'end'})">
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
-        <path d="M4 7 8.5 11.5 13 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-      </svg>
-    </button>
-
-    <div class="sv-modal" id="svChatModal" hidden onclick="if(event.target===this)SiamsPaymentPrototype.closeModal('svChatModal')">
-      <div class="sv-modal-card">
-        <div class="sv-modal-head">
-          <h3>Awa K. — Agent SIAMS</h3>
-          <button class="sv-close" type="button" onclick="SiamsPaymentPrototype.closeModal('svChatModal')">×</button>
-        </div>
-        <div class="sv-chat-body" id="svChatBody">
-          <div class="sv-bubble agent">Bonjour, j'ai bien reçu votre reçu de paiement et je vérifie les informations.</div>
-          <div class="sv-bubble agent">Cela prend généralement moins de 2 heures.</div>
-        </div>
-        <form class="sv-chat-form" onsubmit="SiamsPaymentPrototype.sendMessage(event)">
-          <input class="sv-chat-input" id="svChatInput" type="text" placeholder="Écrire un message…" autocomplete="off">
-          <button class="sv-chat-send" type="submit" aria-label="Envoyer">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 8h12M9 3.5 14 8l-5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </form>
-      </div>
+  <div class="topbar" style="padding-top:18px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="bell-btn" onclick="Router.go('dashboard')" aria-label="Retour">←</button>
+      <h1 style="font-size:19px;">Abonnement &amp; commission</h1>
     </div>
-
-    <div class="sv-modal" id="svPreviewModal" hidden onclick="if(event.target===this)SiamsPaymentPrototype.closeModal('svPreviewModal')">
-      <div class="sv-modal-card">
-        <div class="sv-modal-head">
-          <h3>recu_paiement.jpg</h3>
-          <button class="sv-close" type="button" onclick="SiamsPaymentPrototype.closeModal('svPreviewModal')">×</button>
-        </div>
-        <div class="sv-preview">
-          <div class="sv-preview-paper">
-            <strong>REÇU DE PAIEMENT</strong>
-            <div class="line short"></div>
-            <div class="line med"></div>
-            <div class="line"></div>
-            <div class="line med"></div>
-            <div class="total">31 500 FCFA</div>
-            <div class="line short"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="sv-modal" id="svToastModal" hidden>
-      <div style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#171717;color:#fff;padding:11px 15px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;">
-        <span id="svToastText"></span>
-      </div>
-    </div>
+  </div>
+  <div class="sub-status-page">
+    ${CommissionCard()}
+    ${SubCommissionCard()}
+    ${SubscriptionCard(access)}
   </div>`;
 };
-
 Views._after_subscription_status = function(){
-  /* Prototype visuel uniquement : aucune vérification métier déclenchée ici. */
+  if(Views._after_dashboard) Views._after_dashboard();
+  if(!Store.commissionSettled && Store.commissionSentAt>0) refreshCommissionChecks('commission');
 };
+
+function PaymentVerificationCard({amount, sentAt, verifyProgress, verifyRemainMs}){
+  // Cet écran est exclusivement le résultat d'un reçu effectivement envoyé.
+  // Il ne doit jamais être affiché simplement en ouvrant « Abonnement & commission ».
+  if(!sentAt || Number(sentAt)<=0) return '';
+
+  const ref = '#CM-' + String(sentAt || Date.now()).slice(-4);
+  const sentDate = sentAt ? new Date(sentAt) : new Date();
+  const dateLabel = sentDate.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}).replace('.','');
+  const timeLabel = sentDate.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const notifyOn = localStorage.getItem('mb_verify_notify')!=='0';
+  const progress = Math.max(4, Math.min(100, Math.round((verifyProgress||0)*100)));
+  const remainLabel = verifyRemainMs>0 ? ('~ '+fmtMsLeft(verifyRemainMs)+' restantes') : 'Relais manuel en cours';
+  return `
+  <div class="payment-verify-card" id="payment-verification-card" data-sent-at="${Number(sentAt)||Date.now()}" data-budget="${5*60000}">
+    <div class="payment-verify-ref"><div class="payment-verify-ref-left"><b>Réf. ${esc(ref)}</b>
+      <button class="payment-verify-copy" type="button" aria-label="Copier la référence" onclick="navigator.clipboard?.writeText('${esc(ref)}');Toast.show('Référence copiée ✓')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button></div><div class="payment-verify-updated"><span>↻</span> Il y a ${Math.max(1,Math.round((Date.now()-Number(sentAt||Date.now()))/60000))} min</div></div>
+    <div class="payment-verify-steps"><span class="payment-verify-step done">✓</span><span class="payment-verify-line done"></span><span class="payment-verify-step done">✓</span><span class="payment-verify-line active"></span><span class="payment-verify-step active">3</span><span class="payment-verify-line"></span><span class="payment-verify-step">4</span></div>
+    <div class="payment-verify-status"><span class="payment-verify-pill" id="comm-status-pill"><span class="spin"></span><span>Vérification en cours</span></span></div>
+    <div class="payment-verify-amount"><div class="value">${Utils.fmtFCFA(amount||0)}</div><div class="date">Reçu envoyé le ${dateLabel} à ${timeLabel}</div></div>
+    <div class="payment-verify-agent"><div class="payment-verify-avatar">MB</div><div class="payment-verify-agent-main"><div class="payment-verify-agent-name">Agent MA BOUTIQUE</div><div class="payment-verify-agent-sub">a pris votre dossier en charge</div></div><button class="payment-verify-message" type="button" aria-label="Contacter l'agent" onclick="Toast.show('Votre demande est en cours de vérification.')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M6 7.5A3.5 3.5 0 0 1 9.5 4h5A3.5 3.5 0 0 1 18 7.5v4A3.5 3.5 0 0 1 14.5 15H11l-4 3v-3.2A3.5 3.5 0 0 1 6 11.5v-4Z" stroke="currentColor" stroke-width="1.7"/><path d="M10 8.5h4M10 11h2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button></div>
+    <div class="payment-verify-receipt"><div class="payment-verify-receipt-top"><div class="payment-verify-file-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 3.5h7l4 4V20.5H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 3.5v4h4M9 12h6M9 15h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div><div class="payment-verify-file-main"><div class="payment-verify-file-name">reçu_paiement</div><div class="payment-verify-file-meta">Envoyé à ${timeLabel}</div></div><button class="payment-verify-eye" type="button" aria-label="Voir le reçu" onclick="Toast.show('Le reçu envoyé est conservé pour vérification.')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg></button></div>
+      <div class="payment-verify-checks"><div class="payment-verify-check"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6.5" width="17" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 10h17" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Montant</span><span class="state" id="commchk-commission-amount"><span class="pf-mini-spinner"></span></span></div><div class="payment-verify-check"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="6" y="10" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Bénéficiaire</span><span class="state" id="commchk-commission-beneficiary"><span class="pf-mini-spinner"></span></span></div><div class="payment-verify-check"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3.5 20 7v5.5c0 4.3-3.3 7.2-8 8.5-4.7-1.3-8-4.2-8-8.5V7l8-3.5Z" stroke="currentColor" stroke-width="1.7"/><path d="m8.5 12 2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Authenticité</span><span class="state" id="commchk-commission-authenticity"><span class="pf-mini-spinner"></span></span></div></div></div>
+    <div class="payment-verify-estimate"><div class="payment-verify-estimate-head"><span>Temps estimé</span><b id="commission-verify-countdown-val">${remainLabel}</b></div><div class="payment-verify-progress"><span id="payment-verify-progress-fill" style="width:${progress}%"></span></div></div>
+    <div class="payment-verify-notify"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8.5h18C21 16 18 16 18 9Z" stroke="currentColor" stroke-width="1.7"/><path d="M10 20h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Me notifier une fois validé</span><button class="payment-verify-toggle ${notifyOn?'on':''}" type="button" id="payment-verify-notify-toggle" aria-pressed="${notifyOn}" onclick="togglePaymentVerifyNotify()"><span></span></button></div>
+    <div class="payment-verify-actions"><button type="button" class="payment-verify-resend" onclick="SubscriptionSheet.startCommissionProof()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Renvoyer un reçu</button><button type="button" class="payment-verify-plan" onclick="SubscriptionSheet.open()">Voir les formules d'abonnement</button><button type="button" class="payment-verify-scroll" aria-label="Faire défiler" onclick="window.scrollBy({top:420,behavior:'smooth'})">↓</button></div>
+  </div>`;
+}
+function togglePaymentVerifyNotify(){const btn=document.getElementById('payment-verify-notify-toggle');const on=!(btn?.classList.contains('on'));localStorage.setItem('mb_verify_notify',on?'1':'0');if(btn){btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',String(on));}Toast.show(on?'Notification activée ✓':'Notification désactivée');}
 
 function CommissionCard(){
   const due = Store.commissionDue();
@@ -7043,6 +6611,8 @@ function CommissionCard(){
   const verifyProgress = Math.max(0, Math.min(1, verifyElapsed / VERIFY_BUDGET_MS));
   const verifyOffset = C*(1-verifyProgress);
   const verifyRemainMs = Math.max(0, VERIFY_BUDGET_MS - verifyElapsed);
+
+  if(proofSent) return PaymentVerificationCard({amount:Store.commissionSentAmount, sentAt:Store.commissionSentAt, verifyProgress, verifyRemainMs});
 
   const verifyChecklist = `
     <div class="commchk-list">
@@ -7210,7 +6780,11 @@ setInterval(()=>{
   if(label) label.innerHTML = `<b>${Math.round(progress*100)}</b><span>%</span>`;
   const cd = document.getElementById('commission-verify-countdown-val');
   const remain = Math.max(0, budget-elapsed);
-  if(cd) cd.textContent = remain>0 ? ('~'+fmtMsLeft(remain)) : 'Relais manuel en cours';
+  if(cd) cd.textContent = remain>0 ? ('~ '+fmtMsLeft(remain)+' restantes') : 'Relais manuel en cours';
+  const fill = document.getElementById('payment-verify-progress-fill');
+  if(fill) fill.style.width = Math.max(4, Math.round(progress*100)) + '%';
+  const pill = document.getElementById('comm-status-pill');
+  if(pill) pill.innerHTML = remain>0 ? '<span class="spin"></span><span>Vérification en cours</span>' : '<span>⌛</span><span>Vérification manuelle</span>';
   /* ---- Le délai estimé (5 min) est dépassé sans confirmation : plutôt que de
      laisser croire à une analyse automatique sans fin, on bascule l'affichage
      en vérification manuelle et on propose de renvoyer un reçu (utile si le
@@ -7222,6 +6796,8 @@ setInterval(()=>{
     const desc = document.getElementById('comm-step-desc-active');
     if(eyebrow) eyebrow.textContent = 'Commission MA BOUTIQUE · vérification manuelle';
     if(title) title.textContent = 'Votre reçu est en cours de vérification manuelle';
+    const pill = document.getElementById('comm-status-pill');
+    if(pill) pill.innerHTML = '<span>⌛</span><span>Vérification manuelle</span>';
     if(desc) desc.textContent = "La vérification automatique n'a pas pu conclure dans le délai estimé ; un agent MA BOUTIQUE valide votre reçu manuellement. Vous pouvez aussi renvoyer un reçu si besoin.";
     document.querySelectorAll('.commchk-status').forEach(el=>{
       if(el.querySelector('.pf-mini-spinner')) el.innerHTML = '<span style="color:var(--text-soft);font-size:11px;">Manuel</span>';
@@ -8331,6 +7907,27 @@ const Withdraw = {
       <div class="row"><span class="lbl">Statut</span><span class="status">Effectué</span></div>
       <hr>
       <div class="total"><span>Montant retiré</span><span>\${Utils.fmtFCFA(r.amount)}</span></div>
+
+<script id="SIAMS_ACTIVE_STORE_GUARD">
+(function(){
+  let lastSiamsStore = null;
+  setInterval(function(){
+    try{
+      if(typeof Cloud === 'undefined') return;
+      const current = Cloud.storeId || null;
+      if(current !== lastSiamsStore){
+        lastSiamsStore = current;
+        // Never carry a previous account's receipt-analysis state forward.
+        if(typeof Store !== 'undefined'){
+          Store.commissionSentAt = Number(Store.commissionSentAt || 0);
+        }
+        if(typeof window.subSentRecord !== 'undefined') window.subSentRecord = null;
+      }
+    }catch(e){}
+  }, 1000);
+})();
+</script>
+
 </body>
 </html>`);
     w.document.close();
@@ -15529,16 +15126,12 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   };
   const previousDashboard=Views.dashboard;
   Views.dashboard=function(){
+    // V-simplify — l'accueil marchand n'affiche plus de section "Services MA
+    // BOUTIQUE" distincte (redondante avec Raccourcis) ; ces services restent
+    // accessibles depuis le menu Plus.
     let html=previousDashboard();
     html=html.replace(/<div class="dashboard-v2-section"><h3>Services MA BOUTIQUE<\/h3>[\s\S]*?<\/div>\s*<div class="dashboard-v2-service-grid">[\s\S]*?<\/div>/,'');
     html=html.replace(/<section class="v15-services-bottom">[\s\S]*?<\/section>/,'');
-    const serviceData=(typeof DASHBOARD_SERVICES!=='undefined'?DASHBOARD_SERVICES:[]).slice(0,8);
-    const services='<section class="v21-home-services" aria-label="Services MA BOUTIQUE">'+
-      '<div class="v21-home-services-head"><div><div class="v21-home-services-title">Services MA BOUTIQUE</div><div class="v21-home-services-sub">Accès rapide aux services complémentaires</div></div><button class="link-btn" onclick="Sheet.open()">Voir tout ›</button></div>'+
-      '<div class="v21-home-services-grid">'+serviceData.map(s=>'<button class="v21-home-service" onclick="Router.go(\\\''+s.route+'\\\')"><div class="si" style="background:'+s.tint+';color:'+s.color+'">'+s.icon+'</div><span>'+s.label+'</span></button>').join('')+'</div>'+
-      '</section>';
-    const follow='<div class="dashboard-v2-section"><h3>Suivi des commandes</h3>';
-    if(html.includes(follow)) html=html.replace(follow,services+'\n    '+follow);
     return html;
   };
   document.addEventListener('DOMContentLoaded',cleanPlus);
@@ -19974,137 +19567,6 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
 
 /* --- Activité : grille resserrée --- */
 #page-root:has(.dashboard-v2-head) .stat-grid{gap:8px!important;}
-
-  /* ================================================================
-     SIAMS — Nouveau design « Abonnement & commission »
-     Remplacement visuel de l'ancien écran par le prototype
-     « Suivi du paiement ». Tout est préfixé sv- pour éviter les
-     collisions avec le reste de MA BOUTIQUE.
-     ================================================================ */
-  .sv-page{
-    min-height:100vh;
-    background:#f5f5f2;
-    color:#171717;
-    padding-bottom:32px;
-    font-family:var(--font-body);
-  }
-  .sv-topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:16px 16px 10px;
-    background:#f5f5f2;
-  }
-  .sv-top-actions{display:flex;align-items:center;gap:8px;}
-  .sv-icon-btn{
-    width:40px;height:40px;border:1px solid #deded9;border-radius:13px;
-    background:#fff;color:#171717;display:flex;align-items:center;justify-content:center;
-    cursor:pointer;box-shadow:0 2px 8px rgba(20,20,20,.04);
-  }
-  .sv-icon-btn.dark{background:#171717;color:#fff;border-color:#171717;}
-  .sv-payment-wrap{padding:0 12px;}
-  .sv-payment-card{
-    max-width:456px;margin:0 auto;background:#fff;border:1px solid #e3e3de;
-    border-radius:26px;padding:16px 14px 22px;
-    box-shadow:0 16px 40px rgba(30,30,25,.08);
-  }
-  .sv-reference{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    color:#77766f;font-size:11px;margin:2px 2px 18px;}
-  .sv-ref-left{display:flex;align-items:center;gap:7px;}
-  .sv-ref-left strong{color:#292929;font-weight:800;}
-  .sv-copy,.sv-refresh{border:0;background:none;color:#77766f;cursor:pointer;padding:3px;}
-  .sv-refresh{display:flex;align-items:center;gap:4px;font:600 11px var(--font-body);}
-  .sv-timeline{display:flex;align-items:center;padding:0 12px 18px;}
-  .sv-step{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-    flex:none;border:2px solid #dddcd7;color:#aaa;background:#fff;font-size:11px;font-weight:900;z-index:2;}
-  .sv-step.done{background:#171717;border-color:#171717;color:#fff;}
-  .sv-step.active{background:#fff;border-color:#171717;color:#171717;box-shadow:0 0 0 5px #efefeb;}
-  .sv-line{height:2px;flex:1;background:#e3e2dd;}
-  .sv-line.done{background:#171717;}
-  .sv-status{
-    display:inline-flex;align-items:center;gap:7px;background:#f0f0ec;border-radius:999px;
-    padding:7px 10px;font-size:10.5px;font-weight:800;color:#5e5d56;margin-bottom:12px;
-  }
-  .sv-status-dot{width:7px;height:7px;border-radius:50%;background:#b48a2d;box-shadow:0 0 0 3px #f7ecd3;}
-  .sv-amount{text-align:center;padding:3px 0 18px;}
-  .sv-amount-value{font-family:var(--font-display);font-size:39px;line-height:1;font-weight:800;letter-spacing:-1.6px;color:#151515;}
-  .sv-amount-date{font-size:12px;color:#8b8a83;margin-top:8px;}
-  .sv-agent{
-    display:flex;align-items:center;gap:11px;background:#fafaf8;border:1px solid #e8e8e2;
-    border-radius:17px;padding:12px;margin-bottom:12px;
-  }
-  .sv-avatar{width:43px;height:43px;border-radius:14px;background:#171717;color:#fff;
-    display:flex;align-items:center;justify-content:center;font:800 13px var(--font-display);position:relative;}
-  .sv-avatar-dot{position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-radius:50%;
-    background:#20b36b;border:2px solid #fff;}
-  .sv-agent-info{flex:1;min-width:0;}
-  .sv-agent-name{margin:0;font-size:13.5px;font-weight:800;color:#1c1c1c;}
-  .sv-agent-role{margin:3px 0 0;font-size:10.5px;color:#85847d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .sv-chat{width:36px;height:36px;border:0;border-radius:12px;background:#171717;color:#fff;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;}
-  .sv-receipt{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    border:1px solid #e5e5df;border-radius:16px;padding:12px;background:#fff;
-  }
-  .sv-receipt-left{display:flex;align-items:center;gap:10px;min-width:0;}
-  .sv-file-icon{width:38px;height:38px;border-radius:11px;background:#f1f1ed;color:#5e5d56;
-    display:flex;align-items:center;justify-content:center;flex:none;}
-  .sv-receipt-name{margin:0;font-size:12px;font-weight:800;color:#282822;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .sv-receipt-sub{margin:3px 0 0;font-size:10px;color:#96958e;}
-  .sv-eye{width:36px;height:36px;border:1px solid #e2e2dc;border-radius:11px;background:#fff;color:#4c4b45;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;}
-  .sv-divider{height:1px;background:#ecebe6;margin:16px 0;}
-  .sv-indicators{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
-  .sv-indicator{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;
-    color:#6e6d66;font-size:9.5px;font-weight:700;}
-  .sv-indicator svg{color:#77766f;}
-  .sv-eta{margin-top:10px;background:#f7f7f4;border-radius:15px;padding:12px;}
-  .sv-eta-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:#77766f;font-weight:700;}
-  .sv-eta-row strong{color:#272721;font-size:11px;}
-  .sv-progress{height:7px;background:#e4e3de;border-radius:99px;overflow:hidden;margin-top:10px;}
-  .sv-progress-fill{height:100%;width:68%;background:#171717;border-radius:99px;}
-  .sv-notify{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 2px 4px;
-    color:#5f5e57;font-size:11.5px;font-weight:700;}
-  .sv-notify-left{display:flex;align-items:center;gap:8px;}
-  .sv-switch{width:42px;height:24px;border:0;border-radius:99px;background:#deddd7;padding:3px;cursor:pointer;transition:.18s;}
-  .sv-switch.on{background:#171717;}
-  .sv-switch-knob{display:block;width:18px;height:18px;border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.18);}
-  .sv-switch.on .sv-switch-knob{transform:translateX(18px);}
-  .sv-resend{
-    width:100%;margin-top:14px;height:46px;border:1px solid #deddd7;border-radius:14px;background:#fff;
-    color:#292922;font:800 12px var(--font-body);display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;
-  }
-  .sv-sub-link{display:block;width:100%;border:0;background:none;color:#77766f;font:700 11px var(--font-body);
-    padding:14px 4px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
-  .sv-float{position:fixed;right:18px;bottom:22px;width:40px;height:40px;border:1px solid #dddcd6;border-radius:50%;
-    background:#fff;color:#55544d;box-shadow:0 8px 20px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:60;}
-  .sv-modal{
-    position:fixed;inset:0;background:rgba(12,12,11,.42);backdrop-filter:blur(4px);z-index:120;
-    display:flex;align-items:flex-end;justify-content:center;padding:12px;
-  }
-  .sv-modal[hidden]{display:none;}
-  .sv-modal-card{width:min(100%,460px);max-height:82vh;background:#fff;border-radius:22px 22px 16px 16px;
-    overflow:hidden;box-shadow:0 25px 70px rgba(0,0,0,.25);}
-  .sv-modal-head{display:flex;align-items:center;justify-content:space-between;padding:15px 16px;border-bottom:1px solid #ecebe6;}
-  .sv-modal-head h3{margin:0;font-size:15px;}
-  .sv-close{width:32px;height:32px;border:0;border-radius:10px;background:#f1f1ed;cursor:pointer;}
-  .sv-chat-body{padding:16px;display:flex;flex-direction:column;gap:9px;min-height:210px;max-height:48vh;overflow:auto;}
-  .sv-bubble{max-width:82%;padding:10px 12px;border-radius:14px;font-size:11.5px;line-height:1.45;}
-  .sv-bubble.agent{background:#f0f0ec;align-self:flex-start;}
-  .sv-bubble.user{background:#171717;color:#fff;align-self:flex-end;}
-  .sv-chat-form{display:flex;gap:8px;padding:11px;border-top:1px solid #ecebe6;}
-  .sv-chat-input{flex:1;border:1px solid #dddcd7;border-radius:12px;padding:10px 12px;outline:none;font:12px var(--font-body);}
-  .sv-chat-send{width:40px;border:0;border-radius:12px;background:#171717;color:#fff;cursor:pointer;}
-  .sv-preview{padding:22px;min-height:300px;display:flex;align-items:center;justify-content:center;background:#f6f6f2;}
-  .sv-preview-paper{width:min(280px,82%);min-height:260px;background:#fff;border:1px solid #dddcd7;border-radius:12px;
-    padding:18px;box-shadow:0 14px 30px rgba(0,0,0,.08);}
-  .sv-preview-paper .line{height:9px;background:#e8e7e2;border-radius:6px;margin:11px 0;}
-  .sv-preview-paper .line.short{width:58%;}
-  .sv-preview-paper .line.med{width:76%;}
-  .sv-preview-paper .total{font:800 22px var(--font-mono);margin-top:28px;}
-  @media(max-width:380px){
-    .sv-payment-card{border-radius:22px;padding:14px 11px 20px;}
-    .sv-amount-value{font-size:34px;}
-  }
-
 </style>
 
 <script id="maboutique-v60-compact-dashboard-js">
