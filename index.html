@@ -812,100 +812,6 @@
   .trial-xp .pass-perks{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;position:relative;z-index:1;}
   .trial-xp .pass-perk{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:6px 11px;}
 
-  /* ---- V47 : page « Abonnement & commission » en plein écran, sans cadre ----
-     .trial-xp n'est utilisé que dans cette page : on retire la carte encadrée
-     au profit d'un grand bloc plein largeur séparé par une fine bande, et on
-     ajoute une timeline verticale détaillée (.comm-steps) pour les étapes. ---- */
-  .trial-xp{margin:0;border-radius:0;position:relative;background:var(--paper);
-    border:none;box-shadow:none;color:var(--text);padding:26px 20px 30px;
-    border-bottom:8px solid var(--panel);}
-  .trial-xp.ended{border-left:4px solid var(--red);padding-left:16px;}
-  .sub-status-page{padding-bottom:36px;}
-  .sub-status-page .plan-card{margin:0 20px 20px;}
-  .comm-steps{display:flex;flex-direction:column;gap:0;margin-top:22px;position:relative;z-index:1;}
-  .comm-step{display:flex;align-items:flex-start;gap:14px;position:relative;padding-bottom:22px;}
-  .comm-step:last-child{padding-bottom:0;}
-  .comm-step:not(:last-child)::before{content:'';position:absolute;left:15px;top:34px;bottom:0;width:2px;background:var(--line);}
-  .comm-step.done:not(:last-child)::before{background:var(--gold);}
-  .comm-step-dot{flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--panel);border:2px solid var(--line);color:var(--text-soft);font-size:13px;font-weight:900;}
-  .comm-step-dot .pf-mini-spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--gold-tint);border-top-color:var(--gold-dark);animation:wd-spin .7s linear infinite;display:block;}
-  .comm-step.done .comm-step-dot{background:var(--gold);border-color:var(--gold);color:#fff;}
-  .comm-step.active .comm-step-dot{border-color:var(--gold);color:var(--gold-dark);background:var(--gold-tint);box-shadow:0 0 0 5px var(--gold-tint);}
-  .comm-step-body{padding-top:3px;}
-  .comm-step-title{font-size:14px;font-weight:800;color:var(--text);}
-  .comm-step:not(.done):not(.active) .comm-step-title{color:var(--text-soft);}
-  .comm-step-desc{font-size:11.5px;color:var(--text-mid);margin-top:3px;line-height:1.5;}
-  .comm-info-box{display:flex;gap:10px;align-items:flex-start;margin-top:20px;background:var(--panel);border-radius:14px;padding:13px 14px;position:relative;z-index:1;}
-  .comm-info-box svg{flex:none;color:var(--text-soft);margin-top:1px;}
-  .comm-info-box p{margin:0;font-size:11.5px;color:var(--text-mid);line-height:1.55;}
-
-  /* ---- V61 : checklist des 3 contrôles automatiques (montant, bénéficiaire,
-     authenticité) affichée sous l'étape « Analyse en cours ». Reflète l'état
-     réel de payment_receipt_checks.checks (refreshCommissionChecks). ---- */
-  .commchk-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
-  .commchk-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  .commchk-label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-mid);}
-  .commchk-status{display:flex;align-items:center;flex:none;}
-  .commchk-status .pf-mini-spinner{width:13px;height:13px;border:2px solid var(--blue-tint);border-top-color:var(--blue);border-radius:50%;animation:wd-spin .7s linear infinite;display:block;}
-  .commchk-ok{color:var(--green);display:flex;}
-  .commchk-bad{color:var(--gold-dark);display:flex;}
-
-  /* ---- V62 : carte de vérification de paiement inspirée du parcours mobile ---- */
-  .payment-verify-card{margin:0 0 18px;background:#fff;border:1px solid #e7e7ea;border-radius:24px;box-shadow:0 10px 28px -18px rgba(11,14,23,.28);padding:18px 18px 14px;overflow:hidden;}
-  .payment-verify-ref{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--text-soft);font-size:11.5px;margin-bottom:18px;}
-  .payment-verify-ref-left{display:flex;align-items:center;gap:5px;min-width:0;}
-  .payment-verify-ref b{color:#687083;font-weight:700;}
-  .payment-verify-copy{border:0;background:none;padding:2px;color:var(--text-soft);cursor:pointer;display:flex;align-items:center;}
-  .payment-verify-updated{display:flex;align-items:center;gap:5px;white-space:nowrap;}
-  .payment-verify-steps{display:flex;align-items:center;gap:0;margin:0 0 18px;padding:0 2px;}
-  .payment-verify-step{display:flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid #d9dce2;color:#9ba3b8;font-size:11px;font-weight:900;z-index:1;}
-  .payment-verify-step.done{background:#c88a20;border-color:#c88a20;color:#fff;}
-  .payment-verify-step.active{background:#fff;border-color:#f1c56e;color:#c88a20;box-shadow:0 0 0 4px #fbf1df;}
-  .payment-verify-line{height:3px;flex:1;background:#dfe1e5;}
-  .payment-verify-line.done{background:#c88a20;}
-  .payment-verify-line.active{background:linear-gradient(90deg,#c88a20 0%,#f1c56e 100%);}
-  .payment-verify-status{display:flex;justify-content:center;margin-bottom:16px;}
-  .payment-verify-pill{display:inline-flex;align-items:center;gap:7px;background:#fbf1df;color:#75521d;border-radius:999px;padding:8px 13px;font-size:12px;font-weight:800;}
-  .payment-verify-pill .spin{width:13px;height:13px;border:2px solid #ead7ae;border-top-color:#9c6f1f;border-radius:50%;animation:wd-spin .7s linear infinite;}
-  .payment-verify-amount{text-align:center;padding:2px 0 16px;}
-  .payment-verify-amount .value{font-family:var(--font-display);font-size:40px;line-height:1.08;font-weight:800;letter-spacing:-1.5px;color:#101217;}
-  .payment-verify-amount .date{font-size:13.5px;color:#646b78;margin-top:6px;}
-  .payment-verify-agent{display:flex;align-items:center;gap:12px;background:#fbfbfa;border-radius:17px;padding:13px 14px;margin-bottom:10px;}
-  .payment-verify-avatar{width:46px;height:46px;border-radius:50%;background:#d7e8ff;color:#1769b5;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex:none;position:relative;}
-  .payment-verify-avatar::after{content:'';position:absolute;right:-1px;bottom:1px;width:9px;height:9px;border-radius:50%;background:#56a51b;border:2px solid #fff;}
-  .payment-verify-agent-main{min-width:0;flex:1;}
-  .payment-verify-agent-name{font-size:14.5px;font-weight:800;color:#17191e;}
-  .payment-verify-agent-sub{font-size:12.5px;color:#6c7280;margin-top:2px;line-height:1.3;}
-  .payment-verify-message{width:42px;height:42px;border:1px solid #dddeda;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#30343b;cursor:pointer;flex:none;}
-  .payment-verify-receipt{background:#fbfbfa;border-radius:17px;padding:13px 14px;margin-bottom:10px;}
-  .payment-verify-receipt-top{display:flex;align-items:center;gap:11px;}
-  .payment-verify-file-icon{width:42px;height:42px;border-radius:12px;background:#fff;border:1px solid #e5e5e5;display:flex;align-items:center;justify-content:center;color:#59606b;flex:none;}
-  .payment-verify-file-main{min-width:0;flex:1;}
-  .payment-verify-file-name{font-size:14px;font-weight:700;color:#25272c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .payment-verify-file-meta{font-size:11.5px;color:#757b86;margin-top:2px;}
-  .payment-verify-eye{border:0;background:none;color:#626974;cursor:pointer;padding:8px;}
-  .payment-verify-checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid #e9e9e7;margin-top:12px;padding-top:12px;}
-  .payment-verify-check{display:flex;flex-direction:column;align-items:center;gap:5px;color:#4f5662;font-size:10.5px;font-weight:700;text-align:center;}
-  .payment-verify-check .ico{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#59606b;}
-  .payment-verify-check .state{height:14px;display:flex;align-items:center;justify-content:center;}
-  .payment-verify-check .commchk-status{font-size:10px;}
-  .payment-verify-estimate{padding:7px 0 4px;}
-  .payment-verify-estimate-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#8a8e96;font-size:12.5px;margin-bottom:7px;}
-  .payment-verify-estimate-head b{font-weight:500;color:#888d96;}
-  .payment-verify-progress{height:7px;background:#e7e7e7;border-radius:999px;overflow:hidden;}
-  .payment-verify-progress span{display:block;height:100%;width:62%;border-radius:999px;background:#f0c56d;transition:width .8s ease;}
-  .payment-verify-notify{display:flex;align-items:center;gap:10px;padding:13px 2px 12px;font-size:14px;color:#30343b;}
-  .payment-verify-notify svg{color:#59606b;flex:none;}
-  .payment-verify-toggle{margin-left:auto;width:50px;height:29px;border:0;border-radius:999px;background:#d9dce1;padding:3px;cursor:pointer;transition:.18s ease;flex:none;}
-  .payment-verify-toggle span{display:block;width:23px;height:23px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:.18s ease;}
-  .payment-verify-toggle.on{background:#c98218;}
-  .payment-verify-toggle.on span{transform:translateX(21px);}
-  .payment-verify-actions{display:flex;flex-direction:column;gap:8px;}
-  .payment-verify-resend{width:100%;height:54px;border:1px solid #d7d8da;background:#fff;border-radius:15px;color:#24262b;font:700 15px var(--font-body);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;}
-  .payment-verify-plan{border:0;background:none;color:#666c76;font:600 13px var(--font-body);padding:7px;cursor:pointer;}
-  .payment-verify-scroll{width:54px;height:54px;border-radius:50%;border:1px solid #e1e1e1;background:#fff;display:flex;align-items:center;justify-content:center;margin:2px auto 0;box-shadow:0 5px 16px -9px rgba(0,0,0,.35);cursor:pointer;color:#30343a;}
-  @media(max-width:360px){.payment-verify-card{padding:16px 13px 12px;border-radius:20px;}.payment-verify-amount .value{font-size:34px;}.payment-verify-checks{gap:3px;}.payment-verify-check{font-size:9.5px;}}
-
   /* ---- Carte Pass actif : anneau de renouvellement + compteurs animés ---- */
   .plan-ring-wrap{position:relative;width:56px;height:56px;flex:none;}
   .plan-ring-wrap svg{transform:rotate(-90deg);width:56px;height:56px;}
@@ -2397,76 +2303,76 @@
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('boutique')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l1.4-4h13.2L20 9M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 13a3 3 0 0 0 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Boutique</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Boutique</span><span class="menu-item-desc">Nom, logo, lien et informations de votre boutique</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('verification')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Certification boutique</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Certification boutique</span><span class="menu-item-desc">Vérifiez votre pièce d'identité pour obtenir le badge certifié</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('commissions-apercu')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 12h6M9 16h6M9 8h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Aperçu de mon contrat</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Aperçu de mon contrat</span><span class="menu-item-desc">Commissions applicables — points importants à connaître</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('stats')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M11 20V4M18 20v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Statistiques</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Statistiques</span><span class="menu-item-desc">Ventes, revenus et performance de votre boutique</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('team')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 20c.6-3.4 3-5.5 5.5-5.5s4.9 2.1 5.5 5.5M16 9.5c1.6.2 2.8 1.6 2.8 3.2M16 5.3a3 3 0 0 1 0 5.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Équipe</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Équipe</span><span class="menu-item-desc">Invitez des collaborateurs et gérez leurs accès</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('payment')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.8"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Paiement</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Paiement</span><span class="menu-item-desc">Vos moyens de réception des paiements clients</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('categories')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Catégories</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Catégories</span><span class="menu-item-desc">Organisez vos produits pour faciliter la navigation</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('promos')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 12 12 20l-8-8V5a1 1 0 0 1 1-1h7l8 8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Codes promo</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Codes promo</span><span class="menu-item-desc">Créez des réductions pour booster vos ventes</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('reviews')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8L12 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Avis clients</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Avis clients</span><span class="menu-item-desc">Consultez et répondez aux avis de vos clients</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('customers')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.8-4 3.6-6.2 7.5-6.2s6.7 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Clients</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Clients</span><span class="menu-item-desc">Liste et historique d'achats de vos clients</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <div class="menu-item" onclick="Sheet.close(); Router.go('courier-login')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="menu-item-text"><span class="menu-item-title">Espace livreur</span></div></div>
+    <div class="menu-item" onclick="Sheet.close(); Router.go('courier-login')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><div class="menu-item-text"><span class="menu-item-title">Espace livreur</span><span class="menu-item-desc">Connexion et suivi des livraisons</span></div></div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('settings')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.5-2-3.5-2.4.6a7.5 7.5 0 0 0-1.7-1L15 3h-4l-.3 2.5a7.5 7.5 0 0 0-1.7 1l-2.4-.6-2 3.5L6.6 11a7.7 7.7 0 0 0 0 2l-2 1.5 2 3.5 2.4-.6a7.5 7.5 0 0 0 1.7 1L11 21h4l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.4.6 2-3.5-2-1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Paramètres</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Paramètres</span><span class="menu-item-desc">Préférences générales de l'application</span></div>
     </div>
     <div class="menu-item" onclick="Sheet.close(); Router.go('delivery')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="17.5" r="1.8" stroke="currentColor" stroke-width="1.6"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Livraison</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Livraison</span><span class="menu-item-desc">Zones, délais et tarifs de livraison</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item" onclick="Sheet.close(); exportSalesReportPDF();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Exporter mes rapports</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Exporter mes rapports</span><span class="menu-item-desc">Rapport de ventes et statistiques en PDF</span></div>
     </div>
     <div class="menu-item" onclick="Sheet.close(); AccountId.open();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M7 9h10M7 13h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Mon ID marchand MA BOUTIQUE</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Mon ID marchand MA BOUTIQUE</span><span class="menu-item-desc">Consultez ou copiez votre identifiant de connexion</span></div>
       <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <div class="menu-item danger" onclick="Sheet.close(); LogoutConfirm.open();">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div class="menu-item-text"><span class="menu-item-title">Déconnexion</span></div>
+      <div class="menu-item-text"><span class="menu-item-title">Déconnexion</span><span class="menu-item-desc">Fermer votre session en toute sécurité</span></div>
     </div>
   </div>
 
@@ -2478,6 +2384,7 @@
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9 12h12m0 0-3.5-3.5M21 12l-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
     <h3 class="logout-confirm-title">Se déconnecter ?</h3>
+    <p class="logout-confirm-desc">Vous devrez ressaisir vos identifiants pour accéder de nouveau à votre espace boutique.</p>
     <div class="logout-confirm-actions">
       <button class="btn logout-confirm-btn" onclick="LogoutConfirm.confirm()">Se déconnecter</button>
       <button class="btn btn-outline" onclick="LogoutConfirm.close()">Annuler</button>
@@ -3484,13 +3391,6 @@ const Store = {
     Utils.setLocal('commission_settled', !!v);
     Cloud.pushCommission(this.commissionDue(), !!v).catch(e=>console.error('Sync error [commission]', e));
   },
-  /* ---- Montant/date exacts envoyés par le vendeur pour la commission d'essai, figés au
-     moment de l'envoi de la preuve (le montant "due" en temps réel continue lui d'évoluer
-     avec les nouvelles commandes livrées, donc on garde une trace de ce qui a été réglé). ---- */
-  get commissionSentAmount(){ return Utils.getLocal('commission_sent_amount', 0); },
-  set commissionSentAmount(v){ Utils.setLocal('commission_sent_amount', Math.round(Number(v)||0)); },
-  get commissionSentAt(){ return Utils.getLocal('commission_sent_at', 0); },
-  set commissionSentAt(v){ Utils.setLocal('commission_sent_at', v||0); },
 
   /* ---- Commission MA BOUTIQUE pendant l'abonnement (Pass payant) : 2% sur chaque
      commande livrée à partir de l'activation du Pass, en plus du prix de
@@ -3511,15 +3411,6 @@ const Store = {
     Utils.setLocal('sub_commission_settled_at', at);
     Cloud.pushSubCommission(0, at).catch(e=>console.error('Sync error [subCommission]', e));
   },
-  /* ---- CORRECTIF (même logique que la commission d'essai) : à l'envoi de la
-     preuve, on ne marque plus sub_commission_settled_at côté client. Seule la
-     vérification automatique du reçu par l'Edge Function verify-payment-receipt
-     écrit ce champ en base ; on garde juste une trace locale "preuve envoyée"
-     pour afficher l'étape d'analyse en cours. ---- */
-  get subCommissionSentAmount(){ return Utils.getLocal('sub_commission_sent_amount', 0); },
-  set subCommissionSentAmount(v){ Utils.setLocal('sub_commission_sent_amount', Math.round(Number(v)||0)); },
-  get subCommissionSentAt(){ return Utils.getLocal('sub_commission_sent_at', 0); },
-  set subCommissionSentAt(v){ Utils.setLocal('sub_commission_sent_at', v||0); },
 
   /* ---- Certification boutique : soumet une pièce d'identité (CNI, Passeport,
      CMU, Certificat de nationalité, Carte scolaire) + une photo prise en temps
@@ -4064,7 +3955,7 @@ const Router = {
       return;
     }
     const isCustomer = PUBLIC_VIEWS.includes(name) && name!=='login' && name!=='welcome';
-    document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='business-type' || name==='onboarding-admin' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice' || name==='subscription-status');
+    document.getElementById('bottom-nav').classList.toggle('hidden', isCustomer || name==='login' || name==='welcome' || name==='verify-otp' || name==='about-partnership' || name==='activation-code' || name==='onboarding-public' || name==='confirm-email' || name==='business-type' || name==='onboarding-admin' || name==='courier-login' || name==='courier-dashboard' || name==='account-id' || name==='recover-id' || name==='account-contract' || name==='account-contract-read' || name==='account-contract-notice');
     document.getElementById('client-nav').classList.toggle('hidden', !CLIENT_TAB_VIEWS.includes(name));
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     const navMap = {dashboard:'dashboard', products:'products', 'product-add':'products', 'product-edit':'products', menu:'products', 'menu-add':'products', 'menu-edit':'products', orders:'orders', 'order-detail':'orders',
@@ -4089,7 +3980,7 @@ const Router = {
    une saisie (checkout, formulaires, panier, etc.). */
 const AutoSync = {
   timer:null, busy:false, lastRun:0, started:false, intervalMs:8000,
-  safeViews:new Set(['dashboard','orders','products','order-detail','boutique','store-edit','stats','team','payment','categories','promos','reviews','customers','customer-detail','delivery','app-theme','settings','courier-dashboard','subscription-status']),
+  safeViews:new Set(['dashboard','orders','products','order-detail','boutique','store-edit','stats','team','payment','categories','promos','reviews','customers','customer-detail','delivery','app-theme','settings','courier-dashboard']),
   async refresh(force=false){
     const isCourier = !!courierSession();
     if(isCourier && Router.current==='courier-dashboard'){
@@ -4858,18 +4749,57 @@ async function showWelcomeBackThenDashboard(){
 }
 Views.welcome = function(){
   return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;position:relative;overflow:hidden;">
-    <div style="position:absolute;inset:0;background:radial-gradient(480px 320px at 50% -10%, rgba(17,17,17,.16), transparent 60%);pointer-events:none;"></div>
-    <img src="${MABOUTIQUE_WATERMARK_DATA_URI}" alt="" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,92vw);height:auto;opacity:.09;pointer-events:none;z-index:0;">
-    <div style="width:88px;height:88px;border-radius:26px;margin-bottom:26px;background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo) 55%,var(--cyan) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px -14px rgba(17,17,17,.5);position:relative;z-index:1;overflow:hidden;">
-      <img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 22px 30px;text-align:center;position:relative;overflow:hidden;background:linear-gradient(180deg,#FFFFFF 0%,#F8FBFF 100%);">
+    <div style="position:absolute;width:310px;height:310px;border-radius:50%;background:linear-gradient(135deg,#DCEEFF,#8EC5FF);left:-185px;top:-150px;opacity:.95;pointer-events:none;"></div>
+    <div style="position:absolute;width:150px;height:150px;border-radius:50%;background:#DDEEFF;right:-95px;bottom:-70px;opacity:.9;pointer-events:none;"></div>
+    <div style="position:absolute;width:38px;height:38px;border-radius:9px;background:#B9DCFF;left:35px;top:205px;transform:rotate(-18deg);opacity:.9;pointer-events:none;"></div>
+    <div style="position:absolute;width:48px;height:48px;border-radius:10px;background:#B9DCFF;right:35px;top:325px;transform:rotate(22deg);opacity:.8;pointer-events:none;"></div>
+
+    <div style="position:relative;z-index:1;width:100%;display:flex;flex-direction:column;align-items:center;">
+      <div style="width:116px;height:116px;border-radius:30px;margin-bottom:24px;background:linear-gradient(135deg,#173ED8 0%,#008FFF 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 20px 42px -15px rgba(0,105,235,.45);overflow:hidden;">
+        <img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+
+      <div style="display:flex;align-items:center;gap:18px;margin-bottom:28px;color:#0B2A68;">
+        <span style="width:58px;height:2px;background:#1874E8;border-radius:99px;"></span>
+        <span style="font-size:15px;font-weight:800;letter-spacing:1.7px;">MA BOUTIQUE</span>
+        <span style="width:58px;height:2px;background:#1874E8;border-radius:99px;"></span>
+      </div>
+
+      <h1 style="font-family:var(--font-display);font-size:clamp(39px,10vw,52px);line-height:1.02;margin:0 0 22px;letter-spacing:-2px;font-weight:800;color:#09245C;max-width:430px;">
+        Votre boutique<br>mérite <span style="color:#116CF0;">mieux.</span>
+      </h1>
+
+      <p style="color:#63779C;font-size:16px;line-height:1.55;margin:0 0 28px;max-width:365px;">
+        Découvrez une nouvelle façon de développer votre activité en ligne avec <strong style="color:#0B2A68;">MA BOUTIQUE.</strong>
+      </p>
+
+      <div style="width:100%;max-width:390px;">
+        <button class="btn btn-block" style="background:linear-gradient(135deg,#0874F9 0%,#1769EA 100%);color:#fff;min-height:62px;border-radius:30px;font-size:16px;font-weight:800;box-shadow:0 15px 30px -12px rgba(10,105,238,.5);position:relative;z-index:1;" onclick="Router.go('onboarding-public')">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8h12l1 13H5L6 8Z"/><path d="M9 8a3 3 0 0 1 6 0"/><path d="M3 12h4M17 12h4"/></svg>
+          Découvrir MA BOUTIQUE
+        </button>
+
+        <button class="btn btn-block" style="margin-top:12px;min-height:62px;border-radius:30px;background:#fff;color:#0B2A68;border:1.5px solid #9BC7FF;font-size:15.5px;font-weight:800;position:relative;z-index:1;" onclick="authMode='login';Router.go('login')">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.7-3.3 3-5 7-5s6.3 1.7 7 5"/></svg>
+          Déjà partenaire ? Se connecter
+        </button>
+
+        <button class="btn btn-block" style="margin-top:10px;min-height:58px;border-radius:30px;background:#EDF5FF;color:#1267D9;font-size:15px;font-weight:800;position:relative;z-index:1;" onclick="Router.go('shop')">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5"/></svg>
+          Accéder à l’espace client
+        </button>
+      </div>
+
+      <div style="margin-top:30px;display:flex;align-items:center;gap:14px;color:#116CF0;">
+        <span style="width:48px;height:1.5px;background:#116CF0;"></span>
+        <strong style="font-size:15px;letter-spacing:.4px;">Production SIAMS</strong>
+        <span style="width:48px;height:1.5px;background:#116CF0;"></span>
+      </div>
+      <div style="font-size:11.5px;color:#53698F;margin-top:7px;">
+        © Société Informatique Agréé Multi-Services
+      </div>
     </div>
-    <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--indigo);margin-bottom:8px;position:relative;z-index:1;">MA BOUTIQUE</div>
-    <h1 style="font-size:25px;line-height:1.3;margin:0 0 10px;letter-spacing:-.5px;position:relative;z-index:1;">Votre boutique mérite mieux.</h1>
-    <p style="color:var(--text-mid);font-size:14.5px;line-height:1.55;margin:0 0 26px;max-width:320px;position:relative;z-index:1;">Découvrez l'application MA BOUTIQUE et comment nous accompagnons les commerçants dans leur activité en ligne.</p>
-    <button class="btn btn-primary btn-block" style="max-width:320px;position:relative;z-index:1;" onclick="Router.go('onboarding-public')">Découvrir MA BOUTIQUE</button>
-    <button class="btn btn-outline btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:10px;" onclick="authMode='login';Router.go('login')">Déjà partenaire ? Se connecter</button>
-    <button class="btn btn-ghost btn-block" style="max-width:320px;position:relative;z-index:1;margin-top:8px;" onclick="Router.go('shop')">Accéder à l’espace client</button>
   </div>`;
 };
 
@@ -5666,31 +5596,24 @@ Views['commissions-apercu'] = function(){
     : {border:'var(--indigo)', badgeBg:'var(--indigo-tint)', badgeColor:'var(--indigo)'};
   return `${TopBar('Aperçu de mon contrat','Commissions et clauses utiles à connaître')}
   <div style="padding:16px 20px 28px;">
-    <div class="stats-card" style="margin-bottom:20px;background:var(--indigo-tint);border:1px solid var(--indigo);display:flex;gap:10px;align-items:flex-start;">
+    <div class="stats-card" style="margin-bottom:16px;background:var(--indigo-tint);border:1px solid var(--indigo);display:flex;gap:10px;align-items:flex-start;">
       <span style="font-size:20px;flex:none;">📄</span>
       <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des clauses les plus utiles au quotidien de votre contrat MA BOUTIQUE — commissions, délais et paiement. Il ne remplace pas le contrat complet, que vous pouvez télécharger en PDF ci-dessous.</div>
     </div>
-    <div style="position:relative;">
-      <div style="position:absolute;left:15px;top:8px;bottom:8px;width:2px;background:var(--line);"></div>
-      ${items.map((it,i)=>{
-        const s = styleFor(it.kind);
-        const last = i===items.length-1;
-        return `
-        <div style="position:relative;display:flex;gap:12px;${last?'':'padding-bottom:16px;'}">
-          <div style="width:32px;height:32px;border-radius:50%;background:${s.badgeBg};border:2px solid ${s.border};display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;z-index:1;">${it.icon}</div>
-          <div class="stats-card" style="flex:1;min-width:0;margin-bottom:0;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
-              <span style="font-size:10.5px;font-weight:800;letter-spacing:.02em;color:${s.badgeColor==='#fff'?'var(--mango)':s.badgeColor};text-transform:uppercase;">${it.badge}</span>
-              ${it.rate?`<span class="mono" style="font-size:18px;font-weight:800;color:var(--indigo);">${it.rate}</span>`:''}
-            </div>
-            <h4 style="margin:0 0 6px;font-size:14px;">${Utils.escapeHtml(it.title)}</h4>
-            <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
-            <span style="font-size:10.5px;color:var(--text-soft);font-weight:700;">Article ${it.article} du contrat</span>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-    <button class="btn btn-outline btn-block" style="margin-top:20px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
+    ${items.map(it=>{
+      const s = styleFor(it.kind);
+      return `
+      <div class="stats-card" style="margin-bottom:12px;border-left:4px solid ${s.border};">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+          <span style="display:flex;align-items:center;gap:6px;background:${s.badgeBg};color:${s.badgeColor};font-size:10.5px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:999px;text-transform:uppercase;"><span>${it.icon}</span>${it.badge}</span>
+          ${it.rate?`<span class="mono" style="font-size:20px;font-weight:800;color:var(--indigo);">${it.rate}</span>`:''}
+        </div>
+        <h4 style="margin:0 0 6px;font-size:14.5px;">${Utils.escapeHtml(it.title)}</h4>
+        <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
+        <span style="font-size:10.5px;color:var(--text-soft);font-weight:700;">Article ${it.article} du contrat</span>
+      </div>`;
+    }).join('')}
+    <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
   </div>`;
 };
 
@@ -6313,9 +6236,13 @@ Views.dashboard = function(){
       </div>
       <div class="finance-two-col">
         <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
-        <div class="finance-two-col-item right"><span>${siamsBanqueOn ? 'Solde SIAMS BANQUE' : 'Total des ventes'}</span><b>${Utils.fmtFCFA(siamsBanqueOn ? siamsBalance : totalSales)}</b></div>
+        <div class="finance-two-col-item right"><span>Total des ventes</span><b>${Utils.fmtFCFA(totalSales)}</b></div>
       </div>
       ${siamsBanqueOn ? `
+      <div class="finance-two-col" style="margin-top:8px;">
+        <div class="finance-two-col-item"><span>Solde SIAMS BANQUE</span><b>${Utils.fmtFCFA(siamsBalance)}</b></div>
+        <div class="finance-two-col-item right"><span>Déjà retiré</span><b>${Utils.fmtFCFA(Store.totalSiamsWithdrawn())}</b></div>
+      </div>
       <button type="button" class="finance-withdraw-btn" onclick="event.stopPropagation();SiamsWithdraw.open();">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 9-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Retirer mes fonds SIAMS BANQUE
@@ -6328,6 +6255,8 @@ Views.dashboard = function(){
     </section>
     <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
     <div class="dashboard-v2-quick">${quick.map(q=>`<button class="quick-nav-card" onclick="dashboardQuickGo('${q.route}')" aria-label="${q.label}"><div class="qicon" style="background:${q.tint};color:${q.color};">${q.icon}</div><span>${q.label}</span></button>`).join('')}</div>
+    <div class="dashboard-v2-section"><h3>Services MA BOUTIQUE</h3><button onclick="Sheet.open()">Voir tout ›</button></div>
+    <div class="dashboard-v2-service-grid">${DASHBOARD_SERVICES.slice(0,9).map(s=>`<button type="button" class="dashboard-v2-service" onclick="dashboardServiceGo('${s.route}')" aria-label="Ouvrir ${s.label}"><div class="sicon" style="background:${s.tint};color:${s.color};">${s.icon}</div><span>${s.label}</span></button>`).join('')}</div>
     <div class="dashboard-v2-section"><h3>Suivi des commandes</h3><button onclick="Router.go('orders')">Détails ›</button></div>
     <div class="dashboard-v2-command-card">
       ${cmdRow('Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant')}
@@ -6458,8 +6387,7 @@ function DashboardStatusBar(access){
   const trialEnd = Store.trialStartedAt + TRIAL_DAYS*86400000;
   const inTrial = Date.now() < trialEnd;
   const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
-  const proofSent = !settled && Store.commissionSentAt > 0;
-  const showCommission = !settled && (proofSent || due>0 || inTrial);
+  const showCommission = !settled && (due>0 || inTrial);
   const subDue = Store.subCommissionDue ? Store.subCommissionDue() : 0;
   const showSubCommission = access.status==='active' && subDue>0;
 
@@ -6488,34 +6416,11 @@ function DashboardStatusBar(access){
   }
 
   const chips=[];
-  if(showCommission) chips.push(proofSent ? 'Reçu en cours d\'analyse' : (inTrial ? `Essai commission · ${daysLeft} j` : 'Commission à régler'));
+  if(showCommission) chips.push(inTrial ? `Essai commission · ${daysLeft} j` : 'Commission à régler');
   if(showSubCommission) chips.push(`${Utils.fmtFCFA(subDue)} à régler`);
 
-  if(access.status==='trial'){
-    const frac = Math.min(1, Math.max(0, access.daysLeft / TRIAL_DAYS));
-    const circumference = 157.1;
-    const offset = (circumference * (1 - frac)).toFixed(1);
-    return `
-    <button type="button" class="dash-trial-ring-card" style="width:100%;text-align:left;background:${hexToRgba(color,.08)};border:1px solid ${hexToRgba(color,.22)};border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;" onclick="Router.go('subscription-status')">
-      <svg width="56" height="56" viewBox="0 0 60 60" style="flex:none;">
-        <circle cx="30" cy="30" r="25" fill="none" stroke="${hexToRgba(color,.16)}" stroke-width="5"/>
-        <circle cx="30" cy="30" r="25" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" transform="rotate(-90 30 30)"/>
-        <text x="30" y="28" text-anchor="middle" font-size="15" font-weight="800" fill="var(--text)">${access.daysLeft}</text>
-        <text x="30" y="39" text-anchor="middle" font-size="8" fill="var(--text-mid)">jours</text>
-      </svg>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:${color};margin-bottom:2px;">Essai gratuit</div>
-        <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;">Pass de découverte</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          ${chips.length?`<span style="font-size:11px;color:var(--text-mid);">${chips[0]}</span>`:'<span></span>'}
-          <span style="font-size:14px;font-weight:800;color:${color};flex:none;">›</span>
-        </div>
-      </div>
-    </button>`;
-  }
-
   return `
-  <div class="dash-status-bar" style="background:${hexToRgba(color,.08)};border-color:${hexToRgba(color,.22)};" onclick="Router.go('subscription-status')">
+  <div class="dash-status-bar" style="background:${hexToRgba(color,.08)};border-color:${hexToRgba(color,.22)};" onclick="openDashboardStatusSheet()">
     <div class="dash-status-bar-icon" style="background:${hexToRgba(color,.16)};color:${color};">${icon}</div>
     <div class="dash-status-bar-main">
       <b>${mainLabel}</b>
@@ -6525,182 +6430,69 @@ function DashboardStatusBar(access){
     <span class="dash-status-bar-arrow" style="color:${color};">›</span>
   </div>`;
 }
-/* ---- V47 : « Abonnement & commission » est désormais une page plein écran avec
-   bouton retour (Router.go('subscription-status')), plutôt qu'une feuille modale
-   encadrée — l'ancienne fonction reste définie par sécurité, au cas où un appel
-   externe l'utiliserait encore, mais redirige simplement vers la page. ---- */
-window.openDashboardStatusSheet = function(){ Router.go('subscription-status'); };
-Views['subscription-status'] = function(){
+window.openDashboardStatusSheet = function(){
+  document.getElementById('dash-status-sheet-wrap')?.remove();
   const access = Store.access();
-  return `
-  <div class="topbar" style="padding-top:18px;">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <button class="bell-btn" onclick="Router.go('dashboard')" aria-label="Retour">←</button>
-      <h1 style="font-size:19px;">Abonnement &amp; commission</h1>
-    </div>
-  </div>
-  <div class="sub-status-page">
-    ${CommissionCard()}
-    ${SubCommissionCard()}
-    ${SubscriptionCard(access)}
-  </div>`;
-};
-Views._after_subscription_status = function(){
+  const wrap = document.createElement('div');
+  wrap.id = 'dash-status-sheet-wrap';
+  wrap.innerHTML = `
+    <div class="shop-sheet-overlay show" onclick="document.getElementById('dash-status-sheet-wrap').remove()"></div>
+    <div class="shop-sheet show" style="max-height:88vh;">
+      <div class="sheet-handle"></div>
+      <h3 style="margin:0 0 14px;">Abonnement &amp; commission</h3>
+      ${CommissionCard()}
+      ${SubCommissionCard()}
+      ${SubscriptionCard(access)}
+    </div>`;
+  document.body.appendChild(wrap);
   if(Views._after_dashboard) Views._after_dashboard();
-  if(!Store.commissionSettled && Store.commissionSentAt>0) refreshCommissionChecks('commission');
 };
-
-function PaymentVerificationCard({amount, sentAt, verifyProgress, verifyRemainMs}){
-  const ref = '#CM-' + String(sentAt || Date.now()).slice(-4);
-  const sentDate = sentAt ? new Date(sentAt) : new Date();
-  const dateLabel = sentDate.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}).replace('.','');
-  const timeLabel = sentDate.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-  const notifyOn = localStorage.getItem('mb_verify_notify')!=='0';
-  const progress = Math.max(4, Math.min(100, Math.round((verifyProgress||0)*100)));
-  const remainLabel = verifyRemainMs>0 ? ('~ '+fmtMsLeft(verifyRemainMs)+' restantes') : 'Relais manuel en cours';
-  return `
-  <div class="payment-verify-card" id="payment-verification-card" data-sent-at="${Number(sentAt)||Date.now()}" data-budget="${5*60000}">
-    <div class="payment-verify-ref"><div class="payment-verify-ref-left"><b>Réf. ${esc(ref)}</b>
-      <button class="payment-verify-copy" type="button" aria-label="Copier la référence" onclick="navigator.clipboard?.writeText('${esc(ref)}');Toast.show('Référence copiée ✓')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.8"/></svg>
-      </button></div><div class="payment-verify-updated"><span>↻</span> Il y a ${Math.max(1,Math.round((Date.now()-Number(sentAt||Date.now()))/60000))} min</div></div>
-    <div class="payment-verify-steps"><span class="payment-verify-step done">✓</span><span class="payment-verify-line done"></span><span class="payment-verify-step done">✓</span><span class="payment-verify-line active"></span><span class="payment-verify-step active">3</span><span class="payment-verify-line"></span><span class="payment-verify-step">4</span></div>
-    <div class="payment-verify-status"><span class="payment-verify-pill" id="comm-status-pill"><span class="spin"></span><span>Vérification en cours</span></span></div>
-    <div class="payment-verify-amount"><div class="value">${Utils.fmtFCFA(amount||0)}</div><div class="date">Reçu envoyé le ${dateLabel} à ${timeLabel}</div></div>
-    <div class="payment-verify-agent"><div class="payment-verify-avatar">MB</div><div class="payment-verify-agent-main"><div class="payment-verify-agent-name">Agent MA BOUTIQUE</div><div class="payment-verify-agent-sub">a pris votre dossier en charge</div></div><button class="payment-verify-message" type="button" aria-label="Contacter l'agent" onclick="Toast.show('Votre demande est en cours de vérification.')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M6 7.5A3.5 3.5 0 0 1 9.5 4h5A3.5 3.5 0 0 1 18 7.5v4A3.5 3.5 0 0 1 14.5 15H11l-4 3v-3.2A3.5 3.5 0 0 1 6 11.5v-4Z" stroke="currentColor" stroke-width="1.7"/><path d="M10 8.5h4M10 11h2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button></div>
-    <div class="payment-verify-receipt"><div class="payment-verify-receipt-top"><div class="payment-verify-file-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M7 3.5h7l4 4V20.5H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 3.5v4h4M9 12h6M9 15h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div><div class="payment-verify-file-main"><div class="payment-verify-file-name">reçu_paiement</div><div class="payment-verify-file-meta">Envoyé à ${timeLabel}</div></div><button class="payment-verify-eye" type="button" aria-label="Voir le reçu" onclick="Toast.show('Le reçu envoyé est conservé pour vérification.')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg></button></div>
-      <div class="payment-verify-checks"><div class="payment-verify-check"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6.5" width="17" height="12" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 10h17" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Montant</span><span class="state" id="commchk-commission-amount"><span class="pf-mini-spinner"></span></span></div><div class="payment-verify-check"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="6" y="10" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" stroke="currentColor" stroke-width="1.7"/></svg></span><span>Bénéficiaire</span><span class="state" id="commchk-commission-beneficiary"><span class="pf-mini-spinner"></span></span></div><div class="payment-verify-check"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3.5 20 7v5.5c0 4.3-3.3 7.2-8 8.5-4.7-1.3-8-4.2-8-8.5V7l8-3.5Z" stroke="currentColor" stroke-width="1.7"/><path d="m8.5 12 2.2 2.2 4.8-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Authenticité</span><span class="state" id="commchk-commission-authenticity"><span class="pf-mini-spinner"></span></span></div></div></div>
-    <div class="payment-verify-estimate"><div class="payment-verify-estimate-head"><span>Temps estimé</span><b id="commission-verify-countdown-val">${remainLabel}</b></div><div class="payment-verify-progress"><span id="payment-verify-progress-fill" style="width:${progress}%"></span></div></div>
-    <div class="payment-verify-notify"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8.5h18C21 16 18 16 18 9Z" stroke="currentColor" stroke-width="1.7"/><path d="M10 20h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span>Me notifier une fois validé</span><button class="payment-verify-toggle ${notifyOn?'on':''}" type="button" id="payment-verify-notify-toggle" aria-pressed="${notifyOn}" onclick="togglePaymentVerifyNotify()"><span></span></button></div>
-    <div class="payment-verify-actions"><button type="button" class="payment-verify-resend" onclick="SubscriptionSheet.startCommissionProof()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Renvoyer un reçu</button><button type="button" class="payment-verify-plan" onclick="SubscriptionSheet.open()">Voir les formules d'abonnement</button><button type="button" class="payment-verify-scroll" aria-label="Faire défiler" onclick="window.scrollBy({top:420,behavior:'smooth'})">↓</button></div>
-  </div>`;
-}
-function togglePaymentVerifyNotify(){const btn=document.getElementById('payment-verify-notify-toggle');const on=!(btn?.classList.contains('on'));localStorage.setItem('mb_verify_notify',on?'1':'0');if(btn){btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',String(on));}Toast.show(on?'Notification activée ✓':'Notification désactivée');}
 
 function CommissionCard(){
   const due = Store.commissionDue();
   const settled = Store.commissionSettled;
-  /* ---- "Preuve envoyée" est un état distinct de "settled" : settled ne devient
-     vrai que lorsque le serveur confirme la validation (analyse automatique du
-     reçu, ~5 min, avec relais manuel en secours) et que ça se synchronise ici
-     via AutoSync. Tant que ce n'est pas encore confirmé, on affiche l'analyse
-     en cours plutôt que de prétendre que c'est déjà réglé. ---- */
-  const proofSent = !settled && Store.commissionSentAt > 0;
   const trialEnd = Store.trialStartedAt + TRIAL_DAYS*86400000;
   const inTrial = Date.now() < trialEnd;
   const daysLeft = Math.max(0, Math.ceil((trialEnd-Date.now())/86400000));
-  /* ---- On n'efface plus la carte dès que la preuve est envoyée : sinon le
-     vendeur perd toute trace de sa demande et ne peut plus revenir voir où
-     elle en est. La carte reste visible, dans un état « analyse en cours »,
-     jusqu'à ce que la validation soit confirmée. ---- */
-  if(settled || (due<=0 && !inTrial && !proofSent)) return '';
+  if(settled || (due<=0 && !inTrial)) return '';
+  const verified = !!(Store.store && Store.store.verification && Store.store.verification.verified);
   const R = 27, C = 2*Math.PI*R;
   const progress = inTrial ? Math.max(0, Math.min(1, daysLeft/TRIAL_DAYS)) : 0;
   const offset = C*(1-progress);
-
-  const VERIFY_BUDGET_MS = 5*60000;
-  const verifyElapsed = proofSent ? (Date.now() - Store.commissionSentAt) : 0;
-  const verifyProgress = Math.max(0, Math.min(1, verifyElapsed / VERIFY_BUDGET_MS));
-  const verifyOffset = C*(1-verifyProgress);
-  const verifyRemainMs = Math.max(0, VERIFY_BUDGET_MS - verifyElapsed);
-
-  if(proofSent) return PaymentVerificationCard({amount:Store.commissionSentAmount, sentAt:Store.commissionSentAt, verifyProgress, verifyRemainMs});
-
-  const verifyChecklist = `
-    <div class="commchk-list">
-      <div class="commchk-row"><span class="commchk-label">${subIcon('card',13)}<span>Montant du reçu</span></span><span class="commchk-status" id="commchk-commission-amount"><span class="pf-mini-spinner"></span></span></div>
-      <div class="commchk-row"><span class="commchk-label">${subIcon('lock',13)}<span>Bénéficiaire</span></span><span class="commchk-status" id="commchk-commission-beneficiary"><span class="pf-mini-spinner"></span></span></div>
-      <div class="commchk-row"><span class="commchk-label">${subIcon('shield',13)}<span>Authenticité</span></span><span class="commchk-status" id="commchk-commission-authenticity"><span class="pf-mini-spinner"></span></span></div>
-    </div>`;
-
-  const stepDefs = proofSent
-    ? [
-        ["Essai gratuit", "Vos 20 jours d'essai MA BOUTIQUE.", 'done'],
-        ["Preuve envoyée", "Votre justificatif de paiement a été transmis.", 'done'],
-        ["Analyse en cours", "Vérification automatique en cours ; relais manuel en cas de doute.", 'active', verifyChecklist],
-        ["Pass actif", "Dès validation, la commission d'essai est soldée et votre Pass se déverrouille.", '']
-      ]
-    : inTrial
-    ? [
-        ["Essai en cours", "Vos ventes livrées sont suivies automatiquement, rien à faire pour l'instant.", 'active'],
-        ["Analyse automatique", "Après l'envoi de votre preuve, une vérification automatique la valide en quelques minutes.", ''],
-        ["Pass actif", "La commission soldée, votre Pass et votre badge se déverrouillent.", '']
-      ]
-    : [
-        ["Essai terminé", "Les 20 jours d'essai gratuit sont écoulés.", 'done'],
-        ["Paiement à envoyer", "Réglez la commission cumulée puis envoyez votre preuve.", 'active'],
-        ["Pass actif", "Dès validation, votre Pass se déverrouille.", '']
-      ];
-
-  const eyebrow = proofSent ? "Commission MA BOUTIQUE · analyse en cours" : "Commission MA BOUTIQUE · essai";
-  const title = proofSent ? "Votre reçu est en cours d'analyse" : (inTrial ? "Votre essai gratuit est en cours" : "Votre essai est terminé");
-  const amountLabel = proofSent ? "Montant envoyé" : "Commission cumulée (5% sur vos ventes livrées)";
-  const amountVal = proofSent ? Store.commissionSentAmount : due;
-  const sentDateStr = proofSent && Store.commissionSentAt ? new Date(Store.commissionSentAt).toLocaleString('fr-FR') : '';
-
+  const steps = inTrial
+    ? [ ['1','Essai en cours','active'], ['2','Validation', ''], ['3','Pass actif',''] ]
+    : [ ['1','Essai terminé','done'], ['2','Paiement à envoyer','active'], ['3','Pass actif',''] ];
   return `
-  <div class="trial-xp ${inTrial?'':'ended'} ${proofSent?'theme-blue':''}" data-trial-end="${trialEnd}">
+  <div class="trial-xp ${inTrial?'':'ended'}" data-trial-end="${trialEnd}">
     <div class="trial-xp-top">
       <div>
-        <div class="trial-xp-eyebrow" id="comm-eyebrow">${eyebrow}</div>
-        <div class="trial-xp-title" id="comm-title">${title}</div>
+        <div class="trial-xp-eyebrow">Commission MA BOUTIQUE · essai</div>
+        <div class="trial-xp-title">${inTrial?'Votre essai gratuit est en cours':'Votre essai est terminé'}</div>
       </div>
-      ${proofSent ? `
-      <div class="trial-ring-wrap">
-        <svg viewBox="0 0 66 66">
-          <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
-          <circle class="trial-ring-fg" id="verify-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${verifyOffset}" data-sent-at="${Store.commissionSentAt}" data-budget="${VERIFY_BUDGET_MS}"></circle>
-        </svg>
-        <div class="trial-ring-label" id="verify-ring-label"><b>${Math.round(verifyProgress*100)}</b><span>%</span></div>
-      </div>` : `
       <div class="trial-ring-wrap">
         <svg viewBox="0 0 66 66">
           <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
           <circle class="trial-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"></circle>
         </svg>
         <div class="trial-ring-label"><b>${inTrial?daysLeft:0}</b><span>${inTrial?(daysLeft>1?'jours':'jour'):'terminé'}</span></div>
-      </div>`}
+      </div>
     </div>
     <div class="trial-xp-amount">
-      <div class="lbl">${amountLabel}</div>
-      <div class="val count-up-val" data-target="${amountVal}">0 FCFA</div>
-      ${sentDateStr ? `<div style="font-size:11px;color:var(--text-mid);margin-top:4px;">Envoyé le ${sentDateStr}</div>` : ''}
+      <div class="lbl">Commission cumulée (5% sur vos ventes livrées)</div>
+      <div class="val count-up-val" data-target="${due}">0 FCFA</div>
     </div>
-    ${!proofSent ? `
     <div class="trial-xp-countdown">
       <span class="lab">${subIcon('clock',13)}<span>${inTrial?"Fin de l'essai dans":'Essai terminé depuis'}</span></span>
       <span class="val" id="commission-trial-countdown-val" data-ends-at="${trialEnd}">${fmtRenewCountdown(Math.abs(trialEnd-Date.now()))}</span>
-    </div>` : `
-    <div class="trial-xp-countdown">
-      <span class="lab">${subIcon('clock',13)}<span>Estimation</span></span>
-      <span class="val" id="commission-verify-countdown-val">${verifyRemainMs>0?('~'+fmtMsLeft(verifyRemainMs)):'Presque terminé'}</span>
-    </div>`}
-    <div class="comm-steps">
-      ${stepDefs.map(([t,d,state,extra])=>`
-      <div class="comm-step ${state}">
-        <span class="comm-step-dot">${state==='done'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>':(state==='active'?'<span class="pf-mini-spinner" style="border-color:var(--gold-tint);border-top-color:var(--gold-dark);"></span>':'')}</span>
-        <div class="comm-step-body">
-          <div class="comm-step-title">${t}</div>
-          <div class="comm-step-desc"${state==='active'?' id="comm-step-desc-active"':''}>${d}</div>
-          ${extra||''}
-        </div>
-      </div>`).join('')}
     </div>
-    ${proofSent ? `
-    <div class="comm-info-box">
-      ${subIcon('shield',15)}
-      <p>Comment ça marche : dès réception de votre capture d'écran, une analyse automatique vérifie en quelques minutes qu'il s'agit bien d'un reçu original et que le montant correspond — si tout concorde, votre commission est validée et votre Pass activé automatiquement, sans attendre un agent. En cas de doute (reçu flou, PDF, montant qui ne correspond pas), un agent MA BOUTIQUE prend le relais manuellement. Cette page se met à jour automatiquement dès que c'est validé — vous pouvez aussi revenir la consulter à tout moment.</p>
+    <div class="trial-xp-steps">
+      ${steps.map((s,i)=>`<div class="trial-xp-step ${s[2]}">${i>0?'<span class="trial-xp-step-line"></span>':''}<span class="dot">${s[2]==='done'?'✓':s[0]}</span><span>${s[1]}</span></div>`).join('')}
     </div>
-    <div class="trial-xp-actions" id="comm-retry-actions" style="display:none;">
-      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.startCommissionProof()"><span class="trial-xp-btn-ic">${subIcon('upload',15)}</span>Renvoyer un reçu</button>
-    </div>
-    <div class="trial-xp-actions">
-      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
-    </div>` : `
     <div class="trial-xp-actions">
       <button type="button" class="trial-xp-btn primary" onclick="SubscriptionSheet.openCommissionOnly()"><span class="trial-xp-btn-ic">${subIcon('wallet',15)}</span>${inTrial?'Suivre ma commission':'Régler ma commission'}</button>
       <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
-    </div>`}
+    </div>
+    ${!verified ? `<div class="trial-xp-note"><span>${subIcon('shield',13)}</span><span>Le badge de votre formule ne se débloque qu'une fois votre <a href="#" onclick="Router.go('verification');return false;">identification validée</a> par MA BOUTIQUE — même avec un Pass payé et actif.</span></div>` : ''}
   </div>`;
 }
 
@@ -6709,29 +6501,14 @@ function SubCommissionCard(){
   const access = Store.access();
   if(access.status!=='active') return '';
   const due = Store.subCommissionDue();
-  /* ---- Même principe que CommissionCard() : l'envoi de la preuve ne règle pas
-     la commission côté client. Tant que l'Edge Function verify-payment-receipt
-     n'a pas confirmé (sub_commission_settled_at récupéré par AutoSync), on
-     affiche "analyse en cours" plutôt que de redemander un reçu. ---- */
-  const proofSent = Store.subCommissionSentAt > Math.max(Store.subCommissionSettledAt||0, access.activatedAt||0);
-  if(due<=0 && !proofSent) return '';
-  if(proofSent){
-    const sentDateStr = new Date(Store.subCommissionSentAt).toLocaleString('fr-FR');
-    return `
-    <div class="section-title">Commission (abonnement)</div>
-    <div style="margin:8px 20px 0;border:1.5px solid var(--blue);border-radius:var(--radius-md);padding:16px;background:var(--blue-tint);box-shadow:var(--shadow-sm);">
-      <div style="font-size:12px;color:var(--blue);font-weight:700;margin-bottom:2px;letter-spacing:.02em;">COMMISSION MA BOUTIQUE — 2% · ANALYSE EN COURS</div>
-      <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(Store.subCommissionSentAmount)}</div>
-      <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Reçu envoyé le ${sentDateStr}. Vérification automatique en cours (environ 5 minutes), relais manuel en cas de doute.</div>
-    </div>`;
-  }
+  if(due<=0) return '';
   return `
   <div class="section-title">Commission (abonnement)</div>
   <div style="margin:8px 20px 0;border:1.5px solid var(--gold);border-radius:var(--radius-md);padding:16px;background:var(--gold-tint);box-shadow:var(--shadow-sm);">
     <div style="font-size:12px;color:var(--gold-dark);font-weight:700;margin-bottom:2px;letter-spacing:.02em;">COMMISSION MA BOUTIQUE — 2% SUR CHAQUE VENTE</div>
     <div style="font-size:19px;font-weight:800;" class="mono">${Utils.fmtFCFA(due)}</div>
     <div style="font-size:12px;color:var(--text-mid);margin-top:6px;">Calculée en temps réel sur vos commandes livrées depuis votre dernier règlement, en plus du prix de votre Pass (Article 8 du contrat).</div>
-    <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="SubscriptionSheet.startSubCommissionProof()">J'ai réglé la commission, envoyer le reçu</button>
+    <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="SubscriptionSheet.markSubCommissionSettled()">J'ai réglé la commission, envoyer le reçu</button>
   </div>`;
 }
 
@@ -6759,71 +6536,6 @@ setInterval(()=>{
     val.textContent = fmtRenewCountdown(renewsAt - Date.now());
   }
 }, 1000);
-/* ---- V61 : anneau + estimation de temps de la page « Analyse en cours ». ---- */
-setInterval(()=>{
-  const ring = document.getElementById('verify-ring-fg');
-  if(!ring) return;
-  const sentAt = Number(ring.dataset.sentAt), budget = Number(ring.dataset.budget);
-  const elapsed = Date.now()-sentAt;
-  const progress = Math.max(0, Math.min(1, elapsed/budget));
-  const R=27, C=2*Math.PI*R;
-  ring.setAttribute('stroke-dashoffset', C*(1-progress));
-  const label = document.getElementById('verify-ring-label');
-  if(label) label.innerHTML = `<b>${Math.round(progress*100)}</b><span>%</span>`;
-  const cd = document.getElementById('commission-verify-countdown-val');
-  const remain = Math.max(0, budget-elapsed);
-  if(cd) cd.textContent = remain>0 ? ('~ '+fmtMsLeft(remain)+' restantes') : 'Relais manuel en cours';
-  const fill = document.getElementById('payment-verify-progress-fill');
-  if(fill) fill.style.width = Math.max(4, Math.round(progress*100)) + '%';
-  const pill = document.getElementById('comm-status-pill');
-  if(pill) pill.innerHTML = remain>0 ? '<span class="spin"></span><span>Vérification en cours</span>' : '<span>⌛</span><span>Vérification manuelle</span>';
-  /* ---- Le délai estimé (5 min) est dépassé sans confirmation : plutôt que de
-     laisser croire à une analyse automatique sans fin, on bascule l'affichage
-     en vérification manuelle et on propose de renvoyer un reçu (utile si le
-     premier appel a échoué côté serveur, ex. service OCR indisponible). ---- */
-  if(remain<=0 && !ring.dataset.timedOut){
-    ring.dataset.timedOut = '1';
-    const eyebrow = document.getElementById('comm-eyebrow');
-    const title = document.getElementById('comm-title');
-    const desc = document.getElementById('comm-step-desc-active');
-    if(eyebrow) eyebrow.textContent = 'Commission MA BOUTIQUE · vérification manuelle';
-    if(title) title.textContent = 'Votre reçu est en cours de vérification manuelle';
-    const pill = document.getElementById('comm-status-pill');
-    if(pill) pill.innerHTML = '<span>⌛</span><span>Vérification manuelle</span>';
-    if(desc) desc.textContent = "La vérification automatique n'a pas pu conclure dans le délai estimé ; un agent MA BOUTIQUE valide votre reçu manuellement. Vous pouvez aussi renvoyer un reçu si besoin.";
-    document.querySelectorAll('.commchk-status').forEach(el=>{
-      if(el.querySelector('.pf-mini-spinner')) el.innerHTML = '<span style="color:var(--text-soft);font-size:11px;">Manuel</span>';
-    });
-    const retry = document.getElementById('comm-retry-actions');
-    if(retry) retry.style.display = 'flex';
-    refreshCommissionChecks('commission');
-  }
-}, 1000);
-/* ---- V61 : va chercher le vrai résultat des 3 contrôles automatiques
-   (payment_receipt_checks.checks) pour remplacer les spinners de la
-   checklist par un état réel (✓ / ⚠) plutôt qu'un faux effet temps réel. ---- */
-async function refreshCommissionChecks(kind){
-  if(!window.sb || !Cloud.storeId) return;
-  try{
-    const { data, error } = await sb.from('payment_receipt_checks')
-      .select('checks')
-      .eq('store_id', String(Cloud.storeId))
-      .eq('kind', kind)
-      .order('created_at', { ascending:false })
-      .limit(1);
-    if(error || !data || !data[0]) return;
-    const checks = data[0].checks || {};
-    const map = { amount:'amountOk', beneficiary:'beneficiaryOk', authenticity:'looksGenuine' };
-    Object.keys(map).forEach(key=>{
-      const el = document.getElementById('commchk-'+kind+'-'+key);
-      if(!el) return;
-      const ok = checks[map[key]];
-      el.innerHTML = ok===true ? `<span class="commchk-ok">${subIcon('check',14)}</span>`
-        : ok===false ? `<span class="commchk-bad">${subIcon('warning',14)}</span>`
-        : '<span class="pf-mini-spinner"></span>';
-    });
-  }catch(e){ console.error('refreshCommissionChecks', e); }
-}
 function SubscriptionCard(access){
   if(access.status==='trial'){
     const total = TRIAL_DAYS;
@@ -7293,28 +7005,7 @@ const SubscriptionSheet = {
   commissionOnlyScreen(){
     const due = Store.commissionDue();
     const settled = Store.commissionSettled;
-    const proofSent = !settled && Store.commissionSentAt > 0;
-    if(settled){
-      return `
-      <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
-      <div class="shop-sheet" id="sub-sheet" style="max-height:60vh;">
-        <div class="sheet-handle"></div>
-        <h3 style="margin:2px 0 4px;">Commission validée ✓</h3>
-        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;">Votre commission de la période d'essai a bien été validée. Il n'y a rien d'autre à faire pour le moment.</p>
-        <button class="btn btn-outline btn-block" onclick="SubscriptionSheet.close()">Fermer</button>
-      </div>`;
-    }
-    if(proofSent){
-      return `
-      <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
-      <div class="shop-sheet" id="sub-sheet" style="max-height:60vh;">
-        <div class="sheet-handle"></div>
-        <h3 style="margin:2px 0 4px;">Votre reçu est en cours d'analyse</h3>
-        <p style="color:var(--text-mid);font-size:12.5px;margin:0 0 16px;line-height:1.55;">Vous avez déjà envoyé votre preuve de paiement — inutile d'en renvoyer une autre. Une analyse automatique la vérifie généralement en quelques minutes (avec relais manuel en cas de doute) ; cette page se met à jour dès que c'est validé.</p>
-        <button class="btn btn-outline btn-block" onclick="SubscriptionSheet.close();Router.go('subscription-status');">Suivre l'état de la validation</button>
-      </div>`;
-    }
-    if(due<=0){
+    if(due<=0 || settled){
       return `
       <div class="shop-sheet-overlay" id="sub-overlay" onclick="SubscriptionSheet.close()"></div>
       <div class="shop-sheet" id="sub-sheet" style="max-height:60vh;">
@@ -7354,13 +7045,6 @@ const SubscriptionSheet = {
             <span class="commission-step-title">Envoyez votre preuve à MA BOUTIQUE</span>
           </div>
           <p style="font-size:12px;color:var(--text-mid);margin:0;line-height:1.55;">${Store.store.name?`${Utils.escapeHtml(Store.store.name)}, une`:'Une'} fois votre paiement effectué, appuyez sur le bouton ci-dessous : nous ouvrons directement votre galerie pour choisir la capture, puis votre conversation WhatsApp avec l'assistant MA BOUTIQUE pour l'envoyer.</p>
-        </div>
-        <div style="border:1.5px solid var(--line);border-radius:var(--radius-md);padding:16px;margin-bottom:20px;">
-          <div class="commission-step-head">
-            <span class="commission-step-num">3</span>
-            <span class="commission-step-title">Validation par MA BOUTIQUE</span>
-          </div>
-          <p style="font-size:12px;color:var(--text-mid);margin:0;line-height:1.55;">Une analyse automatique vérifie votre reçu (original et montant correspondant) en quelques minutes et active votre Pass sans attendre — un agent ne prend le relais qu'en cas de doute. Vous pouvez revenir ici à tout moment pour voir l'état de votre validation.</p>
         </div>
         <input type="file" id="sub-proof-input" accept="image/*,application/pdf" class="hidden" onchange="SubscriptionSheet.handleProofFile(event)">
         <div id="sub-proof-status" style="font-size:11.5px;color:var(--text-mid);margin:0 0 10px;min-height:14px;"></div>
@@ -7439,9 +7123,7 @@ const SubscriptionSheet = {
     const input = document.getElementById('sub-proof-input');
     if(input){ input.value=''; input.click(); }
   },
-  /* ---- Vérification automatique du reçu (Edge Function verify-payment-receipt, analyse par OpenAI) :
-     l'analyse dure environ 5 minutes ; si le reçu est reconnu comme original et que le montant
-     correspond, la commission/l'abonnement est validé(e) et activé(e) automatiquement côté serveur.
+  /* ---- Vérification automatique du reçu (Edge Function verify-payment-receipt, lecture par Gemini).
      Non bloquant : en cas d'échec ou pour un PDF, le flux WhatsApp existant continue et la validation reste manuelle. ---- */
   async verifyReceipt(file, pending){
     try{
@@ -7455,7 +7137,7 @@ const SubscriptionSheet = {
       cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
       cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
       const b64 = cv.toDataURL('image/jpeg',0.85).split(',')[1];
-      const kind = pending.type==='installment' ? 'installment' : (pending.type==='subCommission' ? 'subCommission' : 'commission');
+      const kind = pending.type==='installment' ? 'installment' : 'commission';
       const { data, error } = await sb.functions.invoke('verify-payment-receipt', { body:{
         storeId: sid, kind, plan: pending.key||null, amount: pending.amount, imageBase64: b64, mimeType:'image/jpeg'
       }});
@@ -7470,21 +7152,12 @@ const SubscriptionSheet = {
     this.verifyReceipt(file, Object.assign({}, pending));
     let msg, waLink, record;
     if(pending.type==='commission'){
-      /* ---- CORRECTIF : ne plus marquer la commission "settled" côté client dès
-         l'envoi. La validation réelle (analyse automatique du reçu par la
-         Edge Function verify-payment-receipt, ~5 min, avec relais manuel en cas
-         de doute) écrit commission_settled directement en base ; le prochain
-         AutoSync la récupère et Store.commissionSettled reflète alors l'état
-         réel. On garde seulement une trace locale "preuve envoyée" pour
-         afficher l'étape d'analyse en cours. ---- */
-      Store.commissionSentAmount = pending.amount;
-      Store.commissionSentAt = Date.now();
+      Store.commissionSettled = true;
       msg = `Bonjour MA BOUTIQUE, je viens de régler ma commission période d'essai de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
       waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
       record = { kind:'commission', title:"Commission période d'essai", note:'commission', amount: pending.amount, fileName:file.name };
     } else if(pending.type==='subCommission'){
-      Store.subCommissionSentAmount = pending.amount;
-      Store.subCommissionSentAt = Date.now();
+      Store.markSubCommissionSettled();
       msg = `Bonjour MA BOUTIQUE, je viens de régler ma commission d'abonnement (2%) de ${Utils.fmtFCFA(pending.amount)}. Boutique : ${store.name}${store.loginId?' — '+store.loginId:''}. Voici ma preuve de paiement (${file.name}).`;
       waLink = PAYMENT_INFO.contactClientWaLink+'?text='+encodeURIComponent(msg);
       record = { kind:'subCommission', title:"Commission d'abonnement (2%)", note:'commission', amount: pending.amount, fileName:file.name };
@@ -7530,7 +7203,7 @@ const SubscriptionSheet = {
           </div>
           <div class="pf-step active">
             <span class="pf-step-dot"><span class="pf-mini-spinner"></span></span>
-            <div class="pf-step-body"><div class="pf-step-title">Analyse automatique</div><div class="pf-step-note">Votre reçu est vérifié automatiquement (généralement quelques minutes) ; un agent MA BOUTIQUE prend le relais en cas de doute sur votre ${r.note}.</div></div>
+            <div class="pf-step-body"><div class="pf-step-title">Validation par MA BOUTIQUE</div><div class="pf-step-note">Dès réception de votre preuve, l'équipe valide votre ${r.note}.</div></div>
           </div>
           <div class="pf-step">
             <span class="pf-step-dot"></span>
@@ -15097,12 +14770,16 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   };
   const previousDashboard=Views.dashboard;
   Views.dashboard=function(){
-    // V-simplify — l'accueil marchand n'affiche plus de section "Services MA
-    // BOUTIQUE" distincte (redondante avec Raccourcis) ; ces services restent
-    // accessibles depuis le menu Plus.
     let html=previousDashboard();
     html=html.replace(/<div class="dashboard-v2-section"><h3>Services MA BOUTIQUE<\/h3>[\s\S]*?<\/div>\s*<div class="dashboard-v2-service-grid">[\s\S]*?<\/div>/,'');
     html=html.replace(/<section class="v15-services-bottom">[\s\S]*?<\/section>/,'');
+    const serviceData=(typeof DASHBOARD_SERVICES!=='undefined'?DASHBOARD_SERVICES:[]).slice(0,8);
+    const services='<section class="v21-home-services" aria-label="Services MA BOUTIQUE">'+
+      '<div class="v21-home-services-head"><div><div class="v21-home-services-title">Services MA BOUTIQUE</div><div class="v21-home-services-sub">Accès rapide aux services complémentaires</div></div><button class="link-btn" onclick="Sheet.open()">Voir tout ›</button></div>'+
+      '<div class="v21-home-services-grid">'+serviceData.map(s=>'<button class="v21-home-service" onclick="Router.go(\\\''+s.route+'\\\')"><div class="si" style="background:'+s.tint+';color:'+s.color+'">'+s.icon+'</div><span>'+s.label+'</span></button>').join('')+'</div>'+
+      '</section>';
+    const follow='<div class="dashboard-v2-section"><h3>Suivi des commandes</h3>';
+    if(html.includes(follow)) html=html.replace(follow,services+'\n    '+follow);
     return html;
   };
   document.addEventListener('DOMContentLoaded',cleanPlus);
