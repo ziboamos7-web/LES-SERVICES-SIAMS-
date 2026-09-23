@@ -850,6 +850,50 @@
   .commchk-ok{color:var(--green);display:flex;}
   .commchk-bad{color:var(--gold-dark);display:flex;}
 
+  /* ---- V63 : écran « Vérification en cours » condensé — remplace la timeline
+     détaillée + pavé explicatif par un statut central, un dossier consolidé
+     (agent, reçu, critères) et une barre de progression. ---- */
+  .comm-top-row{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:1;}
+  .comm-ref{font-size:11px;color:var(--text-soft);display:flex;align-items:center;gap:5px;background:none;border:none;padding:0;cursor:pointer;font-family:var(--font-body);}
+  .comm-ref svg{color:var(--text-soft);}
+  .comm-updated{font-size:10px;color:var(--text-soft);display:flex;align-items:center;gap:4px;}
+  .comm-stepper{display:flex;align-items:center;margin-top:18px;position:relative;z-index:1;}
+  .comm-stepper-line{flex:1;height:2px;background:var(--line);margin:0 2px;}
+  .comm-stepper-line.done{background:var(--gold);}
+  .comm-stepper-node{flex:none;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--paper);border:2px solid var(--line);}
+  .comm-stepper-node.done{background:var(--gold);border-color:var(--gold);color:#fff;}
+  .comm-stepper-node.active{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-tint);}
+  .comm-status-badge{display:flex;justify-content:center;margin-top:18px;position:relative;z-index:1;}
+  .comm-status-badge span{display:inline-flex;align-items:center;gap:6px;background:var(--gold-tint);color:var(--gold-dark);font-size:11px;font-weight:800;padding:5px 12px;border-radius:999px;}
+  .trial-xp.theme-blue .comm-status-badge span.manual{background:var(--gold-tint);color:var(--gold-dark);}
+  .comm-agent-card{display:flex;align-items:center;gap:11px;margin-top:14px;background:var(--panel);border-radius:13px;padding:11px 12px;position:relative;z-index:1;}
+  .comm-agent-avatar{flex:none;width:34px;height:34px;border-radius:50%;background:var(--blue-tint);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;position:relative;}
+  .comm-agent-avatar i{width:8px;height:8px;border-radius:50%;background:var(--green);border:2px solid var(--panel);position:absolute;bottom:-1px;right:-1px;}
+  .comm-agent-body{flex:1;min-width:0;}
+  .comm-agent-name{font-size:12.5px;font-weight:800;color:var(--text);}
+  .comm-agent-sub{font-size:10.5px;color:var(--text-mid);margin-top:1px;}
+  .comm-agent-msg{flex:none;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);background:var(--paper);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;padding:0;}
+  .comm-dossier-card{margin-top:12px;background:var(--panel);border-radius:13px;overflow:hidden;position:relative;z-index:1;}
+  .comm-dossier-row{display:flex;align-items:center;gap:10px;padding:11px 12px;}
+  .comm-dossier-divider{height:1px;background:var(--line);margin:0 12px;}
+  .comm-file-ic{flex:none;width:30px;height:30px;border-radius:7px;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--text-mid);}
+  .comm-file-name{font-size:12px;font-weight:700;color:var(--text);}
+  .comm-file-meta{font-size:10px;color:var(--text-soft);margin-top:1px;}
+  .comm-file-view{flex:none;color:var(--text-mid);cursor:pointer;background:none;border:none;padding:4px;}
+  .comm-criteria-row{display:flex;padding:12px 4px;}
+  .comm-criteria-cell{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;color:var(--text-mid);}
+  .comm-criteria-label{font-size:9.5px;font-weight:700;color:var(--text);}
+  .comm-progress{margin-top:12px;position:relative;z-index:1;}
+  .comm-progress-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-soft);margin-bottom:6px;}
+  .comm-progress-track{height:4px;border-radius:4px;background:var(--line);overflow:hidden;}
+  .comm-progress-fill{height:100%;background:var(--gold);border-radius:4px;transition:width 1s linear;}
+  .comm-notify-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;background:var(--panel);border-radius:13px;padding:11px 12px;position:relative;z-index:1;}
+  .comm-notify-label{font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;}
+  .comm-notify-toggle{flex:none;width:34px;height:20px;border-radius:20px;border:none;padding:2px;cursor:pointer;background:var(--line);transition:background .15s ease;position:relative;}
+  .comm-notify-toggle.on{background:var(--gold-dark);}
+  .comm-notify-toggle span{display:block;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s ease;}
+  .comm-notify-toggle.on span{transform:translateX(14px);}
+
   /* ---- Carte Pass actif : anneau de renouvellement + compteurs animés ---- */
   .plan-ring-wrap{position:relative;width:56px;height:56px;flex:none;}
   .plan-ring-wrap svg{transform:rotate(-90deg);width:56px;height:56px;}
@@ -3435,6 +3479,11 @@ const Store = {
   set commissionSentAmount(v){ Utils.setLocal('commission_sent_amount', Math.round(Number(v)||0)); },
   get commissionSentAt(){ return Utils.getLocal('commission_sent_at', 0); },
   set commissionSentAt(v){ Utils.setLocal('commission_sent_at', v||0); },
+  /* ---- Préférence locale : le vendeur veut-il être notifié dès que la vérification
+     de son reçu est validée ? Purement local pour l'instant (pas encore branché à un
+     envoi push réel côté serveur). ---- */
+  get commissionNotifyOptIn(){ return Utils.getLocal('commission_notify_optin', true); },
+  set commissionNotifyOptIn(v){ Utils.setLocal('commission_notify_optin', !!v); },
 
   /* ---- Commission MA BOUTIQUE pendant l'abonnement (Pass payant) : 2% sur chaque
      commande livrée à partir de l'activation du Pass, en plus du prix de
@@ -5610,24 +5659,31 @@ Views['commissions-apercu'] = function(){
     : {border:'var(--indigo)', badgeBg:'var(--indigo-tint)', badgeColor:'var(--indigo)'};
   return `${TopBar('Aperçu de mon contrat','Commissions et clauses utiles à connaître')}
   <div style="padding:16px 20px 28px;">
-    <div class="stats-card" style="margin-bottom:16px;background:var(--indigo-tint);border:1px solid var(--indigo);display:flex;gap:10px;align-items:flex-start;">
+    <div class="stats-card" style="margin-bottom:20px;background:var(--indigo-tint);border:1px solid var(--indigo);display:flex;gap:10px;align-items:flex-start;">
       <span style="font-size:20px;flex:none;">📄</span>
       <div style="font-size:12.5px;color:var(--text-mid);line-height:1.55;">Ceci est un aperçu des clauses les plus utiles au quotidien de votre contrat MA BOUTIQUE — commissions, délais et paiement. Il ne remplace pas le contrat complet, que vous pouvez télécharger en PDF ci-dessous.</div>
     </div>
-    ${items.map(it=>{
-      const s = styleFor(it.kind);
-      return `
-      <div class="stats-card" style="margin-bottom:12px;border-left:4px solid ${s.border};">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
-          <span style="display:flex;align-items:center;gap:6px;background:${s.badgeBg};color:${s.badgeColor};font-size:10.5px;font-weight:800;letter-spacing:.02em;padding:3px 9px;border-radius:999px;text-transform:uppercase;"><span>${it.icon}</span>${it.badge}</span>
-          ${it.rate?`<span class="mono" style="font-size:20px;font-weight:800;color:var(--indigo);">${it.rate}</span>`:''}
-        </div>
-        <h4 style="margin:0 0 6px;font-size:14.5px;">${Utils.escapeHtml(it.title)}</h4>
-        <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
-        <span style="font-size:10.5px;color:var(--text-soft);font-weight:700;">Article ${it.article} du contrat</span>
-      </div>`;
-    }).join('')}
-    <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
+    <div style="position:relative;">
+      <div style="position:absolute;left:15px;top:8px;bottom:8px;width:2px;background:var(--line);"></div>
+      ${items.map((it,i)=>{
+        const s = styleFor(it.kind);
+        const last = i===items.length-1;
+        return `
+        <div style="position:relative;display:flex;gap:12px;${last?'':'padding-bottom:16px;'}">
+          <div style="width:32px;height:32px;border-radius:50%;background:${s.badgeBg};border:2px solid ${s.border};display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;z-index:1;">${it.icon}</div>
+          <div class="stats-card" style="flex:1;min-width:0;margin-bottom:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+              <span style="font-size:10.5px;font-weight:800;letter-spacing:.02em;color:${s.badgeColor==='#fff'?'var(--mango)':s.badgeColor};text-transform:uppercase;">${it.badge}</span>
+              ${it.rate?`<span class="mono" style="font-size:18px;font-weight:800;color:var(--indigo);">${it.rate}</span>`:''}
+            </div>
+            <h4 style="margin:0 0 6px;font-size:14px;">${Utils.escapeHtml(it.title)}</h4>
+            <p style="margin:0 0 6px;font-size:12.5px;color:var(--text-mid);line-height:1.6;">${Utils.escapeHtml(it.text)}</p>
+            <span style="font-size:10.5px;color:var(--text-soft);font-weight:700;">Article ${it.article} du contrat</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-outline btn-block" style="margin-top:20px;" onclick="ContractGate.download()">📄 Télécharger le contrat complet (PDF)</button>
   </div>`;
 };
 
@@ -6220,21 +6276,12 @@ Views.dashboard = function(){
   const avgBasket = orders.length ? Math.round(orders.reduce((s,o)=>s+o.amount,0)/orders.length) : 0;
   const clientsCount = Store.customers().length;
   const lowStockProducts = (Store.products||[]).filter(p=>p.stockLimited && Number(p.stockQty||0)<=3);
-  const orderIcons = {
-    new:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6.5H4c.5-1 2-2.5 2-6.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-    preparing:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.3" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    shipped:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 16V6a1 1 0 0 1 1-1h9v11M3 16h11m0 0h3.5a1.5 1.5 0 0 0 1.5-1.5V11h-5m0-6h2l3 4v3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.6"/></svg>',
-    done:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.3" stroke="currentColor" stroke-width="1.8"/><path d="M8 12.3l2.6 2.6L16 9.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    cancelled:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>'
-  };
-  const orderTile = (key,label,count,sub,bg,color)=>`
-    <div class="cartouche-v2-order-tile" onclick="Router.go('orders')">
-      <div class="cartouche-v2-order-top">
-        <span class="cartouche-v2-order-icon" style="background:${bg};color:${color};">${orderIcons[key]}</span>
-        <b>${count}</b>
-      </div>
-      <div class="cartouche-v2-order-label">${label}</div>
-      <div class="cartouche-v2-order-sub">${sub}</div>
+  const cmdRow = (label,count,color,sub)=>`
+    <div class="dashboard-v2-command-row" onclick="Router.go('orders')">
+      <span class="dashboard-v2-command-dot" style="background:${color};"></span>
+      <div class="dashboard-v2-command-main">${label}<small>${sub}</small></div>
+      <span class="dashboard-v2-command-count">${count}</span>
+      <span style="color:var(--text-soft);font-size:16px;">›</span>
     </div>`;
   const quick=[
     {route:'product-add',label:'Produit',tint:'rgba(92,72,214,.10)',color:'#5C48D6',icon:'<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>'},
@@ -6252,49 +6299,35 @@ Views.dashboard = function(){
         </button>
       </div>
     </div>
-    <section class="dashboard-v18-finance cartouche-v1" aria-label="Tableau de bord financier">
-      <div class="cartouche-v1-hero">
-        <div>
-          <div class="cartouche-v1-label">Ventes livrées</div>
-          <div class="finance-total count-up-val cartouche-v1-total" id="finance-total-val" data-target="${deliveredRevenue}">0 FCFA</div>
-        </div>
-        ${siamsBanqueOn ? `
-        <button type="button" class="cartouche-v1-btn" onclick="event.stopPropagation();SiamsWithdraw.open();">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11A2.5 2.5 0 0 1 19 7.5V9h-4a2.5 2.5 0 0 0 0 5h4v1.5A2.5 2.5 0 0 1 16.5 18h-11A2.5 2.5 0 0 1 3 15.5v-8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="16" cy="11.5" r="1" fill="currentColor"/></svg>
-          Retirer
-        </button>
-        ` : ''}
+    <section class="dashboard-v18-finance" aria-label="Tableau de bord financier">
+      <div class="finance-main">
+        <div class="finance-main-label">Ventes livrées</div>
+        <div class="finance-total count-up-val" id="finance-total-val" data-target="${deliveredRevenue}">0 FCFA</div>
       </div>
-      <div class="cartouche-v1-grid">
-        <div class="cartouche-v1-row">
-          <div class="cartouche-v1-cell"><span>En attente</span><b>${Utils.fmtFCFA(pending).replace(' FCFA',' F')}</b></div>
-          <div class="cartouche-v1-cell"><span>Total ventes</span><b>${Utils.fmtFCFA(totalSales).replace(' FCFA',' F')}</b></div>
-        </div>
-        ${siamsBanqueOn ? `
-        <div class="cartouche-v1-row">
-          <div class="cartouche-v1-cell"><span>Solde SIAMS banque</span><b>${Utils.fmtFCFA(siamsBalance).replace(' FCFA',' F')}</b></div>
-          <div class="cartouche-v1-cell"><span>Déjà retiré</span><b>${Utils.fmtFCFA(Store.totalSiamsWithdrawn()).replace(' FCFA',' F')}</b></div>
-        </div>
-        ` : `
-        <div class="cartouche-v1-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span>Chaque paiement client va directement sur votre compte Wave/OM/MTN</span></div>
-        `}
+      <div class="finance-two-col">
+        <div class="finance-two-col-item"><span>En attente</span><b>${Utils.fmtFCFA(pending)}</b></div>
+        <div class="finance-two-col-item right"><span>${siamsBanqueOn ? 'Solde SIAMS BANQUE' : 'Total des ventes'}</span><b>${Utils.fmtFCFA(siamsBanqueOn ? siamsBalance : totalSales)}</b></div>
       </div>
+      ${siamsBanqueOn ? `
+      <button type="button" class="finance-withdraw-btn" onclick="event.stopPropagation();SiamsWithdraw.open();">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 9-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Retirer mes fonds SIAMS BANQUE
+      </button>
+      <div class="finance-trust-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Vos paiements clients sont reçus et sécurisés par SIAMS BANQUE, puis reversés sous 2h vers le réseau de votre choix</span></div>
+      ` : `
+      <div class="finance-trust-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 3l7 3v6c0 4.8-3 8.5-7 9.9-4-1.4-7-5.1-7-9.9V6l7-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Chaque paiement client va directement sur votre compte Wave/OM/MTN</span></div>
+      `}
+    </section>
     </section>
     <div class="dashboard-v2-section"><h3>Raccourcis</h3><button onclick="Router.go('products')">Tout voir ›</button></div>
     <div class="dashboard-v2-quick">${quick.map(q=>`<button class="quick-nav-card" onclick="dashboardQuickGo('${q.route}')" aria-label="${q.label}"><div class="qicon" style="background:${q.tint};color:${q.color};">${q.icon}</div><span>${q.label}</span></button>`).join('')}</div>
-    <div class="dashboard-v2-section"><h3>Services MA BOUTIQUE</h3><button onclick="Sheet.open()">Voir tout ›</button></div>
-    <div class="dashboard-v2-service-grid">${DASHBOARD_SERVICES.slice(0,9).map(s=>`<button type="button" class="dashboard-v2-service" onclick="dashboardServiceGo('${s.route}')" aria-label="Ouvrir ${s.label}"><div class="sicon" style="background:${s.tint};color:${s.color};">${s.icon}</div><span>${s.label}</span></button>`).join('')}</div>
-    <div class="dashboard-v2-section"><h3>Suivi des commandes</h3><button onclick="Router.go('orders')">Détails</button></div>
-    <div class="cartouche-v2-orders">
-      ${orderTile('new','Nouvelles',counts.new,'À traiter maintenant','var(--mango-tint)','var(--mango-dark)')}
-      ${orderTile('preparing','En préparation',counts.preparing,'Commandes en cours','var(--blue-tint)','var(--blue)')}
-      ${orderTile('shipped','Expédiées',counts.shipped,'En cours de livraison','var(--indigo-tint)','var(--indigo)')}
-      ${orderTile('done','Terminées',counts.done,'Livrées avec succès','var(--green)','#fff')}
-    </div>
-    <div class="cartouche-v2-order-row" onclick="Router.go('orders')">
-      <span class="cartouche-v2-order-icon" style="background:var(--red-tint);color:var(--red);">${orderIcons.cancelled}</span>
-      <div class="cartouche-v2-order-row-main"><b>Annulées</b><span>À vérifier</span></div>
-      <span class="cartouche-v2-order-row-count">${counts.cancelled}</span>
+    <div class="dashboard-v2-section"><h3>Suivi des commandes</h3><button onclick="Router.go('orders')">Détails ›</button></div>
+    <div class="dashboard-v2-command-card">
+      ${cmdRow('Nouvelles commandes',counts.new,'var(--mango)','À traiter maintenant')}
+      ${cmdRow('En préparation',counts.preparing,'var(--blue)','Commandes en cours')}
+      ${cmdRow('Expédiées',counts.shipped,'var(--indigo)','En cours de livraison')}
+      ${cmdRow('Terminées',counts.done,'var(--green)','Livrées avec succès')}
+      ${cmdRow('Annulées',counts.cancelled,'var(--red)','À vérifier')}
     </div>
     <div class="dashboard-v2-section"><h3>Votre activité</h3><button onclick="Router.go('stats')">Voir les stats ›</button></div>
     <div class="stat-grid" style="padding-top:0;">
@@ -6408,7 +6441,14 @@ function subIcon(name, size){
     arrow:'<path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
     calendar:'<rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 9h18M8 2v4M16 2v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
     upload:'<path d="M12 16V4M7 9l5-5 5 5M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
-    card:'<rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.8"/>'
+    card:'<rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.8"/>',
+    hourglass:'<path d="M6 2h12M6 22h12M7 2c0 5 5 6 5 10s-5 5-5 10M17 2c0 5-5 6-5 10s5 5 5 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+    message:'<path d="M4 5h16v11H8l-4 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+    bell:'<path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>',
+    file:'<path d="M7 3h7l4 4v14H7V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+    refresh:'<path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 4v4h-4M6 20v-4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+    copy:'<rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>'
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" style="flex:none;display:block;">${paths[name]||''}</svg>`;
 }
@@ -6422,27 +6462,6 @@ function DashboardStatusBar(access){
   const showCommission = !settled && (proofSent || due>0 || inTrial);
   const subDue = Store.subCommissionDue ? Store.subCommissionDue() : 0;
   const showSubCommission = access.status==='active' && subDue>0;
-
-  if(access.status==='trial'){
-    const pct = Math.max(4,Math.min(100,Math.round((TRIAL_DAYS-access.daysLeft)/TRIAL_DAYS*100)));
-    return `
-    <div class="cartouche-v3-trial" onclick="Router.go('subscription-status')">
-      <div class="cartouche-v3-trial-top">
-        <span class="cartouche-v3-trial-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.2 3.4c.2-.6 1-.6 1.2 0l1.4 4 4 1.4c.6.2.6 1 0 1.2l-4 1.4-1.4 4c-.2.6-1 .6-1.2 0l-1.4-4-4-1.4c-.6-.2-.6-1 0-1.2l4-1.4 1.4-4Z"/><path d="M18.4 15.2c.1-.4.6-.4.8 0l.5 1.5 1.5.5c.4.1.4.6 0 .8l-1.5.5-.5 1.5c-.1.4-.6.4-.8 0l-.5-1.5-1.5-.5c-.4-.1-.4-.6 0-.8l1.5-.5.5-1.5Z"/></svg>
-        </span>
-        <div>
-          <div class="cartouche-v3-trial-title">Pass gratuit de découverte</div>
-          <div class="cartouche-v3-trial-sub">${access.daysLeft} jour${access.daysLeft>1?'s':''} restant${access.daysLeft>1?'s':''}</div>
-        </div>
-      </div>
-      <div class="cartouche-v3-trial-track"><div class="cartouche-v3-trial-fill" style="width:${pct}%;"></div></div>
-      <button type="button" class="cartouche-v3-trial-btn" onclick="event.stopPropagation();Router.go('subscription-status');">
-        Voir les avantages
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-    </div>`;
-  }
 
   const colors = {trial:'#4A4E5A', building:'#1F74DC', pending:'#1F74DC', active:'#1F7A4D', expired:'#D7263D'};
   const color = colors[access.status] || '#4A4E5A';
@@ -6471,6 +6490,29 @@ function DashboardStatusBar(access){
   const chips=[];
   if(showCommission) chips.push(proofSent ? 'Reçu en cours d\'analyse' : (inTrial ? `Essai commission · ${daysLeft} j` : 'Commission à régler'));
   if(showSubCommission) chips.push(`${Utils.fmtFCFA(subDue)} à régler`);
+
+  if(access.status==='trial'){
+    const frac = Math.min(1, Math.max(0, access.daysLeft / TRIAL_DAYS));
+    const circumference = 157.1;
+    const offset = (circumference * (1 - frac)).toFixed(1);
+    return `
+    <button type="button" class="dash-trial-ring-card" style="width:100%;text-align:left;background:${hexToRgba(color,.08)};border:1px solid ${hexToRgba(color,.22)};border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;" onclick="Router.go('subscription-status')">
+      <svg width="56" height="56" viewBox="0 0 60 60" style="flex:none;">
+        <circle cx="30" cy="30" r="25" fill="none" stroke="${hexToRgba(color,.16)}" stroke-width="5"/>
+        <circle cx="30" cy="30" r="25" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" transform="rotate(-90 30 30)"/>
+        <text x="30" y="28" text-anchor="middle" font-size="15" font-weight="800" fill="var(--text)">${access.daysLeft}</text>
+        <text x="30" y="39" text-anchor="middle" font-size="8" fill="var(--text-mid)">jours</text>
+      </svg>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:${color};margin-bottom:2px;">Essai gratuit</div>
+        <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;">Pass de découverte</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          ${chips.length?`<span style="font-size:11px;color:var(--text-mid);">${chips[0]}</span>`:'<span></span>'}
+          <span style="font-size:14px;font-weight:800;color:${color};flex:none;">›</span>
+        </div>
+      </div>
+    </button>`;
+  }
 
   return `
   <div class="dash-status-bar" style="background:${hexToRgba(color,.08)};border-color:${hexToRgba(color,.22)};" onclick="Router.go('subscription-status')">
@@ -6535,21 +6577,10 @@ function CommissionCard(){
   const verifyOffset = C*(1-verifyProgress);
   const verifyRemainMs = Math.max(0, VERIFY_BUDGET_MS - verifyElapsed);
 
-  const verifyChecklist = `
-    <div class="commchk-list">
-      <div class="commchk-row"><span class="commchk-label">${subIcon('card',13)}<span>Montant du reçu</span></span><span class="commchk-status" id="commchk-commission-amount"><span class="pf-mini-spinner"></span></span></div>
-      <div class="commchk-row"><span class="commchk-label">${subIcon('lock',13)}<span>Bénéficiaire</span></span><span class="commchk-status" id="commchk-commission-beneficiary"><span class="pf-mini-spinner"></span></span></div>
-      <div class="commchk-row"><span class="commchk-label">${subIcon('shield',13)}<span>Authenticité</span></span><span class="commchk-status" id="commchk-commission-authenticity"><span class="pf-mini-spinner"></span></span></div>
-    </div>`;
+  const manualPhase = proofSent && verifyRemainMs<=0;
+  const refCode = proofSent ? 'CM-'+String(Store.commissionSentAt).slice(-4) : '';
 
-  const stepDefs = proofSent
-    ? [
-        ["Essai gratuit", "Vos 20 jours d'essai MA BOUTIQUE.", 'done'],
-        ["Preuve envoyée", "Votre justificatif de paiement a été transmis.", 'done'],
-        ["Analyse en cours", "Vérification automatique en cours ; relais manuel en cas de doute.", 'active', verifyChecklist],
-        ["Pass actif", "Dès validation, la commission d'essai est soldée et votre Pass se déverrouille.", '']
-      ]
-    : inTrial
+  const stepDefsIdle = inTrial
     ? [
         ["Essai en cours", "Vos ventes livrées sont suivies automatiquement, rien à faire pour l'instant.", 'active'],
         ["Analyse automatique", "Après l'envoi de votre preuve, une vérification automatique la valide en quelques minutes.", ''],
@@ -6561,75 +6592,115 @@ function CommissionCard(){
         ["Pass actif", "Dès validation, votre Pass se déverrouille.", '']
       ];
 
-  const eyebrow = proofSent ? "Commission MA BOUTIQUE · analyse en cours" : "Commission MA BOUTIQUE · essai";
-  const title = proofSent ? "Votre reçu est en cours d'analyse" : (inTrial ? "Votre essai gratuit est en cours" : "Votre essai est terminé");
   const amountLabel = proofSent ? "Montant envoyé" : "Commission cumulée (5% sur vos ventes livrées)";
   const amountVal = proofSent ? Store.commissionSentAmount : due;
   const sentDateStr = proofSent && Store.commissionSentAt ? new Date(Store.commissionSentAt).toLocaleString('fr-FR') : '';
 
+  /* ---- V63 : état « reçu envoyé » — statut central, dossier consolidé
+     (agent, reçu, 3 critères) et barre de progression, sans pavé explicatif. ---- */
+  if(proofSent){
+    return `
+  <div class="trial-xp theme-blue" data-trial-end="${trialEnd}">
+    <div class="comm-top-row">
+      <button type="button" class="comm-ref" onclick="navigator.clipboard.writeText('${refCode}');Toast.show('Référence copiée ✓')">Réf. ${refCode}${subIcon('copy',12)}</button>
+      <span class="comm-updated" id="comm-updated-ago" data-sent-at="${Store.commissionSentAt}">${subIcon('refresh',11)}<span id="comm-updated-ago-txt">à l'instant</span></span>
+    </div>
+    <div class="comm-stepper">
+      <div class="comm-stepper-node done">${subIcon('check',10)}</div>
+      <div class="comm-stepper-line done"></div>
+      <div class="comm-stepper-node done">${subIcon('check',10)}</div>
+      <div class="comm-stepper-line ${manualPhase?'done':''}" id="comm-stepper-line-3"></div>
+      <div class="comm-stepper-node active" id="comm-stepper-node-3"></div>
+      <div class="comm-stepper-line"></div>
+      <div class="comm-stepper-node"></div>
+    </div>
+    <div class="comm-status-badge">
+      <span class="${manualPhase?'manual':''}" id="comm-status-badge-text">${subIcon('hourglass',12)}<span>${manualPhase?'Vérification manuelle':'Analyse automatique'}</span></span>
+    </div>
+    <div class="trial-xp-amount" style="text-align:center;">
+      <div class="val count-up-val" data-target="${amountVal}" style="font-size:26px;">0 FCFA</div>
+      ${sentDateStr ? `<div style="font-size:11px;color:var(--text-mid);margin-top:4px;">Reçu envoyé le ${sentDateStr}</div>` : ''}
+    </div>
+    <div class="comm-agent-card" id="comm-agent-card" style="display:${manualPhase?'flex':'none'};">
+      <div class="comm-agent-avatar">AK<i></i></div>
+      <div class="comm-agent-body">
+        <div class="comm-agent-name">Awa K.</div>
+        <div class="comm-agent-sub">Agent SIAMS · a pris votre dossier</div>
+      </div>
+      <button type="button" class="comm-agent-msg" aria-label="Contacter l'agent" onclick="window.open('https://wa.me/qr/CP2FDOBXXD74G1?text='+encodeURIComponent('Bonjour, je vous contacte au sujet de la vérification de mon reçu (réf. ${refCode}).'),'_blank')">${subIcon('message',15)}</button>
+    </div>
+    <div class="comm-dossier-card">
+      <div class="comm-dossier-row">
+        <div class="comm-file-ic">${subIcon('file',15)}</div>
+        <div style="flex:1;">
+          <div class="comm-file-name">Preuve de paiement</div>
+          <div class="comm-file-meta">Envoyée le ${sentDateStr}</div>
+        </div>
+      </div>
+      <div class="comm-dossier-divider"></div>
+      <div class="comm-criteria-row">
+        <div class="comm-criteria-cell">${subIcon('card',16)}<span class="comm-criteria-label">Montant</span><span class="commchk-status" id="commchk-commission-amount"><span class="pf-mini-spinner"></span></span></div>
+        <div class="comm-criteria-cell">${subIcon('lock',16)}<span class="comm-criteria-label">Bénéficiaire</span><span class="commchk-status" id="commchk-commission-beneficiary"><span class="pf-mini-spinner"></span></span></div>
+        <div class="comm-criteria-cell">${subIcon('shield',16)}<span class="comm-criteria-label">Authenticité</span><span class="commchk-status" id="commchk-commission-authenticity"><span class="pf-mini-spinner"></span></span></div>
+      </div>
+    </div>
+    <div class="comm-progress" id="comm-progress" style="${manualPhase?'display:none;':''}">
+      <div class="comm-progress-labels"><span>Temps estimé</span><span id="commission-verify-countdown-val">${verifyRemainMs>0?('~'+fmtMsLeft(verifyRemainMs)):'Presque terminé'}</span></div>
+      <div class="comm-progress-track"><div class="comm-progress-fill" id="comm-progress-fill" style="width:${Math.round(verifyProgress*100)}%;"></div></div>
+    </div>
+    <div class="comm-notify-row">
+      <span class="comm-notify-label">${subIcon('bell',15)}Me notifier une fois validé</span>
+      <button type="button" class="comm-notify-toggle ${Store.commissionNotifyOptIn?'on':''}" id="comm-notify-toggle" onclick="Store.commissionNotifyOptIn=!Store.commissionNotifyOptIn;this.classList.toggle('on',Store.commissionNotifyOptIn);"><span></span></button>
+    </div>
+    <div class="trial-xp-actions" id="comm-retry-actions" style="display:${manualPhase?'flex':'none'};">
+      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.startCommissionProof()"><span class="trial-xp-btn-ic">${subIcon('upload',15)}</span>Renvoyer un reçu</button>
+    </div>
+    <div class="trial-xp-actions">
+      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
+    </div>
+  </div>`;
+  }
+
+  const eyebrow = "Commission MA BOUTIQUE · essai";
+  const title = inTrial ? "Votre essai gratuit est en cours" : "Votre essai est terminé";
+
   return `
-  <div class="trial-xp ${inTrial?'':'ended'} ${proofSent?'theme-blue':''}" data-trial-end="${trialEnd}">
+  <div class="trial-xp ${inTrial?'':'ended'}" data-trial-end="${trialEnd}">
     <div class="trial-xp-top">
       <div>
-        <div class="trial-xp-eyebrow" id="comm-eyebrow">${eyebrow}</div>
-        <div class="trial-xp-title" id="comm-title">${title}</div>
+        <div class="trial-xp-eyebrow">${eyebrow}</div>
+        <div class="trial-xp-title">${title}</div>
       </div>
-      ${proofSent ? `
-      <div class="trial-ring-wrap">
-        <svg viewBox="0 0 66 66">
-          <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
-          <circle class="trial-ring-fg" id="verify-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${verifyOffset}" data-sent-at="${Store.commissionSentAt}" data-budget="${VERIFY_BUDGET_MS}"></circle>
-        </svg>
-        <div class="trial-ring-label" id="verify-ring-label"><b>${Math.round(verifyProgress*100)}</b><span>%</span></div>
-      </div>` : `
       <div class="trial-ring-wrap">
         <svg viewBox="0 0 66 66">
           <circle class="trial-ring-bg" cx="33" cy="33" r="${R}"></circle>
           <circle class="trial-ring-fg" cx="33" cy="33" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"></circle>
         </svg>
         <div class="trial-ring-label"><b>${inTrial?daysLeft:0}</b><span>${inTrial?(daysLeft>1?'jours':'jour'):'terminé'}</span></div>
-      </div>`}
+      </div>
     </div>
     <div class="trial-xp-amount">
       <div class="lbl">${amountLabel}</div>
       <div class="val count-up-val" data-target="${amountVal}">0 FCFA</div>
-      ${sentDateStr ? `<div style="font-size:11px;color:var(--text-mid);margin-top:4px;">Envoyé le ${sentDateStr}</div>` : ''}
     </div>
-    ${!proofSent ? `
     <div class="trial-xp-countdown">
       <span class="lab">${subIcon('clock',13)}<span>${inTrial?"Fin de l'essai dans":'Essai terminé depuis'}</span></span>
       <span class="val" id="commission-trial-countdown-val" data-ends-at="${trialEnd}">${fmtRenewCountdown(Math.abs(trialEnd-Date.now()))}</span>
-    </div>` : `
-    <div class="trial-xp-countdown">
-      <span class="lab">${subIcon('clock',13)}<span>Estimation</span></span>
-      <span class="val" id="commission-verify-countdown-val">${verifyRemainMs>0?('~'+fmtMsLeft(verifyRemainMs)):'Presque terminé'}</span>
-    </div>`}
+    </div>
     <div class="comm-steps">
-      ${stepDefs.map(([t,d,state,extra])=>`
+      ${stepDefsIdle.map(([t,d,state])=>`
       <div class="comm-step ${state}">
         <span class="comm-step-dot">${state==='done'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="m5 13 4 4 10-11" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>':(state==='active'?'<span class="pf-mini-spinner" style="border-color:var(--gold-tint);border-top-color:var(--gold-dark);"></span>':'')}</span>
         <div class="comm-step-body">
           <div class="comm-step-title">${t}</div>
-          <div class="comm-step-desc"${state==='active'?' id="comm-step-desc-active"':''}>${d}</div>
-          ${extra||''}
+          <div class="comm-step-desc">${d}</div>
         </div>
       </div>`).join('')}
     </div>
-    ${proofSent ? `
-    <div class="comm-info-box">
-      ${subIcon('shield',15)}
-      <p>Comment ça marche : dès réception de votre capture d'écran, une analyse automatique vérifie en quelques minutes qu'il s'agit bien d'un reçu original et que le montant correspond — si tout concorde, votre commission est validée et votre Pass activé automatiquement, sans attendre un agent. En cas de doute (reçu flou, PDF, montant qui ne correspond pas), un agent MA BOUTIQUE prend le relais manuellement. Cette page se met à jour automatiquement dès que c'est validé — vous pouvez aussi revenir la consulter à tout moment.</p>
-    </div>
-    <div class="trial-xp-actions" id="comm-retry-actions" style="display:none;">
-      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.startCommissionProof()"><span class="trial-xp-btn-ic">${subIcon('upload',15)}</span>Renvoyer un reçu</button>
-    </div>
-    <div class="trial-xp-actions">
-      <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
-    </div>` : `
     <div class="trial-xp-actions">
       <button type="button" class="trial-xp-btn primary" onclick="SubscriptionSheet.openCommissionOnly()"><span class="trial-xp-btn-ic">${subIcon('wallet',15)}</span>${inTrial?'Suivre ma commission':'Régler ma commission'}</button>
       <button type="button" class="trial-xp-btn ghost" onclick="SubscriptionSheet.open()"><span class="trial-xp-btn-ic">${subIcon('tiers',15)}</span>Voir les formules d'abonnement<span class="trial-xp-btn-arrow">›</span></button>
-    </div>`}
+    </div>
   </div>`;
 }
 
@@ -6688,34 +6759,41 @@ setInterval(()=>{
     val.textContent = fmtRenewCountdown(renewsAt - Date.now());
   }
 }, 1000);
-/* ---- V61 : anneau + estimation de temps de la page « Analyse en cours ». ---- */
+/* ---- V63 : barre de progression + bascule auto→manuel de l'écran de
+   vérification commission (remplace l'ancien anneau/pavé explicatif). ---- */
 setInterval(()=>{
-  const ring = document.getElementById('verify-ring-fg');
-  if(!ring) return;
-  const sentAt = Number(ring.dataset.sentAt), budget = Number(ring.dataset.budget);
+  const bar = document.getElementById('comm-progress-fill');
+  const ring = document.getElementById('comm-updated-ago');
+  if(!bar && !ring) return;
+  const VERIFY_BUDGET_MS = 5*60000;
+  const sentAt = ring ? Number(ring.dataset.sentAt) : 0;
   const elapsed = Date.now()-sentAt;
-  const progress = Math.max(0, Math.min(1, elapsed/budget));
-  const R=27, C=2*Math.PI*R;
-  ring.setAttribute('stroke-dashoffset', C*(1-progress));
-  const label = document.getElementById('verify-ring-label');
-  if(label) label.innerHTML = `<b>${Math.round(progress*100)}</b><span>%</span>`;
+  const progress = Math.max(0, Math.min(1, elapsed/VERIFY_BUDGET_MS));
+  if(bar) bar.style.width = (progress*100)+'%';
   const cd = document.getElementById('commission-verify-countdown-val');
-  const remain = Math.max(0, budget-elapsed);
-  if(cd) cd.textContent = remain>0 ? ('~'+fmtMsLeft(remain)) : 'Relais manuel en cours';
+  const remain = Math.max(0, VERIFY_BUDGET_MS-elapsed);
+  if(cd) cd.textContent = remain>0 ? ('~'+fmtMsLeft(remain)) : 'Presque terminé';
+  const agoTxt = document.getElementById('comm-updated-ago-txt');
+  if(agoTxt){
+    const m = Math.floor(elapsed/60000);
+    agoTxt.textContent = m<1 ? "à l'instant" : `il y a ${m} min`;
+  }
   /* ---- Le délai estimé (5 min) est dépassé sans confirmation : plutôt que de
      laisser croire à une analyse automatique sans fin, on bascule l'affichage
-     en vérification manuelle et on propose de renvoyer un reçu (utile si le
-     premier appel a échoué côté serveur, ex. service OCR indisponible). ---- */
-  if(remain<=0 && !ring.dataset.timedOut){
+     en vérification manuelle (badge, carte agent, bouton renvoyer) — utile si
+     le premier appel a échoué côté serveur, ex. service OCR indisponible. ---- */
+  if(remain<=0 && ring && !ring.dataset.timedOut){
     ring.dataset.timedOut = '1';
-    const eyebrow = document.getElementById('comm-eyebrow');
-    const title = document.getElementById('comm-title');
-    const desc = document.getElementById('comm-step-desc-active');
-    if(eyebrow) eyebrow.textContent = 'Commission MA BOUTIQUE · vérification manuelle';
-    if(title) title.textContent = 'Votre reçu est en cours de vérification manuelle';
-    if(desc) desc.textContent = "La vérification automatique n'a pas pu conclure dans le délai estimé ; un agent MA BOUTIQUE valide votre reçu manuellement. Vous pouvez aussi renvoyer un reçu si besoin.";
+    const badge = document.getElementById('comm-status-badge-text');
+    if(badge){ badge.classList.add('manual'); badge.querySelector('span').textContent = 'Vérification manuelle'; }
+    const agentCard = document.getElementById('comm-agent-card');
+    if(agentCard) agentCard.style.display = 'flex';
+    const progressWrap = document.getElementById('comm-progress');
+    if(progressWrap) progressWrap.style.display = 'none';
+    const line3 = document.getElementById('comm-stepper-line-3');
+    if(line3) line3.classList.add('done');
     document.querySelectorAll('.commchk-status').forEach(el=>{
-      if(el.querySelector('.pf-mini-spinner')) el.innerHTML = '<span style="color:var(--text-soft);font-size:11px;">Manuel</span>';
+      if(el.querySelector('.pf-mini-spinner')) el.innerHTML = '<span style="color:var(--text-soft);font-size:10px;">Manuel</span>';
     });
     const retry = document.getElementById('comm-retry-actions');
     if(retry) retry.style.display = 'flex';
@@ -15020,20 +15098,12 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   };
   const previousDashboard=Views.dashboard;
   Views.dashboard=function(){
+    // V-simplify — l'accueil marchand n'affiche plus de section "Services MA
+    // BOUTIQUE" distincte (redondante avec Raccourcis) ; ces services restent
+    // accessibles depuis le menu Plus.
     let html=previousDashboard();
     html=html.replace(/<div class="dashboard-v2-section"><h3>Services MA BOUTIQUE<\/h3>[\s\S]*?<\/div>\s*<div class="dashboard-v2-service-grid">[\s\S]*?<\/div>/,'');
     html=html.replace(/<section class="v15-services-bottom">[\s\S]*?<\/section>/,'');
-    const order21=['stats','payment','categories','promos','reviews','customers','delivery','settings'];
-    const shortLabel21={promos:'Promos',reviews:'Avis'};
-    const extra21={settings:{route:'settings',label:'Paramètres',tint:'var(--indigo-tint)',color:'var(--indigo)',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13a7.4 7.4 0 0 0 .1-1 7.4 7.4 0 0 0-.1-1l2.1-1.6-2-3.4-2.5 1a7.6 7.6 0 0 0-1.7-1L14.9 3h-4l-.4 2.6a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.4L6.4 11a7.4 7.4 0 0 0-.1 1 7.4 7.4 0 0 0 .1 1l-2.1 1.6 2 3.4 2.5-1a7.6 7.6 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.4Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>'}};
-    const allServices21=(typeof DASHBOARD_SERVICES!=='undefined'?DASHBOARD_SERVICES:[]);
-    const serviceData=order21.map(function(r){var s=allServices21.find(function(x){return x.route===r;})||extra21[r];return s?Object.assign({},s,{label:shortLabel21[r]||s.label}):null;}).filter(Boolean);
-    const services='<section class="v21-home-services" aria-label="Services ma boutique">'+
-      '<div class="v21-home-services-head"><div><div class="v21-home-services-title">Services ma boutique</div><div class="v21-home-services-sub">Accès rapide aux services complémentaires</div></div><button class="link-btn" onclick="Sheet.open()">Voir tout</button></div>'+
-      '<div class="v21-home-services-grid">'+serviceData.map(s=>'<button class="v21-home-service" onclick="Router.go(\\\''+s.route+'\\\')"><div class="si" style="background:'+s.tint+';color:'+s.color+'">'+s.icon+'</div><span>'+s.label+'</span></button>').join('')+'</div>'+
-      '</section>';
-    const follow='<div class="dashboard-v2-section"><h3>Suivi des commandes</h3>';
-    if(html.includes(follow)) html=html.replace(follow,services+'\n    '+follow);
     return html;
   };
   document.addEventListener('DOMContentLoaded',cleanPlus);
@@ -19366,74 +19436,6 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
 </style>
 
 <!-- MA BOUTIQUE V59 — Barre d'action compacte pour l'abonnement / commission -->
-<!-- MA BOUTIQUE V61 — Cartouche financière plate (remplace le dégradé) -->
-<style id="maboutique-v61-cartouche-flat">
-#page-root:has(.dashboard-v2-head) .dashboard-v18-finance.cartouche-v1{
-  background:transparent!important;
-  border:none!important;
-  box-shadow:none!important;
-  color:var(--ink)!important;
-  padding:2px 0 0!important;
-  isolation:auto!important;
-}
-#page-root:has(.dashboard-v2-head) .dashboard-v18-finance.cartouche-v1:before,
-#page-root:has(.dashboard-v2-head) .dashboard-v18-finance.cartouche-v1:after{
-  content:none!important;
-}
-.cartouche-v1-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
-.cartouche-v1-label{font-size:13px;color:var(--text-soft);font-weight:600;margin-bottom:6px;}
-.cartouche-v1-total.finance-total{font-family:var(--font-mono);font-size:32px;font-weight:800;letter-spacing:-1px;color:var(--ink);margin-top:0;line-height:1.05;}
-.cartouche-v1-btn{display:flex;align-items:center;gap:7px;background:var(--ink);color:#fff;border:none;border-radius:999px;padding:12px 20px;font-size:14.5px;font-weight:700;white-space:nowrap;cursor:pointer;flex:none;margin-top:2px;}
-.cartouche-v1-btn:active{transform:scale(.97);}
-.cartouche-v1-grid{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
-.cartouche-v1-row{display:flex;background:rgba(255,255,255,.65);border-radius:18px;padding:14px 16px;gap:10px;}
-.cartouche-v1-cell{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0;}
-.cartouche-v1-cell span{font-size:12.5px;color:var(--text-soft);font-weight:600;}
-.cartouche-v1-cell b{font-family:var(--font-mono);font-size:18px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.cartouche-v1-note{display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.55);font-size:11.5px;color:var(--text-mid);line-height:1.4;}
-@media(max-width:380px){
-  .cartouche-v1-total.finance-total{font-size:28px;}
-  .cartouche-v1-btn{padding:11px 16px;font-size:13.5px;}
-  .cartouche-v1-cell b{font-size:16px;}
-}
-</style>
-<!-- MA BOUTIQUE V62 — Suivi des commandes en grille (remplace la liste) -->
-<!-- MA BOUTIQUE V63 — Cartouche « Pass gratuit de découverte » -->
-<style id="maboutique-v63-trial-card">
-.cartouche-v3-trial{margin:14px 20px 0;padding:18px;border-radius:22px;background:var(--blue-tint);cursor:pointer;}
-.cartouche-v3-trial-top{display:flex;align-items:center;gap:12px;}
-.cartouche-v3-trial-icon{width:44px;height:44px;min-width:44px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;color:var(--action);}
-.cartouche-v3-trial-title{font-size:15px;font-weight:800;color:var(--action-dark);line-height:1.25;}
-.cartouche-v3-trial-sub{font-size:13px;font-weight:600;color:var(--action);margin-top:2px;}
-.cartouche-v3-trial-track{margin-top:14px;height:7px;border-radius:99px;background:#fff;overflow:hidden;}
-.cartouche-v3-trial-fill{height:100%;border-radius:99px;background:var(--action);}
-.cartouche-v3-trial-btn{margin-top:14px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:none;border-radius:14px;background:var(--action);color:#fff;font-size:14.5px;font-weight:800;font-family:var(--font-body);cursor:pointer;transition:transform .12s ease,background .15s ease;}
-.cartouche-v3-trial-btn:active{transform:scale(.98);background:var(--action-dark);}
-@media(max-width:380px){
-  .cartouche-v3-trial{margin-left:14px;margin-right:14px;padding:15px;}
-  .cartouche-v3-trial-title{font-size:14px;}
-}
-</style>
-<style id="maboutique-v62-orders-grid">
-.cartouche-v2-orders{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:0 20px;}
-.cartouche-v2-order-tile{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px 14px 13px;cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .12s ease;}
-.cartouche-v2-order-tile:active{transform:scale(.97);}
-.cartouche-v2-order-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.cartouche-v2-order-icon{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;}
-.cartouche-v2-order-top>b{font-family:var(--font-mono);font-size:20px;font-weight:800;color:var(--ink);}
-.cartouche-v2-order-label{font-size:13px;font-weight:800;color:var(--ink);}
-.cartouche-v2-order-sub{font-size:10.5px;color:var(--text-soft);font-weight:600;margin-top:2px;}
-.cartouche-v2-order-row{display:flex;align-items:center;gap:10px;margin:10px 20px 0;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:16px;cursor:pointer;box-shadow:var(--shadow-sm);}
-.cartouche-v2-order-row-main{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0;}
-.cartouche-v2-order-row-main b{font-size:13px;font-weight:800;color:var(--ink);}
-.cartouche-v2-order-row-main span{font-size:10.5px;color:var(--text-soft);font-weight:600;}
-.cartouche-v2-order-row-count{font-family:var(--font-mono);font-size:16px;font-weight:800;color:var(--ink);flex:none;}
-@media(max-width:380px){
-  .cartouche-v2-orders{padding:0 14px;gap:8px;}
-  .cartouche-v2-order-row{margin-left:14px;margin-right:14px;}
-  .cartouche-v2-order-top>b{font-size:18px;}
-}
-</style>
 <style id="maboutique-v59-status-bar">
 .dash-status-bar{
   display:flex;align-items:center;gap:12px;
