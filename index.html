@@ -738,16 +738,24 @@
   .otp-channel:disabled{cursor:default;opacity:.45;background:#fff;color:var(--text-soft);border-color:var(--line);}
   .otp-error{text-align:center;font-size:13.5px;font-weight:600;color:var(--red);min-height:18px;margin:16px 20px 0;}
 
-  /* ---- Écran OTP v2 : icône ronde orange, chiffres soulignés ---- */
-  .otp2-icon-wrap{width:68px;height:68px;border-radius:50%;background:var(--pay-accent-tint,#FFF3EA);display:flex;align-items:center;justify-content:center;margin:26px 20px 0;color:var(--siams-orange,#ff7a18);}
-  .otp2-boxes{display:flex;gap:8px;justify-content:center;margin:38px 20px 8px;flex-wrap:nowrap;}
+  /* ---- Écran OTP v2 : icône ronde bleue, chiffres soulignés ---- */
+  .otp2-icon-wrap{width:68px;height:68px;border-radius:50%;background:#E8F2FE;display:flex;align-items:center;justify-content:center;margin:26px 20px 0;color:#1C7EF2;}
+  .otp2-boxes{display:flex;gap:8px;justify-content:center;margin:38px 20px 8px;flex-wrap:nowrap;position:relative;}
   .otp2-box{flex:1;max-width:44px;aspect-ratio:1/1.2;text-align:center;font-size:26px;font-weight:800;border:none;border-bottom:2.5px solid var(--line);border-radius:0;background:transparent;outline:none;color:var(--text);font-family:var(--font-mono);transition:border-color .15s ease,transform .1s ease;}
-  .otp2-box:focus{border-color:var(--siams-orange,#ff7a18);}
-  .otp2-box.filled{border-color:var(--siams-orange,#ff7a18);}
+  .otp2-box:focus{border-color:#1C7EF2;}
+  .otp2-box.filled{border-color:#1C7EF2;}
   .otp2-box.shake{animation:otpShake .35s ease;}
   .otp2-box.success{border-color:#12B76A;color:#12B76A;animation:otp2Pop .35s ease;}
   @keyframes otp2Pop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
-  .otp2-channel.active{background:var(--siams-orange,#ff7a18);border-color:var(--siams-orange,#ff7a18);}
+  .otp2-channel.active{background:#1C7EF2;border-color:#1C7EF2;}
+
+  /* ---- Convergence des 6 cases -> cercle de vérification (5s) ---- */
+  .otp2-box.otp2-converge{transition:transform .5s cubic-bezier(.5,0,.2,1),opacity .35s ease .12s;transform:translate(var(--otp-dx,0),var(--otp-dy,0)) scale(.1);opacity:0;pointer-events:none;}
+  .otp2-verify-ring-wrap{position:fixed;width:58px;height:58px;margin:-29px 0 0 -29px;z-index:10001;transform:scale(0);opacity:0;transition:transform .4s cubic-bezier(.2,.9,.3,1.3),opacity .3s ease;}
+  .otp2-verify-ring-wrap.show{transform:scale(1);opacity:1;}
+  .otp2-verify-ring-wrap.hide{transform:scale(0);opacity:0;}
+  .otp2-verify-ring{width:100%;height:100%;border-radius:50%;border:4px solid rgba(28,126,242,.18);border-top-color:#1C7EF2;animation:otp2RingSpin .85s linear infinite;}
+  @keyframes otp2RingSpin{to{transform:rotate(360deg);}}
 
   .otp2-success-overlay{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s ease;}
   .otp2-success-overlay.show{opacity:1;pointer-events:auto;}
@@ -1038,7 +1046,7 @@
   .biz-panel p{font-size:13.5px;color:var(--text-mid);line-height:1.6;margin:0 0 4px;}
   .biz-feature-list{list-style:none;margin:16px 0 0;padding:0;text-align:left;display:flex;flex-direction:column;gap:10px;}
   .biz-feature-list li{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--text);}
-  .otp-changenum{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--indigo);font-weight:700;font-size:14.5px;background:none;border:none;cursor:pointer;font-family:var(--font-body);margin:auto auto 40px;padding:10px;}
+  .otp-changenum{display:flex;align-items:center;justify-content:center;gap:8px;color:#1C7EF2;font-weight:700;font-size:14.5px;background:none;border:none;cursor:pointer;font-family:var(--font-body);margin:auto auto 40px;padding:10px;}
   .price-field{display:flex;align-items:stretch;border:1.5px solid var(--ink);border-radius:var(--radius-md);overflow:hidden;}
   .price-field input{border:none;border-radius:0;flex:1;}
   .price-field input:focus{border:none;}
@@ -4609,19 +4617,24 @@ const OtpGate = {
     const entered = boxes.map(b=>b.value).join('');
     const err = document.getElementById('otp-error');
     if(entered.length<6){ err.textContent = 'Merci de saisir les 6 chiffres du code'; return; }
+    err.textContent = '';
+    const verifyPromise = sb.auth.verifyOtp({ email: OtpGate.email, token: entered, type:'email' });
+    await new Promise(resolve=>otp2PlayConvergeAnimation(resolve));
+    let error;
     try{
-      const {error} = await sb.auth.verifyOtp({ email: OtpGate.email, token: entered, type:'email' });
-      if(error){
+      const res = await verifyPromise;
+      error = res.error;
+    }catch(e){
+      console.error(e);
+      err.textContent = 'Erreur de vérification, réessayez';
+      return;
+    }
+    if(error){
         err.textContent = 'Code incorrect, merci de réessayer';
         boxes.forEach(b=>{ b.value=''; b.classList.remove('filled'); b.classList.add('shake'); });
         setTimeout(()=>boxes.forEach(b=>b.classList.remove('shake')), 350);
         boxes[0].focus();
         return;
-      }
-    }catch(e){
-      console.error(e);
-      err.textContent = 'Erreur de vérification, réessayez';
-      return;
     }
     err.textContent = '';
     boxes.forEach(b=>b.classList.add('success'));
@@ -4666,6 +4679,38 @@ const OtpGate = {
     Auth.logout();
   }
 };
+/* ---- Animation : les 6 cases convergent au centre et forment un cercle de vérification (5s) ---- */
+function otp2PlayConvergeAnimation(cb){
+  const wrap = document.querySelector('.otp2-boxes');
+  const boxes = [...document.querySelectorAll('.otp2-box')];
+  if(!wrap || boxes.length<6){ if(cb) cb(); return; }
+  const wrapRect = wrap.getBoundingClientRect();
+  const cx = wrapRect.left + wrapRect.width/2;
+  const cy = wrapRect.top + wrapRect.height/2;
+  boxes.forEach(b=>{
+    const r = b.getBoundingClientRect();
+    const dx = cx - (r.left + r.width/2);
+    const dy = cy - (r.top + r.height/2);
+    b.style.setProperty('--otp-dx', dx+'px');
+    b.style.setProperty('--otp-dy', dy+'px');
+  });
+  requestAnimationFrame(()=>{ boxes.forEach(b=>b.classList.add('otp2-converge')); });
+  const ringWrap=document.createElement('div');
+  ringWrap.className='otp2-verify-ring-wrap';
+  ringWrap.style.left=cx+'px';
+  ringWrap.style.top=cy+'px';
+  ringWrap.innerHTML='<div class="otp2-verify-ring"></div>';
+  document.body.appendChild(ringWrap);
+  setTimeout(()=>ringWrap.classList.add('show'), 380);
+  setTimeout(()=>{
+    ringWrap.classList.remove('show'); ringWrap.classList.add('hide');
+    setTimeout(()=>{
+      ringWrap.remove();
+      boxes.forEach(b=>{ b.classList.remove('otp2-converge'); b.style.removeProperty('--otp-dx'); b.style.removeProperty('--otp-dy'); });
+      if(cb) cb();
+    }, 350);
+  }, 5000);
+}
 function otpBoxHandle(el, idx){
   const boxes = [...document.querySelectorAll('.otp-box')];
   el.value = el.value.replace(/[^0-9]/g,'').slice(0,1);
@@ -16518,6 +16563,7 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
     window.__siamsPartnerRequestData = data;
     const d=document.createElement('div');
     d.id='siams-email-modal';
+    d.style.cssText='position:fixed;inset:0;z-index:99999;';
     d.innerHTML=`
       <div class="v20-backdrop" onclick="document.getElementById('siams-email-modal')?.remove()"></div>
       <div class="v20-dialog">
