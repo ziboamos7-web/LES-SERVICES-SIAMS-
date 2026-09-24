@@ -700,6 +700,18 @@
   .login-field-input .pass-toggle-btn{position:static;top:auto;right:auto;transform:none;align-self:center;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex:none;}
   .btn-login-cta{background:var(--action);color:#fff;box-shadow:0 10px 22px -8px var(--action-shadow);}
   .btn-login-cta:active{background:var(--action-dark);}
+  .btn-login-cta{position:relative;transition:background .25s ease;}
+  .btn-login-cta .lc-label{transition:opacity .18s ease;}
+  .btn-login-cta .lc-spinner,.btn-login-cta .lc-check{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.5);opacity:0;pointer-events:none;}
+  .btn-login-cta .lc-spinner{width:20px;height:20px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;}
+  .btn-login-cta.is-loading .lc-label{opacity:0;}
+  .btn-login-cta.is-loading .lc-spinner{opacity:1;transform:translate(-50%,-50%) scale(1);animation:lcSpin .7s linear infinite;}
+  .btn-login-cta.is-success{background:#12B76A;}
+  .btn-login-cta.is-success .lc-label,.btn-login-cta.is-success .lc-spinner{opacity:0;}
+  .btn-login-cta.is-success .lc-check{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  @keyframes lcSpin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+  .login-view{transition:opacity .38s cubic-bezier(.4,0,.2,1),transform .38s cubic-bezier(.4,0,.2,1);}
+  .login-view.is-leaving{opacity:0;transform:translateY(-16px) scale(.98);}
   .login-divider{display:flex;align-items:center;gap:12px;margin:22px 0 16px;color:var(--text-soft);font-size:12px;}
   .login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--line);}
   .login-social-row{display:flex;gap:10px;}
@@ -725,6 +737,26 @@
   .otp-channel.active{border-color:var(--indigo);color:#fff;background:var(--indigo);}
   .otp-channel:disabled{cursor:default;opacity:.45;background:#fff;color:var(--text-soft);border-color:var(--line);}
   .otp-error{text-align:center;font-size:13.5px;font-weight:600;color:var(--red);min-height:18px;margin:16px 20px 0;}
+
+  /* ---- Écran OTP v2 : icône ronde orange, chiffres soulignés ---- */
+  .otp2-icon-wrap{width:68px;height:68px;border-radius:50%;background:var(--pay-accent-tint,#FFF3EA);display:flex;align-items:center;justify-content:center;margin:26px 20px 0;color:var(--siams-orange,#ff7a18);}
+  .otp2-boxes{display:flex;gap:8px;justify-content:center;margin:38px 20px 8px;flex-wrap:nowrap;}
+  .otp2-box{flex:1;max-width:44px;aspect-ratio:1/1.2;text-align:center;font-size:26px;font-weight:800;border:none;border-bottom:2.5px solid var(--line);border-radius:0;background:transparent;outline:none;color:var(--text);font-family:var(--font-mono);transition:border-color .15s ease,transform .1s ease;}
+  .otp2-box:focus{border-color:var(--siams-orange,#ff7a18);}
+  .otp2-box.filled{border-color:var(--siams-orange,#ff7a18);}
+  .otp2-box.shake{animation:otpShake .35s ease;}
+  .otp2-box.success{border-color:#12B76A;color:#12B76A;animation:otp2Pop .35s ease;}
+  @keyframes otp2Pop{0%{transform:scale(1)}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .otp2-channel.active{background:var(--siams-orange,#ff7a18);border-color:var(--siams-orange,#ff7a18);}
+
+  .otp2-success-overlay{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s ease;}
+  .otp2-success-overlay.show{opacity:1;pointer-events:auto;}
+  .otp2-success-ring{width:84px;height:84px;border-radius:50%;background:#E6F7EE;display:flex;align-items:center;justify-content:center;transform:scale(.6);opacity:0;transition:transform .4s cubic-bezier(.2,.9,.3,1.3),opacity .3s ease;}
+  .otp2-success-overlay.show .otp2-success-ring{transform:scale(1);opacity:1;}
+  .otp2-success-check{stroke-dasharray:28;stroke-dashoffset:28;transition:stroke-dashoffset .4s ease .15s;}
+  .otp2-success-overlay.show .otp2-success-check{stroke-dashoffset:0;}
+  .otp2-success-msg{font-size:17px;font-weight:800;color:#151b22;opacity:0;transform:translateY(6px);transition:opacity .3s ease .25s,transform .3s ease .25s;}
+  .otp2-success-overlay.show .otp2-success-msg{opacity:1;transform:translateY(0);}
 
   .switch{position:relative;width:44px;height:26px;flex:none;}
   .switch input{opacity:0;width:0;height:0;}
@@ -1397,6 +1429,16 @@
   .acc-row{display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);}
   .acc-row:last-child{border-bottom:none;}
   .acc-row-icon{width:38px;height:38px;border-radius:11px;background:var(--mango-tint);color:var(--mango-dark);display:flex;align-items:center;justify-content:center;flex:none;}
+  .acc-row--flat{border-bottom:none;}
+  .acc-row-icon.tg-blue{background:#E8F2FE;color:#1C7EF2;}
+  .acc-row-icon.tg-orange{background:#FFF1E1;color:#F0930E;}
+  .acc-row-icon.tg-green{background:#E6F8EC;color:#22A755;}
+  .acc-row-icon.tg-red{background:#FDEBEC;color:#E5484D;}
+  .acc-row-icon.tg-purple{background:#F1ECFE;color:#7C5CFC;}
+  .acc-row-icon.tg-teal{background:#E3F8F7;color:#12B5AE;}
+  .acc-row-icon.tg-amber{background:#FFF6DE;color:#D89A12;}
+  .acc-row-icon.tg-pink{background:#FDEAF3;color:#E0499A;}
+  .acc-row-icon.tg-indigo{background:#EAEDFE;color:#4D5FE3;}
   .acc-row-text h4{margin:0 0 2px;font-size:14px;font-weight:700;}
   .acc-row-text p{margin:0;font-size:12px;color:var(--text-mid);}
   .acc-row-chev{margin-left:auto;color:var(--text-soft);flex:none;}
@@ -4582,12 +4624,21 @@ const OtpGate = {
       return;
     }
     err.textContent = '';
+    boxes.forEach(b=>b.classList.add('success'));
+    const overlay = document.getElementById('otp2-success-overlay');
+    const msgEl = document.getElementById('otp2-success-msg');
     const wasRegister = OtpGate.mode === 'register';
+    const pendingActivationEmail0 = (()=>{ try{return sessionStorage.getItem('maboutique_activation_email')||'';}catch(e){return '';} })();
+    const shouldRedeem0 = !!ActivationGate.getStored() && pendingActivationEmail0 && pendingActivationEmail0 === String(OtpGate.email||'').toLowerCase();
+    if(msgEl) msgEl.textContent = (wasRegister || shouldRedeem0) ? 'Compte activé ✓' : 'Code vérifié ✓';
+    if(overlay){
+      overlay.classList.add('show');
+      await new Promise(resolve=>setTimeout(resolve, 900));
+    }
     OtpGate.pending = false;
     clearInterval(OtpGate.timerId);
-    Toast.show('E-mail vérifié ✓');
-    const pendingActivationEmail = (()=>{ try{return sessionStorage.getItem('maboutique_activation_email')||'';}catch(e){return '';} })();
-    const shouldRedeem = !!ActivationGate.getStored() && pendingActivationEmail && pendingActivationEmail === String(OtpGate.email||'').toLowerCase();
+    const pendingActivationEmail = pendingActivationEmail0;
+    const shouldRedeem = shouldRedeem0;
     if(wasRegister || shouldRedeem){
       try{
         const code = ActivationGate.getStored();
@@ -4699,12 +4750,94 @@ if(!document.getElementById('maboutique-splash-anim-style')){
     @keyframes maboutiqueSplashFadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
     @keyframes maboutiqueSplashMsgIn{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:translateY(0)}85%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-8px)}}
     @keyframes maboutiqueSplashBarLoop{0%{transform:translateX(-130%)}100%{transform:translateX(260%)}}
+    @keyframes maboutiqueSplashGlow{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.85;transform:scale(1.08)}}
 
+    .maboutique-splash-wrap.v2{
+      background:radial-gradient(120% 90% at 50% 0%,#123a8f 0%,#0b2666 45%,#071a4a 100%);
+      justify-content:center;
+    }
+    .maboutique-splash-wrap.v2 .maboutique-splash-wave{display:none}
+    .maboutique-splash-wrap.v2 .maboutique-splash-glow{
+      position:absolute;z-index:0;width:340px;height:340px;border-radius:50%;
+      background:radial-gradient(circle,rgba(255,122,24,.35) 0%,rgba(255,122,24,0) 70%);
+      animation:maboutiqueSplashGlow 2.6s ease-in-out infinite;
+    }
+    .maboutique-splash-wrap.v2 .maboutique-splash-logo-wrap{
+      box-shadow:0 20px 50px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.08);
+    }
+    .maboutique-splash-wrap.v2 .maboutique-splash-title{color:#fff}
+    .maboutique-splash-wrap.v2 .maboutique-splash-brand{color:rgba(255,255,255,.72)}
+    .maboutique-splash-wrap.v2 .maboutique-splash-brand i{background:var(--siams-orange,#ff7a18)}
+    .maboutique-splash-wrap.v2 .maboutique-splash-text{color:rgba(255,255,255,.88)}
+    .maboutique-splash-wrap.v2 .maboutique-splash-bar-track{background:rgba(255,255,255,.14);box-shadow:none}
+
+    @keyframes maboutiqueSplashRingSpin{to{transform:rotate(360deg)}}
+
+    .maboutique-splash-wrap.v3{background:#fbfbfc;justify-content:center}
+    .maboutique-splash-wrap.v3 .maboutique-splash-wave,
+    .maboutique-splash-wrap.v3 .maboutique-splash-bar-track{display:none}
+    .maboutique-splash-wrap.v3 .maboutique-splash-logo-wrap{box-shadow:0 14px 34px rgba(20,30,50,.12)}
+    .maboutique-splash-wrap.v3 .maboutique-splash-msg-wrap{margin-top:36px}
+    .maboutique-splash-ring-wrap{position:relative;width:64px;height:64px;margin:26px auto 0;animation:maboutiqueSplashFadeUp .7s .46s both}
+    .maboutique-splash-ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+    .maboutique-splash-ring-track{fill:none;stroke:#e7ebef;stroke-width:5}
+    .maboutique-splash-ring-fill{fill:none;stroke:var(--siams-orange,#ff7a18);stroke-width:5;stroke-linecap:round;stroke-dasharray:163;stroke-dashoffset:163;transform-origin:32px 32px;animation:maboutiqueSplashRingProgress 1.6s ease-in-out infinite}
+    @keyframes maboutiqueSplashRingProgress{0%{stroke-dashoffset:163}50%{stroke-dashoffset:40}100%{stroke-dashoffset:163}}
+    .maboutique-splash-ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#343c45}
+
+    @keyframes maboutiqueSplashDotBounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-10px);opacity:1}}
+
+    .maboutique-splash-wrap.v4{background:#fbfbfc;justify-content:center}
+    .maboutique-splash-wrap.v4 .maboutique-splash-wave,
+    .maboutique-splash-wrap.v4 .maboutique-splash-bar-track{display:none}
+    .maboutique-splash-wrap.v4 .maboutique-splash-logo-wrap{box-shadow:0 14px 34px rgba(20,30,50,.12)}
+    .maboutique-splash-wrap.v4 .maboutique-splash-msg-wrap{margin-top:36px}
+    .maboutique-splash-dots{display:flex;align-items:center;justify-content:center;gap:9px;margin:30px auto 0;animation:maboutiqueSplashFadeUp .7s .46s both}
+    .maboutique-splash-dots span{width:10px;height:10px;border-radius:50%;background:var(--siams-orange,#ff7a18);animation:maboutiqueSplashDotBounce 1.1s ease-in-out infinite}
+    .maboutique-splash-dots span:nth-child(2){animation-delay:.15s}
+    .maboutique-splash-dots span:nth-child(3){animation-delay:.3s}
+
+    @keyframes maboutiqueSplashRadar{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.55);opacity:0}}
+
+    .maboutique-splash-wrap.v5{background:#fbfbfc;justify-content:center}
+    .maboutique-splash-wrap.v5 .maboutique-splash-wave,
+    .maboutique-splash-wrap.v5 .maboutique-splash-bar-track{display:none}
+    .maboutique-splash-wrap.v5 .maboutique-splash-logo-wrap{position:relative;box-shadow:0 14px 34px rgba(20,30,50,.12);z-index:2}
+    .maboutique-splash-wrap.v5 .maboutique-splash-msg-wrap{margin-top:36px}
+    .maboutique-splash-radar{position:relative;width:150px;height:150px}
+    .maboutique-splash-radar-ring{position:absolute;inset:0;border-radius:34px;border:2px solid var(--siams-orange,#ff7a18);animation:maboutiqueSplashRadar 2s ease-out infinite}
+    .maboutique-splash-radar-ring:nth-child(2){animation-delay:.65s}
+    .maboutique-splash-radar-ring:nth-child(3){animation-delay:1.3s}
+
+    .maboutique-splash-wrap.v5 .maboutique-splash-title{
+      font-size:clamp(20px,5.5vw,26px);font-weight:800;letter-spacing:.14em;
+      margin-top:24px;
+    }
+    .maboutique-splash-wrap.v5 .maboutique-splash-title-accent{
+      display:block;width:38px;height:3px;border-radius:99px;background:var(--siams-orange,#ff7a18);
+      margin:10px auto 0;animation:maboutiqueSplashFadeUp .7s .24s both;
+    }
+    .maboutique-splash-footer{
+      position:absolute;left:0;right:0;bottom:calc(22px + env(safe-area-inset-bottom,0px));
+      z-index:2;text-align:center;font-size:11px;font-weight:600;letter-spacing:.02em;
+      color:#8a919a;animation:maboutiqueSplashFadeUp .7s .5s both;
+    }
+    .maboutique-splash-loading{
+      margin-top:30px;display:flex;align-items:center;justify-content:center;gap:9px;
+      animation:maboutiqueSplashFadeUp .7s .46s both;
+    }
+    .maboutique-splash-loading-spinner{
+      width:16px;height:16px;border-radius:50%;flex:none;
+      border:2.5px solid rgba(255,122,24,.22);border-top-color:var(--siams-orange,#ff7a18);
+      animation:maboutiqueSplashSpin .7s linear infinite;
+    }
+    .maboutique-splash-loading-label{font-size:13px;font-weight:700;color:#8a919a}
     .maboutique-splash-wrap{
       position:fixed;inset:0;min-height:100vh;overflow:hidden;
       background:linear-gradient(180deg,#fbfcfd 0%,#f6f8fa 100%);
       display:flex;align-items:center;justify-content:center;isolation:isolate;z-index:9999;
     }
+    @keyframes maboutiqueSplashSpin{to{transform:rotate(360deg)}}
     .maboutique-splash-wave{position:absolute;pointer-events:none;z-index:0}
     .maboutique-splash-wave.top{width:390px;height:250px;left:-170px;top:-150px;border-radius:50%;background:#ff7a18;box-shadow:95px 55px 0 -35px rgba(255,155,50,.35)}
     .maboutique-splash-wave.top::after{content:"";position:absolute;width:300px;height:190px;left:105px;top:80px;border:3px solid #ff7a18;border-left-color:transparent;border-bottom-color:transparent;border-radius:50%;transform:rotate(20deg)}
@@ -4739,7 +4872,7 @@ if(!document.getElementById('maboutique-splash-anim-style')){
 }
 /* ---------- Connexion ---------- */
 let authMode = 'login';
-const MABOUTIQUE_SPLASH_MESSAGES = ['Bon retour','Préparation de votre espace…','Synchronisation des données…','Presque prêt…'];
+const MABOUTIQUE_SPLASH_MESSAGES = ['Bon retour','On prépare votre boutique…','Mise à jour de vos commandes…','C\'est presque prêt…'];
 function maboutiqueRunSplashMessages(root, duration){
   const el = root && root.querySelector('.maboutique-splash-text');
   if(!el) return;
@@ -4806,18 +4939,25 @@ async function maboutiquePrepareImageDataURL(file, opts){
 }
 
 Views.loading = function(){
-  return `<div class="maboutique-splash-wrap" aria-label="Écran de démarrage MA BOUTIQUE by SIAMS">
-    <div class="maboutique-splash-wave top"></div>
-    <div class="maboutique-splash-wave bottom"></div>
+  return `<div class="maboutique-splash-wrap v5" aria-label="Écran de démarrage MA BOUTIQUE by SIAMS">
     <div class="maboutique-splash-content">
-      <div class="maboutique-splash-logo-wrap">
-        <img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE">
+      <div class="maboutique-splash-radar">
+        <div class="maboutique-splash-radar-ring"></div>
+        <div class="maboutique-splash-radar-ring"></div>
+        <div class="maboutique-splash-radar-ring"></div>
+        <div class="maboutique-splash-logo-wrap" style="position:absolute;inset:0;margin:auto">
+          <img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE">
+        </div>
       </div>
-      <h1 class="maboutique-splash-title">MA BOUTIQUE</h1>
-      <div class="maboutique-splash-brand"><i></i><span>by SIAMS</span><i></i></div>
+      <h1 class="maboutique-splash-title" style="margin-top:32px">MA BOUTIQUE</h1>
+      <span class="maboutique-splash-title-accent"></span>
       <div class="maboutique-splash-msg-wrap"><div class="maboutique-splash-text">Bon retour</div></div>
-      <div class="maboutique-splash-bar-track"><div class="maboutique-splash-bar-fill"></div></div>
+      <div class="maboutique-splash-loading">
+        <span class="maboutique-splash-loading-spinner"></span>
+        <span class="maboutique-splash-loading-label">Chargement…</span>
+      </div>
     </div>
+    <div class="maboutique-splash-footer">© Société Informatique Agréée Multi-Services</div>
   </div>`;
 };
 /* Boucle de messages sans durée fixe : tourne tant que le démarrage réel n'est
@@ -4979,8 +5119,11 @@ const ActivationGate = {
       if(data && data.status==='approved' && data.activation_code){
         try{ localStorage.setItem('maboutique_activation_code',data.activation_code); sessionStorage.setItem('maboutique_activation_code',data.activation_code); }catch(e){}
         this.code=data.activation_code;
-        Toast.show('Code d’activation reçu ✓');
-        Router.go('activation-code');
+        siamsShowSuccessTransition({
+          title:'Code reçu !',
+          subtitle:'Votre code d’activation est prêt.',
+          after:()=>Router.go('activation-code')
+        });
       }else if(data && data.status==='rejected'){
         Toast.show('Votre demande a été refusée. Contactez le service client MA BOUTIQUE.');
       }else{
@@ -5016,8 +5159,12 @@ const ActivationGate = {
       }
       this.code=code;
       try{ localStorage.setItem('maboutique_activation_code',code); sessionStorage.setItem('maboutique_activation_code',code); }catch(e){}
-      Toast.show('Code d’activation validé ✓');
-      Router.go('register');
+      siamsShowSuccessTransition({
+        title:'Code validé !',
+        subtitle:'Direction la création de votre compte…',
+        after:()=>Router.go('register')
+      });
+      return;
     }catch(e){
       console.error(e);
       err.textContent='Impossible de vérifier le code pour le moment.';
@@ -5032,20 +5179,92 @@ const ActivationGate = {
   clear(){ this.code=''; try{localStorage.removeItem('maboutique_activation_code');sessionStorage.removeItem('maboutique_activation_code');}catch(e){} }
 };
 
+/* ---- Transition animée de succès (plein écran, coche qui se dessine) ---- */
+function siamsInjectSuccessStyle(){
+  if(document.getElementById('siams-success-style')) return;
+  const s=document.createElement('style'); s.id='siams-success-style';
+  s.textContent=`
+  #siams-success-overlay{position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;animation:siamsFadeIn .25s ease both;}
+  #siams-success-overlay.out{animation:siamsFadeOut .3s ease both;}
+  .siams-success-back{position:absolute;inset:0;background:rgba(10,14,26,.55);backdrop-filter:blur(6px);}
+  .siams-success-card{position:relative;background:#fff;border-radius:22px;padding:34px 34px;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 30px 60px -20px rgba(0,0,0,.4);transform:scale(.85);animation:siamsPop .45s cubic-bezier(.2,1.5,.4,1) .05s both;min-width:230px;max-width:80vw;text-align:center;}
+  .siams-success-check{width:64px;height:64px;color:var(--green,#12B76A);margin-bottom:4px;}
+  .siams-success-ring{stroke-dasharray:176;stroke-dashoffset:176;animation:siamsCircle .5s ease forwards .12s;}
+  .siams-success-tick{stroke-dasharray:40;stroke-dashoffset:40;animation:siamsTick .35s ease forwards .52s;}
+  .siams-success-card b{font-size:16.5px;color:var(--text,#111);}
+  .siams-success-card span{font-size:12.5px;color:var(--text-mid);line-height:1.4;}
+  @keyframes siamsFadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes siamsFadeOut{from{opacity:1}to{opacity:0}}
+  @keyframes siamsPop{to{transform:scale(1)}}
+  @keyframes siamsCircle{to{stroke-dashoffset:0}}
+  @keyframes siamsTick{to{stroke-dashoffset:0}}
+  `;
+  document.head.appendChild(s);
+}
+function siamsShowSuccessTransition(opts){
+  opts=opts||{};
+  siamsInjectSuccessStyle();
+  document.getElementById('siams-success-overlay')?.remove();
+  const d=document.createElement('div');
+  d.id='siams-success-overlay';
+  d.innerHTML=`
+    <div class="siams-success-back"></div>
+    <div class="siams-success-card">
+      <svg class="siams-success-check" viewBox="0 0 64 64" fill="none">
+        <circle class="siams-success-ring" cx="32" cy="32" r="28" stroke="currentColor" stroke-width="3.5"/>
+        <path class="siams-success-tick" d="M20 33.5 28 41 44 24" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <b>${Utils.escapeHtml(opts.title||'Succès')}</b>
+      ${opts.subtitle?`<span>${Utils.escapeHtml(opts.subtitle)}</span>`:''}
+    </div>`;
+  document.body.appendChild(d);
+  const delay=opts.delay!=null?opts.delay:1150;
+  setTimeout(()=>{
+    d.classList.add('out');
+    setTimeout(()=>{ d.remove(); if(opts.after) opts.after(); }, 300);
+  },delay);
+}
+
 Views['activation-code'] = function(){
   const q=ActivationGate.getRequest();
   const keyIco='<svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="15" r="4" stroke="currentColor" stroke-width="1.7"/><path d="m11.2 11.8 8.3-8.3M16.5 6.5l2.5 2.5M14 9l2 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const checkIco='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M21 11.5a9.5 9.5 0 1 1-4.9-8.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m8.5 12 2.7 2.7L20 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const editIco='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16v4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+  const mailIco='<svg viewBox="0 0 24 24" fill="none" width="15" height="15" style="vertical-align:-2px;margin-right:4px;"><path d="M4 6.5h16v11H4v-11Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m4.5 7 7.5 6 7.5-6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  const step=(state,label)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+      <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;
+        ${state==='done'?'background:var(--green,#12B76A);color:#fff;':state==='current'?'background:var(--siams-orange,#FF7A18);color:#fff;box-shadow:0 0 0 5px rgba(255,122,24,.16);':'background:var(--panel);color:var(--text-mid);border:1.5px solid var(--line);'}">
+        ${state==='done'?checkIco.replace('style="vertical-align:-2px;margin-right:5px;"','style="width:12px;height:12px;"'):state==='current'?'<span style="width:8px;height:8px;border-radius:50%;background:#fff;animation:siamsDotPulse 1.1s ease-in-out infinite;"></span>':'<span style="width:6px;height:6px;border-radius:50%;background:var(--text-mid);"></span>'}
+      </div>
+      <span style="font-size:9.5px;font-weight:800;color:${state==='current'?'var(--siams-orange-dark,#E5670D)':state==='done'?'var(--green,#12B76A)':'var(--text-mid)'};text-align:center;letter-spacing:.02em;">${label}</span>
+    </div>`;
+  const stepLine=(done)=>`<div style="height:2px;flex:0 0 22px;margin:0 2px 17px;border-radius:2px;background:${done?'var(--green,#12B76A)':'var(--line)'};"></div>`;
   return `
-  <div style="min-height:100vh;display:flex;flex-direction:column;padding:32px 26px;">
-    <div style="width:56px;height:56px;border-radius:16px;margin-bottom:22px;overflow:hidden;"><img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;"></div>
-    <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--siams-orange-dark,#E5670D);text-transform:uppercase;margin-bottom:5px;">ACCÈS PARTENAIRE</div>
-    <h1 style="font-size:25px;margin:0 0 8px;">Votre code partenaire</h1>
-    <p style="color:var(--text-mid);font-size:14px;line-height:1.55;margin:0 0 4px;">${q.pending?'Votre demande a bien été enregistrée. Vous recevrez automatiquement un e-mail de serviceclientsiams.ci@gmail.com contenant votre code d’activation dès que le service client MA BOUTIQUE aura approuvé votre compte.':'Saisissez le code personnel transmis par le service client MA BOUTIQUE pour commencer votre inscription.'}</p>
+  <style>@keyframes siamsDotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.55);opacity:.6}}</style>
+  <div style="min-height:100vh;display:flex;flex-direction:column;padding:30px 22px 40px;background:linear-gradient(180deg,var(--panel) 0%,#fff 260px);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+      <div style="width:50px;height:50px;border-radius:15px;overflow:hidden;box-shadow:0 10px 22px -10px rgba(11,92,224,.4);flex:none;"><img src="${LOGO_DATA_URI}" alt="MA BOUTIQUE" style="width:100%;height:100%;object-fit:cover;"></div>
+      <div>
+        <div style="font-size:10px;font-weight:900;letter-spacing:.1em;color:var(--siams-orange-dark,#E5670D);text-transform:uppercase;">ACCÈS PARTENAIRE</div>
+        <div style="font-size:12px;color:var(--text-mid);font-weight:700;margin-top:1px;">MA BOUTIQUE by SIAMS</div>
+      </div>
+    </div>
+    <h1 style="font-size:24px;margin:0 0 8px;letter-spacing:-.02em;">Votre code partenaire</h1>
+    <p style="color:var(--text-mid);font-size:13.5px;line-height:1.55;margin:0 0 6px;">${q.pending?'Votre demande est enregistrée. Le code arrive par e-mail dès validation par le service client.':'Saisissez le code personnel transmis par le service client MA BOUTIQUE pour commencer votre inscription.'}</p>
     ${!q.pending?`<div class="trust-row"><div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Réponse rapide</div><div class="trust-chip"><span class="trust-chip-ico"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5.5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>Accès sécurisé</div></div>`:''}
-    ${q.pending?`<div id="activation-pending-panel" style="padding:16px;border:1.5px solid var(--siams-orange,#FF7A18);border-radius:16px;background:var(--pay-accent-tint,#FFF3EA);margin:18px 0 16px;display:flex;align-items:center;gap:12px;"><div class="spinner" style="width:20px;height:20px;border:2.5px solid rgba(255,122,24,.25);border-top-color:var(--siams-orange,#FF7A18);border-radius:50%;animation:maboutique-spin .8s linear infinite;flex:none;"></div><div><b style="font-size:12.5px;">Activation en cours…</b><div style="font-size:11px;color:var(--text-mid);margin-top:3px;">Votre demande est en cours d’examen par le service client MA BOUTIQUE.</div></div></div><style>@keyframes maboutique-spin{to{transform:rotate(360deg)}}</style>`:'<div style="margin-top:18px;"></div>'}
-    <div class="login-field"><label>Code d’activation</label>
+    ${q.pending?`
+    <div style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px 14px 14px;margin:16px 0 4px;box-shadow:0 14px 30px -22px rgba(15,23,42,.25);">
+      <div style="display:flex;align-items:flex-start;">
+        ${step('done','Demande')}${stepLine(true)}${step('current','Examen')}${stepLine(false)}${step('todo','Code reçu')}
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
+        <div class="spinner" style="width:15px;height:15px;border:2.2px solid rgba(255,122,24,.22);border-top-color:var(--siams-orange,#FF7A18);border-radius:50%;animation:maboutique-spin .8s linear infinite;flex:none;"></div>
+        <div style="font-size:11px;color:var(--text-mid);line-height:1.4;">${mailIco}<span style="color:var(--text);font-weight:700;">serviceclientsiams.ci@gmail.com</span> vous enverra votre code.</div>
+      </div>
+    </div>
+    <style>@keyframes maboutique-spin{to{transform:rotate(360deg)}}</style>
+    `:'<div style="margin-top:14px;"></div>'}
+    <div class="login-field" style="margin-top:16px;"><label>Code d’activation</label>
       <div class="login-field-input"><span class="ico">${keyIco}</span><input id="activation-code-input" type="text" autocomplete="off" autocapitalize="characters" placeholder="MABOUTIQUE-XXXXXX" value="${Utils.escapeHtml(ActivationGate.getStored())}" style="font-family:var(--font-mono);letter-spacing:.03em;" oninput="document.getElementById('activation-code-error').textContent=''"></div>
     </div>
     <div id="activation-code-error" style="color:var(--red);font-size:12.5px;min-height:20px;margin:-6px 0 8px;"></div>
@@ -5065,52 +5284,57 @@ Views['activation-code'] = function(){
 /* ---------- Illustration du livreur pour l'écran de connexion "Bon retour" ---------- */
 const LOGIN_COURIER_SVG = `<svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Livreur MA BOUTIQUE au téléphone">
 <defs>
-<linearGradient id="lc-jk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF9440"/><stop offset="1" stop-color="#F26B00"/></linearGradient>
-<linearGradient id="lc-cap" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFA050"/><stop offset="1" stop-color="#F26B00"/></linearGradient>
-<radialGradient id="lc-skin" cx=".38" cy=".3" r=".9"><stop offset="0" stop-color="#CF9464"/><stop offset="1" stop-color="#AC6D42"/></radialGradient>
-<linearGradient id="lc-scr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5BB2FF"/><stop offset="1" stop-color="#1C7EF2"/></linearGradient>
+<linearGradient id="lc-jk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFA352"/><stop offset="1" stop-color="#EF6A08"/></linearGradient>
+<linearGradient id="lc-cap" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFAE5E"/><stop offset="1" stop-color="#EF6A08"/></linearGradient>
+<radialGradient id="lc-skin" cx=".36" cy=".28" r=".95"><stop offset="0" stop-color="#DCA073"/><stop offset=".65" stop-color="#C08356"/><stop offset="1" stop-color="#A8703F"/></radialGradient>
+<linearGradient id="lc-scr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6BC0FF"/><stop offset="1" stop-color="#1C7EF2"/></linearGradient>
+<radialGradient id="lc-bg" cx=".5" cy=".42" r=".62"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<filter id="lc-soft" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#C25000" flood-opacity=".18"/></filter>
 </defs>
-<circle cx="100" cy="122" r="94" fill="#fff" opacity=".38"/>
-<path d="M56 154 Q28 168 26 240 L62 240 Q60 196 78 172 Z" fill="#E5670D"/>
+<circle cx="100" cy="122" r="96" fill="url(#lc-bg)"/>
+<ellipse cx="104" cy="234" rx="66" ry="9" fill="#C25000" opacity=".12"/>
+<g filter="url(#lc-soft)">
+<path d="M56 154 Q28 168 26 240 L62 240 Q60 196 78 172 Z" fill="#DD6200"/>
 <path d="M26 240 Q26 172 62 152 Q80 144 100 144 Q120 144 138 152 Q174 172 174 240 Z" fill="url(#lc-jk)"/>
-<path d="M138 152 Q174 172 174 240 L152 240 Q152 184 128 160 Z" fill="#D95F00" opacity=".45"/>
+<path d="M138 152 Q174 172 174 240 L152 240 Q152 184 128 160 Z" fill="#D95F00" opacity=".4"/>
 <path d="M60 152 L74 146 L124 240 L100 240 Z" fill="#0B5CE0"/>
-<path d="M60 152 L66 149 L114 240 L108 240 Z" fill="#fff" opacity=".18"/>
-<line x1="132" y1="176" x2="132" y2="240" stroke="#C25000" stroke-width="2" stroke-linecap="round"/>
+<path d="M60 152 L66 149 L114 240 L108 240 Z" fill="#fff" opacity=".2"/>
+<line x1="132" y1="176" x2="132" y2="240" stroke="#C25000" stroke-width="2" stroke-linecap="round" opacity=".5"/>
 <rect x="142" y="186" width="22" height="17" rx="5" fill="#0B5CE0"/>
 <text x="153" y="198.5" font-size="9.5" font-family="Arial,sans-serif" font-weight="800" fill="#fff" text-anchor="middle">MA</text>
 <path d="M85 122 h30 v26 q-15 12 -30 0 z" fill="#9A6039"/>
-<path d="M70 146 Q100 174 130 146 L124 134 Q100 156 76 134 Z" fill="#D95F00"/>
-<ellipse cx="63" cy="92" rx="7" ry="9" fill="url(#lc-skin)"/><ellipse cx="137" cy="92" rx="7" ry="9" fill="url(#lc-skin)"/>
-<ellipse cx="100" cy="92" rx="36" ry="40" fill="url(#lc-skin)"/>
-<path d="M66 70 Q100 52 134 70 L134 84 Q100 70 66 84 Z" fill="#2B1A12" opacity=".0"/>
-<path d="M62 80 Q60 36 100 34 Q140 36 138 80 Q100 66 62 80 Z" fill="url(#lc-cap)"/>
-<path d="M56 80 Q100 60 144 80 Q150 90 132 90 Q100 76 68 90 Q50 90 56 80 Z" fill="#D95F00"/>
-<circle cx="100" cy="52" r="8" fill="#0B5CE0"/>
-<text x="100" y="55" font-size="8" font-family="Arial,sans-serif" font-weight="800" fill="#fff" text-anchor="middle">M</text>
-<path d="M79 92 Q86 88 93 91 M107 91 Q114 88 121 92" stroke="#2B1A12" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-<ellipse cx="86" cy="101" rx="4.4" ry="5.4" fill="#2B1A12"/><ellipse cx="114" cy="101" rx="4.4" ry="5.4" fill="#2B1A12"/>
-<circle cx="87.6" cy="99" r="1.6" fill="#fff"/><circle cx="115.6" cy="99" r="1.6" fill="#fff"/>
-<circle cx="76" cy="113" r="6.5" fill="#E8735A" opacity=".3"/><circle cx="124" cy="113" r="6.5" fill="#E8735A" opacity=".3"/>
-<path d="M98.5 106 Q100 110 101.5 106" stroke="#8A5230" stroke-width="2" stroke-linecap="round" fill="none"/>
-<path d="M85 116 Q100 132 115 116 Z" fill="#6E2A1A"/>
-<path d="M89 117 Q100 123 111 117 L111 119 Q100 125 89 119 Z" fill="#fff"/>
+<path d="M70 146 Q100 176 130 146 L124 134 Q100 158 76 134 Z" fill="#DD6200"/>
+<ellipse cx="63" cy="92" rx="7" ry="9.5" fill="url(#lc-skin)"/><ellipse cx="137" cy="92" rx="7" ry="9.5" fill="url(#lc-skin)"/>
+<ellipse cx="100" cy="91" rx="37" ry="41" fill="url(#lc-skin)"/>
+<path d="M62 80 Q60 34 100 32 Q140 34 138 80 Q100 65 62 80 Z" fill="url(#lc-cap)"/>
+<path d="M56 80 Q100 58 144 80 Q151 91 132 91 Q100 76 68 91 Q49 91 56 80 Z" fill="#DD6200"/>
+<path d="M60 78 Q100 62 140 78" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".3"/>
+<circle cx="100" cy="51" r="8.5" fill="#0B5CE0"/>
+<text x="100" y="54.2" font-size="8" font-family="Arial,sans-serif" font-weight="800" fill="#fff" text-anchor="middle">M</text>
+<path d="M78 91 Q86 87 94 90.5 M106 90.5 Q114 87 122 91" stroke="#3A2314" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+<ellipse cx="86" cy="101" rx="4.6" ry="5.6" fill="#2B1A12"/><ellipse cx="114" cy="101" rx="4.6" ry="5.6" fill="#2B1A12"/>
+<circle cx="87.8" cy="98.6" r="1.8" fill="#fff"/><circle cx="115.8" cy="98.6" r="1.8" fill="#fff"/>
+<circle cx="76" cy="114" r="7" fill="#F0876A" opacity=".28"/><circle cx="124" cy="114" r="7" fill="#F0876A" opacity=".28"/>
+<path d="M98.5 106 Q100 110 101.5 106" stroke="#7A461F" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M83 115 Q100 135 117 115 Z" fill="#6E2A1A"/>
+<path d="M87 117 Q100 126 113 117 L113 119.5 Q100 128.5 87 119.5 Z" fill="#fff"/>
 <path d="M132 158 Q176 152 178 118 Q179 100 166 94 L152 108 Q158 116 154 128 Q150 140 126 146 Z" fill="url(#lc-jk)"/>
-<path d="M150 130 Q158 126 162 114" stroke="#C25000" stroke-width="2" stroke-linecap="round" fill="none" opacity=".6"/>
-<rect x="150" y="60" width="28" height="46" rx="7" fill="#1B1F2A"/>
+<path d="M150 130 Q158 126 162 114" stroke="#C25000" stroke-width="2" stroke-linecap="round" fill="none" opacity=".55"/>
+<rect x="150" y="60" width="28" height="46" rx="8" fill="#151925"/>
 <rect x="153" y="64" width="22" height="38" rx="4.5" fill="url(#lc-scr)"/>
 <path d="M158 76 h12 l-1.4 9 h-9.2 z M161 76 q0 -5 3 -5 q3 0 3 5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
 <path d="M159 92 l3 3 l6 -6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="150" cy="96" r="9" fill="url(#lc-skin)"/><rect x="146" y="88" width="7" height="14" rx="3.5" fill="#B97A4C"/>
+<circle cx="150" cy="96" r="9" fill="url(#lc-skin)"/><rect x="146" y="88" width="7" height="14" rx="3.5" fill="#B27849"/>
 <rect x="146" y="28" width="34" height="20" rx="10" fill="#2E9BFF"/><path d="M156 47 l-2 8 l9 -8 z" fill="#2E9BFF"/>
 <circle cx="155" cy="38" r="2" fill="#fff"/><circle cx="163" cy="38" r="2" fill="#fff"/><circle cx="171" cy="38" r="2" fill="#fff"/>
-<circle cx="180" cy="58" r="8" fill="#FF3B30" stroke="#fff" stroke-width="2"/>
+<circle cx="180" cy="58" r="8.5" fill="#FF3B30" stroke="#fff" stroke-width="2"/>
 <text x="180" y="61.5" font-size="9.5" font-family="Arial,sans-serif" font-weight="800" fill="#fff" text-anchor="middle">1</text>
+</g>
 </svg>`;
 
 Views.login = function(){
   authMode='login';
-  return ''+
+  return '<div class="login-view" id="login-view-root">'+
   '<div class="login-hero">'+
     '<button class="login-hero-back" onclick="Router.go(\'welcome\')" aria-label="Retour"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
     '<div class="login-hero-row">'+
@@ -5137,12 +5361,13 @@ Views.login = function(){
     '</div>'+
     '<button type="button" class="login-forgot login-forgot-id" onclick="Router.go(\'recover-id\')">ID marchand oublié ?</button>'+
     '<div id="auth-error" style="font-size:13px;margin-bottom:14px;"></div>'+
-    '<button class="btn btn-block btn-login-cta" id="auth-submit-btn" onclick="doLogin()">Se connecter</button>'+
+    '<button class="btn btn-block btn-login-cta" id="auth-submit-btn" onclick="doLogin()"><span class="lc-label">Se connecter</span><span class="lc-spinner"></span><svg class="lc-check" width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12.5 9.5 18 20 6" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
     '<div class="login-divider">Ou continuer avec</div>'+
     '<div class="login-social-row">'+
       '<button type="button" class="login-social-btn" onclick="Toast.show(\'Bientôt disponible\')"><svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.5 3.5 24 3.5 12.7 3.5 3.5 12.7 3.5 24S12.7 44.5 24 44.5 44.5 35.3 44.5 24c0-1.2-.1-2.4-.3-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.5 3.5 24 3.5c-8 0-14.8 4.6-17.7 11.2z"/><path fill="#4CAF50" d="M24 44.5c5.4 0 10.3-1.9 14-5.1l-6.5-5.5c-2 1.4-4.5 2.1-7.5 2.1-5.3 0-9.7-3.3-11.3-8l-6.6 5C9.1 39.8 16 44.5 24 44.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.3 5.6l6.5 5.5c-.5.4 6.8-5 6.8-15.6 0-1.2-.1-2.4-.3-3.5z"/></svg>Google</button>'+
       '<button type="button" class="login-social-btn" onclick="Toast.show(\'Bientôt disponible\')"><svg width="15" height="15" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>Apple</button>'+
     '</div>'+
+  '</div>'+
   '</div>';
 };
 
@@ -5219,23 +5444,23 @@ Views['verify-otp'] = function(){
         'Besoin d\'aide ?'+
       '</button>'+ 
     '</div>'+ 
-    '<div class="otp-icon-wrap">'+
+    '<div class="otp2-icon-wrap">'+
       '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+
     '</div>'+ 
     '<h1 class="otp-title">Entrez le code reçu par e-mail</h1>'+ 
     '<p class="otp-subtitle">Un code à 6 chiffres a été envoyé à<br><b>'+email+'</b></p>'+ 
-    '<div class="otp-boxes">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" autofocus oninput="otpBoxHandle(this,0)" onkeydown="otpBoxKeydown(event,0)" onpaste="otpBoxPaste(event)">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,1)" onkeydown="otpBoxKeydown(event,1)" onpaste="otpBoxPaste(event)">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,2)" onkeydown="otpBoxKeydown(event,2)" onpaste="otpBoxPaste(event)">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,3)" onkeydown="otpBoxKeydown(event,3)" onpaste="otpBoxPaste(event)">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,4)" onkeydown="otpBoxKeydown(event,4)" onpaste="otpBoxPaste(event)">'+
-      '<input class="otp-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,5)" onkeydown="otpBoxKeydown(event,5)" onpaste="otpBoxPaste(event)">'+
+    '<div class="otp2-boxes">'+
+      '<input class="otp-box otp2-box" type="tel" inputmode="numeric" maxlength="1" autofocus oninput="otpBoxHandle(this,0)" onkeydown="otpBoxKeydown(event,0)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box otp2-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,1)" onkeydown="otpBoxKeydown(event,1)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box otp2-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,2)" onkeydown="otpBoxKeydown(event,2)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box otp2-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,3)" onkeydown="otpBoxKeydown(event,3)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box otp2-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,4)" onkeydown="otpBoxKeydown(event,4)" onpaste="otpBoxPaste(event)">'+
+      '<input class="otp-box otp2-box" type="tel" inputmode="numeric" maxlength="1" oninput="otpBoxHandle(this,5)" onkeydown="otpBoxKeydown(event,5)" onpaste="otpBoxPaste(event)">'+
     '</div>'+ 
     '<div class="otp-error" id="otp-error"></div>'+ 
     '<div class="otp-resend-label" id="otp-timer-label">Renvoyer le code dans <b>'+timerMin+':'+timerSec+'</b></div>'+ 
     '<div class="otp-channels">'+
-      '<button class="otp-channel active" id="otp-resend-btn" disabled onclick="OtpGate.resend()">'+
+      '<button class="otp-channel otp2-channel active" id="otp-resend-btn" disabled onclick="OtpGate.resend()">'+
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 1 3 6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 17v-4h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'+ 
         'Renvoyer le code par e-mail'+
       '</button>'+ 
@@ -5244,6 +5469,10 @@ Views['verify-otp'] = function(){
       '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M11 18.5h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'+ 
       'Utiliser un autre compte'+
     '</button>'+ 
+  '</div>'+
+  '<div class="otp2-success-overlay" id="otp2-success-overlay">'+
+    '<div class="otp2-success-ring"><svg width="38" height="38" viewBox="0 0 24 24" fill="none"><path class="otp2-success-check" d="M4 12.5 9.5 18 20 6" stroke="#12B76A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>'+
+    '<div class="otp2-success-msg" id="otp2-success-msg">Code vérifié ✓</div>'+
   '</div>';
 };
 Views._after_verify_otp = function(){
@@ -5360,17 +5589,26 @@ async function doLogin(){
   emailWrap?.classList.toggle('has-error', !identifier);
   passWrap?.classList.toggle('has-error', !pass);
   if(!identifier || !pass){ err.textContent = 'Merci de remplir tous les champs'; return; }
-  err.textContent = ''; btn.disabled = true; btn.textContent = 'Connexion...';
+  err.textContent = ''; btn.disabled = true; btn.classList.add('is-loading');
   const resolved = await Auth.resolveEmail(identifier);
   if(!resolved.ok){
-    btn.disabled = false; btn.textContent = 'Se connecter';
+    btn.disabled = false; btn.classList.remove('is-loading');
     emailWrap?.classList.add('has-error');
     err.textContent = 'E-mail ou ID marchand MA BOUTIQUE introuvable';
     return;
   }
   const res = await Auth.login(resolved.email, pass);
-  if(res.ok){ emailWrap?.classList.remove('has-error'); passWrap?.classList.remove('has-error'); OtpGate.start('login', res.email); return; }
-  btn.disabled = false; btn.textContent = 'Se connecter';
+  if(res.ok){
+    emailWrap?.classList.remove('has-error'); passWrap?.classList.remove('has-error');
+    btn.classList.remove('is-loading'); btn.classList.add('is-success');
+    const viewRoot = document.getElementById('login-view-root');
+    await new Promise(resolve=>setTimeout(resolve, 480));
+    viewRoot?.classList.add('is-leaving');
+    await new Promise(resolve=>setTimeout(resolve, 320));
+    OtpGate.start('login', res.email);
+    return;
+  }
+  btn.disabled = false; btn.classList.remove('is-loading');
   passWrap?.classList.add('has-error');
   err.textContent = res.message || 'Connexion impossible';
 }
@@ -11916,8 +12154,8 @@ Views['shop-account'] = function(){
 
   <div class="acc-group-label">Mes informations</div>
   <div class="acc-card">
-    <div class="acc-row" onclick="openAccountProfileEditor()">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c1-4.2 4-6.5 7.5-6.5s6.5 2.3 7.5 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="openAccountProfileEditor()">
+      <div class="acc-row-icon tg-blue"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.6" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c1-4.2 4-6.5 7.5-6.5s6.5 2.3 7.5 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
       <div class="acc-row-text"><h4>Nom, téléphone, adresse</h4><p>${p.name ? Utils.escapeHtml(p.name)+' · '+Utils.escapeHtml(p.phone||'') : 'À renseigner pour un paiement plus rapide'}</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
@@ -11925,18 +12163,18 @@ Views['shop-account'] = function(){
 
   <div class="acc-group-label">Mes achats</div>
   <div class="acc-card">
-    <div class="acc-row" onclick="Router.go('shop-orders-history')">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="Router.go('shop-orders-history')">
+      <div class="acc-row-icon tg-indigo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
       <div class="acc-row-text"><h4>Historique de mes commandes</h4><p>${myOrders.length ? myOrders.length+' commande(s) trouvée(s)' : 'Retrouver vos commandes précédentes'}</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
-    <div class="acc-row" onclick="openTrackByNumber()">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="openTrackByNumber()">
+      <div class="acc-row-icon tg-orange"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2.5 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7.5H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="acc-row-text"><h4>Suivre ma commande</h4><p>Retrouver une commande par son numéro</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
-    <div class="acc-row" onclick="Router.go('shop-favorites')">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="Router.go('shop-favorites')">
+      <div class="acc-row-icon tg-red"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 20.6s-7.6-4.6-10-9C.4 8.2 2.4 4.5 6 4c2-.3 3.9.6 5 2.3C12.1 4.6 14 3.7 16 4c3.6.5 5.6 4.2 4 7.6-2.4 4.4-8 9-8 9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
       <div class="acc-row-text"><h4>Mes favoris</h4><p>Retrouver vos produits enregistrés</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
@@ -11944,19 +12182,19 @@ Views['shop-account'] = function(){
 
   <div class="acc-group-label">Mon activité</div>
   <div class="acc-card">
-    <div class="acc-row" onclick="openClientPromoList()"><div class="acc-row-icon"><span style="font-weight:900;font-size:15px;">％</span></div><div class="acc-row-text"><h4>Mes codes promo</h4><p>Consulter les offres disponibles et utilisées</p></div><div class="acc-row-chev">›</div></div>
-    <div class="acc-row" onclick="openClientReviews()"><div class="acc-row-icon"><span style="font-size:15px;">★</span></div><div class="acc-row-text"><h4>Mes avis</h4><p>${myReviewsCount ? myReviewsCount+' avis laissé(s)' : 'Retrouver les évaluations laissées aux produits'}</p></div><div class="acc-row-chev">›</div></div>
+    <div class="acc-row acc-row--flat" onclick="openClientPromoList()"><div class="acc-row-icon tg-green"><span style="font-weight:900;font-size:15px;">％</span></div><div class="acc-row-text"><h4>Mes codes promo</h4><p>Consulter les offres disponibles et utilisées</p></div><div class="acc-row-chev">›</div></div>
+    <div class="acc-row acc-row--flat" onclick="openClientReviews()"><div class="acc-row-icon tg-amber"><span style="font-size:15px;">★</span></div><div class="acc-row-text"><h4>Mes avis</h4><p>${myReviewsCount ? myReviewsCount+' avis laissé(s)' : 'Retrouver les évaluations laissées aux produits'}</p></div><div class="acc-row-chev">›</div></div>
   </div>
 
   <div class="acc-group-label">Boutique</div>
   <div class="acc-card">
-    <div class="acc-row" onclick="openWhatsapp()">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 448 512" fill="currentColor"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="openWhatsapp()">
+      <div class="acc-row-icon tg-green"><svg width="17" height="17" viewBox="0 0 448 512" fill="currentColor"><path d="M223.9 32C100.9 32 1.5 131.4 1.5 254.4c0 42.4 11.8 82.1 32.4 116.1L0 480l112.1-33.4c32.6 18.9 70.4 29.8 110.7 29.8h.1c123 0 222.4-99.4 222.4-222.4 0-59.3-23.4-115.1-65.6-157.2-42.2-42.2-98-64.7-155.8-64.7zm0 407.2h-.1c-35.5 0-70.3-9.5-100.6-27.5l-7.2-4.3-74.7 19.6 19.9-72.8-4.7-7.5c-19.8-31.5-30.2-67.9-30.2-105.4 0-109.1 88.8-197.9 198-197.9 52.9 0 102.6 20.6 140 58.1 37.4 37.4 58 87.1 58 140-.1 109.1-88.9 197.7-198.4 197.7zm108.4-148.3c-5.9-3-35.1-17.3-40.5-19.3-5.4-2-9.4-3-13.3 3-4 6-15.3 19.3-18.8 23.3-3.5 4-6.9 4.5-12.8 1.5-6-3-25.2-9.3-48-29.6-17.7-15.8-29.7-35.3-33.2-41.3-3.5-6-.4-9.2 2.6-12.2 2.7-2.7 6-7 9-10.5s4-6 6-10 1-7.5-.5-10.5c-1.5-3-13.3-32-18.2-43.9-4.8-11.6-9.7-10-13.3-10.2-3.4-.2-7.4-.2-11.3-.2s-10.5 1.5-16 7.5c-5.5 6-21 20.5-21 50s21.5 58 24.5 62 42.3 64.6 102.6 90.6c14.3 6.2 25.5 9.9 34.2 12.7 14.4 4.6 27.5 3.9 37.8 2.4 11.5-1.7 35.1-14.4 40.1-28.3 5-13.9 5-25.8 3.5-28.3-1.5-2.5-5.4-4-11.4-7z"/></svg></div>
       <div class="acc-row-text"><h4>Contacter le vendeur</h4><p>Discuter sur WhatsApp</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
-    <div class="acc-row" onclick="shareLink()">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="2.6" stroke="currentColor" stroke-width="1.6"/><path d="m8.3 10.7 7.4-4.2M8.3 13.3l7.4 4.2" stroke="currentColor" stroke-width="1.6"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="shareLink()">
+      <div class="acc-row-icon tg-teal"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="2.6" stroke="currentColor" stroke-width="1.6"/><path d="m8.3 10.7 7.4-4.2M8.3 13.3l7.4 4.2" stroke="currentColor" stroke-width="1.6"/></svg></div>
       <div class="acc-row-text"><h4>Partager la boutique</h4><p>Copier le lien de la boutique</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
@@ -11965,13 +12203,13 @@ Views['shop-account'] = function(){
   <div class="acc-group-label">Paramètres</div>
   <div class="acc-card">
     
-    <div class="acc-row" onclick="ClientNotify.openPanel()">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="ClientNotify.openPanel()">
+      <div class="acc-row-icon tg-pink"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="acc-row-text"><h4>Notifications</h4><p>Suivi de vos commandes en temps réel</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
-    <div class="acc-row" onclick="Router.go('shop-about')">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v6M12 8v.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="Router.go('shop-about')">
+      <div class="acc-row-icon tg-purple"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v6M12 8v.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></div>
       <div class="acc-row-text"><h4>À propos de la boutique</h4><p>Coordonnées et informations</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
@@ -11979,8 +12217,8 @@ Views['shop-account'] = function(){
 
   <div class="acc-group-label">Aide</div>
   <div class="acc-card" style="margin-bottom:28px;">
-    <div class="acc-row" onclick="Router.go('shop-help')">
-      <div class="acc-row-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.2 1.9-2.2 3.6M12 16.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+    <div class="acc-row acc-row--flat" onclick="Router.go('shop-help')">
+      <div class="acc-row-icon tg-blue"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.2 1.9-2.2 3.6M12 16.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div>
       <div class="acc-row-text"><h4>Aide & questions fréquentes</h4><p>Livraison, paiement, commandes</p></div>
       <div class="acc-row-chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </div>
@@ -14428,155 +14666,44 @@ function renderShopNotFound(){
   const root=document.getElementById('page-root');
   const nav=document.getElementById('bottom-nav'); if(nav) nav.classList.add('hidden');
   root.innerHTML = `<style>
-.nf-wrap{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow:hidden;background:linear-gradient(180deg,#f4f8ff 0%,#ffffff 38%,#ffffff 100%);font-family:inherit;color:#0b1b4d;padding:0 22px;box-sizing:border-box;}
-.nf-wave-t,.nf-wave-b{position:absolute;left:0;width:100%;pointer-events:none;}
-.nf-wave-t{top:0;height:110px;}
-.nf-wave-b{bottom:0;height:130px;}
-.nf-head{position:relative;z-index:1;width:100%;max-width:460px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:64px;}
+.nf-wrap{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow:hidden;background:#fbfbfc;font-family:inherit;color:#151b22;padding:0 24px;box-sizing:border-box;}
+.nf-head{position:relative;z-index:1;width:100%;max-width:460px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:56px;}
 .nf-brand{display:flex;align-items:center;gap:8px;}
-.nf-brand-txt{font-weight:800;font-size:17px;line-height:1.05;letter-spacing:-.3px;color:#0b1b4d;}
-.nf-brand-txt span{color:#1d5fe0;display:block;}
-.nf-pill{display:flex;align-items:center;gap:8px;background:#eaf1fc;border-radius:16px;padding:8px 12px;font-size:11px;line-height:1.3;color:#3e5a8a;max-width:170px;}
-.nf-art{position:relative;z-index:1;width:100%;max-width:400px;margin:10px auto 0;display:block;}
-.nf-title{position:relative;z-index:1;text-align:center;font-weight:800;font-size:clamp(34px,10vw,46px);line-height:1;letter-spacing:-1.2px;margin:6px 0 0;color:#0b1b4d;}
-.nf-title span{display:block;color:#1d5fe0;margin-top:4px;}
-.nf-bar{position:relative;z-index:1;width:46px;height:4px;border-radius:4px;background:#f5b400;margin:14px auto 12px;}
-.nf-msg{position:relative;z-index:1;text-align:center;max-width:320px;font-size:15px;line-height:1.55;color:#5b6b8c;margin:0;}
-.nf-btn{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:14px;width:100%;max-width:340px;margin-top:22px;padding:15px 22px;border:0;border-radius:999px;background:linear-gradient(180deg,#2f8bff 0%,#1257e6 100%);color:#fff;font-size:16px;font-weight:700;font-family:inherit;box-shadow:0 10px 24px rgba(29,95,224,.35);cursor:pointer;}
-.nf-btn i{width:1px;height:24px;background:rgba(255,255,255,.35);}
-.nf-feats{position:relative;z-index:1;width:100%;max-width:460px;display:grid;grid-template-columns:repeat(4,1fr);margin:26px 0 150px;}
-.nf-feat{text-align:center;padding:0 4px;border-left:1px solid #dfe7f5;}
-.nf-feat:first-child{border-left:0;}
-.nf-feat-ic{width:38px;height:38px;border-radius:50%;background:#eaf1fc;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;}
-.nf-feat b{display:block;font-size:11px;line-height:1.2;color:#0b1b4d;}
-.nf-feat small{display:block;font-size:10px;line-height:1.25;color:#7b8aa6;margin-top:3px;}
-
-/* ---- Animations de l'illustration (SVG codé, sans image) ---- */
-@media (prefers-reduced-motion: no-preference){
-  .nf-anim-phone{animation:nfFloat 3.4s ease-in-out infinite;}
-  .nf-anim-shadow{animation:nfShadowPulse 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center;}
-  .nf-anim-badge{animation:nfBadgePulse 1.9s ease-in-out infinite;transform-box:fill-box;transform-origin:center;}
-  .nf-anim-plant{animation:nfSway 4.2s ease-in-out infinite;transform-box:fill-box;transform-origin:bottom center;}
-  .nf-anim-sparkle-a{animation:nfTwinkle 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center;}
-  .nf-anim-sparkle-b{animation:nfTwinkle 1.6s ease-in-out .5s infinite;transform-box:fill-box;transform-origin:center;}
-}
-@keyframes nfFloat{
-  0%,100%{transform:translateY(0);}
-  50%{transform:translateY(-8px);}
-}
-@keyframes nfShadowPulse{
-  0%,100%{transform:scale(1);opacity:1;}
-  50%{transform:scale(.9);opacity:.75;}
-}
-@keyframes nfBadgePulse{
-  0%,100%{transform:scale(1);}
-  50%{transform:scale(1.08);}
-}
-@keyframes nfSway{
-  0%,100%{transform:rotate(-3deg);}
-  50%{transform:rotate(3deg);}
-}
-@keyframes nfTwinkle{
-  0%,100%{opacity:.15;transform:scale(.7);}
-  50%{opacity:1;transform:scale(1);}
-}
+.nf-brand-txt{font-weight:800;font-size:15px;line-height:1.05;letter-spacing:-.2px;color:#151b22;}
+.nf-brand-txt span{color:#2563EB;display:block;}
+.nf-pill{display:flex;align-items:center;gap:8px;background:#e8f0fe;border-radius:16px;padding:8px 12px;font-size:11px;line-height:1.3;color:#1d4ed8;max-width:160px;}
+.nf-icon-wrap{position:relative;z-index:1;width:112px;height:112px;border-radius:32px;background:#e8f0fe;display:flex;align-items:center;justify-content:center;margin:44px auto 0;}
+.nf-title{position:relative;z-index:1;text-align:center;font-weight:800;font-size:clamp(28px,8vw,36px);line-height:1.1;letter-spacing:-.8px;margin:26px 0 0;color:#151b22;}
+.nf-title span{color:#2563EB;}
+.nf-bar{position:relative;z-index:1;width:40px;height:3px;border-radius:4px;background:#2563EB;margin:14px auto 14px;}
+.nf-msg{position:relative;z-index:1;text-align:center;max-width:320px;font-size:14.5px;line-height:1.55;color:#6a7280;margin:0;}
+.nf-btn{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:12px;width:100%;max-width:340px;margin-top:26px;padding:15px 22px;border:0;border-radius:999px;background:#2563EB;color:#fff;font-size:15.5px;font-weight:700;font-family:inherit;box-shadow:0 12px 24px rgba(37,99,235,.28);cursor:pointer;}
+.nf-btn i{width:1px;height:22px;background:rgba(255,255,255,.35);}
+.nf-feats{position:relative;z-index:1;width:100%;max-width:420px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:34px 0 60px;}
+.nf-feat{display:flex;align-items:center;gap:10px;text-align:left;padding:12px;border-radius:14px;background:#fff;border:1px solid #eef1f4;}
+.nf-feat-ic{width:34px;height:34px;border-radius:50%;background:#e8f0fe;display:flex;align-items:center;justify-content:center;flex:none;}
+.nf-feat b{display:block;font-size:12px;line-height:1.2;color:#151b22;}
 </style>
 <div class="nf-wrap">
-  <svg class="nf-wave-t" viewBox="0 0 400 110" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0h230C170 10 120 60 60 72 30 78 10 100 0 118Z" fill="#1d6bf0"/><path d="M0 0h120C80 12 40 40 0 60Z" fill="#3b8bff" opacity=".55"/></svg>
-  <svg class="nf-wave-b" viewBox="0 0 400 130" preserveAspectRatio="none" aria-hidden="true"><path d="M0 60C90 20 200 40 400 20v110H0Z" fill="#2a76f2" opacity=".35"/><path d="M0 95C110 60 260 110 400 70v60H0Z" fill="#1d5fe0"/></svg>
   <div class="nf-head">
     <div class="nf-brand">
-      <svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="nfg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b9bff"/><stop offset="1" stop-color="#1257e6"/></linearGradient></defs><path d="M13 14v-3a7 7 0 0 1 14 0v3" fill="none" stroke="#1d5fe0" stroke-width="3" stroke-linecap="round"/><rect x="5" y="14" width="30" height="22" rx="7" fill="url(#nfg)"/><path d="M14 24c1.5 4 10.5 4 12 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
+      <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="14" width="30" height="22" rx="7" fill="#2563EB"/><path d="M13 14v-3a7 7 0 0 1 14 0v3" fill="none" stroke="#2563EB" stroke-width="3" stroke-linecap="round"/><path d="M14 24c1.5 4 10.5 4 12 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
       <div class="nf-brand-txt">Boutique<span>introuvable</span></div>
     </div>
-    <div class="nf-pill"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d5fe0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8 7 10 4-2 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Votre satisfaction est notre priorité</span></div>
+    <div class="nf-pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.4 3 8 7 10 4-2 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Satisfaction garantie</span></div>
   </div>
-  <svg class="nf-art" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Illustration boutique introuvable">
-    <defs>
-      <linearGradient id="nfPhoneG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#eaf1fc"/>
-        <stop offset="1" stop-color="#dbe7fb"/>
-      </linearGradient>
-      <linearGradient id="nfAwningA" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#1d5fe0"/>
-        <stop offset="1" stop-color="#2f8bff"/>
-      </linearGradient>
-      <linearGradient id="nfXBadge" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#3b9bff"/>
-        <stop offset="1" stop-color="#1257e6"/>
-      </linearGradient>
-      <radialGradient id="nfShadow" cx="50%" cy="50%" r="50%">
-        <stop offset="0" stop-color="#1d5fe0" stop-opacity=".18"/>
-        <stop offset="1" stop-color="#1d5fe0" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
-
-    <!-- ombre sol -->
-    <ellipse cx="200" cy="272" rx="120" ry="16" fill="url(#nfShadow)"/>
-
-    <!-- plante -->
-    <g class="nf-anim-plant">
-      <g transform="translate(52,182)">
-        <rect x="0" y="46" width="46" height="40" rx="6" fill="#ffffff" stroke="#dfe7f5" stroke-width="2"/>
-        <path d="M23 46c-16-8-20-26-14-40 12 2 22 14 22 28 0-14 10-26 22-28 6 14 2 32-14 40" fill="none" stroke="#2fa86a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M23 12v34" stroke="#2fa86a" stroke-width="4" stroke-linecap="round"/>
-      </g>
-    </g>
-
-    <!-- socle -->
-    <ellipse class="nf-anim-shadow" cx="205" cy="258" rx="98" ry="14" fill="#eef3fb"/>
-
-    <!-- téléphone -->
-    <g class="nf-anim-phone">
-    <g transform="translate(126,26)">
-      <rect x="0" y="0" width="150" height="230" rx="26" fill="#0b1b4d"/>
-      <rect x="6" y="8" width="138" height="214" rx="20" fill="url(#nfPhoneG)"/>
-
-      <!-- auvent de boutique -->
-      <path d="M14 46 L14 30 A61 12 0 0 1 136 30 L136 46 Z" fill="url(#nfAwningA)"/>
-      <path d="M14 46h30v10a15 15 0 0 1-30 0Z" fill="#ffffff"/>
-      <path d="M44 46h30v10a15 15 0 0 1-30 0Z" fill="url(#nfAwningA)"/>
-      <path d="M74 46h30v10a15 15 0 0 1-30 0Z" fill="#ffffff"/>
-      <path d="M104 46h32v10a16 16 0 0 1-32 0Z" fill="url(#nfAwningA)"/>
-
-      <!-- panier -->
-      <g transform="translate(45,92)" stroke="#1d5fe0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
-        <path d="M0 8h10l9 42h38l9-32H16"/>
-        <circle cx="24" cy="62" r="6" fill="#1d5fe0" stroke="none"/>
-        <circle cx="50" cy="62" r="6" fill="#1d5fe0" stroke="none"/>
-      </g>
-
-      <!-- lignes de contenu -->
-      <rect x="38" y="172" width="74" height="8" rx="4" fill="#c7d7f5"/>
-      <rect x="38" y="188" width="52" height="8" rx="4" fill="#dbe7fb"/>
-    </g>
-    </g>
-
-    <!-- badge X -->
-    <g class="nf-anim-badge">
-      <circle cx="240" cy="150" r="42" fill="url(#nfXBadge)"/>
-      <path d="M226 136 254 164 M254 136 226 164" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
-    </g>
-
-    <!-- étincelles -->
-    <g class="nf-anim-sparkle-a" stroke="#1d5fe0" stroke-width="4" stroke-linecap="round" opacity=".55">
-      <path d="M312 60v18"/>
-      <path d="M303 69h18"/>
-    </g>
-    <g class="nf-anim-sparkle-b" stroke="#2f8bff" stroke-width="3.5" stroke-linecap="round" opacity=".4">
-      <path d="M336 96v12"/>
-      <path d="M330 102h12"/>
-    </g>
-  </svg>
-  <h1 class="nf-title">Boutique<span>introuvable</span></h1>
+  <div class="nf-icon-wrap">
+    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="8" width="18" height="13" rx="3" stroke="#2563EB" stroke-width="1.8"/><path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/><path d="M8 14l8 4M16 14l-8 4" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </div>
+  <h1 class="nf-title">Boutique <span>introuvable</span></h1>
   <div class="nf-bar"></div>
-  <p class="nf-msg">Ce lien n’est plus valide ou la boutique a été retirée. Pas d’inquiétude, vous pouvez retourner à l’accueil pour continuer votre navigation.</p>
-  <button class="nf-btn" onclick="location.href=location.origin"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg><i></i><span>Retour à l’accueil</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  <p class="nf-msg">Ce lien n'est plus valide ou la boutique a été retirée. Retournez à l'accueil pour continuer votre navigation.</p>
+  <button class="nf-btn" onclick="location.href=location.origin"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg><i></i><span>Retour à l'accueil</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   <div class="nf-feats">
-    <div class="nf-feat"><span class="nf-feat-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d5fe0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 8 7 10 4-2 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span><b>Boutiques vérifiées</b><small>Achetez en toute confiance</small></div>
-    <div class="nf-feat"><span class="nf-feat-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d5fe0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span><b>Livraison rapide</b><small>Partout où vous êtes</small></div>
-    <div class="nf-feat"><span class="nf-feat-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d5fe0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M19 20c0 1-2 2-5 2"/></svg></span><b>Service client</b><small>Toujours à votre écoute</small></div>
-    <div class="nf-feat"><span class="nf-feat-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d5fe0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1"/></svg></span><b>Paiement sécurisé</b><small>Vos transactions sont protégées</small></div>
+    <div class="nf-feat"><span class="nf-feat-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 8 7 10 4-2 7-5.6 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span><b>Boutiques vérifiées</b></div>
+    <div class="nf-feat"><span class="nf-feat-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg></span><b>Livraison rapide</b></div>
+    <div class="nf-feat"><span class="nf-feat-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M19 20c0 1-2 2-5 2"/></svg></span><b>Service client</b></div>
+    <div class="nf-feat"><span class="nf-feat-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1"/></svg></span><b>Paiement sécurisé</b></div>
   </div>
 </div>`;
   try{ window.scrollTo(0,0); }catch(e){}
@@ -15917,7 +16044,7 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
         <div class="field"><label>Quartier</label><input id="acc-district" type="text" value="${Utils.escapeHtml(p.district||'')}"></div>
         <div class="field full"><label>Adresse / repère</label><input id="acc-address" type="text" autocomplete="street-address" placeholder="Rue, repère, lieu connu…" value="${Utils.escapeHtml(p.address||'')}"></div>
       </div>
-      <div class="v39-location-card"><div class="v39-location-head"><div class="v39-location-icon">📍</div><div><b>Position de livraison</b><span>Utilisez la localisation de votre téléphone puis ouvrez-la dans Google Maps.</span></div></div>
+      <div class="v39-location-card"><div class="v39-location-head"><div class="v39-location-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-7.2 7-12a7 7 0 1 0-14 0c0 4.8 7 12 7 12Z" stroke="var(--siams-orange-dark,#E5670D)" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.6" stroke="var(--siams-orange-dark,#E5670D)" stroke-width="1.8"/></svg></div><div><b>Position de livraison</b><span>Utilisez la localisation de votre téléphone puis ouvrez-la dans Google Maps.</span></div></div>
         <div id="acc-location-preview" style="font-size:11px;color:${p.lat&&p.lng?'var(--green)':'var(--text-mid)'};line-height:1.45;margin-bottom:8px;">${p.lat&&p.lng?mapsLabel+'<br><span style="font-size:10.5px;">'+Utils.escapeHtml(p.lat)+', '+Utils.escapeHtml(p.lng)+'</span>':'Aucune position enregistrée'}</div>
         <input id="acc-lat" type="hidden" value="${Utils.escapeHtml(p.lat||'')}"><input id="acc-lng" type="hidden" value="${Utils.escapeHtml(p.lng||'')}"><input id="acc-maps-url" type="hidden" value="${Utils.escapeHtml(p.mapsUrl||'')}">
         <div class="v39-location-actions"><button id="acc-location-btn" class="btn btn-soft-green" onclick="captureClientLocation()">${p.lat&&p.lng?'Actualiser ma position':'Utiliser ma position'}</button><button class="btn btn-outline" onclick="openClientMaps()">Ouvrir Google Maps</button></div>
@@ -16087,7 +16214,7 @@ Views['maboutique-admin-courier-identity-v67']=function(){ Router.go('maboutique
     const wrap=document.getElementById('acc-edit-wrap'); if(!wrap)return;
     const host=wrap.querySelector('.shop-sheet'); if(!host)return;
     const first=host.querySelector('h3');
-    const photo= document.createElement('div'); photo.innerHTML=`<div class="v40-client-profile-photo" id="v40-client-photo-preview">${p.photo?`<img src="${esc(p.photo)}" alt="Photo de profil">`:`<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="color:var(--text-soft)"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.9-4 3.7-6.2 7.5-6.2s6.6 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`}</div><div class="v40-client-photo-btn"><button type="button" onclick="document.getElementById('v40-client-photo-input').click()">📷 ${p.photo?'Modifier ma photo':'Ajouter ma photo'}</button><input id="v40-client-photo-input" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="window.handleClientProfilePhoto(event)"></div><div class="v40-profile-photo-note">Votre photo est utilisée uniquement pour votre profil client.</div>`;
+    const photo= document.createElement('div'); photo.innerHTML=`<div class="v40-client-profile-photo" id="v40-client-photo-preview">${p.photo?`<img src="${esc(p.photo)}" alt="Photo de profil">`:`<svg width="38" height="38" viewBox="0 0 24 24" fill="none" style="color:var(--text-soft)"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 20c.9-4 3.7-6.2 7.5-6.2s6.6 2.2 7.5 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`}</div><div class="v40-client-photo-btn"><button type="button" onclick="document.getElementById('v40-client-photo-input').click()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:5px;"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1-2h7l1 2h2A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg>${p.photo?'Modifier ma photo':'Ajouter ma photo'}</button><input id="v40-client-photo-input" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="window.handleClientProfilePhoto(event)"></div><div class="v40-profile-photo-note">Votre photo est utilisée uniquement pour votre profil client.</div>`;
     host.insertBefore(photo,first?.nextSibling||host.firstChild);
   };
   window.handleClientProfilePhoto=function(e){const f=e.target.files&&e.target.files[0];if(!f)return;maboutiquePrepareImageDataURL(f).then(dataUrl=>{const img=document.getElementById('v40-client-photo-preview');if(img)img.innerHTML=`<img src="${esc(dataUrl)}" alt="Photo de profil">`;window._v40ClientPhoto=dataUrl;}).catch(()=>Toast.show('Impossible de traiter cette photo'));};
@@ -16382,8 +16509,42 @@ html[data-maboutique-theme="dark"] .notif-v42-sheet,html[data-maboutique-theme="
     const phone=(document.getElementById('partner-phone')?.value||'').trim();
     const request=(document.getElementById('partner-request')?.value||'').trim();
     if(!name||!phone||!request){Toast.show('Renseignez votre nom, votre téléphone et votre requête.');return;}
-    const email=prompt('Votre e-mail pour recevoir la confirmation MA BOUTIQUE :','');
-    if(!email || !email.includes('@')){Toast.show('Un e-mail valide est nécessaire.');return;}
+    siamsShowEmailModal({name,shop,phone,request});
+  };
+
+  /* ---- Modale e-mail (remplace le prompt() natif du navigateur) ---- */
+  function siamsShowEmailModal(data){
+    document.getElementById('siams-email-modal')?.remove();
+    window.__siamsPartnerRequestData = data;
+    const d=document.createElement('div');
+    d.id='siams-email-modal';
+    d.innerHTML=`
+      <div class="v20-backdrop" onclick="document.getElementById('siams-email-modal')?.remove()"></div>
+      <div class="v20-dialog">
+        <div class="v20-dialog-head"><b>Confirmation par e-mail</b><button onclick="document.getElementById('siams-email-modal')?.remove()">×</button></div>
+        <div class="v20-dialog-body">
+          <label class="v20-field">Votre e-mail
+            <input type="email" id="siams-partner-email" placeholder="vous@exemple.com" inputmode="email" autocomplete="email">
+            <small class="v20-help">Nous vous enverrons la confirmation de votre demande MA BOUTIQUE à cette adresse.</small>
+          </label>
+          <div class="v20-two">
+            <button class="btn btn-ghost" onclick="document.getElementById('siams-email-modal')?.remove()">Annuler</button>
+            <button class="btn btn-primary" onclick="ActivationGate.confirmPartnerEmail()">OK</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(d);
+    const input=document.getElementById('siams-partner-email');
+    setTimeout(()=>input?.focus(),50);
+    input?.addEventListener('keydown',e=>{ if(e.key==='Enter') ActivationGate.confirmPartnerEmail(); });
+  }
+
+  ActivationGate.confirmPartnerEmail = async function(){
+    const input=document.getElementById('siams-partner-email');
+    const email=(input?.value||'').trim();
+    if(!email || !email.includes('@')){ Toast.show('Un e-mail valide est nécessaire.'); input?.focus(); return; }
+    document.getElementById('siams-email-modal')?.remove();
+    const {name,shop,phone,request}=window.__siamsPartnerRequestData||{};
     const q={name,shop,phone,request,email,pending:true,createdAt:Date.now()}; this.saveRequest(q);
     const saved=await saveRegistrationRequest({name,shop,phone,email,request,source:'partner'});
     if(saved && saved.id){ q.requestId=saved.id; this.saveRequest(q); }
