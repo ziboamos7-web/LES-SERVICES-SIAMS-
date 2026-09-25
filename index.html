@@ -1522,6 +1522,17 @@
   .delivered-badge-pop{background:#fff;border-radius:20px;padding:26px 32px;display:flex;flex-direction:column;align-items:center;gap:10px;font-weight:700;font-size:15px;color:var(--ink);transform:scale(.7);opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;box-shadow:0 12px 32px rgba(0,0,0,.18);}
   .delivered-badge-overlay.show .delivered-badge-pop{transform:scale(1);opacity:1;}
   .achievement-pop{max-width:270px;}
+  /* ---- Verrou "fonctionnalité pas encore active" (onglets bloqués temporairement) ---- */
+  .locked-feature-overlay{position:fixed;inset:0;z-index:99999;background:rgba(21,19,31,0);display:flex;align-items:center;justify-content:center;pointer-events:none;transition:background .25s ease;padding:24px;}
+  .locked-feature-overlay.show{background:rgba(21,19,31,.45);pointer-events:auto;}
+  .locked-feature-card{background:#fff;border-radius:22px;padding:28px 26px 22px;width:min(320px,100%);text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.28);transform:scale(.7) translateY(10px);opacity:0;transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;}
+  .locked-feature-overlay.show .locked-feature-card{transform:scale(1) translateY(0);opacity:1;}
+  .locked-feature-icon{width:56px;height:56px;border-radius:50%;background:var(--mango-tint,#fff2da);color:var(--mango-dark,#b8721e);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+  .locked-feature-overlay.show .locked-feature-icon{animation:lockedFeatureShake 1.5s ease-in-out .1s 2;}
+  @keyframes lockedFeatureShake{0%,100%{transform:rotate(0);}15%{transform:rotate(-9deg);}30%{transform:rotate(9deg);}45%{transform:rotate(-6deg);}60%{transform:rotate(6deg);}75%{transform:rotate(-2deg);}90%{transform:rotate(0);}}
+  .locked-feature-card h4{margin:0 0 8px;font-size:15.5px;font-weight:800;color:var(--ink,#171522);}
+  .locked-feature-card p{margin:0;font-size:12.5px;line-height:1.55;color:var(--text-mid,#6b7280);}
+
   .achievement-ic{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
   .theme-swatch{width:44px;height:44px;border-radius:14px;flex:none;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.08);}
   .theme-tier-row{display:flex;align-items:center;gap:14px;border:1.5px solid var(--line);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px;background:#fff;}
@@ -3818,6 +3829,9 @@ const ThemeUnlock = { init(){}, unlock(){}, setActive(){}, applyTier(){}, unlock
 
 /* ---------------- Export du rapport de ventes (PDF) ---------------- */
 async function exportSalesReportPDF(){
+  FeatureSoon.show('export-rapport');
+  return;
+  // eslint-disable-next-line no-unreachable
   if(!await ensureJsPDF()){ Toast.show('Génération PDF indisponible, réessayez'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'a4' });
@@ -3960,6 +3974,55 @@ const Toast = {
   }
 };
 
+/* ---------------- Fonctionnalités temporairement bloquées ----------------
+   Affiche un message animé (5s) au lieu d'ouvrir l'onglet/l'action concernée.
+   Le blocage se fait de façon centralisée dans Router.go (voir plus bas) et
+   dans exportSalesReportPDF, ce qui couvre tous les boutons qui mènent à ces
+   écrans, où qu'ils se trouvent dans l'app. ---- */
+const LOCKED_FEATURE_MESSAGES = {
+  'verification': { title:'Certification boutique', msg:"Désolé, pour l'instant cette fonctionnalité n'est pas encore active chez vous. Vous ne pouvez pas encore lancer la vérification pour obtenir le badge vert certifié." },
+  'promos': { title:'Codes promo', msg:"Désolé, pour l'instant cette fonctionnalité n'est pas encore active chez vous. La création de codes promo sera bientôt disponible." },
+  'team': { title:'Équipe', msg:"Désolé, pour l'instant cette fonctionnalité n'est pas encore active chez vous. L'invitation de collaborateurs sera bientôt disponible." },
+  'payment': { title:'Paiement', msg:"Désolé, pour l'instant cette fonctionnalité n'est pas encore active chez vous. Seuls SIAMS BANQUE et le paiement à la livraison restent proposés à vos clients." },
+  'commissions-apercu': { title:'Aperçu du contrat', msg:"Désolé, pour l'instant cette fonctionnalité n'est pas encore active chez vous. L'aperçu de votre contrat sera bientôt disponible." },
+  'export-rapport': { title:'Exporter mes rapports', msg:"Désolé, pour l'instant cette fonctionnalité n'est pas encore active chez vous. L'export de rapports en PDF sera bientôt disponible." }
+};
+const FeatureSoon = {
+  _timer:null,
+  ensure(){
+    let el = document.getElementById('locked-feature-overlay');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'locked-feature-overlay';
+      el.className = 'locked-feature-overlay';
+      el.innerHTML = `<div class="locked-feature-card">
+        <div class="locked-feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <h4 id="locked-feature-title"></h4>
+        <p id="locked-feature-msg"></p>
+      </div>`;
+      el.addEventListener('click', ()=>FeatureSoon.hide());
+      document.body.appendChild(el);
+    }
+    return el;
+  },
+  show(key){
+    const f = LOCKED_FEATURE_MESSAGES[key] || { title:'Fonctionnalité', msg:"Désolé, pour l'instant cette fonctionnalité n'est pas encore active chez vous." };
+    const el = this.ensure();
+    el.querySelector('#locked-feature-title').textContent = f.title;
+    el.querySelector('#locked-feature-msg').textContent = f.msg;
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(this._timer);
+    this._timer = setTimeout(()=>this.hide(), 5000);
+  },
+  hide(){
+    const el = document.getElementById('locked-feature-overlay');
+    if(el) el.classList.remove('show');
+    clearTimeout(this._timer);
+  }
+};
+
 /* ---------------- Sheet ---------------- */
 const Sheet = {
   open(){
@@ -4077,6 +4140,11 @@ function setUiTheme(v){
 const Router = {
   current:'dashboard',
   go(name, opts){
+    if(LOCKED_FEATURE_MESSAGES[name]){
+      try{ Sheet.close(); }catch(e){}
+      FeatureSoon.show(name);
+      return;
+    }
     /* CORRECTIF : tout ce bloc de pré-traitement s'exécutait avant le rendu de la
        page. Une erreur JS levée n'importe où ici (ex. par un script tiers qui
        patche CourierMission, Notify, Sheet ou applyUiTheme) interrompait Router.go
